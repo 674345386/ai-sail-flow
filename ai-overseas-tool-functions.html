@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI 出海带货工具｜功能说明</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: rgba(20, 29, 53, .84);
+      --panel-2: #151f3b;
+      --text: #f4f7ff;
+      --muted: #a9b5d0;
+      --line: rgba(255,255,255,.12);
+      --lime: #c9f24a;
+      --orange: #ff9e3d;
+      --blue: #7aa2ff;
+      --shadow: 0 20px 60px rgba(0,0,0,.28);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 85% 0%, rgba(122,162,255,.22), transparent 34rem),
+        radial-gradient(circle at 0% 35%, rgba(255,158,61,.12), transparent 28rem),
+        var(--bg);
+      font: 16px/1.7 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+    a { color: inherit; }
+    .wrap { width: min(1120px, calc(100% - 40px)); margin: auto; }
+    header { padding: 76px 0 48px; }
+    .eyebrow { color: var(--lime); letter-spacing: .14em; font-size: 13px; font-weight: 700; }
+    h1 { margin: 14px 0 18px; max-width: 760px; font-size: clamp(36px, 7vw, 72px); line-height: 1.06; letter-spacing: -.045em; }
+    .lead { max-width: 720px; margin: 0; color: var(--muted); font-size: 19px; }
+    .tags { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 27px; }
+    .tag { border: 1px solid var(--line); color: #dce5ff; background: rgba(255,255,255,.05); border-radius: 999px; padding: 5px 12px; font-size: 13px; }
+    section { padding: 30px 0; }
+    .section-title { display: flex; align-items: end; justify-content: space-between; gap: 20px; margin-bottom: 18px; }
+    h2 { margin: 0; font-size: 28px; letter-spacing: -.02em; }
+    .section-note { color: var(--muted); font-size: 14px; }
+    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; }
+    .card { min-height: 220px; overflow: hidden; border: 1px solid var(--line); border-radius: 20px; background: linear-gradient(145deg, rgba(28,41,73,.9), rgba(15,22,43,.86)); box-shadow: var(--shadow); }
+    .card-media { margin: 0; border-bottom: 1px solid var(--line); background: #080d1a; }
+    .card-media img { display: block; width: 100%; height: 148px; object-fit: cover; opacity: .88; }
+    .card-media figcaption { padding: 7px 14px; color: var(--muted); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .card-body { padding: 20px 23px 23px; }
+    .card .num { display: inline-grid; place-items: center; width: 31px; height: 31px; border-radius: 10px; color: #11182b; background: var(--lime); font-weight: 800; font-size: 13px; }
+    .card h3 { margin: 17px 0 8px; font-size: 20px; }
+    .card p { margin: 0; color: var(--muted); }
+    .card small { display: inline-block; margin-top: 14px; color: var(--orange); font-size: 12px; }
+    .flow { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; align-items: stretch; }
+    .flow-item { position: relative; padding: 17px 13px; border: 1px solid var(--line); border-radius: 15px; background: var(--panel); text-align: center; }
+    .flow-item strong { display: block; margin-bottom: 4px; font-size: 15px; }
+    .flow-item span { color: var(--muted); font-size: 12px; }
+    .flow-item:not(:last-child)::after { content: "→"; position: absolute; right: -17px; top: 28px; color: var(--orange); font-size: 20px; z-index: 2; }
+    .split { display: grid; grid-template-columns: 1.1fr .9fr; gap: 15px; }
+    .panel { padding: 25px; border: 1px solid var(--line); border-radius: 20px; background: var(--panel); }
+    .panel h3 { margin: 0 0 15px; font-size: 20px; }
+    .checklist { display: grid; gap: 11px; margin: 0; padding: 0; list-style: none; }
+    .checklist li { display: flex; gap: 10px; color: #dce5ff; }
+    .checklist li::before { content: "✓"; flex: none; color: var(--lime); font-weight: 800; }
+    .warning { border-color: rgba(255,158,61,.35); background: linear-gradient(145deg, rgba(88,54,27,.48), rgba(22,25,43,.86)); }
+    .warning .checklist li::before { content: "!"; color: var(--orange); }
+    .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 18px; }
+    table { width: 100%; min-width: 650px; border-collapse: collapse; background: rgba(15,22,43,.7); }
+    th, td { padding: 15px 17px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    th { color: var(--lime); font-size: 13px; letter-spacing: .05em; }
+    td { color: #dce5ff; }
+    td:nth-child(2) { color: var(--muted); }
+    tr:last-child td { border-bottom: 0; }
+    footer { padding: 42px 0 70px; color: var(--muted); font-size: 13px; }
+    .source { padding: 16px 18px; border-left: 3px solid var(--blue); background: rgba(122,162,255,.08); border-radius: 0 12px 12px 0; }
+    @media (max-width: 850px) { .grid { grid-template-columns: repeat(2, 1fr); } .flow { grid-template-columns: repeat(3, 1fr); } .flow-item:not(:last-child)::after { display: none; } .split { grid-template-columns: 1fr; } }
+    @media (max-width: 560px) { .wrap { width: min(100% - 28px, 1120px); } header { padding-top: 48px; } .grid, .flow { grid-template-columns: 1fr; } .card { min-height: auto; } }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <header>
+      <div class="eyebrow">AI × CROSS-BORDER COMMERCE</div>
+      <h1>AI 出海带货工具<br />功能说明</h1>
+      <p class="lead">根据视频中实际展示的界面，整理出这套工具可能承担的工作：把一条参考带货视频，转换成适配不同国家、语言和产品的多版本营销素材。</p>
+      <div class="tags"><span class="tag">视频理解</span><span class="tag">多语言本地化</span><span class="tag">带货素材生成</span><span class="tag">人工审核</span></div>
+    </header>
+
+    <section>
+      <div class="section-title"><h2>工作链路</h2><span class="section-note">从素材输入到结果分析</span></div>
+      <div class="flow">
+        <div class="flow-item"><strong>上传资料</strong><span>参考视频＋产品图</span></div>
+        <div class="flow-item"><strong>理解镜头</strong><span>动作、口播、节奏</span></div>
+        <div class="flow-item"><strong>设置变量</strong><span>国家、语言、人物</span></div>
+        <div class="flow-item"><strong>生成素材</strong><span>视频、字幕、配音</span></div>
+        <div class="flow-item"><strong>审核导出</strong><span>检查内容和画面</span></div>
+        <div class="flow-item"><strong>数据回流</strong><span>点击、订单、销售额</span></div>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-title"><h2>视频中确认展示的功能</h2><span class="section-note">按页面操作整理</span></div>
+      <div class="grid">
+        <article class="card"><figure class="card-media"><img src="assets/ai-overseas-tool/upload-materials.jpg" alt="上传参考视频界面示例" /><figcaption>界面示例：上传参考视频</figcaption></figure><div class="card-body"><span class="num">01</span><h3>上传参考视频</h3><p>导入一条已有的带货或种草视频，作为镜头结构、动作和表达方式的参考。</p><small>输入素材</small></div></article>
+        <article class="card"><figure class="card-media"><img src="assets/ai-overseas-tool/upload-materials.jpg" alt="产品参考图上传区域示例" /><figcaption>界面示例：产品参考图区域</figcaption></figure><div class="card-body"><span class="num">02</span><h3>上传产品参考图</h3><p>加入产品包装、商品主图等图片，让生成内容能够围绕指定商品展开。</p><small>输入素材</small></div></article>
+        <article class="card"><figure class="card-media"><img src="assets/ai-overseas-tool/generation-variables.jpg" alt="目标国家地区选择示例" /><figcaption>界面示例：目标国家 / 地区下拉菜单</figcaption></figure><div class="card-body"><span class="num">03</span><h3>目标国家 / 地区</h3><p>选择美国、英国、澳大利亚、巴西、法国、德国、日本等目标市场。</p><small>本地化配置</small></div></article>
+        <article class="card"><figure class="card-media"><img src="assets/ai-overseas-tool/generation-variables.jpg" alt="目标语言设置示例" /><figcaption>界面示例：目标语言为英语</figcaption></figure><div class="card-body"><span class="num">04</span><h3>目标语言</h3><p>指定输出语言，例如英语，使口播、字幕和文案适配目标市场。</p><small>本地化配置</small></div></article>
+        <article class="card"><figure class="card-media"><img src="assets/ai-overseas-tool/generation-controls.jpg" alt="产品名称输入框示例" /><figcaption>界面示例：填写产品名称</figcaption></figure><div class="card-body"><span class="num">05</span><h3>产品名称</h3><p>填写商品名称，帮助系统把参考视频中的表达转化为当前产品的带货内容。</p><small>内容配置</small></div></article>
+        <article class="card"><figure class="card-media"><img src="assets/ai-overseas-tool/generation-controls.jpg" alt="人物和视频时长设置示例" /><figcaption>界面示例：人物要求与目标时长</figcaption></figure><div class="card-body"><span class="num">06</span><h3>人物与时长要求</h3><p>可以设置是否保持原人物，以及是否保持原视频时长。</p><small>生成控制</small></div></article>
+        <article class="card"><figure class="card-media"><img src="assets/ai-overseas-tool/generation-controls.jpg" alt="保留镜头结构开关示例" /><figcaption>界面示例：保留镜头结构开关</figcaption></figure><div class="card-body"><span class="num">07</span><h3>保留镜头结构</h3><p>保留参考视频的镜头顺序、节奏和叙事骨架，同时替换语言或产品表达。</p><small>生成控制</small></div></article>
+        <article class="card"><figure class="card-media"><img src="assets/ai-overseas-tool/generation-controls.jpg" alt="需要字幕开关示例" /><figcaption>界面示例：需要字幕开关</figcaption></figure><div class="card-body"><span class="num">08</span><h3>自动生成字幕</h3><p>为生成的视频添加字幕，适合短视频平台的静音观看场景。</p><small>后期处理</small></div></article>
+        <article class="card"><figure class="card-media"><img src="assets/ai-overseas-tool/generated-gallery.jpg" alt="多条生成视频素材示例" /><figcaption>画面示例：多条生成素材合集</figcaption></figure><div class="card-body"><span class="num">09</span><h3>生成多版本素材</h3><p>从同一个产品和参考视频产出不同场景、人物或表达方式的带货视频，用于创意测试。</p><small>输出结果</small></div></article>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-title"><h2>功能作用对照</h2><span class="section-note">为什么这些功能有价值</span></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>功能</th><th>解决的问题</th><th>适合的使用场景</th></tr></thead>
+          <tbody>
+            <tr><td>视频理解</td><td>不用从零设计脚本和镜头</td><td>复用已经验证过的爆款内容结构</td></tr>
+            <tr><td>国家与语言选择</td><td>减少人工翻译和本地化工作</td><td>同一商品测试多个海外市场</td></tr>
+            <tr><td>镜头结构保留</td><td>保持原视频的节奏和叙事逻辑</td><td>快速改编已有 UGC / 口播素材</td></tr>
+            <tr><td>字幕与配音</td><td>降低重新拍摄的成本</td><td>制作多语言广告和商品介绍</td></tr>
+            <tr><td>多版本生成</td><td>提高素材试错和迭代速度</td><td>比较不同开头、卖点和 CTA 的转化表现</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section>
+      <div class="split">
+        <div class="panel">
+          <h3>视频还展示了哪些外围系统</h3>
+          <ul class="checklist">
+            <li>海外独立站商品页：商品图、价格、优惠套餐、购物车和结账。</li>
+            <li>销售数据看板：总销售额、订单数、客单价和每日销售趋势。</li>
+            <li>这些页面可能与素材工具配套使用，但视频没有证明它们属于同一个系统。</li>
+          </ul>
+        </div>
+        <div class="panel warning">
+          <h3>视频没有明确证明的功能</h3>
+          <ul class="checklist">
+            <li>自动投放广告</li>
+            <li>自动发布到各个平台</li>
+            <li>自动处理订单和物流</li>
+            <li>自动客服或评论运营</li>
+            <li>销售数据是否为净利润</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <div class="source">说明：本页面根据所提供视频中的界面、字幕和演示画面整理。对于视频没有明确展示的能力，采用“未确认”标注，不代表该工具一定不具备这些功能。</div>
+    </footer>
+  </main>
+</body>
+</html>
