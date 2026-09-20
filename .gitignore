@@ -8,5 +8,6 @@ coverage/
 .env.*
 !.env.example
 data/
+flow-google-about-download/
 .DS_Store
 *.log
