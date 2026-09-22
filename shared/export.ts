@@ -1,5 +1,5 @@
 import { countries, platforms, roles, timeLabel, type Project, type Shot } from './domain';
-import { buildVeoPlan, VEO_CLIP_SECONDS } from './veo-plan';
+import { buildVeoPlan, VEO_CLIP_SECONDS, type VeoPlanUnit } from './veo-plan';
 
 function stamp(seconds: number) {
   const ms = Math.round(seconds * 1000);
@@ -9,6 +9,45 @@ export function subtitles(shots: Shot[]) {
   return shots.filter(s => s.onScreenText.trim() || s.narration.trim()).map((s, i) =>
     `${i + 1}\n${stamp(s.start)} --> ${stamp(s.end)}\n${(s.onScreenText || s.narration).trim()}\n`,
   ).join('\n');
+}
+function veoUnitPromptData(project: Project, unit: VeoPlanUnit) {
+  const rewrite = project.rewrite!;
+  const shots = rewrite.shots.filter(shot => unit.sourceShotIds.includes(shot.id));
+  const cues = shots.map(shot => ({
+    shotId: shot.id,
+    renderRangeSeconds: {
+      start: Number(Math.max(0, shot.start - unit.start).toFixed(3)),
+      end: Number(Math.min(unit.targetDuration, shot.end - unit.start).toFixed(3)),
+    },
+    spokenText: shot.narration,
+    onScreenText: shot.onScreenText,
+    sound: shot.sound,
+  }));
+  return {
+    format: 'veo-production-unit/v1',
+    task: 'Generate one continuous, finished product-video clip. Follow every mandatory requirement and every timeline cue below.',
+    output: {
+      clipDurationSeconds: VEO_CLIP_SECONDS,
+      finalEditRangeSeconds: { start: unit.start, end: unit.end, duration: unit.targetDuration },
+      aspectRatio: project.market.aspectRatio,
+      marketLanguage: project.market.language,
+    },
+    mandatoryRequirements: {
+      audio: 'REQUIRED. Generate clear, audible, synchronized human speech. Speak each non-empty spokenText exactly as written in its renderRangeSeconds. Do not omit, summarize, paraphrase, replace, mute, or use another language.',
+      onScreenText: 'REQUIRED. Render each non-empty onScreenText as readable on-screen text during its matching renderRangeSeconds. Preserve the words and language exactly.',
+      sound: 'REQUIRED. Reproduce the specified sound and music cues while keeping spoken dialogue intelligible.',
+      continuity: 'Keep the product, people, setting, props, camera actions, and timeline cues consistent across the whole clip.',
+    },
+    productFacts: { name: project.product.name, facts: project.product.facts },
+    timelineCues: cues,
+    storyboard: shots,
+  };
+}
+export function buildVeoUnitPrompt(project: Project, unit: VeoPlanUnit) {
+  return project.rewrite ? JSON.stringify(veoUnitPromptData(project, unit), null, 2) : '';
+}
+export function buildVeoPromptPreview(project: Project) {
+  return project.rewrite ? JSON.stringify(buildVeoPlan(project.rewrite.shots).map(unit => veoUnitPromptData(project, unit)), null, 2) : '';
 }
 export function buildPrompt(project: Project) {
   const r = project.rewrite;
@@ -26,7 +65,7 @@ export function buildPrompt(project: Project) {
     ...r.shots.map((s, i) => `## Shot ${i + 1} | ${s.start.toFixed(2)}–${s.end.toFixed(2)}s | ${s.role}\nInitial English visual direction: ${s.generationPrompt}\nApproved scene: ${s.visual}\nAction: ${s.action}\nCamera: ${s.camera}\nProduct: ${s.productPresence}\nSpoken words (${project.market.language}): ${s.narration || '[none]'}\nOn-screen text: ${project.market.subtitles ? s.onScreenText || '[none]' : '[no subtitles; add separately only if requested]'}\nSound: ${s.sound}`),
     `## Negative constraints\n${r.negativePrompt}`,
     `## Production notes\n${r.productionNotes.map(n => `- ${n}`).join('\n')}`,
-    '\nThis is a production brief, not a completed video. Split into clips according to the generation channel you use; composite precise typography in post-production.',
+    '\nThis is a production brief. For each generated clip, submit its visual direction, spoken words, on-screen text, and sound requirements to the video model. Review the rendered result and refine any text or audio that the model does not reproduce faithfully.',
   ].filter(Boolean).join('\n\n');
 }
 export function buildBrief(project: Project) {
@@ -39,7 +78,7 @@ export function buildExportFiles(project: Project) {
   const files: Record<string, string> = {
     '01-creative-brief.md': buildBrief(project),
     '02-seedance-prompt.txt': buildPrompt(project),
-    '03-storyboard.json': JSON.stringify(project.rewrite.shots, null, 2),
+    '03-storyboard.json': buildVeoPromptPreview(project),
     '04-source-analysis.json': JSON.stringify(project.analysis, null, 2),
     '06-veo-production-plan.json': JSON.stringify({
       provider: 'veo-3.1',

@@ -8,14 +8,15 @@ import JSZip from 'jszip';
 import { z } from 'zod';
 import { MODEL, projectPatchSchema, validateContinuousTimeline, validateMarket, validateTimeline, type Project, type Asset, type Job } from '../shared/domain';
 import { buildExportFiles } from '../shared/export';
-import { buildVeoPlan, VEO_CLIP_SECONDS } from '../shared/veo-plan';
+import { buildVeoPlan } from '../shared/veo-plan';
+import type { GenerationInput } from './veo';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 try { process.loadEnvFile(path.join(root, '.env')); } catch (err) { if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err; }
 // Load storage after .env so an optional data-directory override takes effect.
 const { createProject, getProject, listProjects, saveProject, uploadDir } = await import('./store');
 const { analyze, rewrite, configured, configureConnection } = await import('./gemini');
-const { VEO_MODELS, VEO_DURATION, generationInputSchema, configureGenerationKey, generateVideo, resumeVideo, generationConfigured, saveGeneratedVideo } = await import('./veo');
+const { VEO_MODELS, VEO_DURATION, configureGenerationKey, generateVideo, resumeVideo, generationConfigured, saveGeneratedVideo } = await import('./veo');
 const { inspectMedia } = await import('./media');
 const port = Number(process.env.SOP_PORT || 4317);
 const app = express();
@@ -116,24 +117,21 @@ app.post('/api/projects/:id/generations', (req, res) => {
   if (!generationConfigured()) throw new HttpError(503, '请先配置 Veo 3.1 API Key，再生成视频。');
   if (!p.rewrite || p.rewriteStale) throw new HttpError(409, '请先生成与当前资料一致的本地化方案。');
   if (activeJobs >= 2) throw new HttpError(429, '已有两个任务在处理，请稍后再试。');
-  const input = generationInputSchema.parse(req.body);
+  const request = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body as Record<string, unknown> : {};
+  const input: GenerationInput = {
+    unitId: typeof request.unitId === 'string' ? request.unitId : '',
+    prompt: typeof request.prompt === 'string' ? request.prompt : '',
+    mode: request.mode === 'i2v' || request.mode === 'r2v' ? request.mode : 't2v',
+    resolution: request.resolution === '1080p' || request.resolution === 'lite' ? request.resolution : '720p',
+    aspectRatio: request.aspectRatio === '16:9' ? '16:9' : '9:16',
+    images: Array.isArray(request.images) ? request.images.filter((value): value is string => typeof value === 'string') : [],
+  };
   const plan = buildVeoPlan(p.rewrite.shots);
   const unit = plan.find(item => item.id === input.unitId);
   if (!unit) throw new HttpError(404, '找不到要生成的 Veo 生产单元；请刷新方案后重试。');
-  const sourceShots = p.rewrite.shots.filter(item => unit.sourceShotIds.includes(item.id));
-  const prompt = [
-    p.rewrite.globalPrompt,
-    `Generate one continuous ${VEO_CLIP_SECONDS}-second source clip for final-edit range ${unit.start.toFixed(3)}–${unit.end.toFixed(3)} seconds.`,
-    `Complete the following editorial beats in order within the first ${unit.targetDuration.toFixed(3)} seconds; do not treat each beat as a separately generated clip:`,
-    ...sourceShots.map(shot => {
-      const start = Math.max(0, shot.start - unit.start).toFixed(3);
-      const end = Math.min(unit.targetDuration, shot.end - unit.start).toFixed(3);
-      return `${start}–${end}s: ${shot.generationPrompt}`;
-    }),
-    unit.targetDuration < VEO_CLIP_SECONDS ? `After ${unit.targetDuration.toFixed(3)} seconds, hold the final composition with only natural subtle motion; the editor will trim the remaining ${(VEO_CLIP_SECONDS - unit.targetDuration).toFixed(3)} seconds.` : '',
-    'Keep the product identity consistent with supplied images when present. Do not add readable captions, prices, logos, discounts, or UI overlays; those belong in post-production.',
-    `Avoid: ${p.rewrite.negativePrompt}`,
-  ].filter(Boolean).join('\n\n').slice(0, 24_000);
+  // The user-editable storyboard JSON is forwarded verbatim. Do not augment, trim,
+  // or reinterpret it: this saved value is the exact provider prompt for the task.
+  const prompt = input.prompt;
   const now = new Date().toISOString();
   const generated = { id: randomUUID(), provider: 'veo-3.1' as const, model: VEO_MODELS[input.mode], mode: input.mode, imageUrls: input.mode === 't2v' ? [] : input.images, resolution: input.resolution, shotId: unit.sourceShotIds[0] || unit.id, unitId: unit.id, sourceShotIds: unit.sourceShotIds, targetStart: unit.start, targetEnd: unit.end, targetDuration: unit.targetDuration, status: 'running' as const, prompt, duration: VEO_DURATION, aspectRatio: input.aspectRatio, startedAt: now };
   const job: Job = { id: randomUUID(), kind: 'generation', status: 'running', progress: 4, message: '正在准备 Veo 3.1 任务…', startedAt: now };

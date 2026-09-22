@@ -1,6 +1,5 @@
 import path from 'node:path';
 import { unlink, writeFile } from 'node:fs/promises';
-import { z } from 'zod';
 import { uploadDir } from './store';
 import { inspectMedia } from './media';
 
@@ -16,14 +15,14 @@ function publicHttps(value: string) {
       !/^(?:127\.|10\.|192\.168\.|169\.254\.|0\.|172\.(?:1[6-9]|2\d|3[01])\.)/.test(host) && !host.includes(':');
   } catch { return false; }
 }
-const imageUrl = z.string().trim().url().max(2000).refine(publicHttps, '图片必须是公网可访问的 HTTPS 直链');
-const common = { unitId: z.string().trim().regex(/^veo-unit-\d{2,}$/).max(80), resolution: z.enum(['720p', '1080p', 'lite']).default('720p'), aspectRatio: z.enum(['16:9', '9:16']).default('9:16') };
-export const generationInputSchema = z.discriminatedUnion('mode', [
-  z.object({ ...common, mode: z.literal('t2v') }).strict(),
-  z.object({ ...common, mode: z.literal('i2v'), images: z.array(imageUrl).min(1).max(2) }).strict(),
-  z.object({ ...common, mode: z.literal('r2v'), images: z.array(imageUrl).min(1) }).strict(),
-]);
-export type GenerationInput = z.infer<typeof generationInputSchema>;
+export type GenerationInput = {
+  unitId: string;
+  prompt: string;
+  mode: 't2v' | 'i2v' | 'r2v';
+  resolution: '720p' | '1080p' | 'lite';
+  aspectRatio: '16:9' | '9:16';
+  images: string[];
+};
 type Progress = (progress: number, message: string) => void;
 let sessionKey = '';
 export function configureGenerationKey(key: string) { sessionKey = key; }
