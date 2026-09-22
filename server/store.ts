@@ -18,7 +18,19 @@ for (const filename of fs.readdirSync(recordsDir)) {
     // Records created before video rendering was introduced remain readable.
     project.generatedVideos ||= [];
     if (project.job?.status === 'running') {
-      project.job = { ...project.job, status: 'failed', message: '服务已重启，上次任务已中断。可以重新发起。', finishedAt: new Date().toISOString() };
+      const finishedAt = new Date().toISOString();
+      const interruptedGeneration = project.job.kind === 'generation';
+      project.job = {
+        ...project.job,
+        status: 'failed',
+        message: interruptedGeneration ? '服务已重启，上游任务可继续查询；请点击“恢复已生成任务”。' : '服务已重启，上次任务已中断。可以重新发起。',
+        finishedAt,
+      };
+      if (interruptedGeneration) {
+        project.generatedVideos = project.generatedVideos.map(video => video.status === 'running'
+          ? { ...video, status: 'failed' as const, error: '服务重启后已停止本地轮询；可恢复查询已提交的上游任务，不会新建或计费。', finishedAt }
+          : video);
+      }
       saveProject(project);
     } else projects.set(project.id, project);
   } catch { console.warn(`A project record could not be loaded: ${filename}`); }
