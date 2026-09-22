@@ -15,6 +15,8 @@ for (const filename of fs.readdirSync(recordsDir)) {
   try {
     const project: Project = JSON.parse(fs.readFileSync(path.join(recordsDir, filename), 'utf8'));
     if (!project.id || !Array.isArray(project.assets)) continue;
+    // Records created before video rendering was introduced remain readable.
+    project.generatedVideos ||= [];
     if (project.job?.status === 'running') {
       project.job = { ...project.job, status: 'failed', message: '服务已重启，上次任务已中断。可以重新发起。', finishedAt: new Date().toISOString() };
       saveProject(project);
@@ -42,6 +44,6 @@ export function createProject(demo = false) {
   return saveProject(demo ? demoProject(id) : {
     id, title: '未命名创意', createdAt: now, updatedAt: now, revision: 0, isDemo: false,
     product: { ...emptyProduct }, market: { ...defaultMarket }, assets: [], analysis: null, rewrite: null,
-    rewriteStale: false, job: null, model: MODEL, usage: { input: 0, output: 0 },
+    rewriteStale: false, generatedVideos: [], job: null, model: MODEL, usage: { input: 0, output: 0 },
   });
 }

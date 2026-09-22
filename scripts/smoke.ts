@@ -17,8 +17,8 @@ socket.listen(0, '127.0.0.1'); await once(socket, 'listening');
 const port = (socket.address() as net.AddressInfo).port;
 await new Promise<void>(resolve => socket.close(() => resolve()));
 const base = `http://127.0.0.1:${port}`;
-const server = spawn(process.execPath, [path.resolve('node_modules/tsx/dist/cli.mjs'), 'server/index.ts', '--production'], {
-  cwd: process.cwd(), env: { ...process.env, SOP_PORT: String(port), SOP_DATA_DIR: path.join(temp, 'data'), GEMINI_API_KEY: '', GOOGLE_API_KEY: '' }, stdio: ['ignore', 'pipe', 'pipe'],
+const server = spawn(process.execPath, ['--import', 'tsx', 'server/index.ts', '--production'], {
+  cwd: process.cwd(), env: { ...process.env, SOP_PORT: String(port), SOP_DATA_DIR: path.join(temp, 'data'), GEMINI_API_KEY: '', GOOGLE_API_KEY: '', SOP_VEO_API_KEY: '' }, stdio: ['ignore', 'pipe', 'pipe'],
 });
 let logs = '';
 server.stdout.on('data', data => { logs += data.toString(); });
@@ -39,7 +39,9 @@ try {
   assert(ready, logs);
   const status = await (await request('/api/status')).json();
   assert.equal(status.model, 'gemini-3.8-flash'); assert.equal(status.configured, false);
-  assert.match(await (await request('/')).text(), /SOP Studio/);
+  assert.equal(status.videoGeneration.configured, false);
+  assert.deepEqual(status.videoGeneration.models, { t2v: 'veo_3_1', i2v: 'veo_3_1-fl', r2v: 'veo_3_1-components' });
+  assert.match(await (await request('/')).text(), /AI-Sail Flow/);
   pass('production page and fixed model status');
 
   let demo: Project = await (await request('/api/projects', 'POST', { demo: true })).json();
@@ -53,9 +55,11 @@ try {
   const archiveResponse = await request(`/api/projects/${demo.id}/export`);
   assert.equal(archiveResponse.status, 200);
   const archive = await JSZip.loadAsync(await archiveResponse.arrayBuffer());
-  assert.equal(Object.keys(archive.files).length, 6);
+  assert.equal(Object.keys(archive.files).length, 7);
   assert.match(await archive.file('02-seedance-prompt.txt')!.async('string'), /Edited narration survives export/);
   assert.match(await archive.file('05-subtitles-draft.srt')!.async('string'), /00:00:00,000 --> 00:00:03,000/);
+  const veoPlan = JSON.parse(await archive.file('06-veo-production-plan.json')!.async('string'));
+  assert.equal(veoPlan.units.length, 2); assert.deepEqual(veoPlan.units.map((unit: { targetDuration: number }) => unit.targetDuration), [8, 7]);
   assert(JSON.parse(await archive.file('manifest.json')!.async('string')).demo);
   pass('ZIP contents, provenance and SRT draft timestamps');
 
@@ -69,6 +73,7 @@ try {
 
   let p: Project = await (await request('/api/projects', 'POST', {})).json();
   assert.equal((await request(`/api/projects/${p.id}/jobs/analysis`, 'POST', {})).status, 503);
+  assert.equal((await request(`/api/projects/${p.id}/generations`, 'POST', {})).status, 503);
   const fake = new FormData(); fake.append('file', new Blob(['not a video'], { type: 'video/mp4' }), 'fake.mp4');
   assert.equal((await fetch(`${base}/api/projects/${p.id}/assets/video`, { method: 'POST', body: fake })).status, 400);
   pass('missing credentials do not fake success; disguised files rejected');

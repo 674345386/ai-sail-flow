@@ -2,7 +2,7 @@ import { GoogleGenAI, ThinkingLevel, type Part } from '@google/genai';
 import { z } from 'zod';
 import path from 'node:path';
 import { readFile } from 'node:fs/promises';
-import { MODEL, analysisSchema, rewriteSchema, countries, platforms, validateTimeline, type Project, type AnalysisMeta } from '../shared/domain';
+import { MODEL, analysisSchema, rewriteSchema, countries, platforms, validateContinuousTimeline, validateTimeline, type Project, type AnalysisMeta } from '../shared/domain';
 import { uploadDir } from './store';
 import { extractKeyframes } from './media';
 
@@ -181,8 +181,8 @@ async function rewriteCompatible(project: Project, progress: (n: number, message
   progress(48, '正在编排本地化分镜与生成提示词…');
   const task = `Create an EDITABLE localized e-commerce video production brief based on the following source analysis and target product. The original video has already been analyzed; work from that analysis without fabricating new observations. SOURCE_ANALYSIS: ${JSON.stringify(project.analysis)} TARGET_PRODUCT_FACTS: ${JSON.stringify(project.product)} CREATIVE_SETTINGS: ${JSON.stringify(project.market)} MARKET_GUIDANCE: ${market.locale} PLATFORM_GUIDANCE: ${platform.guidance} Write visual/action/camera descriptions, audienceInsight, angle, localizationNotes and productionNotes in Chinese. Spoken narration, on-screen text and all 3 hookVariants must be in ${project.market.language}. globalPrompt, each generationPrompt and negativePrompt must be in clear English for a video generation model. Use the first seconds to establish a relevant use-case or question. Demonstrate actual use, connect features to audience benefits, then one CTA that matches the chosen destination. Use ONLY TARGET_PRODUCT_FACTS for claims, price, promotions, shipping and specifications. Never transfer a competitor's claims, reviews or before/after outcomes to the target product. For shop destination, use TikTok Shop product-card CTA only when configured. For website destination, follow the supplied CTA and URL; do not invent a discount. Adapt physical interactions to the target packaging. people=hands means no face; preserve means retain the reference's role/composition, without identifying a real person. If reference images are absent, put appearance uncertainty into productionNotes. Target duration is ${duration}s. Construct a coherent non-overlapping timeline starting at 0 and ending at ${duration}. subtitles=${project.market.subtitles}; when false set onScreenText to empty. Keep key text away from platform UI. globalPrompt contains global visual direction only; generationPrompt describes shot visual/action without duplicating narration or subtitles. Provide 3 distinct opening options without pretending they have been A/B tested. This request generates TEXT ONLY, not a rendered video.`;
   const result = await generateCompatible(refs, rewriteSchema, task);
-  const err = validateTimeline(result.result.shots, duration);
-  if (err || Math.abs(result.result.shots.at(-1)!.end - duration) > 0.5 || result.result.shots[0].start > 0.1) throw new Error(err || '模型返回的时间范围与目标时长不一致，请重试。');
+  const err = validateContinuousTimeline(result.result.shots, duration);
+  if (err) throw new Error(err);
   return result;
 }
 async function generate<T extends z.ZodType>(ai: GoogleGenAI, parts: Part[], schema: T, task: string) {
@@ -264,8 +264,8 @@ Target duration is ${duration}s. Construct a coherent non-overlapping timeline s
 subtitles=${project.market.subtitles}; when false set onScreenText to empty. Captions are a draft; mention final audio alignment in productionNotes. Keep key text away from platform UI; do not invent exact safe-zone pixel requirements.
 globalPrompt contains global visual direction ONLY, without duplicating shot-specific script/timestamps (shots remain independently editable). generationPrompt describes that shot's visual/action, without embedding narration or subtitle text which are separately editable.
 Provide 3 distinct opening options without pretending they have been A/B tested. This request generates TEXT ONLY, not a rendered video.`);
-    const err = validateTimeline(result.result.shots, duration);
-    if (err || Math.abs(result.result.shots.at(-1)!.end - duration) > 0.5 || result.result.shots[0].start > 0.1) throw new Error(err || '模型返回的时间范围与目标时长不一致，请重试。');
+    const err = validateContinuousTimeline(result.result.shots, duration);
+    if (err) throw new Error(err);
     return result;
   } catch (error) { throw providerError(error); }
 }

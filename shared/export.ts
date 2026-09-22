@@ -1,4 +1,5 @@
 import { countries, platforms, roles, timeLabel, type Project, type Shot } from './domain';
+import { buildVeoPlan, VEO_CLIP_SECONDS } from './veo-plan';
 
 function stamp(seconds: number) {
   const ms = Math.round(seconds * 1000);
@@ -40,6 +41,13 @@ export function buildExportFiles(project: Project) {
     '02-seedance-prompt.txt': buildPrompt(project),
     '03-storyboard.json': JSON.stringify(project.rewrite.shots, null, 2),
     '04-source-analysis.json': JSON.stringify(project.analysis, null, 2),
+    '06-veo-production-plan.json': JSON.stringify({
+      provider: 'veo-3.1',
+      sourceClipSeconds: VEO_CLIP_SECONDS,
+      finalTimelineSeconds: project.rewrite.shots.at(-1)?.end ?? 0,
+      note: 'Each unit requests a fixed 8-second Veo source clip. Use targetStart/targetEnd to trim and assemble the final edit; do not render each analysis cut as a separate 8-second clip.',
+      units: buildVeoPlan(project.rewrite.shots),
+    }, null, 2),
     'manifest.json': JSON.stringify({ app: 'AI-Sail Flow', version: 1, model: project.model, projectId: project.id, title: project.title, demo: project.isDemo, sourceAnalysis: project.analysisMeta || null, exportedAt: new Date().toISOString(), product: project.product, market: project.market, productReferences: project.assets.filter(a => a.kind === 'product').map(a => a.name), subtitles: 'Draft timing; align against the final rendered audio.' }, null, 2),
   };
   if (project.market.subtitles) files['05-subtitles-draft.srt'] = subtitles(project.rewrite.shots);

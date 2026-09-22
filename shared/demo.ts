@@ -21,6 +21,6 @@ export function demoProject(id: string): Project {
       globalPrompt: 'Create a natural, vertically framed 15-second coffee product demonstration. Use soft daylight, believable hand movements, a consistent product, and clean, practical surroundings. Keep one clear benefit per shot. Only use the supplied product facts. Follow the approved shot plan below.',
       negativePrompt: 'No invented discounts, reviews, shipping promises, leakproof claims, material claims, or brewing times. No warped product geometry, changing packaging, extra fingers, illegible generated text, or additional logos.',
       shots: shots.map(s => ({ ...s, generationPrompt: ({ hook: 'Close-up of a hand picking up the reference coffee cup from a desk beside keys and a notebook. Natural daylight, relaxed handheld framing.', demo: 'Top-down kitchen demonstration: remove the filter, add coffee and water, reassemble. Preserve the exact reference product geometry and show a continuous plausible sequence.', proof: 'Close-up of the removable filter beside the cup near a kitchen sink. Demonstrate separation and rinsing without implying unsupported product performance.', cta: 'Static close-up of the assembled reference cup on a tidy desk, centered with space for captions to be composited later.', other: '' })[s.role] })),
-    }, rewriteStale: false, job: null, model: MODEL, usage: { input: 0, output: 0 },
+    }, rewriteStale: false, generatedVideos: [], job: null, model: MODEL, usage: { input: 0, output: 0 },
   };
 }

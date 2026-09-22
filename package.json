@@ -8,7 +8,8 @@
     "build": "tsc --noEmit && vite build",
     "start": "NODE_USE_ENV_PROXY=1 tsx server/index.ts --production",
     "check": "tsc --noEmit",
-    "smoke": "NODE_USE_ENV_PROXY=1 tsx scripts/smoke.ts"
+    "smoke": "NODE_USE_ENV_PROXY=1 node --import tsx scripts/smoke.ts",
+    "check:veo": "node --import tsx scripts/veo-check.ts"
   },
   "dependencies": {
     "@google/genai": "^2.22.0",

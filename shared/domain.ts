@@ -65,8 +65,17 @@ export type Asset = {
   url: string; filename: string; thumbnail?: string; duration?: number; width?: number; height?: number; hasAudio?: boolean;
 };
 export type Job = {
-  id: string; kind: 'analysis' | 'rewrite'; status: 'running' | 'completed' | 'failed';
+  id: string; kind: 'analysis' | 'rewrite' | 'generation'; status: 'running' | 'completed' | 'failed';
   progress: number; message: string; startedAt: string; finishedAt?: string;
+};
+export type GeneratedVideo = {
+  id: string; provider: 'veo-3.1' | 'grok-imagine'; model: 'veo_3_1' | 'veo_3_1-fl' | 'veo_3_1-components' | 'grok-imagine-video-1.5'; shotId: string;
+  mode?: 't2v' | 'i2v' | 'r2v'; imageUrls?: string[]; resolution?: '720p' | '1080p' | 'lite';
+  unitId?: string; sourceShotIds?: string[]; targetStart?: number; targetEnd?: number; targetDuration?: number;
+  requestId?: string; status: 'running' | 'completed' | 'failed'; prompt: string;
+  duration: number; aspectRatio: Market['aspectRatio'] | '16:9'; startedAt: string; finishedAt?: string;
+  filename?: string; url?: string; mime?: string; size?: number; width?: number; height?: number;
+  hasAudio?: boolean; thumbnail?: string; stale?: boolean; error?: string;
 };
 export type AnalysisMeta = {
   mode: 'native-video' | 'sampled-frames';
@@ -77,7 +86,7 @@ export type Project = {
   id: string; title: string; createdAt: string; updatedAt: string; revision: number; isDemo: boolean;
   product: Product; market: Market; assets: Asset[]; analysis: Analysis | null; rewrite: Rewrite | null;
   analysisMeta?: AnalysisMeta | null;
-  rewriteStale: boolean; job: Job | null; model: string; usage: { input: number; output: number };
+  rewriteStale: boolean; generatedVideos: GeneratedVideo[]; job: Job | null; model: string; usage: { input: number; output: number };
 };
 export type ProjectSummary = Pick<Project, 'id' | 'title' | 'updatedAt' | 'isDemo'> & { stage: number };
 export const emptyProduct: Product = { name: '', category: '家居生活', facts: '', audience: '', price: '', currency: 'USD', offer: '', landingUrl: '' };
@@ -100,6 +109,16 @@ export function validateTimeline(shots: Shot[], duration?: number) {
     if (duration && shot.end > duration + 0.5) return '镜头时间超出视频时长。';
     ids.add(shot.id); previousEnd = shot.end;
   }
+  return null;
+}
+export function validateContinuousTimeline(shots: Shot[], duration: number) {
+  const basic = validateTimeline(shots, duration);
+  if (basic) return basic;
+  if (shots[0]?.start > 0.05) return '本地化分镜必须从 0 秒开始。';
+  for (let index = 1; index < shots.length; index++) {
+    if (Math.abs(shots[index].start - shots[index - 1].end) > 0.05) return '本地化分镜不能留出未规划的时间空档。';
+  }
+  if (Math.abs(shots.at(-1)!.end - duration) > 0.5) return '本地化分镜的结束时间必须匹配目标时长。';
   return null;
 }
 export function validateMarket(market: Market) {

@@ -35,6 +35,8 @@ npm start
 
 「兼容接口地址」按 OpenAI 协议填 base URL，例如 `https://maiai.ai/v1`。裸域名、`/v1beta` 这类版本根，或整条 `.../v1/chat/completions` 也接受，服务端归一化成同一个 endpoint。
 
+Veo 3.1 视频生成使用独立的 `SOP_VEO_API_KEY`（或模型设置中的 Veo Key），固定请求 `https://gaorui.cc/v1/videos`，不复用 Gemini / maiai.ai 密钥。文生视频使用 `veo_3_1` 且不传 `images`；首尾帧图生视频使用 `veo_3_1-fl`，传 1–2 张图片 URL（首帧、可选尾帧）；参考图生视频使用 `veo_3_1-components`，传至少 1 张图片 URL。三种模式均发送提示词、`resolution`（`720p` / `1080p` / `lite`）、`aspect_ratio`（`9:16` / `16:9`），固定输出 8 秒，不发送 `duration`。图片必须是公网 HTTPS 直链；本机产品图不会自动上传或公开。任务提交后按 ID 轮询，完成后下载到本机。若下载失败但上游任务 ID 已取得，可在交付页恢复同一任务，不会再次提交付费生成。[Veo 3.1 接口文档](https://gaoruitech.apifox.cn/doc-8981138)。
+
 填写 `https://maiai.ai/v1` 后，视频拆解请求 `https://maiai.ai/v1beta/models/gemini-3.8-flash:generateContent`，使用 Gemini 原生 `inline_data` 发送完整视频及其音轨；文字改写继续使用 `/v1/chat/completions`。两种调用使用同一密钥。默认不会自动降级为抽帧，也不再根据固定 token 阈值判定视频是否被读取。
 
 当前原生直传的总请求上限为 20 MB（包括 Base64 和产品图），超限时明确提示压缩，不修改本地原片。大视频上传与分段处理仍待接入。可显式设置 `SOP_VIDEO_ANALYSIS_MODE=frames` 使用原有关键帧模式；它不分析音轨，结果会明确标记。分析模式与是否提交音轨会保存到项目和导出清单。
@@ -53,6 +55,7 @@ npm start
 - 本地化：7 个目标市场与对应语言、TikTok / Reels / Shorts 创意设置、站内商品卡或独立站路径、用户提供的售价币种与优惠、人物/时长/画幅/字幕设置。
 - 产品事实作为改写依据；参考片里的功效、优惠和购买路径不会自动变成目标产品事实。不根据市场自动换算价格。
 - 输出 3 个开头方向、完整分镜、局部生成指令、全片视觉指令及负面约束。可选择开头并继续编辑。
+- Veo 3.1 生产单元：分析分镜保留原片的细粒度剪辑节奏，但不会逐镜头各生成 8 秒。交付页按最终时间线拆成最多 8 秒的生产单元，分别使用 t2v / i2v / r2v 对应模型。每个请求固定输出 8 秒源片；末段按生成计划裁切，再由后期按时间线组装。导出包包含 `06-veo-production-plan.json`，记录每个单元的最终使用区间与来源分镜。
 - ZIP 包：创意简报 Markdown、Seedance 提示词 TXT、分镜 JSON、原片分析 JSON、项目 manifest、可选 SRT 草稿、已上传的产品图。也支持复制和单独下载提示词。
 - 项目与素材保存到 `data/`；草稿自动保存；任务进度持久化；服务重启后中断任务标记失败；修改产品/市场/原片分析后旧改写标记为待更新，阻止误导出。
 
@@ -63,6 +66,7 @@ npm start
 - `shared/export.ts`：根据最新编辑生成提示词、Markdown、JSON 和 SRT。
 - `server/index.ts`：Express API、上传、任务管理、文件打包与同源本机访问限制。
 - `server/gemini.ts`：Google 官方 `@google/genai` SDK、Files API、`generateContent` 结构化输出，固定 `gemini-3.8-flash`。每次调用最大输出 24,000 tokens，不自动反复重试计费任务。
+- `server/veo.ts`：区分三种 Veo 3.1 请求、校验公网图片 URL、提交异步任务、轮询状态并下载成片，由本地 FFmpeg 校验媒体。
 - `server/store.ts`：原子 JSON 文件写入、版本冲突检测；适合单进程本机 V1。
 - `docs/product-v1.md`：产品边界、行业研究及验收范围。
 
@@ -77,7 +81,7 @@ npm run smoke
 
 Smoke 检查使用独立临时目录和临时端口，验证项目持久化、视频/图片上传、错误边界、草稿编辑、旧方案失效和 ZIP/SRT 内容，不调用收费模型。
 
-本版未包含视频渲染、自动发布、投放、真实销售看板、团队账户或公网生产部署。Seedance 是输出提示词的目标，不代表已接通 Seedance API；长片按实际生成渠道分段制作。SRT 是分镜时间草稿，生成视频后需重新按音轨校准。
+本版包含 Veo 3.1 的单分镜视频生成，不包含多镜头自动拼接、自动发布、投放、真实销售看板、团队账户或公网生产部署。Seedance 仍是输出提示词的目标，不代表已接通 Seedance API；长片按实际生成渠道分段制作。SRT 是分镜时间草稿，生成视频后需重新按音轨校准。
 
 接入真实密钥后的多模态准确率、额度及响应速度需用实际账户与素材验证。UI 浏览器检查未自动运行，遵循用户不使用 browser/computer automation 的要求。
 
