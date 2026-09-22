@@ -67,14 +67,21 @@ async function pollVideo(id: string, key: string, progress: Progress) {
     await new Promise(resolve => setTimeout(resolve, 5000));
     const result = await providerRequest(`${endpoint}/${encodeURIComponent(id)}`, key);
     const state = String(result?.status || '').toLowerCase();
-    if (state === 'completed') {
+    if (['completed', 'succeeded', 'success', 'done'].includes(state)) {
       const url = completedUrl(result);
       if (!url) throw new Error('Veo 3.1 任务已完成，但查询响应未提供可下载的视频直链。');
       return { id, url };
     }
-    if (state === 'failed' || state === 'canceled' || state === 'cancelled') throw new Error(`Veo 3.1 生成失败${detail(result) ? `：${detail(result)}` : ''}`);
-    if (!['queued', 'processing', 'in_progress', 'pending'].includes(state)) throw new Error(`Veo 3.1 返回未知任务状态：${state || '空'}`);
-    if (state !== lastStatus) progress(state === 'queued' || state === 'pending' ? 35 : 55, state === 'queued' || state === 'pending' ? 'Veo 3.1 排队中…' : 'Veo 3.1 正在生成视频…');
+    if (['failed', 'failure', 'error', 'canceled', 'cancelled', 'rejected', 'expired'].includes(state)) throw new Error(`Veo 3.1 生成失败${detail(result) ? `：${detail(result)}` : ''}`);
+    // gaorui can briefly expose a just-submitted task as "unknown" before its
+    // worker assigns a concrete state. Keep polling instead of discarding a
+    // billable request that may still complete.
+    const waiting = ['queued', 'processing', 'in_progress', 'pending', 'submitted', 'creating', 'running', 'generating', 'unknown', ''];
+    if (!waiting.includes(state)) throw new Error(`Veo 3.1 返回无法识别的任务状态：${state}`);
+    if (state !== lastStatus) {
+      const queued = ['queued', 'pending', 'submitted', 'creating', 'unknown', ''].includes(state);
+      progress(queued ? 35 : 55, queued ? 'Veo 3.1 正在确认任务状态…' : 'Veo 3.1 正在生成视频…');
+    }
     lastStatus = state;
   }
   throw new Error(`Veo 3.1 任务超过 20 分钟仍未完成。上游任务 ID：${id}`);
