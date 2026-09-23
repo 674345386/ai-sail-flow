@@ -65,17 +65,23 @@ export type Asset = {
   url: string; filename: string; thumbnail?: string; duration?: number; width?: number; height?: number; hasAudio?: boolean;
 };
 export type Job = {
-  id: string; kind: 'analysis' | 'rewrite' | 'generation'; status: 'running' | 'completed' | 'failed';
+  id: string; kind: 'analysis' | 'rewrite' | 'generation' | 'composition'; status: 'running' | 'completed' | 'failed';
   progress: number; message: string; startedAt: string; finishedAt?: string;
 };
+export type ProductionMode = 'veo-native' | 'tts-subtitles';
 export type GeneratedVideo = {
   id: string; provider: 'veo-3.1' | 'grok-imagine'; model: 'veo_3_1' | 'veo_3_1-fl' | 'veo_3_1-components' | 'grok-imagine-video-1.5'; shotId: string;
   mode?: 't2v' | 'i2v' | 'r2v'; imageUrls?: string[]; resolution?: '720p' | '1080p' | 'lite';
   unitId?: string; sourceShotIds?: string[]; targetStart?: number; targetEnd?: number; targetDuration?: number;
-  requestId?: string; status: 'running' | 'completed' | 'failed'; prompt: string;
+  requestId?: string; status: 'running' | 'completed' | 'failed'; prompt: string; productionMode?: ProductionMode;
   duration: number; aspectRatio: Market['aspectRatio'] | '16:9'; startedAt: string; finishedAt?: string;
   filename?: string; url?: string; mime?: string; size?: number; width?: number; height?: number;
   hasAudio?: boolean; thumbnail?: string; stale?: boolean; error?: string;
+};
+export type ComposedVideo = {
+  id: string; mode: 'tts-subtitles'; unitId?: string; sourceVideoIds: string[]; voice: string;
+  filename: string; url: string; subtitleFilename: string; subtitleUrl: string;
+  duration: number; startedAt: string; finishedAt: string; stale?: boolean;
 };
 export type AnalysisMeta = {
   mode: 'native-video' | 'sampled-frames';
@@ -86,7 +92,8 @@ export type Project = {
   id: string; title: string; createdAt: string; updatedAt: string; revision: number; isDemo: boolean;
   product: Product; market: Market; assets: Asset[]; analysis: Analysis | null; rewrite: Rewrite | null;
   analysisMeta?: AnalysisMeta | null;
-  rewriteStale: boolean; generatedVideos: GeneratedVideo[]; job: Job | null; model: string; usage: { input: number; output: number };
+  rewriteStale: boolean; generatedVideos: GeneratedVideo[]; composedVideos?: ComposedVideo[];
+  productionMode?: ProductionMode; ttsVoice?: string; job: Job | null; model: string; usage: { input: number; output: number };
 };
 export type ProjectSummary = Pick<Project, 'id' | 'title' | 'updatedAt' | 'isDemo'> & { stage: number };
 export const emptyProduct: Product = { name: '', category: '家居生活', facts: '', audience: '', price: '', currency: 'USD', offer: '', landingUrl: '' };
@@ -94,6 +101,8 @@ export const defaultMarket: Market = { country: 'US', language: 'en-US', platfor
 export const projectPatchSchema = z.object({
   revision: z.number().int().nonnegative(), title: z.string().trim().min(1).max(120),
   product: productSchema, market: marketSchema, analysis: analysisSchema.nullable(), rewrite: rewriteSchema.nullable(),
+  productionMode: z.enum(['veo-native', 'tts-subtitles']).default('veo-native'),
+  ttsVoice: z.string().max(120).default(''),
 });
 export function stageOf(project: Pick<Project, 'assets' | 'analysis' | 'rewrite' | 'rewriteStale'>) {
   return project.rewrite && !project.rewriteStale ? 4 : project.analysis ? 3 : project.assets.some(a => a.kind === 'video') ? 2 : 1;

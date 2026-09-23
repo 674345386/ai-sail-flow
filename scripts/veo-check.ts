@@ -8,6 +8,8 @@ process.env.SOP_DATA_DIR = temp;
 try {
   const { requestBody } = await import('../server/veo');
   const { buildVeoPlan } = await import('../shared/veo-plan');
+  const { buildVeoUnitPrompt } = await import('../shared/export');
+  const { demoProject } = await import('../shared/demo');
   const t2v = requestBody({ unitId: 'veo-unit-01', prompt: 'scene', mode: 't2v', resolution: '720p', aspectRatio: '9:16', images: [] }, 'scene');
   assert.equal(t2v.model, 'veo_3_1');
   assert(!('images' in t2v));
@@ -30,7 +32,16 @@ try {
     { ...blank, id: 'shot-3', start: 9, end: 15, role: 'cta' as const },
   ]);
   assert.deepEqual(plan.map((unit: { start: number; end: number; targetDuration: number; sourceShotIds: string[] }) => [unit.start, unit.end, unit.targetDuration, unit.sourceShotIds]), [[0, 8, 8, ['shot-1', 'shot-2']], [8, 15, 7, ['shot-2', 'shot-3']]]);
-  console.log('PASS Veo 3.1 payloads and deterministic 8-second production planning (no provider calls)');
+  const project = demoProject('test-project');
+  const firstUnit = buildVeoPlan(project.rewrite!.shots)[0];
+  const nativePrompt = buildVeoUnitPrompt(project, firstUnit, 'veo-native');
+  const visualPrompt = buildVeoUnitPrompt(project, firstUnit, 'tts-subtitles');
+  assert(nativePrompt.includes(project.rewrite!.shots[0].narration));
+  assert(nativePrompt.includes(project.rewrite!.shots[0].onScreenText));
+  assert(!visualPrompt.includes(project.rewrite!.shots[0].narration));
+  assert(!visualPrompt.includes(project.rewrite!.shots[0].onScreenText));
+  assert.equal(requestBody({ unitId: 'veo-unit-01', prompt: 'raw prompt', mode: 't2v', resolution: '720p', aspectRatio: '9:16', images: [] }, 'raw prompt').prompt, 'raw prompt');
+  console.log('PASS Veo 3.1 payloads, production modes and 8-second planning (no provider calls)');
 } finally {
   await rm(temp, { recursive: true, force: true });
 }

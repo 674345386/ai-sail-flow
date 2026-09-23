@@ -17,6 +17,7 @@ try { process.loadEnvFile(path.join(root, '.env')); } catch (err) { if ((err as 
 const { createProject, getProject, listProjects, saveProject, uploadDir } = await import('./store');
 const { analyze, rewrite, configured, configureConnection } = await import('./gemini');
 const { VEO_MODELS, VEO_DURATION, configureGenerationKey, generateVideo, resumeVideo, generationConfigured, saveGeneratedVideo } = await import('./veo');
+const { listTtsVoices, composeVideo, composeUnitVideo } = await import('./compose');
 const { inspectMedia } = await import('./media');
 const port = Number(process.env.SOP_PORT || 4317);
 const app = express();
@@ -45,6 +46,9 @@ function editable(project: Project) {
   if (project.job?.status === 'running' || uploadsInProgress.has(project.id)) throw new HttpError(409, '当前任务正在处理，请等待完成。');
 }
 app.get('/api/status', (_req, res) => res.json({ model: MODEL, configured: configured(), local: true, maxVideoMB: 250, maxImageMB: 10, videoGeneration: { provider: 'veo-3.1', models: VEO_MODELS, configured: generationConfigured(), duration: VEO_DURATION } }));
+app.get('/api/tts/voices', async (req, res, next) => {
+  try { res.json(await listTtsVoices()); } catch { next(new HttpError(503, '本机系统配音不可用，请确认 macOS 的 say 命令可运行。')); }
+});
 app.post('/api/settings', (req, res) => {
   const { apiKey, baseUrl } = z.object({ apiKey: z.string().trim().min(16).max(300), baseUrl: z.string().trim().max(300).default('') }).parse(req.body);
   if (baseUrl && !/^https?:\/\//i.test(baseUrl)) throw new HttpError(400, '兼容接口地址必须以 http:// 或 https:// 开头。');
@@ -76,7 +80,8 @@ app.put('/api/projects/:id', (req, res) => {
   const inputsChanged = JSON.stringify(patch.product) !== JSON.stringify(project.product) || JSON.stringify(patch.market) !== JSON.stringify(project.market) || JSON.stringify(patch.analysis) !== JSON.stringify(project.analysis);
   const rewriteChanged = JSON.stringify(patch.rewrite) !== JSON.stringify(project.rewrite);
   const generatedVideos = (project.generatedVideos || []).map(video => inputsChanged || rewriteChanged ? { ...video, stale: true } : video);
-  res.json(saveProject({ ...project, ...patch, generatedVideos, analysisMeta: patch.analysis ? project.analysisMeta : null, rewriteStale: project.rewriteStale || (!!patch.rewrite && inputsChanged) }));
+  const composedVideos = (project.composedVideos || []).map(video => inputsChanged || rewriteChanged ? { ...video, stale: true } : video);
+  res.json(saveProject({ ...project, ...patch, generatedVideos, composedVideos, analysisMeta: patch.analysis ? project.analysisMeta : null, rewriteStale: project.rewriteStale || (!!patch.rewrite && inputsChanged) }));
 });
 const uploader = multer({ dest: uploadDir, limits: { fileSize: 250 * 1024 * 1024, files: 1, fields: 0 } });
 app.post('/api/projects/:id/assets/:kind', (req, res, next) => {
@@ -95,7 +100,7 @@ app.post('/api/projects/:id/assets/:kind', (req, res, next) => {
         const asset: Asset = { id: randomUUID(), kind, name: Buffer.from(req.file.originalname, 'latin1').toString('utf8'), filename: req.file.filename, url: `/media/${req.file.filename}`, size: req.file.size, ...metadata };
         const current = getProject(p.id)!;
         const assets = kind === 'video' ? [...current.assets.filter(a => a.kind !== 'video'), asset] : [...current.assets, asset];
-        const nextProject = { ...current, assets, isDemo: kind === 'video' ? false : current.isDemo, analysis: kind === 'video' ? null : current.analysis, analysisMeta: kind === 'video' ? null : current.analysisMeta, rewrite: kind === 'video' ? null : current.rewrite, rewriteStale: kind === 'product' && !!current.rewrite, generatedVideos: (current.generatedVideos || []).map(video => ({ ...video, stale: true })), job: null };
+        const nextProject = { ...current, assets, isDemo: kind === 'video' ? false : current.isDemo, analysis: kind === 'video' ? null : current.analysis, analysisMeta: kind === 'video' ? null : current.analysisMeta, rewrite: kind === 'video' ? null : current.rewrite, rewriteStale: kind === 'product' && !!current.rewrite, generatedVideos: (current.generatedVideos || []).map(video => ({ ...video, stale: true })), composedVideos: (current.composedVideos || []).map(video => ({ ...video, stale: true })), job: null };
         res.status(201).json(saveProject(nextProject));
       } catch (err) {
         if (req.file) fs.unlink(req.file.path, () => {});
@@ -109,9 +114,28 @@ app.delete('/api/projects/:id/assets/:assetId', (req, res) => {
   const asset = p.assets.find(a => a.id === req.params.assetId);
   if (!asset) throw new HttpError(404, '素材不存在。');
   // Remove the association; retain local source files so replacement is recoverable.
-  res.json(saveProject({ ...p, assets: p.assets.filter(a => a.id !== asset.id), analysis: asset.kind === 'video' ? null : p.analysis, analysisMeta: asset.kind === 'video' ? null : p.analysisMeta, rewrite: asset.kind === 'video' ? null : p.rewrite, rewriteStale: asset.kind === 'product' && !!p.rewrite, generatedVideos: (p.generatedVideos || []).map(video => ({ ...video, stale: true })), job: null }));
+  res.json(saveProject({ ...p, assets: p.assets.filter(a => a.id !== asset.id), analysis: asset.kind === 'video' ? null : p.analysis, analysisMeta: asset.kind === 'video' ? null : p.analysisMeta, rewrite: asset.kind === 'video' ? null : p.rewrite, rewriteStale: asset.kind === 'product' && !!p.rewrite, generatedVideos: (p.generatedVideos || []).map(video => ({ ...video, stale: true })), composedVideos: (p.composedVideos || []).map(video => ({ ...video, stale: true })), job: null }));
 });
 let activeJobs = 0;
+async function finishSourceVideo(projectId: string, videoId: string, local: Awaited<ReturnType<typeof saveGeneratedVideo>>, progress: (n: number, message: string) => void) {
+  let current = getProject(projectId)!;
+  current = saveProject({ ...current, generatedVideos: current.generatedVideos.map(video => video.id === videoId ? { ...video, status: 'completed' as const, finishedAt: new Date().toISOString(), stale: false, ...local } : video) });
+  if (current.productionMode === 'tts-subtitles') {
+    const source = current.generatedVideos.find(video => video.id === videoId)!;
+    const rendered = await composeUnitVideo(current, source, current.ttsVoice || '', progress);
+    current = getProject(projectId)!;
+    current = saveProject({ ...current, composedVideos: [...(current.composedVideos || []), rendered] });
+    const plan = buildVeoPlan(current.rewrite!.shots);
+    const all = plan.map(unit => [...current.generatedVideos].reverse().find(video => video.unitId === unit.id && video.productionMode === 'tts-subtitles' && video.status === 'completed' && !video.stale));
+    if (all.every(video => video?.filename)) {
+      const final = await composeVideo(current, all as NonNullable<(typeof all)[number]>[], current.ttsVoice || '', progress);
+      current = getProject(projectId)!;
+      saveProject({ ...current, composedVideos: [...(current.composedVideos || []), final] });
+    }
+  }
+  current = getProject(projectId)!;
+  saveProject({ ...current, job: { ...current.job!, status: 'completed', progress: 100, message: current.productionMode === 'tts-subtitles' ? '画面、配音与字幕已保存到本机' : 'Veo 3.1 分镜已保存到本机', finishedAt: new Date().toISOString() } });
+}
 app.post('/api/projects/:id/generations', (req, res) => {
   const p = record(req); editable(p);
   if (!generationConfigured()) throw new HttpError(503, '请先配置 Veo 3.1 API Key，再生成视频。');
@@ -133,7 +157,7 @@ app.post('/api/projects/:id/generations', (req, res) => {
   // or reinterpret it: this saved value is the exact provider prompt for the task.
   const prompt = input.prompt;
   const now = new Date().toISOString();
-  const generated = { id: randomUUID(), provider: 'veo-3.1' as const, model: VEO_MODELS[input.mode], mode: input.mode, imageUrls: input.mode === 't2v' ? [] : input.images, resolution: input.resolution, shotId: unit.sourceShotIds[0] || unit.id, unitId: unit.id, sourceShotIds: unit.sourceShotIds, targetStart: unit.start, targetEnd: unit.end, targetDuration: unit.targetDuration, status: 'running' as const, prompt, duration: VEO_DURATION, aspectRatio: input.aspectRatio, startedAt: now };
+  const generated = { id: randomUUID(), provider: 'veo-3.1' as const, model: VEO_MODELS[input.mode], mode: input.mode, productionMode: p.productionMode || 'veo-native', imageUrls: input.mode === 't2v' ? [] : input.images, resolution: input.resolution, shotId: unit.sourceShotIds[0] || unit.id, unitId: unit.id, sourceShotIds: unit.sourceShotIds, targetStart: unit.start, targetEnd: unit.end, targetDuration: unit.targetDuration, status: 'running' as const, prompt, duration: VEO_DURATION, aspectRatio: input.aspectRatio, startedAt: now };
   const job: Job = { id: randomUUID(), kind: 'generation', status: 'running', progress: 4, message: '正在准备 Veo 3.1 任务…', startedAt: now };
   const saved = saveProject({ ...p, generatedVideos: [...(p.generatedVideos || []), generated], job });
   activeJobs++;
@@ -149,12 +173,67 @@ app.post('/api/projects/:id/generations', (req, res) => {
         saveProject({ ...current, generatedVideos: current.generatedVideos.map(video => video.id === generated.id ? { ...video, requestId } : video) });
       });
       const local = await saveGeneratedVideo(remote.url, generated.id, progress);
-      const current = getProject(p.id)!;
-      saveProject({ ...current, generatedVideos: current.generatedVideos.map(video => video.id === generated.id ? { ...video, status: 'completed', finishedAt: new Date().toISOString(), stale: false, ...local } : video), job: { ...current.job!, status: 'completed', progress: 100, message: 'Veo 3.1 分镜已保存到本机', finishedAt: new Date().toISOString() } });
+      await finishSourceVideo(p.id, generated.id, local, progress);
     } catch (error) {
       const current = getProject(p.id)!;
       const message = error instanceof Error ? error.message : '视频生成未完成，请重试。';
-      saveProject({ ...current, generatedVideos: current.generatedVideos.map(video => video.id === generated.id ? { ...video, status: 'failed', error: message, finishedAt: new Date().toISOString() } : video), job: { ...current.job!, status: 'failed', message, finishedAt: new Date().toISOString() } });
+      saveProject({ ...current, generatedVideos: current.generatedVideos.map(video => video.id === generated.id && video.status !== 'completed' ? { ...video, status: 'failed', error: message, finishedAt: new Date().toISOString() } : video), job: { ...current.job!, status: 'failed', message, finishedAt: new Date().toISOString() } });
+    } finally { activeJobs--; }
+  })();
+});
+app.post('/api/projects/:id/generations/:videoId/compose', (req, res) => {
+  const p = record(req); editable(p);
+  if (!p.rewrite || p.rewriteStale || p.productionMode !== 'tts-subtitles') throw new HttpError(409, '请先切换到当前分镜的“本地配音与字幕”模式。');
+  const video = p.generatedVideos.find(item => item.id === req.params.videoId);
+  if (!video || video.productionMode !== 'tts-subtitles' || video.status !== 'completed' || !video.filename || video.stale) throw new HttpError(409, '没有可本地配音的已完成画面源片。');
+  if (activeJobs >= 2) throw new HttpError(429, '已有两个任务在处理，请稍后再试。');
+  const voice = typeof req.body?.voice === 'string' ? req.body.voice : p.ttsVoice || '';
+  const job: Job = { id: randomUUID(), kind: 'composition', status: 'running', progress: 3, message: '正在给已生成画面配音并烧录字幕…', startedAt: new Date().toISOString() };
+  const saved = saveProject({ ...p, job });
+  activeJobs++;
+  res.status(202).json(saved);
+  const progress = (n: number, message: string) => {
+    const current = getProject(p.id)!;
+    saveProject({ ...current, job: { ...current.job!, progress: n, message } });
+  };
+  void (async () => {
+    try {
+      const rendered = await composeUnitVideo(saved, video, voice, progress);
+      const current = getProject(p.id)!;
+      saveProject({ ...current, composedVideos: [...(current.composedVideos || []), rendered], job: { ...current.job!, status: 'completed', progress: 100, message: '本地配音与字幕片段已完成', finishedAt: new Date().toISOString() } });
+    } catch (error) {
+      const current = getProject(p.id)!;
+      saveProject({ ...current, job: { ...current.job!, status: 'failed', message: error instanceof Error ? error.message : '本地配音失败，请重试。', finishedAt: new Date().toISOString() } });
+    } finally { activeJobs--; }
+  })();
+});
+app.post('/api/projects/:id/compose', (req, res) => {
+  const p = record(req); editable(p);
+  if (!p.rewrite || p.rewriteStale) throw new HttpError(409, '请先完成当前分镜方案。');
+  if (p.productionMode !== 'tts-subtitles') throw new HttpError(409, '请切换到“本地配音与字幕”模式。');
+  if (activeJobs >= 2) throw new HttpError(429, '已有两个任务在处理，请稍后再试。');
+  const plan = buildVeoPlan(p.rewrite.shots);
+  const videos = plan.map(unit => [...p.generatedVideos].reverse().find(video =>
+    video.unitId === unit.id && video.productionMode === 'tts-subtitles' && video.status === 'completed' && !video.stale));
+  if (videos.some(video => !video?.filename)) throw new HttpError(409, '请先完成当前模式的全部 Veo 生产单元。');
+  const voice = typeof req.body?.voice === 'string' ? req.body.voice : p.ttsVoice || '';
+  const job: Job = { id: randomUUID(), kind: 'composition', status: 'running', progress: 3, message: '正在准备本机配音与字幕…', startedAt: new Date().toISOString() };
+  const saved = saveProject({ ...p, job });
+  activeJobs++;
+  res.status(202).json(saved);
+  const progress = (n: number, message: string) => {
+    const current = getProject(p.id)!;
+    saveProject({ ...current, job: { ...current.job!, progress: n, message } });
+  };
+  void (async () => {
+    try {
+      const rendered = await composeVideo(saved, videos as NonNullable<(typeof videos)[number]>[], voice, progress);
+      const current = getProject(p.id)!;
+      saveProject({ ...current, composedVideos: [...(current.composedVideos || []), rendered], job: { ...current.job!, status: 'completed', progress: 100, message: '本机配音、字幕与最终成片已完成', finishedAt: new Date().toISOString() } });
+    } catch (error) {
+      const current = getProject(p.id)!;
+      const message = error instanceof Error ? error.message : '本机合成失败，请重试。';
+      saveProject({ ...current, job: { ...current.job!, status: 'failed', message, finishedAt: new Date().toISOString() } });
     } finally { activeJobs--; }
   })();
 });
@@ -176,12 +255,11 @@ app.post('/api/projects/:id/generations/:videoId/recover', (req, res) => {
     try {
       const remote = await resumeVideo(video.requestId!, progress);
       const local = await saveGeneratedVideo(remote.url, video.id, progress);
-      const current = getProject(p.id)!;
-      saveProject({ ...current, generatedVideos: current.generatedVideos.map(item => item.id === video.id ? { ...item, status: 'completed', finishedAt: new Date().toISOString(), stale: false, ...local } : item), job: { ...current.job!, status: 'completed', progress: 100, message: 'Veo 3.1 成片已恢复并保存到本机', finishedAt: new Date().toISOString() } });
+      await finishSourceVideo(p.id, video.id, local, progress);
     } catch (error) {
       const current = getProject(p.id)!;
       const message = error instanceof Error ? error.message : '恢复下载未完成，请稍后重试。';
-      saveProject({ ...current, generatedVideos: current.generatedVideos.map(item => item.id === video.id ? { ...item, status: 'failed', error: message, finishedAt: new Date().toISOString() } : item), job: { ...current.job!, status: 'failed', message, finishedAt: new Date().toISOString() } });
+      saveProject({ ...current, generatedVideos: current.generatedVideos.map(item => item.id === video.id && item.status !== 'completed' ? { ...item, status: 'failed', error: message, finishedAt: new Date().toISOString() } : item), job: { ...current.job!, status: 'failed', message, finishedAt: new Date().toISOString() } });
     } finally { activeJobs--; }
   })();
 });
@@ -208,11 +286,11 @@ app.post('/api/projects/:id/jobs/:kind', (req, res) => {
       if (kind === 'analysis') {
         const result = await analyze(saved, progress);
         const current = getProject(p.id)!;
-        saveProject({ ...current, isDemo: false, analysis: result.result, analysisMeta: result.meta, rewriteStale: !!current.rewrite, generatedVideos: (current.generatedVideos || []).map(video => ({ ...video, stale: true })), usage: { input: current.usage.input + result.usage.input, output: current.usage.output + result.usage.output }, job: { ...current.job!, status: 'completed', progress: 100, message: result.meta.mode === 'native-video' ? '原生视频拆解完成' : '关键帧分析完成', finishedAt: new Date().toISOString() } });
+        saveProject({ ...current, isDemo: false, analysis: result.result, analysisMeta: result.meta, rewriteStale: !!current.rewrite, generatedVideos: (current.generatedVideos || []).map(video => ({ ...video, stale: true })), composedVideos: (current.composedVideos || []).map(video => ({ ...video, stale: true })), usage: { input: current.usage.input + result.usage.input, output: current.usage.output + result.usage.output }, job: { ...current.job!, status: 'completed', progress: 100, message: result.meta.mode === 'native-video' ? '原生视频拆解完成' : '关键帧分析完成', finishedAt: new Date().toISOString() } });
       } else {
         const result = await rewrite(saved, progress);
         const current = getProject(p.id)!;
-        saveProject({ ...current, rewrite: result.result, rewriteStale: false, generatedVideos: (current.generatedVideos || []).map(video => ({ ...video, stale: true })), usage: { input: current.usage.input + result.usage.input, output: current.usage.output + result.usage.output }, job: { ...current.job!, status: 'completed', progress: 100, message: '本地化改写完成', finishedAt: new Date().toISOString() } });
+        saveProject({ ...current, rewrite: result.result, rewriteStale: false, generatedVideos: (current.generatedVideos || []).map(video => ({ ...video, stale: true })), composedVideos: (current.composedVideos || []).map(video => ({ ...video, stale: true })), usage: { input: current.usage.input + result.usage.input, output: current.usage.output + result.usage.output }, job: { ...current.job!, status: 'completed', progress: 100, message: '本地化改写完成', finishedAt: new Date().toISOString() } });
       }
     } catch (error) {
       const current = getProject(p.id)!;
@@ -234,13 +312,14 @@ app.get('/api/projects/:id/export', async (req, res) => {
   res.type('application/zip').send(buffer);
 });
 app.use('/media', express.static(uploadDir, { dotfiles: 'deny', fallthrough: false, setHeaders(res, filepath) {
+  if (filepath.endsWith('.srt')) { res.setHeader('Content-Type', 'application/x-subrip; charset=utf-8'); return; }
   if (!filepath.endsWith('.jpg')) {
     // Uploaded files use random extensionless names; set the registered, sniffed MIME type.
     const filename = path.basename(filepath);
     for (const p of listProjects()) {
       const project = getProject(p.id)!;
-      const asset = project.assets.find(a => a.filename === filename) || project.generatedVideos?.find(a => a.filename === filename);
-      if (asset) { res.setHeader('Content-Type', asset.mime || 'video/mp4'); return; }
+      const asset = project.assets.find(a => a.filename === filename) || project.generatedVideos?.find(a => a.filename === filename) || project.composedVideos?.find(a => a.filename === filename);
+      if (asset) { res.setHeader('Content-Type', 'mime' in asset ? asset.mime || 'video/mp4' : 'video/mp4'); return; }
     }
     res.setHeader('Content-Type', 'application/octet-stream');
   }

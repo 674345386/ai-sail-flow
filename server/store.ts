@@ -17,6 +17,8 @@ for (const filename of fs.readdirSync(recordsDir)) {
     if (!project.id || !Array.isArray(project.assets)) continue;
     // Records created before video rendering was introduced remain readable.
     project.generatedVideos ||= [];
+    project.composedVideos ||= [];
+    project.productionMode ||= 'veo-native';
     if (project.job?.status === 'running') {
       const finishedAt = new Date().toISOString();
       const interruptedGeneration = project.job.kind === 'generation';
@@ -56,6 +58,6 @@ export function createProject(demo = false) {
   return saveProject(demo ? demoProject(id) : {
     id, title: '未命名创意', createdAt: now, updatedAt: now, revision: 0, isDemo: false,
     product: { ...emptyProduct }, market: { ...defaultMarket }, assets: [], analysis: null, rewrite: null,
-    rewriteStale: false, generatedVideos: [], job: null, model: MODEL, usage: { input: 0, output: 0 },
+    rewriteStale: false, generatedVideos: [], composedVideos: [], productionMode: 'veo-native', ttsVoice: '', job: null, model: MODEL, usage: { input: 0, output: 0 },
   });
 }

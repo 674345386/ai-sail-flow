@@ -1,18 +1,38 @@
-import { countries, platforms, roles, timeLabel, type Project, type Shot } from './domain';
+import { countries, platforms, roles, timeLabel, type ProductionMode, type Project, type Shot } from './domain';
 import { buildVeoPlan, VEO_CLIP_SECONDS, type VeoPlanUnit } from './veo-plan';
 
 function stamp(seconds: number) {
   const ms = Math.round(seconds * 1000);
   return `${String(Math.floor(ms / 3600000)).padStart(2, '0')}:${String(Math.floor(ms / 60000) % 60).padStart(2, '0')}:${String(Math.floor(ms / 1000) % 60).padStart(2, '0')},${String(ms % 1000).padStart(3, '0')}`;
 }
-export function subtitles(shots: Shot[]) {
-  return shots.filter(s => s.onScreenText.trim() || s.narration.trim()).map((s, i) =>
-    `${i + 1}\n${stamp(s.start)} --> ${stamp(s.end)}\n${(s.onScreenText || s.narration).trim()}\n`,
+export function subtitles(shots: Shot[], mode: ProductionMode = 'veo-native') {
+  return shots.filter(s => (mode === 'tts-subtitles' ? s.narration : s.onScreenText || s.narration).trim()).map((s, i) =>
+    `${i + 1}\n${stamp(s.start)} --> ${stamp(s.end)}\n${(mode === 'tts-subtitles' ? s.narration : s.onScreenText || s.narration).trim()}\n`,
   ).join('\n');
 }
-function veoUnitPromptData(project: Project, unit: VeoPlanUnit) {
+function veoUnitPromptData(project: Project, unit: VeoPlanUnit, mode: ProductionMode) {
   const rewrite = project.rewrite!;
   const shots = rewrite.shots.filter(shot => unit.sourceShotIds.includes(shot.id));
+  if (mode === 'tts-subtitles') return {
+    format: 'veo-visual-unit/v1',
+    task: 'Generate one continuous product-video VISUAL clip. The voiceover, captions and on-screen copy will be added after video generation.',
+    output: {
+      clipDurationSeconds: VEO_CLIP_SECONDS,
+      finalEditRangeSeconds: { start: unit.start, end: unit.end, duration: unit.targetDuration },
+      aspectRatio: project.market.aspectRatio,
+    },
+    visualRequirements: 'Follow the visual beats and product actions in order. Keep product identity, people, props, camera and lighting consistent. Leave visual space for later captions. Do not generate speech, subtitles, titles or added text overlays. Preserve only the packaging text naturally present on the product.',
+    productFacts: { name: project.product.name, facts: project.product.facts },
+    storyboard: shots.map(shot => ({
+      id: shot.id,
+      renderRangeSeconds: {
+        start: Number(Math.max(0, shot.start - unit.start).toFixed(3)),
+        end: Number(Math.min(unit.targetDuration, shot.end - unit.start).toFixed(3)),
+      },
+      visual: shot.visual, action: shot.action, camera: shot.camera,
+      productPresence: shot.productPresence, uncertainty: shot.uncertainty,
+    })),
+  };
   const cues = shots.map(shot => ({
     shotId: shot.id,
     renderRangeSeconds: {
@@ -43,11 +63,11 @@ function veoUnitPromptData(project: Project, unit: VeoPlanUnit) {
     storyboard: shots,
   };
 }
-export function buildVeoUnitPrompt(project: Project, unit: VeoPlanUnit) {
-  return project.rewrite ? JSON.stringify(veoUnitPromptData(project, unit), null, 2) : '';
+export function buildVeoUnitPrompt(project: Project, unit: VeoPlanUnit, mode: ProductionMode = project.productionMode || 'veo-native') {
+  return project.rewrite ? JSON.stringify(veoUnitPromptData(project, unit, mode), null, 2) : '';
 }
-export function buildVeoPromptPreview(project: Project) {
-  return project.rewrite ? JSON.stringify(buildVeoPlan(project.rewrite.shots).map(unit => veoUnitPromptData(project, unit)), null, 2) : '';
+export function buildVeoPromptPreview(project: Project, mode: ProductionMode = project.productionMode || 'veo-native') {
+  return project.rewrite ? JSON.stringify(buildVeoPlan(project.rewrite.shots).map(unit => veoUnitPromptData(project, unit, mode)), null, 2) : '';
 }
 export function buildPrompt(project: Project) {
   const r = project.rewrite;
@@ -87,8 +107,8 @@ export function buildExportFiles(project: Project) {
       note: 'Each unit requests a fixed 8-second Veo source clip. Use targetStart/targetEnd to trim and assemble the final edit; do not render each analysis cut as a separate 8-second clip.',
       units: buildVeoPlan(project.rewrite.shots),
     }, null, 2),
-    'manifest.json': JSON.stringify({ app: 'AI-Sail Flow', version: 1, model: project.model, projectId: project.id, title: project.title, demo: project.isDemo, sourceAnalysis: project.analysisMeta || null, exportedAt: new Date().toISOString(), product: project.product, market: project.market, productReferences: project.assets.filter(a => a.kind === 'product').map(a => a.name), subtitles: 'Draft timing; align against the final rendered audio.' }, null, 2),
+    'manifest.json': JSON.stringify({ app: 'AI-Sail Flow', version: 1, model: project.model, productionMode: project.productionMode || 'veo-native', projectId: project.id, title: project.title, demo: project.isDemo, sourceAnalysis: project.analysisMeta || null, exportedAt: new Date().toISOString(), product: project.product, market: project.market, productReferences: project.assets.filter(a => a.kind === 'product').map(a => a.name), subtitles: 'Draft timing; align against the final rendered audio.' }, null, 2),
   };
-  if (project.market.subtitles) files['05-subtitles-draft.srt'] = subtitles(project.rewrite.shots);
+  if (project.market.subtitles || project.productionMode === 'tts-subtitles') files['05-subtitles-draft.srt'] = subtitles(project.rewrite.shots, project.productionMode);
   return files;
 }
