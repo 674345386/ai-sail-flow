@@ -69,6 +69,12 @@ export type Job = {
   progress: number; message: string; startedAt: string; finishedAt?: string;
 };
 export type ProductionMode = 'veo-native' | 'tts-subtitles';
+export type ModelRequestSnapshot = {
+  model: string; transport: string; systemInstruction: string; prompt: string;
+  responseSchema: unknown; media: { kind: string; mimeType?: string; size?: number }[];
+  parameters: Record<string, string | number | boolean>;
+  recordedAt: string;
+};
 export type GeneratedVideo = {
   id: string; provider: 'veo-3.1' | 'grok-imagine'; model: 'veo_3_1' | 'veo_3_1-fl' | 'veo_3_1-components' | 'grok-imagine-video-1.5'; shotId: string;
   mode?: 't2v' | 'i2v' | 'r2v'; imageUrls?: string[]; resolution?: '720p' | '1080p' | 'lite';
@@ -77,11 +83,17 @@ export type GeneratedVideo = {
   duration: number; aspectRatio: Market['aspectRatio'] | '16:9'; startedAt: string; finishedAt?: string;
   filename?: string; url?: string; mime?: string; size?: number; width?: number; height?: number;
   hasAudio?: boolean; thumbnail?: string; stale?: boolean; error?: string;
+  defaultPrompt?: string; providerRequest?: { model: string; prompt: string; resolution: string; aspect_ratio: string; images?: string[] };
 };
 export type ComposedVideo = {
   id: string; mode: 'tts-subtitles'; unitId?: string; sourceVideoIds: string[]; voice: string;
   filename: string; url: string; subtitleFilename: string; subtitleUrl: string;
   duration: number; startedAt: string; finishedAt: string; stale?: boolean;
+  renderTrace?: {
+    voiceSegments: { shotId: string; text: string; sourceDuration: number; speed: number; start: number; offset: number; length: number }[];
+    captionCues: { shotId: string; start: number; end: number; headline: string; caption: string }[];
+    filterGraph: string; videoCodec: string; audioCodec: string; originalAudio: 'removed';
+  };
 };
 export type AnalysisMeta = {
   mode: 'native-video' | 'sampled-frames';
@@ -92,6 +104,7 @@ export type Project = {
   id: string; title: string; createdAt: string; updatedAt: string; revision: number; isDemo: boolean;
   product: Product; market: Market; assets: Asset[]; analysis: Analysis | null; rewrite: Rewrite | null;
   analysisMeta?: AnalysisMeta | null;
+  analysisRequest?: ModelRequestSnapshot | null; rewriteRequest?: ModelRequestSnapshot | null;
   rewriteStale: boolean; generatedVideos: GeneratedVideo[]; composedVideos?: ComposedVideo[];
   productionMode?: ProductionMode; ttsVoice?: string; job: Job | null; model: string; usage: { input: number; output: number };
 };

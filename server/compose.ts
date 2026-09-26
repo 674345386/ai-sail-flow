@@ -77,7 +77,7 @@ async function render(project: Project, videos: GeneratedVideo[], requestedVoice
   const subtitleFilename = `${prefix}-${id}.srt`;
   try {
     progress(10, '正在按分镜生成配音…');
-    const tracks: { file: string; start: number; offset: number; length: number; speed: number }[] = [];
+    const tracks: { file: string; shotId: string; text: string; sourceDuration: number; start: number; offset: number; length: number; speed: number }[] = [];
     for (const [index, shot] of spoken.entries()) {
       const file = path.join(temp, `voice-${index}.aiff`);
       const script = path.join(temp, `voice-${index}.txt`);
@@ -89,7 +89,7 @@ async function render(project: Project, videos: GeneratedVideo[], requestedVoice
       if (speed > 1.6) throw new Error(`第 ${shots.indexOf(shot) + 1} 镜口播长 ${actual.toFixed(1)} 秒，画面只有 ${window.toFixed(1)} 秒；请缩短台词或延长该镜头。`);
       const overlapStart = Math.max(shot.start, rangeStart);
       const overlapEnd = Math.min(shot.end, rangeEnd);
-      tracks.push({ file, start: overlapStart - rangeStart, offset: overlapStart - shot.start, length: overlapEnd - overlapStart, speed });
+      tracks.push({ file, shotId: shot.id, text: shot.narration.trim(), sourceDuration: actual, start: overlapStart - rangeStart, offset: overlapStart - shot.start, length: overlapEnd - overlapStart, speed });
       progress(10 + Math.round((index + 1) / Math.max(1, spoken.length) * 40), `已生成 ${index + 1}/${spoken.length} 段配音`);
     }
     progress(55, '正在制作文字与字幕图层…');
@@ -117,7 +117,8 @@ async function render(project: Project, videos: GeneratedVideo[], requestedVoice
     tracks.forEach((track, index) => filters.push(`[${videos.length + index}:a]aresample=48000,aformat=channel_layouts=stereo,atempo=${track.speed.toFixed(4)},atrim=start=${track.offset.toFixed(3)}:duration=${track.length.toFixed(3)},asetpts=PTS-STARTPTS,adelay=${Math.round(track.start * 1000)}:all=1[a${index}]`));
     if (tracks.length) filters.push(`[silence]${tracks.map((_, index) => `[a${index}]`).join('')}amix=inputs=${tracks.length + 1}:duration=longest:normalize=0,atrim=duration=${duration},alimiter=limit=0.95[audio]`);
     else filters.push('[silence]anull[audio]');
-    args.push('-filter_complex', filters.join(';'), '-map', `[${visual}]`, '-map', '[audio]',
+    const filterGraph = filters.join(';');
+    args.push('-filter_complex', filterGraph, '-map', `[${visual}]`, '-map', '[audio]',
       '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '22', '-pix_fmt', 'yuv420p',
       '-c:a', 'aac', '-b:a', '160k', '-movflags', '+faststart', '-t', String(duration), provisional);
     progress(70, '正在合成画面、配音与字幕…');
@@ -129,7 +130,10 @@ async function render(project: Project, videos: GeneratedVideo[], requestedVoice
     progress(95, '成片已写入本机…');
     return { id, mode: 'tts-subtitles' as const, unitId, sourceVideoIds: videos.map(video => video.id), voice: chosen.name,
       filename, url: `/media/${filename}`, subtitleFilename, subtitleUrl: `/media/${subtitleFilename}`,
-      duration, size, startedAt: new Date().toISOString(), finishedAt: new Date().toISOString() };
+      duration, size, startedAt: new Date().toISOString(), finishedAt: new Date().toISOString(),
+      renderTrace: { voiceSegments: tracks.map(({ file: _file, ...segment }) => segment),
+        captionCues: visible.map(shot => ({ shotId: shot.id, start: Math.max(0, shot.start - rangeStart), end: Math.min(duration, shot.end - rangeStart), headline: shot.onScreenText.trim() === shot.narration.trim() ? '' : shot.onScreenText.trim(), caption: shot.narration.trim() })),
+        filterGraph, videoCodec: 'libx264 / yuv420p', audioCodec: 'aac / 160k', originalAudio: 'removed' as const } };
   } catch (error) {
     await rm(provisional, { force: true }).catch(() => {});
     throw error;

@@ -7,7 +7,7 @@ import multer from 'multer';
 import JSZip from 'jszip';
 import { z } from 'zod';
 import { MODEL, projectPatchSchema, validateContinuousTimeline, validateMarket, validateTimeline, type Project, type Asset, type Job } from '../shared/domain';
-import { buildExportFiles } from '../shared/export';
+import { buildExportFiles, buildVeoUnitPrompt } from '../shared/export';
 import { buildVeoPlan } from '../shared/veo-plan';
 import type { GenerationInput } from './veo';
 
@@ -16,7 +16,7 @@ try { process.loadEnvFile(path.join(root, '.env')); } catch (err) { if ((err as 
 // Load storage after .env so an optional data-directory override takes effect.
 const { createProject, getProject, listProjects, saveProject, uploadDir } = await import('./store');
 const { analyze, rewrite, configured, configureConnection } = await import('./gemini');
-const { VEO_MODELS, VEO_DURATION, configureGenerationKey, generateVideo, resumeVideo, generationConfigured, saveGeneratedVideo } = await import('./veo');
+const { VEO_MODELS, VEO_DURATION, configureGenerationKey, generateVideo, resumeVideo, generationConfigured, saveGeneratedVideo, requestBody } = await import('./veo');
 const { listTtsVoices, composeVideo, composeUnitVideo } = await import('./compose');
 const { inspectMedia } = await import('./media');
 const port = Number(process.env.SOP_PORT || 4317);
@@ -157,7 +157,7 @@ app.post('/api/projects/:id/generations', (req, res) => {
   // or reinterpret it: this saved value is the exact provider prompt for the task.
   const prompt = input.prompt;
   const now = new Date().toISOString();
-  const generated = { id: randomUUID(), provider: 'veo-3.1' as const, model: VEO_MODELS[input.mode], mode: input.mode, productionMode: p.productionMode || 'veo-native', imageUrls: input.mode === 't2v' ? [] : input.images, resolution: input.resolution, shotId: unit.sourceShotIds[0] || unit.id, unitId: unit.id, sourceShotIds: unit.sourceShotIds, targetStart: unit.start, targetEnd: unit.end, targetDuration: unit.targetDuration, status: 'running' as const, prompt, duration: VEO_DURATION, aspectRatio: input.aspectRatio, startedAt: now };
+  const generated = { id: randomUUID(), provider: 'veo-3.1' as const, model: VEO_MODELS[input.mode], mode: input.mode, productionMode: p.productionMode || 'veo-native', imageUrls: input.mode === 't2v' ? [] : input.images, resolution: input.resolution, shotId: unit.sourceShotIds[0] || unit.id, unitId: unit.id, sourceShotIds: unit.sourceShotIds, targetStart: unit.start, targetEnd: unit.end, targetDuration: unit.targetDuration, status: 'running' as const, prompt, defaultPrompt: buildVeoUnitPrompt(p, unit), providerRequest: requestBody(input, prompt), duration: VEO_DURATION, aspectRatio: input.aspectRatio, startedAt: now };
   const job: Job = { id: randomUUID(), kind: 'generation', status: 'running', progress: 4, message: '正在准备 Veo 3.1 任务…', startedAt: now };
   const saved = saveProject({ ...p, generatedVideos: [...(p.generatedVideos || []), generated], job });
   activeJobs++;
@@ -284,11 +284,17 @@ app.post('/api/projects/:id/jobs/:kind', (req, res) => {
   void (async () => {
     try {
       if (kind === 'analysis') {
-        const result = await analyze(saved, progress);
+        const result = await analyze(saved, progress, snapshot => {
+          const current = getProject(p.id)!;
+          saveProject({ ...current, analysisRequest: snapshot });
+        });
         const current = getProject(p.id)!;
         saveProject({ ...current, isDemo: false, analysis: result.result, analysisMeta: result.meta, rewriteStale: !!current.rewrite, generatedVideos: (current.generatedVideos || []).map(video => ({ ...video, stale: true })), composedVideos: (current.composedVideos || []).map(video => ({ ...video, stale: true })), usage: { input: current.usage.input + result.usage.input, output: current.usage.output + result.usage.output }, job: { ...current.job!, status: 'completed', progress: 100, message: result.meta.mode === 'native-video' ? '原生视频拆解完成' : '关键帧分析完成', finishedAt: new Date().toISOString() } });
       } else {
-        const result = await rewrite(saved, progress);
+        const result = await rewrite(saved, progress, snapshot => {
+          const current = getProject(p.id)!;
+          saveProject({ ...current, rewriteRequest: snapshot });
+        });
         const current = getProject(p.id)!;
         saveProject({ ...current, rewrite: result.result, rewriteStale: false, generatedVideos: (current.generatedVideos || []).map(video => ({ ...video, stale: true })), composedVideos: (current.composedVideos || []).map(video => ({ ...video, stale: true })), usage: { input: current.usage.input + result.usage.input, output: current.usage.output + result.usage.output }, job: { ...current.job!, status: 'completed', progress: 100, message: '本地化改写完成', finishedAt: new Date().toISOString() } });
       }
