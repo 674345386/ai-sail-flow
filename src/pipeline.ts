@@ -49,11 +49,12 @@ export function buildPipeline(project: Project, mode: ProductionMode, unitId: st
     transform: '视频与可选产品图进入多模态分析。新任务记录请求文字与参数；历史请求若未留存，不伪造原文。密钥与媒体 base64 不记录。' });
   add({ id: 'analysis', title: '原片分析结果', eyebrow: '03 · Gemini 输出', status: project.analysis ? 'done' : 'waiting', evidence: project.analysis ? 'recorded' : 'missing',
     inputs: [input('request', '模型请求', 'analysis-request', 'request')], outputs: [port('analysis', '结构化原片分析', project.analysis)], transform: '保存 Gemini 返回的场景、动作、原片口播与画面文字。历史请求快照缺失不代表此结果缺失。' });
-  add({ id: 'rewrite-request', title: '本地化改写请求', eyebrow: '04 · Gemini 输入', status: project.job?.kind === 'rewrite' && project.job.status === 'running' ? 'running' : project.rewrite ? 'done' : 'waiting', evidence: project.rewriteRequest ? 'recorded' : project.rewrite ? 'missing' : 'reconstructed',
-    inputs: [input('analysis', '原片分析', 'analysis', 'analysis'), input('product', '目标产品', 'project', 'product'), input('market', '市场设置', 'project', 'market')], outputs: [port('request', '改写请求快照', project.rewriteRequest || null)],
-    transform: '原片结构、目标产品和市场要求进入 Gemini。项目资料可能已编辑；历史真实请求以快照为准。' });
-  add({ id: 'rewrite', title: '交付分镜 JSON', eyebrow: '05 · Gemini 输出 / 可编辑', status: project.rewrite ? 'done' : 'waiting', evidence: project.rewrite ? 'recorded' : 'missing',
-    inputs: [input('request', '改写请求', 'rewrite-request', 'request')], outputs: [port('storyboard', '当前分镜 JSON', project.rewrite)], transform: '模型输出后可由用户编辑。这里展示当前保存的分镜，不一定等于模型最初返回的版本。' });
+  const direct = project.promptFlow === 'direct-analysis';
+  add({ id: 'rewrite-request', title: direct ? '原片分析直连 Prompt' : '本地化改写请求', eyebrow: direct ? '04 · 本地整理' : '04 · Gemini 输入', status: project.job?.kind === 'rewrite' && project.job.status === 'running' ? 'running' : project.rewrite ? 'done' : 'waiting', evidence: direct ? 'reconstructed' : project.rewriteRequest ? 'recorded' : project.rewrite ? 'missing' : 'reconstructed',
+    inputs: direct ? [input('analysis', '原片分析', 'analysis', 'analysis')] : [input('analysis', '原片分析', 'analysis', 'analysis'), input('product', '目标产品', 'project', 'product'), input('market', '市场设置', 'project', 'market')], outputs: [port('request', direct ? '无需 Gemini 请求' : '改写请求快照', direct ? null : project.rewriteRequest || null)],
+    transform: direct ? '不发起第二次 Gemini 请求。直接将 Gemini 原片分析整理成分镜，再由用户编辑最终 Veo Prompt。' : '原片结构、目标产品和市场要求进入 Gemini。项目资料可能已编辑；历史真实请求以快照为准。' });
+  add({ id: 'rewrite', title: direct ? '原片分镜 / 可编辑' : '交付分镜 JSON', eyebrow: direct ? '05 · 分析结果整理' : '05 · Gemini 输出 / 可编辑', status: project.rewrite ? 'done' : 'waiting', evidence: direct ? 'reconstructed' : project.rewrite ? 'recorded' : 'missing',
+    inputs: [input('request', direct ? '原片分析' : '改写请求', direct ? 'analysis' : 'rewrite-request', direct ? 'analysis' : 'request')], outputs: [port('storyboard', '当前分镜 JSON', project.rewrite), port('narration', '整条视频台词', project.rewrite?.shots.map(shot => ({ shotId: shot.id, preferredStart: shot.start, narration: shot.narration })) || [])], transform: direct ? '分镜字段来自原片分析；最终生成 Prompt 可在 Veo 卡片中检查和编辑。' : '模型输出后可由用户编辑。这里展示当前保存的分镜，不一定等于模型最初返回的版本。' });
   add({ id: 'plan', title: '生产单元规划', eyebrow: '06 · 本地转换', status: plan.length ? 'done' : 'waiting', evidence: 'reconstructed',
     inputs: [input('storyboard', '分镜 JSON', 'rewrite', 'storyboard')], outputs: [port('units', '全部 8 秒单元', plan), port('unit', '当前选中单元', unit || null)], transform: '按最终时间线每 8 秒切分一次 Veo 请求；画布只展开所选单元。' });
   add({ id: 'slice', title: '当前单元分镜与台词', eyebrow: '07 · 本地转换', status: unit && project.rewrite ? 'done' : 'waiting', evidence: 'reconstructed',
@@ -79,11 +80,11 @@ export function buildPipeline(project: Project, mode: ProductionMode, unitId: st
     transform: '根据任务 ID 轮询视频并下载到本机。第三方临时下载地址和完整响应未留存。', links: video?.url ? [{ label: '打开 Veo 源片', url: video.url }] : [] });
   if (mode === 'tts-subtitles') {
     add({ id: 'tts', title: '本机生成配音', eyebrow: '14A · macOS say', status: composed ? 'done' : 'waiting', evidence: composed?.renderTrace ? 'recorded' : composed ? 'missing' : 'reconstructed',
-      inputs: [input('narration', '口播时间片', 'slice', 'narration'), input('market', '目标语言', 'project', 'market')], outputs: [port('audio', '逐段配音记录', composed?.renderTrace?.voiceSegments || null)],
-      transform: `使用 ${composed?.voice || project.ttsVoice || '目标语言默认音色'} 逐镜头 TTS，并按镜头时长调整语速。临时音频不长期保存；旧任务无记录则不能补造音频参数。` });
+      inputs: [input('narration', '完整口播原文', 'rewrite', 'narration'), input('market', '目标语言', 'project', 'market')], outputs: [port('audio', '本片段实际配音记录', composed?.renderTrace?.voiceSegments || null), port('timeline', '整条视频配音时间线', composed?.renderTrace?.speechTimeline || null)],
+      transform: composed && !composed.renderTrace?.timingVersion ? '历史任务使用逐镜头对齐；以当时记录为准。' : `使用 ${composed?.voice || project.ttsVoice || '目标语言默认音色'} 读取完整台词，统一排布连续配音，允许跨镜头和生产单元；必要时最多轻微加速 15%。本机缓存配音供片段与成片复用，不修改台词原文。` });
     add({ id: 'captions', title: '制作字幕图层', eyebrow: '14B · Swift / SRT', status: composed ? 'done' : 'waiting', evidence: composed?.renderTrace ? 'recorded' : composed ? 'missing' : 'reconstructed',
-      inputs: [input('cues', '文字时间片', 'slice', 'captions')], outputs: [port('layers', '图层时间记录', composed?.renderTrace?.captionCues || null), port('srt', 'SRT 字幕文件', composed?.subtitleFilename || null)],
-      transform: '画面文字在上，口播字幕在下。Swift 绘制透明 PNG，SRT 单独写入本机；临时 PNG 不长期保存。', links: composed?.subtitleUrl ? [{ label: '下载 SRT', url: composed.subtitleUrl }] : [] });
+      inputs: [input('cues', '镜头画面文字', 'slice', 'captions'), input('audio', '实际配音时间', 'tts', 'audio')], outputs: [port('layers', '图层时间记录', composed?.renderTrace?.captionCues || null), port('srt', 'SRT 字幕文件', composed?.subtitleFilename || null)],
+      transform: '画面文字在上，跟随镜头；口播字幕在下，跟随实际声音时间。Swift 绘制透明 PNG，SRT 使用相同的配音时间码。历史逐镜头任务以其记录为准。', links: composed?.subtitleUrl ? [{ label: '下载 SRT', url: composed.subtitleUrl }] : [] });
     add({ id: 'mux', title: '烧录并混音', eyebrow: '15 · FFmpeg', status: composed ? 'done' : 'waiting', evidence: composed?.renderTrace ? 'recorded' : composed ? 'missing' : 'reconstructed',
       inputs: [input('video', 'Veo 源片', 'veo-source', 'file'), input('audio', '本机配音', 'tts', 'audio'), input('layers', '字幕图层', 'captions', 'layers'), input('unit', '裁切时长', 'plan', 'unit')],
       outputs: [port('video', '带配音字幕的片段', composed ? { filename: composed.filename, duration: composed.duration, voice: composed.voice, sourceVideoIds: composed.sourceVideoIds } : null), port('filter', 'FFmpeg 滤镜图', composed?.renderTrace?.filterGraph || null)],

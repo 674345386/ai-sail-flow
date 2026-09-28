@@ -32,7 +32,11 @@ export const marketSchema = z.object({
   platform: z.enum(['tiktok', 'reels', 'shorts']), destination: z.enum(['shop', 'website']),
   cta: z.string().max(1000), tone: z.enum(['natural', 'expert', 'energetic']),
   duration: z.enum(['original', '15', '30', '45', '60']), people: z.enum(['preserve', 'localize', 'hands']),
-  keepStructure: z.boolean(), subtitles: z.boolean(), aspectRatio: z.enum(['9:16', '4:5', '1:1']),
+  keepStructure: z.boolean(), subtitles: z.boolean(), aspectRatio: z.enum(['9:16', '16:9', '4:5', '1:1']),
+});
+export const replicationSchema = z.object({
+  preserve: z.string().trim().max(3000),
+  change: z.string().trim().max(3000),
 });
 export const shotSchema = z.object({
   id: z.string().max(80), start: z.number().min(0).max(2700), end: z.number().min(0).max(2700),
@@ -57,6 +61,7 @@ export const rewriteSchema = z.object({
 });
 export type Product = z.infer<typeof productSchema>;
 export type Market = z.infer<typeof marketSchema>;
+export type Replication = z.infer<typeof replicationSchema>;
 export type Shot = z.infer<typeof shotSchema>;
 export type Analysis = z.infer<typeof analysisSchema>;
 export type Rewrite = z.infer<typeof rewriteSchema>;
@@ -65,10 +70,24 @@ export type Asset = {
   url: string; filename: string; thumbnail?: string; duration?: number; width?: number; height?: number; hasAudio?: boolean;
 };
 export type Job = {
-  id: string; kind: 'analysis' | 'rewrite' | 'generation' | 'composition'; status: 'running' | 'completed' | 'failed';
-  progress: number; message: string; startedAt: string; finishedAt?: string;
+  id: string; kind: 'analysis' | 'rewrite' | 'generation' | 'composition'; status: 'running' | 'completed' | 'failed' | 'needs-input';
+  progress: number; message: string; startedAt: string; finishedAt?: string; videoId?: string; unitId?: string;
 };
 export type ProductionMode = 'veo-native' | 'tts-subtitles';
+export type TtsTimingNotice = { targetDuration: number; requiredDuration: number; voice: string; basis: string };
+export type WorkflowMode = 'automatic' | 'manual';
+export type PromptFlow = 'direct-analysis' | 'localized';
+export type WorkflowStage = 'analysis' | 'rewrite' | 'generation' | 'composition' | 'completed';
+export type WorkflowRun = {
+  id: string; status: 'running' | 'pausing' | 'paused' | 'needs-input' | 'failed' | 'completed';
+  stage: WorkflowStage; message: string; startedAt: string; finishedAt?: string;
+  maxNewClips: number; newClipCount: number; unitId?: string;
+};
+export const automaticSettingsSchema = z.object({
+  resolution: z.enum(['720p', '1080p', 'lite']).default('720p'),
+  aspectRatio: z.enum(['9:16', '16:9']).default('9:16'),
+});
+export type AutomaticSettings = z.infer<typeof automaticSettingsSchema>;
 export type ModelRequestSnapshot = {
   model: string; transport: string; systemInstruction: string; prompt: string;
   responseSchema: unknown; media: { kind: string; mimeType?: string; size?: number }[];
@@ -86,10 +105,12 @@ export type GeneratedVideo = {
   defaultPrompt?: string; providerRequest?: { model: string; prompt: string; resolution: string; aspect_ratio: string; images?: string[] };
 };
 export type ComposedVideo = {
-  id: string; mode: 'tts-subtitles'; unitId?: string; sourceVideoIds: string[]; voice: string;
-  filename: string; url: string; subtitleFilename: string; subtitleUrl: string;
+  id: string; mode: ProductionMode; unitId?: string; sourceVideoIds: string[]; voice: string;
+  filename: string; url: string; subtitleFilename?: string; subtitleUrl?: string;
   duration: number; startedAt: string; finishedAt: string; stale?: boolean;
   renderTrace?: {
+    timingVersion?: 'continuous-v1'; targetDuration?: number; extendedBy?: number;
+    speechTimeline?: { shotId: string; text: string; start: number; end: number; sourceDuration: number; speed: number }[];
     voiceSegments: { shotId: string; text: string; sourceDuration: number; speed: number; start: number; offset: number; length: number }[];
     captionCues: { shotId: string; start: number; end: number; headline: string; caption: string }[];
     filterGraph: string; videoCodec: string; audioCodec: string; originalAudio: 'removed';
@@ -102,20 +123,31 @@ export type AnalysisMeta = {
 };
 export type Project = {
   id: string; title: string; createdAt: string; updatedAt: string; revision: number; isDemo: boolean;
-  product: Product; market: Market; assets: Asset[]; analysis: Analysis | null; rewrite: Rewrite | null;
+  product: Product; market: Market; replication?: Replication; assets: Asset[]; analysis: Analysis | null; rewrite: Rewrite | null;
   analysisMeta?: AnalysisMeta | null;
   analysisRequest?: ModelRequestSnapshot | null; rewriteRequest?: ModelRequestSnapshot | null;
   rewriteStale: boolean; generatedVideos: GeneratedVideo[]; composedVideos?: ComposedVideo[];
   productionMode?: ProductionMode; ttsVoice?: string; job: Job | null; model: string; usage: { input: number; output: number };
+  workflowMode?: WorkflowMode; workflow?: WorkflowRun | null; automaticSettings?: AutomaticSettings; jobHistory?: Job[];
+  promptFlow?: PromptFlow;
+  veoPromptDrafts?: Record<string, { prompt: string; basis: string }>;
+  ttsTimingNotice?: TtsTimingNotice;
 };
 export type ProjectSummary = Pick<Project, 'id' | 'title' | 'updatedAt' | 'isDemo'> & { stage: number };
 export const emptyProduct: Product = { name: '', category: '家居生活', facts: '', audience: '', price: '', currency: 'USD', offer: '', landingUrl: '' };
 export const defaultMarket: Market = { country: 'US', language: 'en-US', platform: 'tiktok', destination: 'website', cta: '', tone: 'natural', duration: 'original', people: 'preserve', keepStructure: true, subtitles: true, aspectRatio: '9:16' };
+export const defaultReplication: Replication = {
+  preserve: '参考视频的整体视觉形式、场景、主体角色与动作、构图、运镜、剪辑顺序与节奏、声音表达方式。',
+  change: '按本项目的产品资料和参考图替换指定主体或物品；人物面孔与少量配色可按项目要求调整。',
+};
 export const projectPatchSchema = z.object({
   revision: z.number().int().nonnegative(), title: z.string().trim().min(1).max(120),
-  product: productSchema, market: marketSchema, analysis: analysisSchema.nullable(), rewrite: rewriteSchema.nullable(),
+  product: productSchema, market: marketSchema, replication: replicationSchema.optional(), analysis: analysisSchema.nullable(), rewrite: rewriteSchema.nullable(),
   productionMode: z.enum(['veo-native', 'tts-subtitles']).default('veo-native'),
   ttsVoice: z.string().max(120).default(''),
+  automaticSettings: automaticSettingsSchema.optional(),
+  promptFlow: z.enum(['direct-analysis', 'localized']).default('localized'),
+  veoPromptDrafts: z.record(z.string(), z.object({ prompt: z.string(), basis: z.string() })).default({}),
 });
 export function stageOf(project: Pick<Project, 'assets' | 'analysis' | 'rewrite' | 'rewriteStale'>) {
   return project.rewrite && !project.rewriteStale ? 4 : project.analysis ? 3 : project.assets.some(a => a.kind === 'video') ? 2 : 1;

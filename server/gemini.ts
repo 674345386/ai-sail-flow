@@ -2,7 +2,7 @@ import { GoogleGenAI, ThinkingLevel, type Part } from '@google/genai';
 import { z } from 'zod';
 import path from 'node:path';
 import { readFile } from 'node:fs/promises';
-import { MODEL, analysisSchema, rewriteSchema, countries, platforms, validateContinuousTimeline, validateTimeline, type Project, type AnalysisMeta, type ModelRequestSnapshot } from '../shared/domain';
+import { MODEL, analysisSchema, rewriteSchema, countries, defaultReplication, platforms, validateContinuousTimeline, validateTimeline, type Project, type AnalysisMeta, type ModelRequestSnapshot } from '../shared/domain';
 import { uploadDir } from './store';
 import { extractKeyframes } from './media';
 
@@ -85,7 +85,7 @@ async function generateNative<T extends z.ZodType>(parts: NativePart[], schema: 
     contents: [{ role: 'user', parts: [...parts, { text: prompt }] }],
     generation_config: { response_mime_type: 'application/json', temperature: 0, max_output_tokens: 24000 },
   });
-  if (Buffer.byteLength(body) > 20 * 1024 * 1024) throw new Error('原生视频直传请求超出 20 MB，请先压缩视频或减少产品参考图；本地原片已保存。');
+  if (Buffer.byteLength(body) > 100 * 1024 * 1024) throw new Error('原生直传请求超过 100 MB，本地已停止发送。请压缩视频或减少产品参考图；更大的文件需要接入 Gemini Files API。');
   const response = await fetch(nativeEndpoint(), {
     method: 'POST', redirect: 'manual', signal: AbortSignal.timeout(180000),
     headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' }, body,
@@ -190,6 +190,10 @@ One continuous timeline from 0 to exactly ${video.duration}s, no overlaps, at mo
   result.result.uncertainties = [note, ...result.result.uncertainties].slice(0, 30);
   return result;
 }
+function sourceStyleRule(project: Project) {
+  const rules = project.replication || defaultReplication;
+  return `REFERENCE REPLICATION CONTRACT: The reference analysis is the source of truth for the video's form; it is not merely an idea seed. USER-SPECIFIED ELEMENTS TO PRESERVE: ${rules.preserve}. USER-SPECIFIED ALLOWED CHANGES: ${rules.change}. Change only what the allowed-changes brief or explicit market settings authorize. Preserve every other observed element, including whether the source is music-led or speech-led. ${project.market.keepStructure ? 'Retain the source shot order, approximate cut times, subject roles, actions, camera and transitions.' : 'The user allowed structural adaptation; still preserve all elements named in the preserve brief.'} An image of a target item may include a display stand, person or background; do not copy those surrounding elements unless the allowed-changes brief asks for them. If people=preserve, keep the source role and composition while allowing an explicitly requested change of face; do not claim an exact real-person identity. Do not introduce a new setting, product-only showcase, CTA, voiceover or captions merely because generic e-commerce advice suggests them. globalPrompt and every shot generationPrompt must express the reference visual grammar and the approved changes. This contract takes precedence over generic creative heuristics.`;
+}
 async function rewriteCompatible(project: Project, progress: (n: number, message: string) => void, trace?: RequestTrace) {
   const market = countries.find(c => c.code === project.market.country)!;
   const platform = platforms.find(p => p.id === project.market.platform)!;
@@ -197,7 +201,19 @@ async function rewriteCompatible(project: Project, progress: (n: number, message
   progress(24, '正在将已确认卖点与目标市场对齐…');
   const refs = await compatibleImageParts(project);
   progress(48, '正在编排本地化分镜与生成提示词…');
-  const task = `Create an EDITABLE localized e-commerce video production brief based on the following source analysis and target product. The original video has already been analyzed; work from that analysis without fabricating new observations. SOURCE_ANALYSIS: ${JSON.stringify(project.analysis)} TARGET_PRODUCT_FACTS: ${JSON.stringify(project.product)} CREATIVE_SETTINGS: ${JSON.stringify(project.market)} MARKET_GUIDANCE: ${market.locale} PLATFORM_GUIDANCE: ${platform.guidance} Write visual/action/camera descriptions, audienceInsight, angle, localizationNotes and productionNotes in Chinese. Spoken narration, on-screen text and all 3 hookVariants must be in ${project.market.language}. globalPrompt, each generationPrompt and negativePrompt must be in clear English for a video generation model. Use the first seconds to establish a relevant use-case or question. Demonstrate actual use, connect features to audience benefits, then one CTA that matches the chosen destination. Use ONLY TARGET_PRODUCT_FACTS for claims, price, promotions, shipping and specifications. Never transfer a competitor's claims, reviews or before/after outcomes to the target product. For shop destination, use TikTok Shop product-card CTA only when configured. For website destination, follow the supplied CTA and URL; do not invent a discount. Adapt physical interactions to the target packaging. people=hands means no face; preserve means retain the reference's role/composition, without identifying a real person. If reference images are absent, put appearance uncertainty into productionNotes. Target duration is ${duration}s. Construct a coherent non-overlapping timeline starting at 0 and ending at ${duration}. subtitles=${project.market.subtitles}; when false set onScreenText to empty. Keep key text away from platform UI. globalPrompt contains global visual direction only; generationPrompt describes shot visual/action without duplicating narration or subtitles. Provide 3 distinct opening options without pretending they have been A/B tested. This request generates TEXT ONLY, not a rendered video.`;
+  const task = [
+    'Create an EDITABLE localized e-commerce video production brief from the source analysis and target product. Do not invent observations.',
+    `SOURCE_ANALYSIS: ${JSON.stringify(project.analysis)}`,
+    `TARGET_PRODUCT_FACTS: ${JSON.stringify(project.product)}`,
+    `CREATIVE_SETTINGS: ${JSON.stringify(project.market)}`,
+    `MARKET_GUIDANCE: ${market.locale} PLATFORM_GUIDANCE: ${platform.guidance}`,
+    `Write visual/action/camera descriptions and production notes in Chinese. Spoken narration and on-screen text, if present, must be in ${project.market.language}. globalPrompt and generationPrompt must be clear English for a video model.`,
+    project.market.keepStructure ? 'Retain the original opening and ending beats. Do not add a new product showcase, CTA scene or voiceover unless the allowed changes request one.' : 'Adapt the opening, product demonstration and CTA to the target item and destination.',
+    'Use only confirmed target product facts for claims, specifications, price and offers. Never transfer source-product claims or reviews to the new item. Adapt physical interactions only when the target item requires it.',
+    `Target duration is ${duration}s. Construct a non-overlapping timeline from 0 to ${duration}s. subtitles=${project.market.subtitles}; when false, set onScreenText to empty. Keep text away from platform UI.`,
+    'globalPrompt contains global visual direction. Each generationPrompt describes its shot visual/action without duplicating separately editable speech or subtitle fields. Return 3 optional opening variants without implying A/B testing. This request generates TEXT ONLY.',
+    sourceStyleRule(project),
+  ].join('\n');
   const result = await generateCompatible(refs, rewriteSchema, task, trace);
   const err = validateContinuousTimeline(result.result.shots, duration);
   if (err) throw new Error(err);
@@ -274,11 +290,12 @@ TARGET_PRODUCT_FACTS: ${JSON.stringify(project.product)}
 CREATIVE_SETTINGS: ${JSON.stringify(project.market)}
 MARKET_GUIDANCE: ${market.locale}
 PLATFORM_GUIDANCE: ${platform.guidance}
+${sourceStyleRule(project)}
 Write visual/action/camera descriptions, audienceInsight, angle, localizationNotes and productionNotes in Chinese. Spoken narration, on-screen text and all 3 hookVariants must be in ${project.market.language}. globalPrompt, each generationPrompt and negativePrompt must be in clear English for a video generation model.
-Use the first seconds to establish a relevant use-case or question. Demonstrate actual use, connect features to audience benefits, then one CTA that matches the chosen destination. These are creative heuristics, not guarantees or mandatory timestamps.
+${project.market.keepStructure ? 'Keep the source opening, ending and purpose of each shot. Do not add a new use-case, benefit explanation or CTA scene unless the allowed-changes brief requests it.' : 'Use the first seconds to establish a relevant use-case or question. Demonstrate actual use, connect features to audience benefits, then one CTA that matches the chosen destination. These are creative heuristics, not guarantees or mandatory timestamps.'}
 Use ONLY TARGET_PRODUCT_FACTS for claims, price, promotions, shipping and specifications. Never transfer a competitor's claims, reviews or before/after outcomes to the target product. A pictured claim is not verification. If price currency differs from market currency, preserve the entered currency; never invent an exchange rate. Empty price or offer means omit them.
 For shop destination, use TikTok Shop product-card CTA, subject to the user's configured availability. For website destination, follow the supplied CTA and URL; do not assume a clickable video caption or invent a discount. Country selection does not establish shop eligibility.
-Adapt physical interactions to the target packaging (e.g. jar vs pump). KeepStructure preserves the persuasive/order pattern, not incompatible actions. people=hands means no face; preserve means retain the reference's role/composition, without identifying a real person. If reference images are absent, put appearance uncertainty into productionNotes.
+Adapt physical interactions only when the target item requires it. people=hands means no face; preserve means retain the reference's role/composition, without identifying a real person. If reference images are absent, put appearance uncertainty into productionNotes.
 Target duration is ${duration}s. Construct a coherent non-overlapping timeline starting at 0 and ending at ${duration}. If keepStructure is true, preserve the source sequence as feasible within this duration. Keep narration short enough for natural speech. Empty narration means no spoken words.
 subtitles=${project.market.subtitles}; when false set onScreenText to empty. Captions are a draft; mention final audio alignment in productionNotes. Keep key text away from platform UI; do not invent exact safe-zone pixel requirements.
 globalPrompt contains global visual direction ONLY, without duplicating shot-specific script/timestamps (shots remain independently editable). generationPrompt describes that shot's visual/action, without embedding narration or subtitle text which are separately editable.

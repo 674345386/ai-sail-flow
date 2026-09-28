@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { MODEL, defaultMarket, emptyProduct, stageOf, type Project } from '../shared/domain';
+import { MODEL, defaultMarket, defaultReplication, emptyProduct, stageOf, type Project } from '../shared/domain';
 import { demoProject } from '../shared/demo';
 
 export const dataDir = path.resolve(process.env.SOP_DATA_DIR || path.join(process.cwd(), 'data'));
@@ -13,12 +13,20 @@ const projects = new Map<string, Project>();
 for (const filename of fs.readdirSync(recordsDir)) {
   if (!/^[a-f\d-]{36}\.json$/.test(filename)) continue;
   try {
-    const project: Project = JSON.parse(fs.readFileSync(path.join(recordsDir, filename), 'utf8'));
+    let project: Project = JSON.parse(fs.readFileSync(path.join(recordsDir, filename), 'utf8'));
     if (!project.id || !Array.isArray(project.assets)) continue;
     // Records created before video rendering was introduced remain readable.
     project.generatedVideos ||= [];
     project.composedVideos ||= [];
+    project.replication ||= { ...defaultReplication };
     project.productionMode ||= 'veo-native';
+    project.promptFlow ||= 'localized';
+    project.workflowMode ||= 'manual';
+    project.jobHistory ||= [];
+    if (project.workflow?.status === 'running' || project.workflow?.status === 'pausing') {
+      project.workflow = { ...project.workflow, status: 'paused', message: '服务已重启，已保留进度。请点击继续自动制作。' };
+      project = saveProject(project);
+    }
     if (project.job?.status === 'running') {
       const finishedAt = new Date().toISOString();
       const interruptedGeneration = project.job.kind === 'generation';
@@ -28,6 +36,7 @@ for (const filename of fs.readdirSync(recordsDir)) {
         message: interruptedGeneration ? '服务已重启，上游任务可继续查询；请点击“恢复已生成任务”。' : '服务已重启，上次任务已中断。可以重新发起。',
         finishedAt,
       };
+      project.jobHistory = [...(project.jobHistory || []), project.job].slice(-200);
       if (interruptedGeneration) {
         project.generatedVideos = project.generatedVideos.map(video => video.status === 'running'
           ? { ...video, status: 'failed' as const, error: '服务重启后已停止本地轮询；可恢复查询已提交的上游任务，不会新建或计费。', finishedAt }
@@ -55,9 +64,9 @@ export function listProjects() {
 export function createProject(demo = false) {
   const id = randomUUID();
   const now = new Date().toISOString();
-  return saveProject(demo ? demoProject(id) : {
+  return saveProject(demo ? { ...demoProject(id), replication: { ...defaultReplication }, workflowMode: 'manual' as const } : {
     id, title: '未命名创意', createdAt: now, updatedAt: now, revision: 0, isDemo: false,
-    product: { ...emptyProduct }, market: { ...defaultMarket }, assets: [], analysis: null, rewrite: null,
-    rewriteStale: false, generatedVideos: [], composedVideos: [], productionMode: 'veo-native', ttsVoice: '', job: null, model: MODEL, usage: { input: 0, output: 0 },
+    product: { ...emptyProduct }, market: { ...defaultMarket }, replication: { ...defaultReplication }, assets: [], analysis: null, rewrite: null,
+    rewriteStale: false, generatedVideos: [], composedVideos: [], productionMode: 'veo-native', promptFlow: 'localized', ttsVoice: '', job: null, model: MODEL, usage: { input: 0, output: 0 },
   });
 }
