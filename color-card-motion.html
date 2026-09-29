@@ -1,0 +1,443 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#171815" />
+    <title>色卡扇 · Three.js</title>
+    <style>
+      * { box-sizing: border-box; }
+      html, body { margin: 0; min-height: 100%; }
+      body {
+        min-height: 100svh; display: grid; place-items: center; padding: 18px;
+        background: #171815; color: #f6f5ef;
+        font-family: Inter, "SF Pro Display", "PingFang SC", sans-serif;
+      }
+      main { width: min(431px, 100%, 38svh); }
+      .frame {
+        position: relative; width: 100%; aspect-ratio: 431 / 860; overflow: hidden;
+        background: #fbfaf8; box-shadow: 0 22px 75px #0009;
+      }
+      #scene { display: block; width: 100%; height: 100%; }
+      .frame.flash { animation: beat-flash .38s cubic-bezier(.22, .72, .25, 1); }
+      @keyframes beat-flash {
+        0%, 100% { filter: none; }
+        30% { filter: grayscale(.4) brightness(1.03); }
+        52% { filter: grayscale(.9) invert(.12) brightness(1.08); }
+        74% { filter: grayscale(.3); }
+      }
+      .controls {
+        display: flex; justify-content: space-between; align-items: center;
+        gap: 14px; padding-top: 13px; color: #c6c5bc; font-size: 11px;
+      }
+      #status { max-width: 50%; line-height: 1.4; }
+      .look-picker { display: flex; justify-content: center; gap: 9px; padding-top: 12px; }
+      .look-choice {
+        display: grid; gap: 5px; justify-items: center; width: 76px; padding: 5px;
+        border: 1px solid #ffffff30; border-radius: 10px; background: #ffffff08;
+        color: #c6c5bc; font-size: 9px; letter-spacing: .06em;
+      }
+      .look-choice img { display: block; width: 64px; height: 76px; object-fit: cover; object-position: center 22%; border-radius: 5px; }
+      .look-choice[aria-pressed="true"] { border-color: #f4efe2; color: #fff; background: #ffffff18; }
+      button {
+        flex: none; border: 1px solid #ffffff48; border-radius: 999px;
+        padding: 10px 16px; color: #f6f5ef; background: #ffffff13;
+        font: inherit; font-size: 12px; font-weight: 600;
+        cursor: pointer; transition: background .2s;
+      }
+      button:hover { background: #ffffff2b; }
+      @media (max-width: 500px) {
+        body { padding: 0; align-items: start; }
+        main { width: 100%; }
+        .controls { padding: 12px 16px 18px; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .frame.flash { animation: none; }
+      }
+    </style>
+    <script type="importmap">
+      { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js" } }
+    </script>
+  </head>
+  <body>
+    <main>
+      <div class="frame" id="frame" aria-label="色卡扇动效">
+        <canvas id="scene"></canvas>
+      </div>
+      <div class="controls">
+        <span id="status" aria-live="polite">点击按钮切换背景色卡</span>
+        <button id="draw" type="button">随机切换三张色卡 ↗</button>
+      </div>
+      <div class="look-picker" role="group" aria-label="选择造型图片">
+        <button class="look-choice" type="button" data-look="blue" aria-pressed="false" aria-label="蓝绿棕造型">
+          <img src="./color-card-assets/look-blue.png" alt="蓝色外套、绿色上衣和棕色裙装造型" /><span>蓝 · 绿 · 棕</span>
+        </button>
+        <button class="look-choice" type="button" data-look="orange" aria-pressed="false" aria-label="橙色造型">
+          <img src="./color-card-assets/look-orange.png" alt="橙色外套和薄荷绿色造型" /><span>橙 · 米 · 薄荷</span>
+        </button>
+        <button class="look-choice" type="button" data-look="charcoal" aria-pressed="false" aria-label="黑白酒红造型">
+          <img src="./color-card-assets/look-charcoal.png" alt="黑色、米白和酒红造型" /><span>黑 · 米白 · 酒红</span>
+        </button>
+      </div>
+    </main>
+    <script type="module">
+      import * as THREE from "three";
+
+      const frame = document.querySelector("#frame");
+      const canvas = document.querySelector("#scene");
+      const status = document.querySelector("#status");
+      const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color("#fbfaf8");
+      const camera = new THREE.OrthographicCamera(0, 431, 0, 860, .1, 2000);
+      camera.position.set(0, 0, 1000);
+
+      // Positions are in the reference screenshot's 431 × 860 coordinate system.
+      const slots = [
+        { x: 216, y: 134, w: 280, h: 226, r: -.27, label: "right" },
+        { x: 217, y: 324, w: 276, h: 192, r: .24, label: "left" },
+        { x: 215, y: 510, w: 291, h: 194, r: -.32, label: "bottom" },
+      ];
+      const library = [
+        { name: "PALE AQUA", code: "13-4409 TCX", color: "#a9dce2" },
+        { name: "DUSTY BLUE", code: "15-3917 TCX", color: "#9cb3d0" },
+        { name: "VERMILION", code: "18-1664 TCX", color: "#df1029" },
+        { name: "TANGERINE", code: "16-1359 TCX", color: "#ed6a3b" },
+        { name: "CITRUS", code: "13-0758 TCX", color: "#e5d159" },
+        { name: "LILAC", code: "15-3817 TCX", color: "#b5a4d2" },
+        { name: "MINT", code: "14-6330 TCX", color: "#8bcbb0" },
+        { name: "TURQUOISE", code: "15-5217 TCX", color: "#32b3bc" },
+        { name: "ROSE", code: "17-1929 TCX", color: "#e47791" },
+        { name: "ORCHID", code: "18-3224 TCX", color: "#a456a0" },
+        { name: "LAPIS", code: "19-4045 TCX", color: "#384b9a" },
+        { name: "DENIM", code: "18-4027 TCX", color: "#45719f" },
+        { name: "SAND", code: "13-1008 TCX", color: "#d8be9b" },
+        { name: "TOMATO", code: "17-1563 TCX", color: "#e84f3b" },
+        { name: "LEMON", code: "12-0752 TCX", color: "#f0dc54" },
+        { name: "JADE", code: "17-5734 TCX", color: "#1d927f" },
+        { name: "PLUM", code: "19-1718 TCX", color: "#564456" },
+        { name: "CORAL", code: "16-1546 TCX", color: "#ee927c" },
+      ];
+      const looks = {
+        blue: [
+          { name: "ROYAL BLUE", code: "#2679D2", color: "#2679D2" },
+          { name: "FOREST GREEN", code: "#075E49", color: "#075E49" },
+          { name: "COCOA BROWN", code: "#68473A", color: "#68473A" },
+        ],
+        orange: [
+          { name: "BURNT ORANGE", code: "#E35B32", color: "#E35B32" },
+          { name: "WARM IVORY", code: "#F1EEE6", color: "#F1EEE6" },
+          { name: "MINT", code: "#B7E5D5", color: "#B7E5D5" },
+        ],
+        charcoal: [
+          { name: "CHARCOAL", code: "#272727", color: "#272727" },
+          { name: "SOFT IVORY", code: "#F0ECE4", color: "#F0ECE4" },
+          { name: "OXBLOOD", code: "#7B202F", color: "#7B202F" },
+        ],
+      };
+
+      function serratedPath(ctx, w, h) {
+        const p = 5, step = 11, tooth = 4;
+        ctx.beginPath();
+        ctx.moveTo(p, p);
+        for (let x = p; x < w - p; x += step) {
+          ctx.lineTo(Math.min(x + step / 2, w - p), p + tooth);
+          ctx.lineTo(Math.min(x + step, w - p), p);
+        }
+        for (let y = p; y < h - p; y += step) {
+          ctx.lineTo(w - p - tooth, Math.min(y + step / 2, h - p));
+          ctx.lineTo(w - p, Math.min(y + step, h - p));
+        }
+        for (let x = w - p; x > p; x -= step) {
+          ctx.lineTo(Math.max(x - step / 2, p), h - p - tooth);
+          ctx.lineTo(Math.max(x - step, p), h - p);
+        }
+        for (let y = h - p; y > p; y -= step) {
+          ctx.lineTo(p + tooth, Math.max(y - step / 2, p));
+          ctx.lineTo(p, Math.max(y - step, p));
+        }
+        ctx.closePath();
+      }
+
+      function ticketPath(ctx, w, h) {
+        const p = 5, shoulder = 65, step = 11, tooth = 5;
+        ctx.beginPath();
+        ctx.moveTo(p, p);
+        ctx.lineTo(w - p, p);
+        ctx.lineTo(w - p, shoulder);
+        for (let y = shoulder; y < h - p; y += step) {
+          ctx.lineTo(w - p - tooth, Math.min(y + step / 2, h - p));
+          ctx.lineTo(w - p, Math.min(y + step, h - p));
+        }
+        ctx.lineTo(p, h - p);
+        for (let y = h - p; y > shoulder; y -= step) {
+          ctx.lineTo(p + tooth, Math.max(y - step / 2, shoulder));
+          ctx.lineTo(p, Math.max(y - step, shoulder));
+        }
+        ctx.lineTo(p, p);
+        ctx.closePath();
+      }
+
+      function textureFor(item, w, h, placement, shadow = false) {
+        const surface = document.createElement("canvas");
+        const density = 3;
+        surface.width = Math.round(w * density);
+        surface.height = Math.round(h * density);
+        const ctx = surface.getContext("2d");
+        ctx.scale(density, density);
+        if (placement === "ticket") ticketPath(ctx, w, h);
+        else serratedPath(ctx, w, h);
+        if (shadow) {
+          ctx.shadowColor = "rgba(29,27,25,.28)";
+          ctx.shadowBlur = 13; ctx.shadowOffsetY = 7;
+          ctx.fillStyle = "rgba(40,36,32,.25)"; ctx.fill();
+        } else {
+          ctx.fillStyle = placement === "ticket" ? "#fbfaf8" : item.color;
+          ctx.fill();
+          ctx.save(); ctx.clip();
+          const wash = ctx.createLinearGradient(0, 0, w, h);
+          wash.addColorStop(0, "rgba(255,255,255,.11)");
+          wash.addColorStop(1, "rgba(0,0,0,.055)");
+          if (placement === "ticket") {
+            ctx.fillStyle = item.color; ctx.fillRect(5, 65, w - 10, h - 70);
+            ctx.fillStyle = wash; ctx.fillRect(5, 65, w - 10, h - 70);
+            ctx.strokeStyle = "#d8d8d3"; ctx.lineWidth = .7;
+            ctx.beginPath(); ctx.moveTo(5, 65); ctx.lineTo(w - 5, 65); ctx.stroke();
+            ctx.fillStyle = "#20211f"; ctx.textAlign = "left";
+            ctx.font = "700 9px Arial, sans-serif"; ctx.fillText(item.code, 10, 29, w - 20);
+            ctx.font = "600 8px Arial, sans-serif"; ctx.fillText(item.name, 10, 48, w - 20);
+          } else {
+            ctx.fillStyle = wash; ctx.fillRect(0, 0, w, h);
+            const band = 48;
+            ctx.fillStyle = "#fbfaf8";
+            if (placement === "right") ctx.fillRect(w - band - 5, 5, band, h - 10);
+            if (placement === "left") ctx.fillRect(5, 5, band, h - 10);
+            if (placement === "bottom") ctx.fillRect(5, h - band - 5, w - 10, band);
+            ctx.fillStyle = "#20221f"; ctx.textAlign = "center";
+            if (placement === "bottom") {
+              ctx.font = "700 12px Arial, sans-serif";
+              ctx.fillText(item.name, w * .7, h - 29);
+              ctx.font = "700 10px Arial, sans-serif";
+              ctx.fillText(item.code, w * .7, h - 13);
+            } else {
+              ctx.translate(placement === "right" ? w - 29 : 29, h / 2);
+              ctx.rotate(placement === "right" ? Math.PI / 2 : -Math.PI / 2);
+              ctx.font = "700 12px Arial, sans-serif";
+              ctx.fillText(item.name, 0, -7);
+              ctx.font = "700 10px Arial, sans-serif";
+              ctx.fillText(item.code, 0, 9);
+            }
+          }
+          ctx.restore();
+        }
+        const texture = new THREE.CanvasTexture(surface);
+        texture.flipY = false;
+        texture.colorSpace = THREE.SRGBColorSpace;
+        texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+        return texture;
+      }
+
+      function cardMesh(item, w, h, placement, renderOrder, parent = scene) {
+        const group = new THREE.Group();
+        const geometry = new THREE.PlaneGeometry(w, h);
+        const shadow = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({
+          map: textureFor(item, w, h, placement, true), transparent: true, depthWrite: false,
+        }));
+        shadow.position.set(4, 6, -.1); shadow.renderOrder = renderOrder;
+        group.add(shadow);
+        const face = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({
+          map: textureFor(item, w, h, placement), transparent: true,
+          depthWrite: false, side: THREE.DoubleSide,
+        }));
+        face.renderOrder = renderOrder + .01;
+        group.add(face);
+        parent.add(group);
+        return group;
+      }
+      function disposeCard(group) {
+        group.parent?.remove(group);
+        group.traverse(object => {
+          if (object.geometry) object.geometry.dispose();
+          if (object.material) {
+            object.material.map?.dispose();
+            object.material.dispose();
+          }
+        });
+      }
+      function opacity(group, value) {
+        group.children.forEach(mesh => mesh.material.opacity = Math.max(0, Math.min(1, value)));
+      }
+      const clamp = v => Math.max(0, Math.min(1, v));
+      const easeOut = v => 1 - Math.pow(1 - v, 3);
+      const easeInOut = v => v < .5 ? 4 * v * v * v : 1 - Math.pow(-2 * v + 2, 3) / 2;
+      const settle = v => clamp(easeOut(v) + .008 * Math.sin(v * Math.PI * 4) * (1 - v));
+
+      // Build a complete, overlapping ring so the fan stays covered at every rotation angle.
+      const fanColors = Array.from({ length: 32 }, (_, index) => index % library.length);
+      const fanWheel = new THREE.Group();
+      fanWheel.position.set(215, 968, 5);
+      scene.add(fanWheel);
+      const fanCards = fanColors.map((paletteIndex, index) => {
+        const group = cardMesh(library[paletteIndex], 62, 280, "ticket", 30 + index, fanWheel);
+        const angle = index / fanColors.length * Math.PI * 2;
+        group.rotation.z = angle;
+        group.children.forEach(mesh => mesh.position.y -= 147);
+        return { item: library[paletteIndex], angle, group };
+      });
+      const fanPose = index => {
+        const angle = fanCards[index].angle + fanWheel.rotation.z;
+        return { x: 215 + Math.sin(angle) * 147, y: 968 - Math.cos(angle) * 147, angle };
+      };
+      let activeCards = [];
+      let transition = null;
+      let flashTimer = null;
+      function floatCard(group, index, now) {
+        const s = slots[index];
+        group.position.set(
+          s.x + Math.sin(now * .0011 + index * 1.5) * 2.5,
+          s.y + Math.cos(now * .0009 + index) * 2,
+          1 + index,
+        );
+        group.rotation.set(
+          Math.sin(now * .0008 + index) * .025,
+          Math.cos(now * .001 + index) * .035,
+          s.r + Math.sin(now * .0009 + index) * .008,
+        );
+        group.scale.setScalar(1);
+        opacity(group, 1);
+      }
+      function pickThree() {
+        const choices = fanCards.map((_, index) => index);
+        for (let i = choices.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [choices[i], choices[j]] = [choices[j], choices[i]];
+        }
+        return choices.slice(0, 3);
+      }
+      function replaceFanCard(index, item) {
+        const old = fanCards[index];
+        disposeCard(old.group);
+        const group = cardMesh(item, 62, 280, "ticket", 30 + index, fanWheel);
+        group.rotation.z = old.angle;
+        group.children.forEach(mesh => mesh.position.y -= 147);
+        fanCards[index] = { ...old, item, group };
+      }
+      function beginDraw(indices = pickThree(), replacements = [], statusLead = "") {
+        if (transition) {
+          transition.outgoing.forEach(disposeCard);
+          transition.incoming.forEach(disposeCard);
+          transition.flyers.forEach(disposeCard);
+          activeCards = [];
+          transition = null;
+        }
+        clearTimeout(flashTimer);
+        replacements.forEach(({ fanIndex, item }) => replaceFanCard(fanIndex, item));
+        const outgoing = activeCards;
+        const incoming = indices.map((fanIndex, index) => {
+          const slot = slots[index];
+          const group = cardMesh(fanCards[fanIndex].item, slot.w, slot.h, slot.label, 10 + index);
+          group.userData = { slot: index, fanIndex };
+          opacity(group, 0);
+          return group;
+        });
+        const flyers = indices.map((fanIndex, index) => {
+          const group = cardMesh(fanCards[fanIndex].item, 62, 280, "ticket", 20 + index);
+          group.userData = { slot: index, fanIndex };
+          opacity(group, 0);
+          return group;
+        });
+        activeCards = incoming;
+        const spinStart = outgoing.length ? .08 : 0;
+        const spinDuration = 1.25;
+        const spinFrom = fanWheel.rotation.z;
+        const spinDelta = Math.PI * 2 * (1 + Math.random() * 1.5);
+        const popStart = spinStart + spinDuration * .9;
+        transition = { outgoing, incoming, flyers, started: performance.now(), spinStart, spinDuration, spinFrom, spinDelta, popStart };
+        status.textContent = [statusLead, ...indices.map(index => fanCards[index].item.code)].filter(Boolean).join(" · ");
+        flashTimer = setTimeout(() => {
+          frame.classList.remove("flash");
+          void frame.offsetWidth;
+          frame.classList.add("flash");
+        }, Math.max(0, (popStart - .1) * 1000));
+      }
+      let hasInteracted = false;
+      const lookFanSlots = [3, 6, 10];
+      function chooseLook(key) {
+        hasInteracted = true;
+        const button = document.querySelector('[data-look="' + key + '"]');
+        document.querySelectorAll(".look-choice").forEach(option => option.setAttribute("aria-pressed", option === button ? "true" : "false"));
+        const palette = looks[key];
+        beginDraw(lookFanSlots, palette.map((item, index) => ({ fanIndex: lookFanSlots[index], item })), key.toUpperCase());
+      }
+      document.querySelectorAll(".look-choice").forEach(button => {
+        button.addEventListener("click", () => chooseLook(button.dataset.look));
+      });
+      document.querySelector("#draw").addEventListener("click", () => {
+        hasInteracted = true;
+        beginDraw();
+      });
+      setTimeout(() => { if (!hasInteracted) chooseLook("blue"); }, 300);
+      frame.addEventListener("animationend", () => frame.classList.remove("flash"));
+
+      const resize = new ResizeObserver(() => {
+        const bounds = canvas.getBoundingClientRect();
+        renderer.setSize(bounds.width, bounds.height, false);
+      });
+      resize.observe(canvas);
+      function render(now) {
+        if (transition) {
+          const age = (now - transition.started) / 1000;
+          transition.outgoing.forEach((group, index) => {
+            const s = slots[index], source = fanPose(group.userData.fanIndex);
+            const p = easeInOut(clamp(age / .52));
+            group.position.set(
+              THREE.MathUtils.lerp(s.x, source.x, p),
+              THREE.MathUtils.lerp(s.y, source.y, p),
+              1 + index,
+            );
+            group.rotation.z = THREE.MathUtils.lerp(s.r, source.angle, p);
+            group.scale.setScalar(THREE.MathUtils.lerp(1, .62, p));
+            opacity(group, 1 - p);
+          });
+          const wheelProgress = easeInOut(clamp((age - transition.spinStart) / transition.spinDuration));
+          fanWheel.rotation.z = transition.spinFrom + transition.spinDelta * wheelProgress;
+          transition.flyers.forEach((group, index) => {
+            const s = slots[index], source = fanPose(group.userData.fanIndex);
+            const elapsed = age - transition.popStart - index * .09;
+            const p = easeInOut(clamp(elapsed / .9));
+            group.position.set(
+              THREE.MathUtils.lerp(source.x, s.x, p),
+              THREE.MathUtils.lerp(source.y, s.y, p) - Math.sin(p * Math.PI) * 38,
+              2 + index,
+            );
+            group.rotation.z = THREE.MathUtils.lerp(source.angle, s.r, p);
+            group.rotation.y = .09 * Math.sin(clamp(elapsed / .78) * Math.PI);
+            group.scale.setScalar(1 + .08 * p);
+            opacity(group, easeInOut(clamp(elapsed / .28)) * (1 - easeInOut(clamp((elapsed - .48) / .32))));
+          });
+          transition.incoming.forEach((group, index) => {
+            const s = slots[index];
+            const elapsed = age - transition.popStart - index * .09;
+            const p = settle(clamp((elapsed - .42) / .52));
+            group.position.set(s.x, s.y, 1 + index);
+            group.rotation.z = s.r + (1 - p) * .055 * (index - 1);
+            group.scale.setScalar(.9 + .1 * p);
+            opacity(group, easeInOut(clamp((elapsed - .38) / .34)));
+          });
+          if (age > transition.popStart + 1.12) {
+            transition.outgoing.forEach(disposeCard);
+            transition.flyers.forEach(disposeCard);
+            transition = null;
+          }
+        } else {
+          activeCards.forEach((group, index) => floatCard(group, index, now));
+        }
+        renderer.render(scene, camera);
+        requestAnimationFrame(render);
+      }
+      requestAnimationFrame(render);
+    </script>
+  </body>
+</html>
