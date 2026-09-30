@@ -45,11 +45,11 @@ npm start
 
 Veo 3.1 视频生成使用独立的 `SOP_VEO_API_KEY`（或模型设置中的 Veo Key），固定请求 `https://gaorui.cc/v1/videos`，不复用 Gemini / maiai.ai 密钥。文生视频使用 `veo_3_1` 且不传 `images`；首尾帧图生视频使用 `veo_3_1-fl`，传 1–2 张图片 URL（首帧、可选尾帧）；参考图生视频使用 `veo_3_1-components`，传至少 1 张图片 URL。三种模式均发送提示词、`resolution`（`720p` / `1080p` / `lite`）、`aspect_ratio`（`9:16` / `16:9`），固定输出 8 秒，不发送 `duration`。图片必须是公网 HTTPS 直链；本机产品图不会自动上传或公开。任务提交后按 ID 轮询，完成后下载到本机。若下载失败但上游任务 ID 已取得，可在交付页恢复同一任务，不会再次提交付费生成。[Veo 3.1 接口文档](https://gaoruitech.apifox.cn/doc-8981138)。
 
-填写 `https://maiai.ai/v1` 后，视频拆解请求 `https://maiai.ai/v1beta/models/gemini-3.8-flash:generateContent`，使用 Gemini 原生 `inline_data` 发送完整视频及其音轨；文字改写继续使用 `/v1/chat/completions`。两种调用使用同一密钥。默认不会自动降级为抽帧，也不再根据固定 token 阈值判定视频是否被读取。
+默认视频拆解使用 Gemini 3.8 Flash Agentic Video Understanding：沿用原来的 `.../v1beta/models/gemini-3.8-flash:generateContent` 中转地址，在视频 Part 上发送 `media_processing: "AGENTIC"`，由模型动态检查时间线、画面和音轨。无需切换到 Interactions API；中转需透传这个 Gemini 原生字段。视频仍通过 `inline_data` 发送，受现有中转请求体大小限制。可显式设置 `SOP_VIDEO_ANALYSIS_MODE=static` 使用旧版完整视频单次分析，或设置 `SOP_VIDEO_ANALYSIS_MODE=frames` 通过兼容图像接口使用无音轨抽帧模式。文字改写在兼容网关模式下继续使用 `/v1/chat/completions`。
 
-当前原生直传的总请求上限为 100 MB（包括 Base64、提示词和产品图），超限时明确提示压缩，不修改本地原片。大于 100 MB 时需接入 Gemini Files API；当前尚未接入。兼容渠道也可能设置更低的请求上限。可显式设置 `SOP_VIDEO_ANALYSIS_MODE=frames` 使用原有关键帧模式；它不分析音轨，结果会明确标记。分析模式与是否提交音轨会保存到项目和导出清单。
+Agentic 模式在原有 `generateContent` 请求内传输 Base64 视频；视频超过兼容渠道的内联请求上限时会失败。抽帧模式不分析音轨，结果会明确标记。分析模式与是否提交音轨会保存到项目和导出清单。
 
-在 `.env` 配置 `GEMINI_API_KEY`，或在页面「视频理解模型」设置中输入密钥。页面输入的密钥只保留在服务器进程内存；不写入浏览器存储、项目记录或导出包。`.env.example` 是配置模板。模型固定为 **`gemini-3.8-flash`**，不静默替换为其他版本。点击分析时视频及产品图会发送给 Google，Google 侧本次上传文件在任务结束后尝试删除。
+在 `.env` 配置 Gemini API Key 和可选兼容网关，或在页面「模型连接」设置中输入对应密钥与地址。页面输入的密钥只保留在服务器进程内存；不写入浏览器存储、项目记录或导出包。`.env.example` 是配置模板。模型固定为 **`gemini-3.8-flash`**，不静默替换为其他版本。点击分析时，视频及产品图会发送给当前配置的模型服务商。
 
 当前未配置密钥时，可以创建明确标注的手写示例项目体验编辑和导出；真实分析接口会返回未配置错误，不伪造结果。
 
@@ -75,7 +75,7 @@ Veo 3.1 视频生成使用独立的 `SOP_VEO_API_KEY`（或模型设置中的 Ve
 - `shared/domain.ts`：共享类型、Zod schema、市场与平台策略、时间线校验。
 - `shared/export.ts`：根据最新编辑生成提示词、Markdown、JSON 和 SRT。
 - `server/index.ts`：Express API、上传、任务管理、文件打包与同源本机访问限制。
-- `server/gemini.ts`：Google 官方 `@google/genai` SDK、Files API、`generateContent` 结构化输出，固定 `gemini-3.8-flash`。每次调用最大输出 24,000 tokens，不自动反复重试计费任务。
+- `server/gemini.ts`：Gemini 原生 `generateContent` 视频与结构化输出，固定 `gemini-3.8-flash`。每次调用最大输出 24,000 tokens，不自动反复重试计费任务。
 - `server/veo.ts`：区分三种 Veo 3.1 请求、校验公网图片 URL、提交异步任务、轮询状态并下载成片，由本地 FFmpeg 校验媒体。
 - `server/compose.ts` 与 `server/render-captions.swift`：本机配音、文字图层、分镜时间对齐、MP4 合成与 SRT 导出。
 - `server/store.ts`：原子 JSON 文件写入、版本冲突检测；适合单进程本机 V1。

@@ -90,7 +90,7 @@ export const automaticSettingsSchema = z.object({
 export type AutomaticSettings = z.infer<typeof automaticSettingsSchema>;
 export type ModelRequestSnapshot = {
   model: string; transport: string; systemInstruction: string; prompt: string;
-  responseSchema: unknown; media: { kind: string; mimeType?: string; size?: number }[];
+  responseSchema: unknown; media: { kind: string; mimeType?: string; size?: number; mediaProcessing?: string }[];
   parameters: Record<string, string | number | boolean>;
   recordedAt: string;
 };
@@ -117,9 +117,9 @@ export type ComposedVideo = {
   };
 };
 export type AnalysisMeta = {
-  mode: 'native-video' | 'sampled-frames';
+  mode: 'agentic-video' | 'native-video' | 'sampled-frames';
   transport: 'gemini-inline' | 'gemini-files' | 'openai-images';
-  audioSubmitted: boolean; requestedModel: string; providerModel?: string; analyzedAt: string;
+  audioSubmitted: boolean; requestedModel: string; providerModel?: string; agenticTrace?: boolean; analyzedAt: string;
 };
 export type Project = {
   id: string; title: string; createdAt: string; updatedAt: string; revision: number; isDemo: boolean;
