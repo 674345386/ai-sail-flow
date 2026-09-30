@@ -1,0 +1,22 @@
+{
+  "name": "person-turntable-remotion",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "render:fashion": "remotion render src/index.tsx FashionColorShowcase out/model-fashion-colors.mp4 --codec=h264 --crf=18 --concurrency=2",
+    "dev": "remotion studio src/index.tsx --no-open --port=4328",
+    "render": "remotion render src/index.tsx PersonTurntable out/person-360.mp4 --codec=h264 --crf=18 --concurrency=2",
+    "render:loop": "remotion render src/index.tsx PersonTurntableLoop out/person-360-loop.mp4 --codec=h264 --crf=18 --concurrency=2"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.530",
+    "@remotion/media": "4.0.530",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "remotion": "4.0.530"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.7",
+    "typescript": "5.9.3"
+  }
+}
