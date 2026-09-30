@@ -31,14 +31,6 @@
         gap: 14px; padding-top: 13px; color: #c6c5bc; font-size: 11px;
       }
       #status { max-width: 50%; line-height: 1.4; }
-      .look-picker { display: flex; justify-content: center; gap: 9px; padding-top: 12px; }
-      .look-choice {
-        display: grid; gap: 5px; justify-items: center; width: 76px; padding: 5px;
-        border: 1px solid #ffffff30; border-radius: 10px; background: #ffffff08;
-        color: #c6c5bc; font-size: 9px; letter-spacing: .06em;
-      }
-      .look-choice img { display: block; width: 64px; height: 76px; object-fit: cover; object-position: center 22%; border-radius: 5px; }
-      .look-choice[aria-pressed="true"] { border-color: #f4efe2; color: #fff; background: #ffffff18; }
       button {
         flex: none; border: 1px solid #ffffff48; border-radius: 999px;
         padding: 10px 16px; color: #f6f5ef; background: #ffffff13;
@@ -56,7 +48,7 @@
       }
     </style>
     <script type="importmap">
-      { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js" } }
+      { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/" } }
     </script>
   </head>
   <body>
@@ -65,19 +57,8 @@
         <canvas id="scene"></canvas>
       </div>
       <div class="controls">
-        <span id="status" aria-live="polite">点击按钮切换背景色卡</span>
-        <button id="draw" type="button">随机切换三张色卡 ↗</button>
-      </div>
-      <div class="look-picker" role="group" aria-label="选择造型图片">
-        <button class="look-choice" type="button" data-look="blue" aria-pressed="false" aria-label="蓝绿棕造型">
-          <img src="./color-card-assets/look-blue.png" alt="蓝色外套、绿色上衣和棕色裙装造型" /><span>蓝 · 绿 · 棕</span>
-        </button>
-        <button class="look-choice" type="button" data-look="orange" aria-pressed="false" aria-label="橙色造型">
-          <img src="./color-card-assets/look-orange.png" alt="橙色外套和薄荷绿色造型" /><span>橙 · 米 · 薄荷</span>
-        </button>
-        <button class="look-choice" type="button" data-look="charcoal" aria-pressed="false" aria-label="黑白酒红造型">
-          <img src="./color-card-assets/look-charcoal.png" alt="黑色、米白和酒红造型" /><span>黑 · 米白 · 酒红</span>
-        </button>
+          <span id="status" aria-live="polite">点击按钮，从底部色卡扇随机抽取 3 张</span>
+          <button id="draw" type="button">随机抽取 3 张色卡 ↗</button>
       </div>
     </main>
     <script type="module">
@@ -91,15 +72,34 @@
       renderer.outputColorSpace = THREE.SRGBColorSpace;
       const scene = new THREE.Scene();
       scene.background = new THREE.Color("#fbfaf8");
+      scene.add(new THREE.HemisphereLight(0xffffff, 0x8d7968, 2.1));
+      const keyLight = new THREE.DirectionalLight(0xfff2de, 3.2);
+      keyLight.position.set(-260, -180, 520);
+      scene.add(keyLight);
       const camera = new THREE.OrthographicCamera(0, 431, 0, 860, .1, 2000);
       camera.position.set(0, 0, 1000);
 
       // Positions are in the reference screenshot's 431 × 860 coordinate system.
-      const slots = [
-        { x: 216, y: 134, w: 280, h: 226, r: -.27, label: "right" },
-        { x: 217, y: 324, w: 276, h: 192, r: .24, label: "left" },
-        { x: 215, y: 510, w: 291, h: 194, r: -.32, label: "bottom" },
-      ];
+      const slotsByCount = {
+        3: [
+          { x: 180, y: 128, w: 318, h: 250, r: -.34, label: "right" },
+          { x: 252, y: 348, w: 318, h: 250, r: .32, label: "left" },
+          { x: 188, y: 568, w: 324, h: 252, r: -.37, label: "bottom" },
+        ],
+        4: [
+          { x: 172, y: 98, w: 294, h: 230, r: -.34, label: "right" },
+          { x: 257, y: 270, w: 294, h: 230, r: .34, label: "left" },
+          { x: 174, y: 442, w: 294, h: 230, r: -.37, label: "bottom" },
+          { x: 258, y: 614, w: 294, h: 230, r: .38, label: "right" },
+        ],
+        5: [
+          { x: 160, y: 76, w: 270, h: 212, r: -.36, label: "right" },
+          { x: 255, y: 216, w: 270, h: 212, r: .36, label: "left" },
+          { x: 166, y: 356, w: 270, h: 212, r: -.38, label: "bottom" },
+          { x: 260, y: 496, w: 270, h: 212, r: .39, label: "right" },
+          { x: 176, y: 636, w: 270, h: 212, r: -.41, label: "left" },
+        ],
+      };
       const library = [
         { name: "PALE AQUA", code: "13-4409 TCX", color: "#a9dce2" },
         { name: "DUSTY BLUE", code: "15-3917 TCX", color: "#9cb3d0" },
@@ -120,24 +120,6 @@
         { name: "PLUM", code: "19-1718 TCX", color: "#564456" },
         { name: "CORAL", code: "16-1546 TCX", color: "#ee927c" },
       ];
-      const looks = {
-        blue: [
-          { name: "ROYAL BLUE", code: "#2679D2", color: "#2679D2" },
-          { name: "FOREST GREEN", code: "#075E49", color: "#075E49" },
-          { name: "COCOA BROWN", code: "#68473A", color: "#68473A" },
-        ],
-        orange: [
-          { name: "BURNT ORANGE", code: "#E35B32", color: "#E35B32" },
-          { name: "WARM IVORY", code: "#F1EEE6", color: "#F1EEE6" },
-          { name: "MINT", code: "#B7E5D5", color: "#B7E5D5" },
-        ],
-        charcoal: [
-          { name: "CHARCOAL", code: "#272727", color: "#272727" },
-          { name: "SOFT IVORY", code: "#F0ECE4", color: "#F0ECE4" },
-          { name: "OXBLOOD", code: "#7B202F", color: "#7B202F" },
-        ],
-      };
-
       function serratedPath(ctx, w, h) {
         const p = 5, step = 11, tooth = 4;
         ctx.beginPath();
@@ -294,7 +276,7 @@
       let transition = null;
       let flashTimer = null;
       function floatCard(group, index, now) {
-        const s = slots[index];
+        const s = group.userData.layout;
         group.position.set(
           s.x + Math.sin(now * .0011 + index * 1.5) * 2.5,
           s.y + Math.cos(now * .0009 + index) * 2,
@@ -334,17 +316,26 @@
         }
         clearTimeout(flashTimer);
         replacements.forEach(({ fanIndex, item }) => replaceFanCard(fanIndex, item));
+        const drawSlots = slotsByCount[indices.length] || slotsByCount[3];
         const outgoing = activeCards;
         const incoming = indices.map((fanIndex, index) => {
-          const slot = slots[index];
+          const slot = drawSlots[index];
           const group = cardMesh(fanCards[fanIndex].item, slot.w, slot.h, slot.label, 10 + index);
-          group.userData = { slot: index, fanIndex };
+          group.userData = { slot: index, fanIndex, layout: slot };
           opacity(group, 0);
           return group;
         });
         const flyers = indices.map((fanIndex, index) => {
-          const group = cardMesh(fanCards[fanIndex].item, 62, 280, "ticket", 20 + index);
-          group.userData = { slot: index, fanIndex };
+          const slot = drawSlots[index];
+          const group = cardMesh(
+            fanCards[fanIndex].item,
+            slot.w,
+            slot.h,
+            slot.label,
+            20 + index,
+          );
+          group.userData = { slot: index, fanIndex, layout: slot };
+          group.scale.setScalar(.28);
           opacity(group, 0);
           return group;
         });
@@ -352,7 +343,7 @@
         const spinStart = outgoing.length ? .08 : 0;
         const spinDuration = 1.25;
         const spinFrom = fanWheel.rotation.z;
-        const spinDelta = Math.PI * 2 * (1 + Math.random() * 1.5);
+        const spinDelta = Math.PI * 2;
         const popStart = spinStart + spinDuration * .9;
         transition = { outgoing, incoming, flyers, started: performance.now(), spinStart, spinDuration, spinFrom, spinDelta, popStart };
         status.textContent = [statusLead, ...indices.map(index => fanCards[index].item.code)].filter(Boolean).join(" · ");
@@ -362,23 +353,8 @@
           frame.classList.add("flash");
         }, Math.max(0, (popStart - .1) * 1000));
       }
-      let hasInteracted = false;
-      const lookFanSlots = [3, 6, 10];
-      function chooseLook(key) {
-        hasInteracted = true;
-        const button = document.querySelector('[data-look="' + key + '"]');
-        document.querySelectorAll(".look-choice").forEach(option => option.setAttribute("aria-pressed", option === button ? "true" : "false"));
-        const palette = looks[key];
-        beginDraw(lookFanSlots, palette.map((item, index) => ({ fanIndex: lookFanSlots[index], item })), key.toUpperCase());
-      }
-      document.querySelectorAll(".look-choice").forEach(button => {
-        button.addEventListener("click", () => chooseLook(button.dataset.look));
-      });
-      document.querySelector("#draw").addEventListener("click", () => {
-        hasInteracted = true;
-        beginDraw();
-      });
-      setTimeout(() => { if (!hasInteracted) chooseLook("blue"); }, 300);
+      document.querySelector("#draw").addEventListener("click", () => beginDraw());
+      setTimeout(() => beginDraw(), 300);
       frame.addEventListener("animationend", () => frame.classList.remove("flash"));
 
       const resize = new ResizeObserver(() => {
@@ -390,7 +366,7 @@
         if (transition) {
           const age = (now - transition.started) / 1000;
           transition.outgoing.forEach((group, index) => {
-            const s = slots[index], source = fanPose(group.userData.fanIndex);
+            const s = group.userData.layout, source = fanPose(group.userData.fanIndex);
             const p = easeInOut(clamp(age / .52));
             group.position.set(
               THREE.MathUtils.lerp(s.x, source.x, p),
@@ -404,7 +380,7 @@
           const wheelProgress = easeInOut(clamp((age - transition.spinStart) / transition.spinDuration));
           fanWheel.rotation.z = transition.spinFrom + transition.spinDelta * wheelProgress;
           transition.flyers.forEach((group, index) => {
-            const s = slots[index], source = fanPose(group.userData.fanIndex);
+            const s = group.userData.layout, source = fanPose(group.userData.fanIndex);
             const elapsed = age - transition.popStart - index * .09;
             const p = easeInOut(clamp(elapsed / .9));
             group.position.set(
@@ -414,11 +390,11 @@
             );
             group.rotation.z = THREE.MathUtils.lerp(source.angle, s.r, p);
             group.rotation.y = .09 * Math.sin(clamp(elapsed / .78) * Math.PI);
-            group.scale.setScalar(1 + .08 * p);
+            group.scale.setScalar(THREE.MathUtils.lerp(.28, .9, p));
             opacity(group, easeInOut(clamp(elapsed / .28)) * (1 - easeInOut(clamp((elapsed - .48) / .32))));
           });
           transition.incoming.forEach((group, index) => {
-            const s = slots[index];
+            const s = group.userData.layout;
             const elapsed = age - transition.popStart - index * .09;
             const p = settle(clamp((elapsed - .42) / .52));
             group.position.set(s.x, s.y, 1 + index);
