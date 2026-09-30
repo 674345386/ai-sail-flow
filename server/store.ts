@@ -59,7 +59,7 @@ export function getProject(id: string) {
   return projects.get(id);
 }
 export function listProjects() {
-  return [...projects.values()].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).map(p => ({ id: p.id, title: p.title, updatedAt: p.updatedAt, isDemo: p.isDemo, stage: stageOf(p) }));
+  return [...projects.values()].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).map(p => ({ id: p.id, title: p.title, updatedAt: p.updatedAt, isDemo: p.isDemo, archivedAt: p.archivedAt, stage: stageOf(p) }));
 }
 export function createProject(demo = false) {
   const id = randomUUID();

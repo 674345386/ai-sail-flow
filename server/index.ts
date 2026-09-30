@@ -69,6 +69,12 @@ app.post('/api/projects', (req, res) => {
   res.status(201).json(createProject(demo));
 });
 app.get('/api/projects/:id', (req, res) => res.json(record(req)));
+app.post('/api/projects/:id/archive', (req, res) => {
+  const project = record(req); editable(project);
+  const { archived } = z.object({ archived: z.boolean() }).parse(req.body);
+  if (Boolean(project.archivedAt) === archived) return res.json(project);
+  res.json(saveProject({ ...project, archivedAt: archived ? new Date().toISOString() : undefined }));
+});
 app.put('/api/projects/:id', (req, res) => {
   const project = record(req); editable(project);
   const patch = projectPatchSchema.parse(req.body);

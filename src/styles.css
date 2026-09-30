@@ -428,6 +428,19 @@ h1, h2, h3 { letter-spacing: -.025em; }
 .project-link.selected, .project-link:hover { background: #19191a; color: #f5f5f2; }
 .project-dot { border-color: #70706d; }
 .project-link.selected .project-dot { background: #fff; border-color: #fff; }
+.project-row { display: flex; align-items: center; border-radius: 8px; padding-right: 5px; }
+.project-row:hover, .project-row.selected { background: #19191a; }
+.project-row .project-link { flex: 1; min-width: 0; width: auto; }
+.project-row .project-link:hover, .project-row .project-link.selected { background: transparent; }
+.project-archive-action { flex-shrink: 0; display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: #8c8b85; opacity: 0; }
+.project-row:hover .project-archive-action, .project-row:focus-within .project-archive-action { opacity: 1; }
+.project-archive-action:hover:not(:disabled) { color: #f5f5f2; background: #303031; }
+.project-list-empty { padding: 16px 11px; color: #777671; font-size: .75rem; }
+.archive-list-toggle { display: flex; align-items: center; gap: 9px; width: 100%; margin-top: 12px; padding: 9px 11px; background: transparent; border: 0; border-radius: 8px; color: #898884; text-align: left; font-size: .73rem; }
+.archive-list-toggle:hover, .archive-list-toggle.active { color: #f5f5f2; background: #19191a; }
+.archive-list-toggle > span { flex: 1; }
+.archive-list-toggle small { color: #898884; font-size: .65rem; }
+@media (hover: none) { .project-archive-action { opacity: 1; } }
 .sidebar-bottom { margin-top: 19px; }
 .sidebar-help { padding: 9px 9px; color: #898884; }
 .model-card { border-color: #29292b; background: #111112; border-radius: 10px; }

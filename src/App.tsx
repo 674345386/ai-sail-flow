@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode, type InputHTMLAttributes, type TextareaHTMLAttributes } from 'react';
-import { ArrowDownToLine, ArrowRight, ArrowUpRight, Check, CheckCheck, ChevronDown, ChevronRight, CircleHelp, CirclePlay, Clapperboard, Copy, Download, Eye, FileJson, FileText, Film, FolderOpen, Globe2, ImagePlus, Info, LoaderCircle, LogOut, Mail, Package, PanelLeft, Plus, Save, ScanLine, Scissors, Settings2, ShieldCheck, Sparkles, Subtitles, Upload, Video, WandSparkles, X } from 'lucide-react';
+import { Archive, ArchiveRestore, ArrowDownToLine, ArrowLeft, ArrowRight, ArrowUpRight, Check, CheckCheck, ChevronDown, ChevronRight, CircleHelp, CirclePlay, Clapperboard, Copy, Download, Eye, FileJson, FileText, Film, FolderOpen, Globe2, ImagePlus, Info, LoaderCircle, LogOut, Mail, Package, PanelLeft, Plus, Save, ScanLine, Scissors, Settings, Settings2, ShieldCheck, Sparkles, Subtitles, Upload, Video, WandSparkles, X } from 'lucide-react';
 import { countries, defaultReplication, languages, platforms, roles, timeLabel, validateContinuousTimeline, validateTimeline, type Project, type ProjectSummary, type Shot, type Product, type Market, type Replication, type ProductionMode, type WorkflowMode } from '../shared/domain';
 import { buildBrief, buildPrompt, buildExportFiles, buildVeoPromptPreview, buildVeoUnitPrompt, subtitles } from '../shared/export';
 import { buildVeoPlan, type VeoPlanUnit } from '../shared/veo-plan';
@@ -176,6 +176,7 @@ function AuthDialog({ open, onClose, auth, email, code, stage, onEmailChange, on
 
 export default function App() {
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
+  const [showArchived, setShowArchived] = useState(false);
   const [project, setProject] = useState<Project | null>(null);
   const [status, setStatus] = useState<Status>({ model: 'gemini-3.8-flash', configured: false, videoGeneration: { provider: 'veo-3.1', models: { t2v: 'veo_3_1', i2v: 'veo_3_1-fl', r2v: 'veo_3_1-components' }, configured: false, duration: 8 } });
   const [step, setStep] = useState(0);
@@ -184,7 +185,7 @@ export default function App() {
   const [selectedRewrite, setSelectedRewrite] = useState(0);
   const [exportTab, setExportTab] = useState('prompt');
   const [ttsVoices, setTtsVoices] = useState<TtsVoice[]>([]);
-  const [modal, setModal] = useState<'settings' | 'guide' | null>(null);
+  const [modal, setModal] = useState<'config' | 'settings' | 'guide' | null>(null);
   const [apiKey, setApiKey] = useState('');
   const [veoApiKey, setVeoApiKey] = useState('');
   const [baseUrl, setBaseUrl] = useState('');
@@ -259,9 +260,10 @@ export default function App() {
         const [list, modelStatus] = await Promise.all([api<ProjectSummary[]>('/api/projects'), api<Status>('/api/status')]);
         let preferred = '';
         try { preferred = localStorage.getItem('sop-current-project') || ''; } catch {}
-        const id = list.find(p => p.id === preferred)?.id || list[0]?.id;
+        const activeProjects = list.filter(p => !p.archivedAt);
+        const id = activeProjects.find(p => p.id === preferred)?.id || activeProjects[0]?.id || list.find(p => p.id === preferred)?.id || list[0]?.id;
         const p = id ? await api<Project>(`/api/projects/${id}`) : await api<Project>('/api/projects', { method: 'POST', body: '{}' });
-        if (!cancelled) { setStatus(modelStatus); adopt(p); setStep(p.rewrite ? 2 : p.analysis ? 1 : 0); await refreshList(); }
+        if (!cancelled) { setStatus(modelStatus); adopt(p); setShowArchived(Boolean(p.archivedAt)); setStep(p.rewrite ? 2 : p.analysis ? 1 : 0); await refreshList(); }
       } catch (e) { if (!cancelled) setBootError(e instanceof Error ? e.message : '无法连接工作台'); }
     })();
     return () => { cancelled = true; };
@@ -362,7 +364,14 @@ export default function App() {
   });
   const newProject = (demo = false) => perform('正在创建项目', async () => {
     await flush(); const p = await api<Project>('/api/projects', { method: 'POST', body: JSON.stringify({ demo }) });
-    adopt(p); setDirty(false); unsaved.current = false; setStep(demo ? 1 : 0); setSelectedShot(0); setSelectedRewrite(0); setShowRequiredErrors(false); setFocusTarget(null); setObserving(false); await refreshList(); setSidebarOpen(false);
+    adopt(p); setDirty(false); unsaved.current = false; setStep(demo ? 1 : 0); setSelectedShot(0); setSelectedRewrite(0); setShowRequiredErrors(false); setFocusTarget(null); setObserving(false); setShowArchived(false); await refreshList(); setSidebarOpen(false);
+  });
+  const setProjectArchived = (id: string, archived: boolean) => perform(archived ? '正在归档项目' : '正在恢复项目', async () => {
+    await flush();
+    const updated = await api<Project>(`/api/projects/${id}/archive`, { method: 'POST', body: JSON.stringify({ archived }) });
+    if (current.current?.id === id) adopt(updated);
+    await refreshList();
+    setNotice(archived ? '项目已归档，可在已归档项目中恢复' : '项目已恢复到最近项目');
   });
   const selectWorkflowMode = (mode: WorkflowMode) => perform('正在切换制作方式', async () => {
     let p = await flush(); if (!p) return;
@@ -600,20 +609,29 @@ export default function App() {
     <details className="advanced"><summary>镜头、声音与产品细节 <ChevronDown size={14} /></summary><div className="details-body"><Field label="镜头语言"><Textarea rows={2} value={s.camera} disabled={disabled} onChange={e => updateShot(index, { camera: e.target.value }, localized)} /></Field><Field label="声音"><Input value={s.sound} disabled={disabled} onChange={e => updateShot(index, { sound: e.target.value }, localized)} /></Field><Field label="产品呈现"><Textarea rows={2} value={s.productPresence} disabled={disabled} onChange={e => updateShot(index, { productPresence: e.target.value }, localized)} /></Field><Field label="待确认内容"><Input value={s.uncertainty} disabled={disabled} onChange={e => updateShot(index, { uncertainty: e.target.value }, localized)} /></Field>{localized && <Field label="视频生成指令 · English"><Textarea rows={4} value={(s as Shot & { generationPrompt: string }).generationPrompt} disabled={disabled} onChange={e => change(p => ({ ...p, rewrite: { ...p.rewrite!, shots: p.rewrite!.shots.map((a, i) => i === index ? { ...a, generationPrompt: e.target.value } : a) } }))} /></Field>}</div></details>
   </div>;
 
+  const archivedCount = projects.filter(p => p.archivedAt).length;
+  const visibleProjects = projects.filter(p => showArchived ? Boolean(p.archivedAt) : !p.archivedAt);
   return <div className="app-shell">
     {sidebarOpen && <button className="sidebar-scrim" aria-label="关闭导航" onClick={() => setSidebarOpen(false)} />}
     <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
       <div className="brand"><div className="brand-icon"><img src="/assets/brand/ai-sail-flow-mark.png" alt="" /></div><div><strong>AI-Sail Flow</strong><span>跨境内容工作台</span></div><Badge>V1</Badge></div>
       <button className="workspace-picker" onClick={() => setModal('guide')}><span className="workspace-avatar">S</span><span>我的工作空间<small>本机项目</small></span><ChevronDown size={15} /></button>
-      <div className="nav-section-label">创意工作流</div>
-      <nav className="workflow-nav" aria-label="制作流程">{steps.map((s, i) => { const Icon = s.icon; return <button key={s.en} className={`nav-item ${step === i ? 'active' : ''}`} disabled={!available[i] || !!busy} onClick={() => go(i)}><Icon size={18} /><span>{s.name}</span><span className="nav-number">0{i + 1}</span></button>; })}</nav>
-      <div className="nav-section-label recent-label">最近项目<button className="icon-btn" aria-label="新建项目" onClick={() => newProject()} disabled={!!busy}><Plus size={16} /></button></div>
-      <div className="project-list">{projects.map(p => <button key={p.id} className={`project-link ${p.id === project.id ? 'selected' : ''}`} onClick={() => switchProject(p.id)} disabled={!!busy}><span className="project-dot" /><span>{p.title}</span>{p.isDemo && <small>示例</small>}</button>)}</div>
-      <div className="sidebar-bottom"><button className="sidebar-help" onClick={() => setModal('guide')}><CircleHelp size={17} /><span>创意方法与使用指南</span><ArrowUpRight size={14} /></button><button className="model-card" onClick={() => setModal('settings')}><span className="model-symbol"><Sparkles size={18} /></span><span><strong>Gemini + Veo 3.1</strong><small>{status.videoGeneration.configured ? '视频模型已配置' : '配置视频模型'}</small></span><Settings2 size={15} /></button><div className="local-note"><ShieldCheck size={13} /> 项目资料保存在本机</div></div>
+      <section className="sidebar-projects" aria-label="项目列表">
+      <div className="nav-section-label recent-label">{showArchived ? '已归档项目' : '最近项目'}<button className="icon-btn" aria-label="新建项目" onClick={() => newProject()} disabled={!!busy}><Plus size={16} /></button></div>
+      <div className="project-list">{visibleProjects.map(p => <div key={p.id} className={`project-row ${p.id === project.id ? 'selected' : ''}`}><button className={`project-link ${p.id === project.id ? 'selected' : ''}`} onClick={() => switchProject(p.id)} disabled={!!busy} title={p.title}><span className="project-dot" /><span>{p.title}</span>{p.isDemo && <small>示例</small>}</button><button className="project-archive-action" aria-label={`${showArchived ? '恢复' : '归档'}项目：${p.title}`} title={showArchived ? '恢复到最近项目' : '归档项目'} disabled={!!busy || (p.id === project.id && running)} onClick={() => setProjectArchived(p.id, !showArchived)}>{showArchived ? <ArchiveRestore size={14} /> : <Archive size={14} />}</button></div>)}{!visibleProjects.length && <p className="project-list-empty">{showArchived ? '暂无已归档项目' : '暂无最近项目'}</p>}</div>
+      <button className={`archive-list-toggle ${showArchived ? 'active' : ''}`} aria-pressed={showArchived} onClick={() => setShowArchived(!showArchived)}>{showArchived ? <ArrowLeft size={15} /> : <Archive size={15} />}<span>{showArchived ? '返回最近项目' : '已归档项目'}</span>{!showArchived && <small>{archivedCount}</small>}</button>
+      </section>
+      <section className="sidebar-current-project" aria-labelledby="sidebar-current-project-title">
+        <span className="sidebar-project-caption">当前项目</span>
+        <div className="sidebar-project-heading"><FolderOpen size={16} /><strong id="sidebar-current-project-title" title={project.title}>{project.title}</strong>{project.archivedAt && <Badge>已归档</Badge>}</div>
+        <nav className="workflow-nav" aria-label="制作流程">{steps.map((s, i) => { const Icon = s.icon; return <button key={s.en} className={`nav-item ${step === i ? 'active' : ''}`} disabled={!available[i] || !!busy} onClick={() => go(i)}><Icon size={18} /><span>{s.name}</span><span className="nav-number">0{i + 1}</span></button>; })}</nav>
+      </section>
+      <button className="sidebar-config" onClick={() => setModal('config')}><Settings size={16} /><span>配置</span></button>
     </aside>
     <div className="main-shell">
       <header className="topbar"><div className="breadcrumbs"><button className="icon-btn mobile-menu" aria-label="打开导航" onClick={() => setSidebarOpen(true)}><PanelLeft size={19} /></button><FolderOpen size={16} /><span>工作空间</span><ChevronRight size={14} /><span className="breadcrumb-current">{project.title}</span></div><div className="topbar-actions"><span className="save-status">{saving ? <LoaderCircle size={14} className="spin" /> : dirty ? <span className="unsaved-dot" /> : <CheckCheck size={14} />}{saving ? '保存中' : dirty ? '待保存' : '已保存'}</span><button className="icon-btn" title="保存项目 ⌘S" aria-label="保存项目" disabled={disabled || !dirty} onClick={() => perform('正在保存', async () => { await flush(); setNotice('已保存'); })}><Save size={17} /></button><span className="topbar-divider" /><button className="btn small" onClick={() => newProject()} disabled={!!busy}><Plus size={15} />新建创意</button><button className="account-chip" onClick={openAuth}><span>{auth.user ? authDisplayName(auth.user).slice(0, 1).toUpperCase() : <Mail size={14} />}</span>{auth.user ? authDisplayName(auth.user) : '登录'}</button></div></header>
       <main>
+        {project.archivedAt && <div className="banner sample"><Archive size={16} /><span>此项目已归档，素材和制作结果仍保存在本机。</span><button disabled={!!busy || running} onClick={() => setProjectArchived(project.id, false)}>恢复到最近项目 <ArchiveRestore size={14} /></button></div>}
         {project.workflowMode && <div className="workflow-control-bar"><span>制作方式</span><button className={`btn small ${project.workflowMode === 'automatic' ? 'selected' : ''}`} disabled={!!busy} onClick={() => observing && project.workflowMode === 'automatic' ? setObserving(false) : void selectWorkflowMode('automatic')}><Sparkles size={15} />自动工作流</button><button className={`btn small ${project.workflowMode === 'manual' ? 'selected' : ''}`} disabled={!!busy || project.workflow?.status === 'pausing'} onClick={() => void selectWorkflowMode('manual')}><Settings2 size={15} />{workflowBusy(project) ? '接管并进入手动' : '手动工作流'}</button></div>}
         {(autoView || !project.workflowMode) && error && <div className="banner error" role="alert"><Info size={16} /><span>{error}</span><button aria-label="关闭错误提示" onClick={() => setError('')}><X size={16} /></button></div>}
         {project.ttsTimingNotice && <SpeechTimingConfirmation notice={project.ttsTimingNotice} disabled={disabled} onConfirm={() => void composeFinal(project.ttsTimingNotice!.voice, project.ttsTimingNotice!.basis)} onManual={() => void selectWorkflowMode('manual')} />}
@@ -701,6 +719,13 @@ export default function App() {
     {showPipeline && <PipelineCanvas project={project} onClose={() => setShowPipeline(false)} />}
     {notice && <div className="toast" role="status"><Check size={17} />{notice}</div>}
     {busy && <div className="busy-indicator" role="status"><LoaderCircle className="spin" size={14} />{busy}</div>}
+    {modal === 'config' && <Modal title="配置" onClose={() => setModal(null)}>
+      <div className="configuration-options">
+        <button className="configuration-option" onClick={() => setModal('settings')}><Sparkles size={18} /><span><strong>Gemini + Veo 3.1</strong><small>{status.videoGeneration.configured ? '视频模型已配置' : '配置视频模型'}</small></span><ChevronRight size={16} /></button>
+        <button className="configuration-option" onClick={() => setModal('guide')}><CircleHelp size={18} /><span><strong>创意方法与使用指南</strong><small>查看工作流与创意说明</small></span><ChevronRight size={16} /></button>
+      </div>
+      <p className="configuration-local-note"><ShieldCheck size={14} />项目资料保存在本机</p>
+    </Modal>}
     {modal === 'settings' && <Modal title="模型连接" onClose={() => { setModal(null); setApiKey(''); setVeoApiKey(''); setBaseUrl(''); }}>
       <div className="settings-model"><span className="model-symbol"><Sparkles size={22} /></span><div><h3>Gemini 3.8 Flash</h3><code>{status.model} · 视频理解与改写</code></div><Badge>{status.configured ? '已配置' : '待连接'}</Badge></div>
       <div className="settings-model"><span className="model-symbol"><Clapperboard size={22} /></span><div><h3>Veo 3.1 视频生成</h3><code>gaorui.cc/v1/videos · t2v / i2v / r2v</code></div><Badge>{status.videoGeneration.configured ? '已配置' : '待连接'}</Badge></div>

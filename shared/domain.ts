@@ -123,6 +123,7 @@ export type AnalysisMeta = {
 };
 export type Project = {
   id: string; title: string; createdAt: string; updatedAt: string; revision: number; isDemo: boolean;
+  archivedAt?: string;
   product: Product; market: Market; replication?: Replication; assets: Asset[]; analysis: Analysis | null; rewrite: Rewrite | null;
   analysisMeta?: AnalysisMeta | null;
   analysisRequest?: ModelRequestSnapshot | null; rewriteRequest?: ModelRequestSnapshot | null;
@@ -133,7 +134,7 @@ export type Project = {
   veoPromptDrafts?: Record<string, { prompt: string; basis: string }>;
   ttsTimingNotice?: TtsTimingNotice;
 };
-export type ProjectSummary = Pick<Project, 'id' | 'title' | 'updatedAt' | 'isDemo'> & { stage: number };
+export type ProjectSummary = Pick<Project, 'id' | 'title' | 'updatedAt' | 'isDemo' | 'archivedAt'> & { stage: number };
 export const emptyProduct: Product = { name: '', category: '家居生活', facts: '', audience: '', price: '', currency: 'USD', offer: '', landingUrl: '' };
 export const defaultMarket: Market = { country: 'US', language: 'en-US', platform: 'tiktok', destination: 'website', cta: '', tone: 'natural', duration: 'original', people: 'preserve', keepStructure: true, subtitles: true, aspectRatio: '9:16' };
 export const defaultReplication: Replication = {
