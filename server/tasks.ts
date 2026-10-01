@@ -8,6 +8,7 @@ import { analyze, rewrite, configured } from './gemini';
 import { VEO_MODELS, VEO_DURATION, generateVideo, resumeVideo, generationConfigured, saveGeneratedVideo, requestBody, type GenerationInput } from './veo';
 import { composeVideo, composeUnitVideo, composeNativeVideo, TimingConfirmationRequired } from './compose';
 import { getProject, saveProject } from './store';
+import { shotReconstructionPrompt } from '../shared/shot-evidence';
 
 export class TaskError extends Error { constructor(public status: number, message: string) { super(message); } }
 export type TaskSpec = { kind: 'analysis' } | { kind: 'rewrite' } | { kind: 'generation'; input: GenerationInput } |
@@ -31,7 +32,7 @@ function directAnalysisStoryboard(project: Project): Rewrite {
     productionNotes: ['分镜内容直接来自 Gemini 原片分析；生成前可在 Veo Prompt 中编辑。', '保留原片时间线、语言、画面动作、运镜、口播、屏幕文字和声音描述。'],
     globalPrompt: `Recreate the analyzed reference video faithfully. Preserve its original style, shot order, pacing, camera work, actions, language, narration, on-screen text, and sound. Apply only the user's explicitly allowed changes. Source summary: ${analysis.summary}`,
     negativePrompt: '',
-    shots: analysis.shots.map(shot => ({ ...shot, generationPrompt: [shot.visual, shot.action, shot.camera].filter(Boolean).join(' ') })),
+    shots: analysis.shots.map(shot => ({ ...shot, generationPrompt: shotReconstructionPrompt(shot) })),
   };
 }
 

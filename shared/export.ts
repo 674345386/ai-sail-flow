@@ -27,6 +27,8 @@ function veoUnitPromptData(project: Project, unit: VeoPlanUnit, mode: Production
       shots: project.analysis.shots.filter(shot => shot.start < unit.end && shot.end > unit.start).map(shot => ({
         id: shot.id, start: shot.start, end: shot.end, visual: shot.visual,
         action: shot.action, camera: shot.camera, sound: shot.sound,
+        subject: shot.subject, effects: shot.effects, transition: shot.transition,
+        evidenceFrames: shot.evidenceFrames,
       })),
     },
   } : {};
@@ -48,6 +50,7 @@ function veoUnitPromptData(project: Project, unit: VeoPlanUnit, mode: Production
         end: Number(Math.min(unit.targetDuration, shot.end - unit.start).toFixed(3)),
       },
       visual: shot.visual, action: shot.action, camera: shot.camera,
+      subject: shot.subject, effects: shot.effects, transition: shot.transition,
       productPresence: shot.productPresence, uncertainty: shot.uncertainty,
     })),
   };

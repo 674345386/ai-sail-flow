@@ -21,7 +21,7 @@ const { VEO_MODELS, VEO_DURATION, configureGenerationKey, generationConfigured }
 const { listTtsVoices } = await import('./compose');
 const { launchTask, TaskError } = await import('./tasks');
 const { startWorkflow, setWorkflowMode } = await import('./workflow');
-const { inspectMedia } = await import('./media');
+const { inspectMedia, prepareShotMedia } = await import('./media');
 const port = Number(process.env.SOP_PORT || 4317);
 const app = express();
 app.disable('x-powered-by');
@@ -69,6 +69,18 @@ app.post('/api/projects', (req, res) => {
   res.status(201).json(createProject(demo));
 });
 app.get('/api/projects/:id', (req, res) => res.json(record(req)));
+app.post('/api/projects/:id/shot-media', async (req, res, next) => {
+  try {
+    const project = record(req);
+    const input = z.object({ assetId: z.string().max(80), start: z.number().min(0).max(2700), end: z.number().min(0).max(2700),
+      evidenceFrames: z.array(z.object({ at: z.number().min(0).max(2700), reason: z.string().max(1000) })).max(3).optional() }).parse(req.body);
+    const video = project.assets.find(asset => asset.id === input.assetId && asset.kind === 'video');
+    if (!video) throw new HttpError(404, '原片不存在，请先上传参考视频。');
+    if (input.end <= input.start || input.end > (video.duration || 0) + .001) throw new HttpError(400, '镜头时间范围超出了原片，请先修正时间。');
+    try { res.json(await prepareShotMedia(video, input)); }
+    catch (error) { throw new HttpError(422, error instanceof Error ? error.message : '镜头媒体提取失败。'); }
+  } catch (error) { next(error); }
+});
 app.post('/api/projects/:id/archive', (req, res) => {
   const project = record(req); editable(project);
   const { archived } = z.object({ archived: z.boolean() }).parse(req.body);
@@ -200,6 +212,7 @@ app.get('/api/projects/:id/export', async (req, res) => {
 });
 app.use('/media', express.static(uploadDir, { dotfiles: 'deny', fallthrough: false, setHeaders(res, filepath) {
   if (filepath.endsWith('.srt')) { res.setHeader('Content-Type', 'application/x-subrip; charset=utf-8'); return; }
+  if (filepath.endsWith('.mp4')) { res.setHeader('Content-Type', 'video/mp4'); return; }
   if (!filepath.endsWith('.jpg')) {
     // Uploaded files use random extensionless names; set the registered, sniffed MIME type.
     const filename = path.basename(filepath);

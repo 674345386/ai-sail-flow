@@ -44,6 +44,9 @@ export const shotSchema = z.object({
   visual: z.string().max(6000), action: z.string().max(4000), camera: z.string().max(2000),
   narration: z.string().max(4000), onScreenText: z.string().max(2000), sound: z.string().max(2000),
   productPresence: z.string().max(2000), uncertainty: z.string().max(2000),
+  subject: z.string().max(3000).optional(), effects: z.string().max(3000).optional(),
+  transition: z.string().max(2000).optional(), reconstructionPrompt: z.string().max(8000).optional(),
+  evidenceFrames: z.array(z.object({ at: z.number().min(0).max(2700), reason: z.string().max(1000) })).max(3).optional(),
 });
 export const analysisSchema = z.object({
   summary: z.string().max(8000), sourceLanguage: z.string().max(100), duration: z.number().min(0.1).max(2700),
@@ -51,6 +54,10 @@ export const analysisSchema = z.object({
   productAppearance: z.string().max(6000), shots: z.array(shotSchema).min(1).max(120),
   uncertainties: z.array(z.string().max(2000)).max(30),
 });
+// New model responses must supply the observation structure; old saved projects remain valid.
+export const analysisModelSchema = analysisSchema.extend({ shots: z.array(shotSchema.required({
+  subject: true, effects: true, transition: true, reconstructionPrompt: true, evidenceFrames: true,
+})).min(1).max(120) });
 export const rewriteSchema = z.object({
   angle: z.string().max(3000), audienceInsight: z.string().max(3000),
   hookVariants: z.array(z.object({ label: z.string().max(200), text: z.string().max(1000) })).min(1).max(3),

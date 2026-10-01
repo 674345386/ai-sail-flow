@@ -32,7 +32,7 @@ export function buildCreativeGraph(project: Project): { nodes: CreativeNode[]; e
   if (project.job?.status === 'failed') statuses[activeStep] = 'failed';
   const artifacts: CreativeArtifact[][] = [
     project.assets.map(asset => ({ key: `asset:${asset.id}`, title: asset.name, detail: asset.kind === 'video' ? `${(asset.duration || 0).toFixed(1)} 秒 · 参考视频` : '产品 / 主体参考图', kind: asset.kind === 'video' ? 'video' : 'image', thumbnail: asset.kind === 'video' ? asset.thumbnail : asset.url })),
-    project.analysis ? [{ key: 'analysis', title: '原片镜头脚本', detail: `${project.analysis.shots.length} 个镜头 · ${project.analysis.duration.toFixed(1)} 秒`, kind: 'document' }] : [],
+    project.analysis ? [{ key: 'analysis', title: '镜头片段与证据', detail: `${project.analysis.shots.length} 个镜头 · 切片 / 关键帧 / Prompt`, kind: 'document' }] : [],
     project.rewrite ? [{ key: 'rewrite', title: project.promptFlow === 'direct-analysis' ? '原片分镜与 Prompt' : '本地化创意分镜', detail: `${project.rewrite.shots.length} 个镜头${project.rewriteStale ? ' · 资料已变更' : ''}`, kind: 'document' }] : [],
     [
       ...(project.rewrite ? [{ key: 'delivery', title: '提示词与制作简报', detail: 'Prompt · 分镜 JSON · 字幕', kind: 'document' as const }] : []),
