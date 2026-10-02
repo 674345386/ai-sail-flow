@@ -1,6 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode, type InputHTMLAttributes, type TextareaHTMLAttributes } from 'react';
 import { Archive, ArchiveRestore, ArrowDownToLine, ArrowLeft, ArrowRight, ArrowUpRight, Check, CheckCheck, ChevronDown, ChevronRight, CircleHelp, CirclePlay, Clapperboard, Copy, Download, Eye, FileJson, FileText, Film, FolderOpen, Globe2, ImagePlus, Info, LayoutList, LoaderCircle, LogOut, Mail, Package, PanelLeft, Plus, Save, ScanLine, Scissors, Settings, Settings2, ShieldCheck, Sparkles, Subtitles, Upload, Video, WandSparkles, Workflow, X } from 'lucide-react';
-import { countries, defaultReplication, defaultWorkspace, languages, platforms, roles, timeLabel, validateContinuousTimeline, validateTimeline, type Project, type ProjectSummary, type WorkspaceProject, type Shot, type Product, type Market, type Replication, type ProductionMode, type WorkflowMode } from '../shared/domain';
+import { countries, defaultReplication, defaultWorkspace, languages, platforms, roles, timeLabel, validateContinuousTimeline, validateTimeline, type FocusPoint, type Project, type ProjectSummary, type WorkspaceProject, type Shot, type Product, type Market, type Replication, type ProductionMode, type WorkflowMode } from '../shared/domain';
+import { mergeFocusPoints } from '../shared/focus';
 import { buildBrief, buildPrompt, buildExportFiles, buildVeoPromptPreview, buildVeoUnitPrompt, subtitles } from '../shared/export';
 import { buildVeoPlan, type VeoPlanUnit } from '../shared/veo-plan';
 import { api, downloadBlob } from './api';
@@ -8,6 +9,7 @@ import { useImagePaste } from './useImagePaste';
 import { authDisplayName, authEmail, initialAuthState, supabase, supabaseConfigured, type SailAuthState } from './auth';
 import PipelineCanvas from './PipelineCanvas';
 import ShotBreakdown from './ShotBreakdown';
+import FocusPointsEditor from './FocusPointsEditor';
 import ShotTimelineEditor from './ShotTimelineEditor';
 import ProjectNavigation from './ProjectNavigation';
 import AnimatedBrandMark from './AnimatedBrandMark';
@@ -224,6 +226,8 @@ export default function App() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => { try { return localStorage.getItem('sop-sidebar-collapsed') === 'true'; } catch { return false; } });
+  useEffect(() => { try { localStorage.setItem('sop-sidebar-collapsed', String(sidebarCollapsed)); } catch {} }, [sidebarCollapsed]);
   const [showPipeline, setShowPipeline] = useState(false);
   const [observing, setObserving] = useState(false);
   const [bootError, setBootError] = useState('');
@@ -267,7 +271,7 @@ export default function App() {
     const seq = editSequence.current;
     setSaving(true);
     const promise = (async () => {
-      const saved = await api<Project>(`/api/projects/${snapshot.id}`, { method: 'PUT', body: JSON.stringify({ revision: snapshot.revision, parentProjectId: snapshot.parentProjectId, title: snapshot.title.trim() || '未命名创意', product: snapshot.product, market: snapshot.market, replication: snapshot.replication || defaultReplication, analysis: snapshot.analysis, rewrite: snapshot.rewrite, productionMode: snapshot.productionMode || 'veo-native', promptFlow: snapshot.promptFlow || 'localized', ttsVoice: snapshot.ttsVoice || '', automaticSettings: snapshot.automaticSettings, veoPromptDrafts: snapshot.veoPromptDrafts || {} }) });
+      const saved = await api<Project>(`/api/projects/${snapshot.id}`, { method: 'PUT', body: JSON.stringify({ revision: snapshot.revision, parentProjectId: snapshot.parentProjectId, title: snapshot.title.trim() || '未命名创意', product: snapshot.product, market: snapshot.market, replication: snapshot.replication || defaultReplication, analysis: snapshot.analysis, analysisReview: snapshot.analysisReview, rewrite: snapshot.rewrite, productionMode: snapshot.productionMode || 'veo-native', promptFlow: snapshot.promptFlow || 'localized', ttsVoice: snapshot.ttsVoice || '', automaticSettings: snapshot.automaticSettings, veoPromptDrafts: snapshot.veoPromptDrafts || {} }) });
       if (current.current?.id === saved.id) {
         if (editSequence.current === seq) { unsaved.current = false; setDirty(false); adopt(saved); }
         else adopt({ ...current.current, revision: saved.revision, updatedAt: saved.updatedAt, rewriteStale: current.current.rewriteStale || saved.rewriteStale });
@@ -375,7 +379,7 @@ export default function App() {
         if (cancelled || current.current?.id !== id) return;
         failures = 0; adopt(p);
         if (p.job?.status === 'running' || workflowBusy(p)) timer = setTimeout(poll, 1800);
-        else { await refreshList(); if (p.job?.status === 'completed') { setStep(p.job.kind === 'analysis' ? 1 : p.job.kind === 'rewrite' ? 2 : 3); setNotice(p.job.message); } }
+        else { await refreshList(); if (p.job?.status === 'completed') { setStep(p.job.kind === 'analysis' || p.job.kind === 'analysis-refine' ? 1 : p.job.kind === 'rewrite' ? 2 : 3); setNotice(p.job.message); } }
       } catch (e) { if (!cancelled) { failures++; setError(failures > 2 ? '暂时无法获取任务进度，正在重新连接…' : '连接暂时中断，任务仍可能在后台运行。'); timer = setTimeout(poll, 4000); } }
     };
     timer = setTimeout(poll, 1200);
@@ -442,7 +446,7 @@ export default function App() {
   const enterWorkspace = (create = false, mode?: WorkflowMode) => { setShowLanding(false); setSidebarOpen(false); if (create) void newProject(); else if (mode) void selectWorkflowMode(mode); };
   const uploadFiles = (files: FileList | File[], kind: 'video' | 'product') => {
     const list = Array.from(files);
-    return perform('正在上传素材', async () => {
+    return perform(kind === 'video' && list.some(file => file.size >= 8 * 1024 * 1024) ? '正在上传并压缩视频' : '正在上传素材', async () => {
       const p = await flush(); if (!p) return;
       if (kind === 'video' && list.length !== 1) throw new Error('每个创意使用一条参考视频。');
       if (kind === 'product' && p.assets.filter(a => a.kind === 'product').length + list.length > 3) throw new Error('最多上传 3 张产品/主体参考图。');
@@ -457,11 +461,11 @@ export default function App() {
   };
   useImagePaste(imageUploadBoxes, workspaceView === 'steps' && step === 0 && !busy && !running && !observing && !modal && !showPipeline && !authOpen && !showLanding, files => { void uploadFiles(files, 'product'); });
   const removeAsset = (id: string) => perform('正在移除素材', async () => { const p = await flush(); if (p) adopt(await api<Project>(`/api/projects/${p.id}/assets/${id}`, { method: 'DELETE' })); });
-  const startJob = (kind: 'analysis' | 'rewrite') => perform('正在准备任务', async () => {
+  const startJob = (kind: 'analysis' | 'analysis-refine' | 'rewrite') => perform('正在准备任务', async () => {
     const p = await flush(); if (!p) return;
-    if (!status.configured && (kind === 'analysis' || p.promptFlow !== 'direct-analysis')) { setModal('settings'); return; }
+    if (!status.configured && (kind === 'analysis' || kind === 'analysis-refine' || p.promptFlow !== 'direct-analysis')) { setModal('settings'); return; }
     adopt(await api<Project>(`/api/projects/${p.id}/jobs/${kind}`, { method: 'POST', body: '{}' }));
-    setStep(kind === 'analysis' ? 1 : 2);
+    setStep(kind === 'analysis' || kind === 'analysis-refine' ? 1 : 2);
   });
   const startGeneration = (unitId: string, config: VeoConfig) => perform('正在提交 Veo 3.1', async () => {
     const p = await flush(); if (!p) return;
@@ -628,7 +632,13 @@ export default function App() {
   const localShot = project.rewrite?.shots[Math.min(selectedRewrite, project.rewrite.shots.length - 1)];
   const updateShot = (index: number, patch: Partial<Shot>, localized = false) => change(p => {
     if (localized && p.rewrite) return { ...p, rewrite: { ...p.rewrite, shots: p.rewrite.shots.map((s, i) => i === index ? { ...s, ...patch } : s) } };
-    if (p.analysis) return { ...p, analysis: { ...p.analysis, shots: p.analysis.shots.map((s, i) => i === index ? { ...s, ...patch } : s) } };
+    if (p.analysis) {
+      const shotId = p.analysis.shots[index]?.id;
+      const timingChanged = shotId && (patch.start !== undefined || patch.end !== undefined);
+      const suggestions = { ...p.analysisReview?.suggestions };
+      if (timingChanged) delete suggestions[shotId];
+      return { ...p, analysis: { ...p.analysis, shots: p.analysis.shots.map((s, i) => i === index ? { ...s, ...patch } : s) }, ...(timingChanged ? { analysisReview: { pendingIds: [...new Set([...(p.analysisReview?.pendingIds || []), shotId])], suggestions } } : {}) };
+    }
     return p;
   });
   const seek = (seconds: number) => { if (player.current) { const details = player.current.closest('details'); if (details) details.open = true; player.current.currentTime = seconds; player.current.focus(); } };
@@ -655,40 +665,74 @@ export default function App() {
     if (!source || source.end - source.start < .4 || p.analysis!.shots.length >= 120) return p;
     const middle = Math.round((source.start + source.end) * 50) / 100;
     const shots = [...p.analysis!.shots];
+    const newId = crypto.randomUUID();
     shots.splice(index, 1, { ...source, end: middle, reconstructionPrompt: undefined, evidenceFrames: source.evidenceFrames?.filter(frame => frame.at < middle) },
-      { ...source, id: crypto.randomUUID(), start: middle, reconstructionPrompt: undefined, evidenceFrames: source.evidenceFrames?.filter(frame => frame.at >= middle) });
-    return { ...p, analysis: { ...p.analysis!, shots } };
+      { ...source, id: newId, start: middle, reconstructionPrompt: undefined, evidenceFrames: source.evidenceFrames?.filter(frame => frame.at >= middle) });
+    const suggestions = { ...p.analysisReview?.suggestions };
+    delete suggestions[source.id];
+    return { ...p, analysis: { ...p.analysis!, shots }, analysisReview: { pendingIds: [...new Set([...(p.analysisReview?.pendingIds || []), source.id, newId])], suggestions } };
   });
   const applyShotTimings = (updatedShots: Shot[], selectedIndex: number) => {
     change(p => {
       if (!p.analysis) return p;
-      return { ...p, analysis: { ...p.analysis, shots: updatedShots } };
+      const previous = new Map(p.analysis.shots.map(shot => [shot.id, shot]));
+      const ids = new Set(updatedShots.map(shot => shot.id));
+      const changedIds = new Set(updatedShots.filter(shot => {
+        const old = previous.get(shot.id);
+        return !old || old.start !== shot.start || old.end !== shot.end;
+      }).map(shot => shot.id));
+      const pendingIds = [...new Set([...(p.analysisReview?.pendingIds || []).filter(id => ids.has(id)), ...changedIds])];
+      const suggestions = { ...p.analysisReview?.suggestions };
+      for (const id of Object.keys(suggestions)) if (!ids.has(id) || changedIds.has(id)) delete suggestions[id];
+      return { ...p, analysis: { ...p.analysis, shots: updatedShots }, analysisReview: { pendingIds, suggestions } };
     });
     setSelectedShot(selectedIndex);
     setTimelineOpen(false);
     setNotice('镜头时间线已更新，正在保存');
   };
+  const acceptShotSuggestion = (shotId: string) => change(p => {
+    const suggestion = p.analysisReview?.suggestions[shotId];
+    if (!p.analysis || !suggestion) return p;
+    const { analyzedAt: _analyzedAt, source: _source, ...fields } = suggestion;
+    const suggestions = { ...p.analysisReview!.suggestions };
+    delete suggestions[shotId];
+    return { ...p, analysis: { ...p.analysis, shots: p.analysis.shots.map(shot => shot.id === shotId ? { ...shot, ...fields, focusPoints: mergeFocusPoints(shot.focusPoints, fields.focusPoints) } : shot) }, analysisReview: { ...p.analysisReview!, suggestions } };
+  });
+  const dismissShotSuggestion = (shotId: string) => change(p => {
+    if (!p.analysisReview?.suggestions[shotId]) return p;
+    const suggestions = { ...p.analysisReview.suggestions };
+    delete suggestions[shotId];
+    return { ...p, analysisReview: { ...p.analysisReview, suggestions } };
+  });
+  const updateGlobalFocus = (points: FocusPoint[]) => change(p => p.analysis ? { ...p, analysis: { ...p.analysis, focusPoints: points } } : p);
+  const updateShotFocus = (shotId: string, points: FocusPoint[]) => change(p => p.analysis ? { ...p, analysis: { ...p.analysis, shots: p.analysis.shots.map(shot => shot.id === shotId ? { ...shot, focusPoints: points } : shot) } } : p);
+  const acceptGlobalFocusSuggestion = () => change(p => {
+    if (!p.analysis || !p.analysisReview?.globalFocusSuggestion) return p;
+    return { ...p, analysis: { ...p.analysis, focusPoints: mergeFocusPoints(p.analysis.focusPoints, p.analysisReview.globalFocusSuggestion) }, analysisReview: { ...p.analysisReview, globalFocusSuggestion: undefined } };
+  });
+  const dismissGlobalFocusSuggestion = () => change(p => p.analysisReview ? { ...p, analysisReview: { ...p.analysisReview, globalFocusSuggestion: undefined } } : p);
   const productionPanel = <VeoPanel onPrompt={(unitId, mode, prompt, basis) => change(p => ({ ...p, veoPromptDrafts: { ...p.veoPromptDrafts, [`${mode}:${unitId}`]: { prompt, basis } } }))} project={project} status={status} disabled={disabled} voices={ttsVoices} onModeChange={mode => change(p => ({ ...p, productionMode: mode }))} onVoiceChange={voice => change(p => ({ ...p, ttsVoice: voice }))} onCompose={voice => void composeFinal(voice)} onGenerate={(shotId, config) => void startGeneration(shotId, config)} onRecover={videoId => void recoverGeneration(videoId)} onComposeUnit={(videoId, voice) => void composeUnit(videoId, voice)} />;
 
   const parentProject = projectGroups.find(group => group.id === project.parentProjectId);
+  const sidebarIsCollapsed = sidebarCollapsed && !sidebarOpen;
   const editParentProject = (group: WorkspaceProject) => { setError(''); setOrganizationDialog({ kind: 'project-edit', parentId: group.id, title: group.title }); };
   const editCreative = () => { setError(''); setOrganizationDialog({ kind: 'creative-edit', parentId: project.parentProjectId || '', title: project.title }); };
-  return <div className="app-shell">
+  return <div className={`app-shell ${sidebarIsCollapsed ? 'sidebar-collapsed' : ''}`}>
     {sidebarOpen && <button className="sidebar-scrim" aria-label="关闭导航" onClick={() => setSidebarOpen(false)} />}
-    <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
-      <div className="brand"><div className="brand-icon"><img src="/assets/brand/ai-sail-flow-mark.png" alt="" /></div><div><strong>AI-Sail Flow</strong><span>跨境内容工作台</span></div><Badge>V1</Badge></div>
-      <div className="workspace-picker"><span className="workspace-avatar workspace-brand-avatar"><AnimatedBrandMark /></span><span>{defaultWorkspace.title}<small>项目与创意</small></span></div>
-      <ProjectNavigation groups={projectGroups} creatives={projects} currentId={project.id} currentParentId={project.parentProjectId} busy={!!busy} running={running} showArchived={showArchived} onShowArchived={setShowArchived}
+    <aside id="workspace-sidebar" aria-label="工作区导航" className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
+      <div className="brand" title="AI-Sail Flow"><span className="brand-compact" aria-hidden="true">SF</span><div className="brand-icon"><img src="/assets/brand/ai-sail-flow-mark.png" alt="" /></div><div><strong>AI-Sail Flow</strong><span>跨境内容工作台</span></div><Badge>V1</Badge></div>
+      <div className="workspace-picker" title={defaultWorkspace.title}><span className="workspace-avatar workspace-brand-avatar"><AnimatedBrandMark /></span><span>{defaultWorkspace.title}<small>项目与创意</small></span></div>
+      <ProjectNavigation collapsed={sidebarIsCollapsed} onExpand={() => { setSidebarCollapsed(false); }} groups={projectGroups} creatives={projects} currentId={project.id} currentParentId={project.parentProjectId} busy={!!busy} running={running} showArchived={showArchived} onShowArchived={setShowArchived}
         onNewProject={() => { setError(''); setOrganizationDialog({ kind: 'project-new', parentId: '', title: '' }); }} onRenameProject={editParentProject} onNewCreative={parentId => newProject(false, parentId)} onSelect={switchProject} onArchive={setProjectArchived} />
       <section className="sidebar-current-project" aria-labelledby="sidebar-current-project-title">
         <span className="sidebar-project-caption">当前创意</span>
         <div className="sidebar-project-heading"><Clapperboard size={16} /><strong id="sidebar-current-project-title" title={project.title}>{project.title}</strong>{project.archivedAt && <Badge>已归档</Badge>}</div>
-        <nav className="workflow-nav" aria-label="制作流程">{steps.map((s, i) => { const Icon = s.icon; return <button key={s.en} className={`nav-item ${step === i ? 'active' : ''}`} disabled={!!busy || (!canvasView && !available[i])} onClick={() => canvasView ? setStep(i) : go(i)}><Icon size={18} /><span>{s.name}</span><span className="nav-number">0{i + 1}</span></button>; })}</nav>
+        <nav className="workflow-nav" aria-label="制作流程">{steps.map((s, i) => { const Icon = s.icon; return <button key={s.en} className={`nav-item ${step === i ? 'active' : ''}`} aria-label={s.name} title={s.name} disabled={!!busy || (!canvasView && !available[i])} onClick={() => canvasView ? setStep(i) : go(i)}><Icon size={18} /><span>{s.name}</span><span className="nav-number">0{i + 1}</span></button>; })}</nav>
       </section>
-      <button className="sidebar-config" onClick={() => setModal('config')}><Settings size={16} /><span>配置</span></button>
+      <button className="sidebar-config" title="配置" aria-label="配置" onClick={() => setModal('config')}><Settings size={16} /><span>配置</span></button>
     </aside>
     <div className="main-shell">
-      <header className="topbar"><div className="breadcrumbs"><button className="icon-btn mobile-menu" aria-label="打开导航" onClick={() => setSidebarOpen(true)}><PanelLeft size={19} /></button><FolderOpen size={16} /><span>{defaultWorkspace.title}</span><ChevronRight size={14} /><button className="breadcrumb-project" onClick={() => parentProject && editParentProject(parentProject)} disabled={!!busy} title="重命名项目">{parentProject?.title || '默认项目'}</button><ChevronRight size={14} /><button className="breadcrumb-current breadcrumb-creative" onClick={editCreative} disabled={disabled} title="编辑创意名称与所属项目">{project.title}</button></div><div className="topbar-actions"><span className="save-status">{saving ? <LoaderCircle size={14} className="spin" /> : dirty ? <span className="unsaved-dot" /> : <CheckCheck size={14} />}{saving ? '保存中' : dirty ? '待保存' : '已保存'}</span><button className="icon-btn" title="保存创意 ⌘S" aria-label="保存创意" disabled={disabled || !dirty} onClick={() => perform('正在保存', async () => { await flush(); setNotice('已保存'); })}><Save size={17} /></button><span className="topbar-divider" /><button className="btn small" onClick={() => newProject()} disabled={!!busy}><Plus size={15} />新建创意</button><button className="account-chip" onClick={openAuth}><span>{auth.user ? authDisplayName(auth.user).slice(0, 1).toUpperCase() : <Mail size={14} />}</span>{auth.user ? authDisplayName(auth.user) : '登录'}</button></div></header>
+      <header className="topbar"><div className="breadcrumbs"><button className="icon-btn sidebar-toggle desktop-sidebar-toggle" aria-label={sidebarIsCollapsed ? '展开侧边栏' : '收起侧边栏'} title={sidebarIsCollapsed ? '展开侧边栏' : '收起侧边栏'} aria-expanded={!sidebarIsCollapsed} aria-controls="workspace-sidebar" onClick={() => { setSidebarOpen(false); setSidebarCollapsed(!sidebarIsCollapsed); }}><PanelLeft size={18} /></button><button className="icon-btn sidebar-toggle mobile-menu" aria-label={sidebarOpen ? '关闭导航' : '打开导航'} title={sidebarOpen ? '关闭导航' : '打开导航'} aria-expanded={sidebarOpen} aria-controls="workspace-sidebar" onClick={() => setSidebarOpen(!sidebarOpen)}><PanelLeft size={18} /></button><FolderOpen size={16} /><span>{defaultWorkspace.title}</span><ChevronRight size={14} /><button className="breadcrumb-project" onClick={() => parentProject && editParentProject(parentProject)} disabled={!!busy} title="重命名项目">{parentProject?.title || '默认项目'}</button><ChevronRight size={14} /><button className="breadcrumb-current breadcrumb-creative" onClick={editCreative} disabled={disabled} title="编辑创意名称与所属项目">{project.title}</button></div><div className="topbar-actions"><span className="save-status">{saving ? <LoaderCircle size={14} className="spin" /> : dirty ? <span className="unsaved-dot" /> : <CheckCheck size={14} />}{saving ? '保存中' : dirty ? '待保存' : '已保存'}</span><button className="icon-btn" title="保存创意 ⌘S" aria-label="保存创意" disabled={disabled || !dirty} onClick={() => perform('正在保存', async () => { await flush(); setNotice('已保存'); })}><Save size={17} /></button><span className="topbar-divider" /><button className="btn small" onClick={() => newProject()} disabled={!!busy}><Plus size={15} />新建创意</button><button className="account-chip" onClick={openAuth}><span>{auth.user ? authDisplayName(auth.user).slice(0, 1).toUpperCase() : <Mail size={14} />}</span>{auth.user ? authDisplayName(auth.user) : '登录'}</button></div></header>
       <main className={canvasView ? 'canvas-workspace-main' : undefined}>
         {project.archivedAt && <div className="banner sample"><Archive size={16} /><span>此创意已归档，素材和制作结果仍保存在本机。</span><button disabled={!!busy || running} onClick={() => setProjectArchived(project.id, false)}>恢复到所属项目 <ArchiveRestore size={14} /></button></div>}
         <div className="workspace-controls">{project.workflowMode && <div className="workflow-control-bar"><span>制作方式</span><button className={`btn small ${project.workflowMode === 'automatic' ? 'selected' : ''}`} disabled={!!busy} onClick={() => observing && project.workflowMode === 'automatic' ? setObserving(false) : void selectWorkflowMode('automatic')}><Sparkles size={15} />自动工作流</button><button className={`btn small ${project.workflowMode === 'manual' ? 'selected' : ''}`} disabled={!!busy || project.workflow?.status === 'pausing'} onClick={() => void selectWorkflowMode('manual')}><Settings2 size={15} />{workflowBusy(project) ? '接管并进入手动' : '手动工作流'}</button></div>}<div className="workspace-view-switch" role="group" aria-label="工作台视图"><button type="button" aria-pressed={workspaceView === 'steps'} className={workspaceView === 'steps' ? 'active' : ''} onClick={() => { setWorkspaceView('steps'); if (!available[step]) setStep(project.rewrite ? 3 : project.analysis ? 1 : 0); }}><LayoutList size={15} />步骤视图</button><button type="button" aria-pressed={workspaceView === 'canvas'} className={workspaceView === 'canvas' ? 'active' : ''} onClick={() => setWorkspaceView('canvas')}><Workflow size={15} />画布视图</button></div></div>
@@ -701,7 +745,7 @@ export default function App() {
           onRun={kind => void startJob(kind)} onRetry={() => { if (!project.job) return; if (project.job.kind === 'generation') retryGeneration(); else if (project.job.kind === 'composition') retryComposition(); else void startJob(project.job.kind); }}
           onExport={exportZip} onCopy={value => void copy(value)} onSettings={() => setModal('settings')} onPipeline={() => setShowPipeline(true)}
           onAutoStart={max => void startAutomatic(max)} onTakeOver={() => void selectWorkflowMode('manual')} renderShotEditor={sceneEditor} production={productionPanel}
-          onSplitShot={splitAnalysisShot} selectedShot={selectedShot} selectedRewrite={selectedRewrite} onSelectShot={setSelectedShot} onSelectRewrite={setSelectedRewrite} /></Suspense>}
+          onSplitShot={splitAnalysisShot} onAcceptSuggestion={acceptShotSuggestion} onDismissSuggestion={dismissShotSuggestion} onAcceptGlobalSuggestion={acceptGlobalFocusSuggestion} onDismissGlobalSuggestion={dismissGlobalFocusSuggestion} onRefine={() => void startJob('analysis-refine')} selectedShot={selectedShot} selectedRewrite={selectedRewrite} onSelectShot={setSelectedShot} onSelectRewrite={setSelectedRewrite} /></Suspense>}
         {manualView && !canvasView && <>
         {project.workflow?.status === 'pausing' && <div className="banner sample" role="status"><LoaderCircle size={16} className="spin" /><span>正在等待当前任务结束。完成后会停止自动推进，并开放编辑。</span></div>}
         {observing && <div className="workflow-observing"><Eye size={18} /><p>正在只读查看制作过程。自动任务继续执行；接管后可以编辑已有结果。</p><button className="btn small" onClick={() => setObserving(false)}>返回自动制作</button><button className="btn small" disabled={!!busy || project.workflow?.status === 'pausing'} onClick={() => void selectWorkflowMode('manual')}>接管并编辑</button><button className="btn small" onClick={() => setShowPipeline(true)}>查看输入与输出</button></div>}
@@ -710,7 +754,7 @@ export default function App() {
         {project.isDemo && <div className="banner sample"><Info size={16} /><span>当前是手写示例创意，用于体验编辑与导出；不是 Gemini 对真实视频的分析。</span><button onClick={() => newProject()}>新建自己的创意 <ArrowRight size={14} /></button></div>}
         {error && <div className="banner error" role="alert"><Info size={16} /><span>{error}</span><button aria-label="关闭错误提示" onClick={() => setError('')}><X size={16} /></button></div>}
         {project.job?.status === 'failed' && <div className="banner error" role="alert"><Info size={16} /><span>{project.job.message}</span><button disabled={disabled} onClick={() => project.job!.kind === 'generation' ? retryGeneration() : project.job!.kind === 'composition' ? retryComposition() : void startJob(project.job!.kind)}>重试</button></div>}
-        {taskRunning && <div className="job-banner" role="status"><div className="job-text"><LoaderCircle size={18} className="spin" /><div><strong>{project.job!.kind === 'analysis' ? '正在理解参考视频' : project.job!.kind === 'rewrite' ? '正在生成本地化方案' : project.job!.kind === 'composition' ? '正在本机合成配音与字幕' : 'Veo 3.1 正在生成分镜'}</strong><span>{project.job!.message}</span></div><span className="job-percent">{project.job!.progress}%</span></div><div className="job-track"><span style={{ width: `${project.job!.progress}%` }} /></div></div>}
+        {taskRunning && <div className="job-banner" role="status"><div className="job-text"><LoaderCircle size={18} className="spin" /><div><strong>{project.job!.kind === 'analysis' ? '正在理解参考视频' : project.job!.kind === 'analysis-refine' ? '正在分析变动镜头' : project.job!.kind === 'rewrite' ? '正在生成本地化方案' : project.job!.kind === 'composition' ? '正在本机合成配音与字幕' : 'Veo 3.1 正在生成分镜'}</strong><span>{project.job!.message}</span></div><span className="job-percent">{project.job!.progress}%</span></div><div className="job-track"><span style={{ width: `${project.job!.progress}%` }} /></div></div>}
         {step !== 1 && <div className="project-title-row"><span className="tiny-label">创意名称</span><input aria-label="创意名称" value={project.title} maxLength={120} disabled={disabled} onChange={e => change(p => ({ ...p, title: e.target.value }))} /><span className="project-id">{project.id.slice(0, 8).toUpperCase()}</span></div>}
 
         {step === 0 && <div className="workspace-grid materials-grid">
@@ -743,8 +787,9 @@ export default function App() {
               <span className="breakdown-source-toggle"><Film size={17} />查看完整原片与整体分析<ChevronDown size={15} /></span>
             </summary>
             <div className="breakdown-source-body"><div>{previewVideo(true)}{project.analysis && <div className="video-timeline">{project.analysis.shots.map((s, i) => <button key={s.id} className={selectedShot === i ? 'selected' : ''} style={{ flex: s.end - s.start }} onClick={() => { setSelectedShot(i); seek(s.start); }} title={`${roles[s.role]} ${s.start.toFixed(3)}–${s.end.toFixed(3)} 秒`}>{i + 1}</button>)}</div>}</div><div className="breakdown-source-analysis">{project.analysis ? <><p className="breakdown-source-meta">{project.analysis.duration.toFixed(3)} 秒 · {project.isDemo ? '手写示例' : project.analysisMeta?.mode === 'sampled-frames' ? '抽帧分析' : 'Gemini 视频分析'}</p><h3>原片表达与产品观察</h3>{project.analysis.sellingPoints.map((text, i) => <p key={i}>{text}</p>)}<p>{project.analysis.productAppearance}</p>{!!project.analysis.uncertainties.length && <details><summary>需要核对 · {project.analysis.uncertainties.length} 项</summary>{project.analysis.uncertainties.map((text, i) => <p key={i}>{text}</p>)}</details>}</> : <p>上传参考视频后，Gemini 会按实际剪辑和动作段落整理镜头。每行片段和关键帧都从本机原片截取。</p>}</div></div></details>
-          <section className="panel scene-panel"><div className="panel-heading"><div><Clapperboard size={18} /><h2>镜头片段与证据</h2><Badge>{project.analysis?.shots.length || 0} 个镜头</Badge></div>{project.analysis && <div className="breakdown-heading-actions"><button className="btn small" disabled={disabled} onClick={() => { player.current?.pause(); setTimelineOpen(true); }}><Scissors size={14} />编辑镜头时间线</button><button className="text-button" disabled={disabled || !video} onClick={() => startJob('analysis')}>重新拆解</button></div>}</div>
-            {project.analysis ? <ShotBreakdown project={project} selectedIndex={selectedShot} onSelect={setSelectedShot} onSeek={seek} onCopy={text => void copy(text)} onSplit={splitAnalysisShot} disabled={disabled} renderEditor={(s, i) => sceneEditor(s, i)} /> : <div className="empty-state"><ScanLine size={38} strokeWidth={1.2} /><h3>{running ? '正在逐段理解视频' : '开始拆解你的参考片'}</h3><p>逐镜头整理片段、证据关键帧与可编辑的观察和 Prompt。</p><button className="btn primary" disabled={disabled || !video} onClick={() => startJob('analysis')}><Sparkles size={16} />{status.configured ? '开始视频拆解' : '连接 Gemini 并开始'}</button></div>}
+          {project.analysis && <section className="panel global-focus-panel"><div className="global-focus-heading"><h2>全片关注重点</h2><small>{(project.analysis.focusPoints || []).filter(point => point.selected).length}/{project.analysis.focusPoints?.length || 0} 项已勾选</small></div><p>AI 给出复刻候选，你可以勾选、订正或补充。已勾选的内容会成为改写与导出的优先要求。</p>{!!project.analysisReview?.globalFocusSuggestion?.length && <div className="global-focus-suggestion"><strong>局部重新分析后，AI 建议更新全片重点</strong><ul>{project.analysisReview.globalFocusSuggestion.map(point => <li key={point.id}>{point.selected ? '☑' : '□'} {point.text}</li>)}</ul><div className="global-focus-actions"><button className="btn small" disabled={disabled} onClick={dismissGlobalFocusSuggestion}>保留当前</button><button className="btn small primary" disabled={disabled} onClick={acceptGlobalFocusSuggestion}>采用 AI 建议</button></div></div>}<FocusPointsEditor points={project.analysis.focusPoints} onChange={updateGlobalFocus} disabled={disabled} onSeek={seek} /></section>}
+          <section className="panel scene-panel"><div className="panel-heading"><div><Clapperboard size={18} /><h2>镜头片段与证据</h2><Badge>{project.analysis?.shots.length || 0} 个镜头</Badge></div>{project.analysis && <div className="breakdown-heading-actions"><button className="btn small" disabled={disabled} onClick={() => { player.current?.pause(); setTimelineOpen(true); }}><Scissors size={14} />编辑镜头时间线</button>{!!project.analysisReview?.pendingIds.length && <button className="btn small" disabled={disabled || !video} onClick={() => void startJob('analysis-refine')}><Sparkles size={14} />重新分析变动镜头（{project.analysisReview.pendingIds.length}）</button>}<button className="text-button" disabled={disabled || !video} onClick={() => startJob('analysis')}>重新拆解</button></div>}</div>
+            {project.analysis ? <ShotBreakdown project={project} selectedIndex={selectedShot} onSelect={setSelectedShot} onSeek={seek} onCopy={text => void copy(text)} onSplit={splitAnalysisShot} onAcceptSuggestion={acceptShotSuggestion} onDismissSuggestion={dismissShotSuggestion} onFocusChange={updateShotFocus} disabled={disabled} renderEditor={(s, i) => sceneEditor(s, i)} /> : <div className="empty-state"><ScanLine size={38} strokeWidth={1.2} /><h3>{running ? '正在逐段理解视频' : '开始拆解你的参考片'}</h3><p>逐镜头整理片段、证据关键帧与可编辑的观察和 Prompt。</p><button className="btn primary" disabled={disabled || !video} onClick={() => startJob('analysis')}><Sparkles size={16} />{status.configured ? '开始视频拆解' : '连接 Gemini 并开始'}</button></div>}
           </section>
         </div>}
 

@@ -2,14 +2,20 @@ import { useEffect, useState } from 'react';
 import { Archive, ArchiveRestore, ArrowLeft, ChevronDown, ChevronRight, Clapperboard, FolderOpen, Pencil, Plus } from 'lucide-react';
 import type { ProjectSummary, WorkspaceProject } from '../shared/domain';
 
-export default function ProjectNavigation({ groups, creatives, currentId, currentParentId, busy, running, showArchived, onShowArchived, onNewProject, onRenameProject, onNewCreative, onSelect, onArchive }: {
+export default function ProjectNavigation({ groups, creatives, currentId, currentParentId, busy, running, showArchived, onShowArchived, onNewProject, onRenameProject, onNewCreative, onSelect, onArchive, collapsed = false, onExpand }: {
   groups: WorkspaceProject[]; creatives: ProjectSummary[]; currentId: string; currentParentId?: string; busy: boolean; running: boolean; showArchived: boolean;
   onShowArchived: (value: boolean) => void; onNewProject: () => void; onRenameProject: (group: WorkspaceProject) => void;
   onNewCreative: (parentId: string) => void; onSelect: (id: string) => void; onArchive: (id: string, archived: boolean) => void;
+  collapsed?: boolean; onExpand?: () => void;
 }) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   useEffect(() => { if (currentParentId) setExpanded(previous => ({ ...previous, [currentParentId]: true })); }, [currentId, currentParentId, showArchived]);
   const archivedCount = creatives.filter(creative => creative.archivedAt).length;
+  if (collapsed) return <section className="sidebar-projects sidebar-projects-compact" aria-label="项目与创意">
+    <button className="sidebar-rail-button" aria-label="新建项目" title="新建项目" disabled={busy} onClick={onNewProject}><Plus size={17} /></button>
+    <div className="sidebar-project-rail">{groups.filter(group => !showArchived || creatives.some(creative => creative.parentProjectId === group.id && creative.archivedAt)).map(group => <button key={group.id} className={`sidebar-rail-button ${group.id === currentParentId ? 'active' : ''}`} title={group.title} aria-label={`打开项目：${group.title}`} onClick={() => { setExpanded(previous => ({ ...previous, [group.id]: true })); onExpand?.(); }}><FolderOpen size={17} /></button>)}</div>
+    <button className={`sidebar-rail-button ${showArchived ? 'active' : ''}`} aria-label={showArchived ? '返回全部创意' : `已归档创意：${archivedCount}`} title={showArchived ? '返回全部创意' : `已归档创意（${archivedCount}）`} aria-pressed={showArchived} onClick={() => { onShowArchived(!showArchived); onExpand?.(); }}>{showArchived ? <ArrowLeft size={17} /> : <Archive size={17} />}</button>
+  </section>;
   return <section className="sidebar-projects" aria-label="项目与创意">
     <div className="nav-section-label recent-label">项目<button className="icon-btn" aria-label="新建项目" title="新建项目" onClick={onNewProject} disabled={busy}><Plus size={16} /></button></div>
     <div className="project-list project-tree">{groups.map(group => {

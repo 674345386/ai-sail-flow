@@ -11,6 +11,7 @@ import { buildExportFiles, buildVeoUnitPrompt } from '../shared/export';
 import { buildVeoPlan } from '../shared/veo-plan';
 import { workflowBusy } from '../shared/workflow';
 import type { GenerationInput } from './veo';
+import { compressUploadedVideo } from './video-compression';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 try { process.loadEnvFile(path.join(root, '.env')); } catch (err) { if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err; }
@@ -162,14 +163,19 @@ app.post('/api/projects/:id/assets/:kind', (req, res, next) => {
         if (!req.file) throw new HttpError(400, '请选择一个文件。');
         const kind = String(req.params.kind) as 'video' | 'product';
         if (kind === 'product' && req.file.size > 10 * 1024 * 1024) throw new HttpError(400, '单张产品图不能超过 10 MB。');
-        const metadata = await inspectMedia(req.file.filename, kind);
-        const asset: Asset = { id: randomUUID(), kind, name: Buffer.from(req.file.originalname, 'latin1').toString('utf8'), filename: req.file.filename, url: `/media/${req.file.filename}`, size: req.file.size, ...metadata };
+        let metadata = await inspectMedia(req.file.filename, kind);
+        const size = kind === 'video' ? await compressUploadedVideo(req.file.path, req.file.size) : req.file.size;
+        if (size !== req.file.size) metadata = await inspectMedia(req.file.filename, kind);
+        const asset: Asset = { id: randomUUID(), kind, name: Buffer.from(req.file.originalname, 'latin1').toString('utf8'), filename: req.file.filename, url: `/media/${req.file.filename}`, size, ...metadata };
         const current = getProject(p.id)!;
         const assets = kind === 'video' ? [...current.assets.filter(a => a.kind !== 'video'), asset] : [...current.assets, asset];
-        const nextProject = { ...current, assets, ttsTimingNotice: undefined, isDemo: kind === 'video' ? false : current.isDemo, analysis: kind === 'video' ? null : current.analysis, analysisMeta: kind === 'video' ? null : current.analysisMeta, rewrite: kind === 'video' ? null : current.rewrite, rewriteStale: kind === 'product' && !!current.rewrite, generatedVideos: (current.generatedVideos || []).map(video => ({ ...video, stale: true })), composedVideos: (current.composedVideos || []).map(video => ({ ...video, stale: true })), job: null };
+        const nextProject = { ...current, assets, ttsTimingNotice: undefined, isDemo: kind === 'video' ? false : current.isDemo, analysis: kind === 'video' ? null : current.analysis, analysisReview: kind === 'video' ? { pendingIds: [], suggestions: {} } : current.analysisReview, analysisMeta: kind === 'video' ? null : current.analysisMeta, rewrite: kind === 'video' ? null : current.rewrite, rewriteStale: kind === 'product' && !!current.rewrite, generatedVideos: (current.generatedVideos || []).map(video => ({ ...video, stale: true })), composedVideos: (current.composedVideos || []).map(video => ({ ...video, stale: true })), job: null };
         res.status(201).json(saveProject(nextProject));
       } catch (err) {
-        if (req.file) fs.unlink(req.file.path, () => {});
+        if (req.file) {
+          fs.unlink(req.file.path, () => {});
+          fs.unlink(`${req.file.path}.jpg`, () => {});
+        }
         next(err);
       } finally { uploadsInProgress.delete(p.id); }
     });
@@ -180,7 +186,7 @@ app.delete('/api/projects/:id/assets/:assetId', (req, res) => {
   const asset = p.assets.find(a => a.id === req.params.assetId);
   if (!asset) throw new HttpError(404, '素材不存在。');
   // Remove the association; retain local source files so replacement is recoverable.
-  res.json(saveProject({ ...p, assets: p.assets.filter(a => a.id !== asset.id), ttsTimingNotice: undefined, analysis: asset.kind === 'video' ? null : p.analysis, analysisMeta: asset.kind === 'video' ? null : p.analysisMeta, rewrite: asset.kind === 'video' ? null : p.rewrite, rewriteStale: asset.kind === 'product' && !!p.rewrite, generatedVideos: (p.generatedVideos || []).map(video => ({ ...video, stale: true })), composedVideos: (p.composedVideos || []).map(video => ({ ...video, stale: true })), job: null }));
+  res.json(saveProject({ ...p, assets: p.assets.filter(a => a.id !== asset.id), ttsTimingNotice: undefined, analysis: asset.kind === 'video' ? null : p.analysis, analysisReview: asset.kind === 'video' ? { pendingIds: [], suggestions: {} } : p.analysisReview, analysisMeta: asset.kind === 'video' ? null : p.analysisMeta, rewrite: asset.kind === 'video' ? null : p.rewrite, rewriteStale: asset.kind === 'product' && !!p.rewrite, generatedVideos: (p.generatedVideos || []).map(video => ({ ...video, stale: true })), composedVideos: (p.composedVideos || []).map(video => ({ ...video, stale: true })), job: null }));
 });
 function acceptedTask(req: Request, res: Response, spec: Parameters<typeof launchTask>[1]) {
   const p = record(req); editable(p);
@@ -204,7 +210,7 @@ app.post('/api/projects/:id/generations/:videoId/compose', (req, res) => accepte
 app.post('/api/projects/:id/compose', (req, res) => acceptedTask(req, res, { kind: 'compose', voice: typeof req.body?.voice === 'string' ? req.body.voice : undefined, timingApproval: typeof req.body?.timingApproval === 'string' ? req.body.timingApproval : undefined }));
 app.post('/api/projects/:id/jobs/:kind', (req, res) => {
   const kind = String(req.params.kind);
-  if (kind !== 'analysis' && kind !== 'rewrite') throw new HttpError(400, '任务类型不正确。');
+  if (kind !== 'analysis' && kind !== 'analysis-refine' && kind !== 'rewrite') throw new HttpError(400, '任务类型不正确。');
   acceptedTask(req, res, { kind });
 });
 app.post('/api/projects/:id/workflow/mode', (req, res) => {
@@ -251,7 +257,7 @@ app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
   if (error instanceof z.ZodError) return res.status(400).json({ error: '输入格式不正确，请检查表单或分镜内容。', fields: error.issues.map(i => i.path.join('.')) });
   if (error instanceof multer.MulterError) return res.status(400).json({ error: error.code === 'LIMIT_FILE_SIZE' ? '视频不能超过 250 MB。' : '上传失败，请每次选择一个文件。' });
   const message = error instanceof Error ? error.message : '';
-  const safe = /^(请上传|单张|最多|第一版支持|未读取到|视频读取失败|产品参考图)/.test(message);
+  const safe = /^(请上传|单张|最多|第一版支持|未读取到|视频读取失败|视频压缩失败|产品参考图)/.test(message);
   res.status(safe ? 400 : 500).json({ error: safe ? message : '操作未完成，请稍后重试。' });
 });
 if (process.argv.includes('--production')) {

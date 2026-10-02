@@ -1,0 +1,33 @@
+/* The compact toolbar and sidebar apply only inside the creation workspace. */
+.app-shell .main-shell > main { padding-top: 10px; }
+.app-shell .main-shell > main > .workspace-controls { gap: 8px; margin-bottom: 12px; padding-bottom: 8px; }
+.app-shell .main-shell > main.canvas-workspace-main > .workspace-controls { margin-bottom: 8px; }
+.app-shell .topbar { padding-left: 16px; }
+.sidebar-toggle { flex-shrink: 0; }
+.desktop-sidebar-toggle { display: grid; }
+.sidebar .brand-compact { display: none; }
+
+@media (min-width: 781px) {
+  .app-shell.sidebar-collapsed > .sidebar { width: 56px; padding: 16px 8px 8px; }
+  .app-shell.sidebar-collapsed > .main-shell { margin-left: 56px; }
+  .sidebar-collapsed .brand { justify-content: center; padding: 0 0 16px; }
+  .sidebar-collapsed .brand > :not(.brand-compact) { display: none; }
+  .sidebar-collapsed .brand .brand-compact { display: block; font-size: 17px; line-height: 24px; font-weight: 700; letter-spacing: -1px; }
+  .sidebar-projects-compact { gap: 4px; }
+  .sidebar-project-rail { display: grid; gap: 4px; max-height: min(30dvh, 220px); overflow: auto; scrollbar-width: none; }
+  .sidebar-rail-button { display: grid; place-items: center; flex-shrink: 0; width: 36px; height: 36px; margin: 0 auto; padding: 0; border: 0; border-radius: 9px; color: var(--muted); background: transparent; }
+  .sidebar-rail-button svg { stroke-width: 1.6; }
+  .sidebar-rail-button:hover:not(:disabled), .sidebar-rail-button.active { color: var(--text); background: #eee; }
+  .sidebar-collapsed .sidebar-current-project { margin-top: 12px; padding: 12px 0 0; }
+  .sidebar-collapsed .sidebar-project-caption, .sidebar-collapsed .sidebar-project-heading { display: none; }
+  .sidebar-collapsed .sidebar-current-project .workflow-nav { justify-items: center; margin: 0; padding: 0; border: 0; }
+  .sidebar-collapsed .sidebar-current-project .nav-item { justify-content: center; width: 36px; min-height: 36px; padding: 0; }
+  .sidebar-collapsed .nav-item > span, .sidebar-collapsed .sidebar-config > span, .sidebar-collapsed .workspace-picker > span:nth-child(2) { display: none; }
+  .sidebar-collapsed .sidebar-config { align-self: center; justify-content: center; width: 36px; padding: 0; }
+  .sidebar-collapsed .workspace-picker { justify-content: center; gap: 0; padding: 8px 0; }
+}
+
+@media (max-width: 780px) {
+  .desktop-sidebar-toggle { display: none; }
+  .app-shell .main-shell > main { padding-top: 10px; }
+}

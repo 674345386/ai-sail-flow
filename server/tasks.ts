@@ -4,14 +4,15 @@ import { validateMarket } from '../shared/domain';
 import { buildVeoUnitPrompt } from '../shared/export';
 import { buildVeoPlan } from '../shared/veo-plan';
 import { finalVideo, productionSources } from '../shared/workflow';
-import { analyze, rewrite, configured } from './gemini';
+import { analyze, analyzeChangedShots, rewrite, configured } from './gemini';
 import { VEO_MODELS, VEO_DURATION, generateVideo, resumeVideo, generationConfigured, saveGeneratedVideo, requestBody, type GenerationInput } from './veo';
 import { composeVideo, composeUnitVideo, composeNativeVideo, TimingConfirmationRequired } from './compose';
 import { getProject, saveProject } from './store';
 import { shotReconstructionPrompt } from '../shared/shot-evidence';
+import { mergeFocusPoints, selectedFocus, selectedShotFocus } from '../shared/focus';
 
 export class TaskError extends Error { constructor(public status: number, message: string) { super(message); } }
-export type TaskSpec = { kind: 'analysis' } | { kind: 'rewrite' } | { kind: 'generation'; input: GenerationInput } |
+export type TaskSpec = { kind: 'analysis' } | { kind: 'analysis-refine' } | { kind: 'rewrite' } | { kind: 'generation'; input: GenerationInput } |
   { kind: 'recover'; videoId: string } | { kind: 'compose'; voice?: string; videoId?: string; timingApproval?: string };
 const activeProjects = new Set<string>();
 let occupied = 0;
@@ -30,9 +31,9 @@ function directAnalysisStoryboard(project: Project): Rewrite {
     hookVariants: [{ label: '原片开头', text: analysis.shots[0]?.narration || analysis.shots[0]?.visual || '沿用原片开场' }],
     localizationNotes: [],
     productionNotes: ['分镜内容直接来自 Gemini 原片分析；生成前可在 Veo Prompt 中编辑。', '保留原片时间线、语言、画面动作、运镜、口播、屏幕文字和声音描述。'],
-    globalPrompt: `Recreate the analyzed reference video faithfully. Preserve its original style, shot order, pacing, camera work, actions, language, narration, on-screen text, and sound. Apply only the user's explicitly allowed changes. Source summary: ${analysis.summary}`,
+    globalPrompt: `Recreate the analyzed reference video faithfully. Preserve its original style, shot order, pacing, camera work, actions, language, narration, on-screen text, and sound. Apply only the user's explicitly allowed changes. Source summary: ${analysis.summary}. Selected global recreation priorities: ${selectedFocus(analysis.focusPoints).join('; ') || 'none specified'}.`,
     negativePrompt: '',
-    shots: analysis.shots.map(shot => ({ ...shot, generationPrompt: shotReconstructionPrompt(shot) })),
+    shots: analysis.shots.map(shot => ({ ...shot, generationPrompt: `${shotReconstructionPrompt(shot)}${selectedShotFocus(shot).length ? ` Selected shot priorities: ${selectedShotFocus(shot).join('; ')}.` : ''}` })),
   };
 }
 
@@ -55,8 +56,9 @@ export function launchTask(id: string, spec: TaskSpec): Promise<void> {
   if (!p) throw new TaskError(404, '找不到这个项目。');
   if (activeProjects.has(id) || p.job?.status === 'running') throw new TaskError(409, '当前任务正在处理，请等待完成。');
   const marketError = validateMarket(p.market); if (marketError) throw new TaskError(400, marketError);
-  if ((spec.kind === 'analysis' || spec.kind === 'rewrite' && (p.promptFlow || 'localized') === 'localized') && !configured()) throw new TaskError(503, '请先连接 Gemini。');
+  if ((spec.kind === 'analysis' || spec.kind === 'analysis-refine' || spec.kind === 'rewrite' && (p.promptFlow || 'localized') === 'localized') && !configured()) throw new TaskError(503, '请先连接 Gemini。');
   if (spec.kind === 'analysis' && !p.assets.some(asset => asset.kind === 'video')) throw new TaskError(400, '请先上传参考视频。');
+  if (spec.kind === 'analysis-refine' && (!p.analysis || !p.assets.some(asset => asset.kind === 'video') || !p.analysisReview?.pendingIds.length)) throw new TaskError(400, '没有待重新分析的镜头。');
   if (spec.kind === 'rewrite' && (!p.analysis || (p.promptFlow !== 'direct-analysis' && (!p.product.name.trim() || !p.product.facts.trim())))) throw new TaskError(400, '请先完成视频拆解，并填写产品名称与已确认卖点。');
   if (['generation', 'recover'].includes(spec.kind) && !generationConfigured()) throw new TaskError(503, '请先连接 Veo 3.1。');
   if (['generation', 'compose'].includes(spec.kind) && (!p.rewrite || p.rewriteStale)) throw new TaskError(409, '请先生成与当前资料一致的分镜。');
@@ -86,14 +88,34 @@ export function launchTask(id: string, spec: TaskSpec): Promise<void> {
     await acquire();
     let message = '制作完成';
     try {
-      if (spec.kind === 'analysis' || spec.kind === 'rewrite') {
+      if (spec.kind === 'analysis-refine') {
+        const pendingIds = saved.analysisReview!.pendingIds;
+        const result = await analyzeChangedShots(saved, pendingIds, progress, request => update(id, current => ({ ...current, analysisRequest: request })));
+        update(id, current => ({ ...current,
+          analysisReview: { pendingIds: (current.analysisReview?.pendingIds || []).filter(shotId => !pendingIds.includes(shotId)), suggestions: { ...current.analysisReview?.suggestions, ...result.suggestions }, globalFocusSuggestion: result.globalFocusSuggestion || current.analysisReview?.globalFocusSuggestion },
+          usage: { input: current.usage.input + result.usage.input, output: current.usage.output + result.usage.output },
+        }));
+        message = `已分析 ${pendingIds.length} 个变动镜头，请核对 AI 建议`;
+      } else if (spec.kind === 'analysis' || spec.kind === 'rewrite') {
         const snapshot = (request: NonNullable<Project['analysisRequest']>) => update(id, current => ({ ...current, [spec.kind === 'analysis' ? 'analysisRequest' : 'rewriteRequest']: request }));
         const direct = spec.kind === 'rewrite' && saved.promptFlow === 'direct-analysis';
         const result = spec.kind === 'analysis' ? await analyze(saved, progress, snapshot) : direct
           ? { result: directAnalysisStoryboard(saved), usage: { input: 0, output: 0 } }
           : await rewrite(saved, progress, snapshot);
         update(id, current => ({ ...current, isDemo: false, ttsTimingNotice: undefined,
-          ...(spec.kind === 'analysis' ? { analysis: result.result as Project['analysis'], analysisMeta: 'meta' in result ? result.meta : null, rewriteStale: !!current.rewrite } : { rewrite: result.result as Project['rewrite'], rewriteStale: false }),
+          ...(spec.kind === 'analysis' ? { analysis: (() => {
+            const next = result.result as NonNullable<Project['analysis']>;
+            const previous = current.analysis;
+            if (!previous) return next;
+            const oldShots = new Map(previous.shots.map(shot => [shot.id, shot]));
+            return { ...next, focusPoints: mergeFocusPoints(previous.focusPoints, next.focusPoints),
+              shots: next.shots.map(shot => {
+                const old = oldShots.get(shot.id);
+                const overlap = old ? Math.max(0, Math.min(old.end, shot.end) - Math.max(old.start, shot.start)) : 0;
+                const sameSegment = old && overlap / Math.max(old.end - old.start, shot.end - shot.start) > 0.5;
+                return { ...shot, focusPoints: mergeFocusPoints(sameSegment ? old.focusPoints : [], shot.focusPoints) };
+              }) };
+          })(), analysisReview: { pendingIds: [], suggestions: {} }, analysisMeta: 'meta' in result ? result.meta : null, rewriteStale: !!current.rewrite } : { rewrite: result.result as Project['rewrite'], rewriteStale: false }),
           generatedVideos: current.generatedVideos.map(video => ({ ...video, stale: true })), composedVideos: current.composedVideos?.map(video => ({ ...video, stale: true })),
           usage: { input: current.usage.input + result.usage.input, output: current.usage.output + result.usage.output } }));
         message = spec.kind === 'analysis' ? '参考视频拆解完成' : direct ? '原片分析已整理为可编辑 Veo Prompt' : '本地化分镜完成';

@@ -38,6 +38,14 @@ export const replicationSchema = z.object({
   preserve: z.string().trim().max(3000),
   change: z.string().trim().max(3000),
 });
+export const focusCategorySchema = z.enum(['scene', 'subject', 'action', 'camera', 'editing', 'audio', 'text', 'product', 'other']);
+export const focusCandidateSchema = z.object({
+  category: focusCategorySchema, text: z.string().trim().min(1).max(400),
+  evidenceAt: z.number().min(0).max(2700).optional(), selected: z.boolean(),
+});
+export const focusPointSchema = focusCandidateSchema.extend({
+  id: z.string().max(80), source: z.enum(['ai', 'user']), userEdited: z.boolean(),
+});
 export const shotSchema = z.object({
   id: z.string().max(80), start: z.number().min(0).max(2700), end: z.number().min(0).max(2700),
   role: z.enum(['hook', 'demo', 'proof', 'cta', 'other']),
@@ -47,17 +55,30 @@ export const shotSchema = z.object({
   subject: z.string().max(3000).optional(), effects: z.string().max(3000).optional(),
   transition: z.string().max(2000).optional(), reconstructionPrompt: z.string().max(8000).optional(),
   evidenceFrames: z.array(z.object({ at: z.number().min(0).max(2700), reason: z.string().max(1000) })).max(3).optional(),
+  focusPoints: z.array(focusPointSchema).max(12).optional(),
+});
+export const shotSuggestionSchema = shotSchema.omit({ id: true, start: true, end: true, evidenceFrames: true }).extend({
+  analyzedAt: z.string(), source: z.enum(['video', 'frames']),
+});
+export const analysisReviewSchema = z.object({
+  pendingIds: z.array(z.string().max(80)).max(120),
+  suggestions: z.record(z.string(), shotSuggestionSchema),
+  globalFocusSuggestion: z.array(focusPointSchema).max(12).optional(),
 });
 export const analysisSchema = z.object({
   summary: z.string().max(8000), sourceLanguage: z.string().max(100), duration: z.number().min(0.1).max(2700),
   sellingPoints: z.array(z.string().max(1500)).max(15),
   productAppearance: z.string().max(6000), shots: z.array(shotSchema).min(1).max(120),
   uncertainties: z.array(z.string().max(2000)).max(30),
+  focusPoints: z.array(focusPointSchema).max(12).optional(),
 });
 // New model responses must supply the observation structure; old saved projects remain valid.
-export const analysisModelSchema = analysisSchema.extend({ shots: z.array(shotSchema.required({
+export const analysisModelSchema = analysisSchema.extend({
+  focusPoints: z.array(focusCandidateSchema).min(1).max(12),
+  shots: z.array(shotSchema.extend({ focusPoints: z.array(focusCandidateSchema).min(1).max(8) }).required({
   subject: true, effects: true, transition: true, reconstructionPrompt: true, evidenceFrames: true,
-})).min(1).max(120) });
+  })).min(1).max(120),
+});
 export const rewriteSchema = z.object({
   angle: z.string().max(3000), audienceInsight: z.string().max(3000),
   hookVariants: z.array(z.object({ label: z.string().max(200), text: z.string().max(1000) })).min(1).max(3),
@@ -69,7 +90,11 @@ export const rewriteSchema = z.object({
 export type Product = z.infer<typeof productSchema>;
 export type Market = z.infer<typeof marketSchema>;
 export type Replication = z.infer<typeof replicationSchema>;
+export type FocusPoint = z.infer<typeof focusPointSchema>;
+export type FocusCandidate = z.infer<typeof focusCandidateSchema>;
 export type Shot = z.infer<typeof shotSchema>;
+export type ShotSuggestion = z.infer<typeof shotSuggestionSchema>;
+export type AnalysisReview = z.infer<typeof analysisReviewSchema>;
 export type Analysis = z.infer<typeof analysisSchema>;
 export type Rewrite = z.infer<typeof rewriteSchema>;
 export type Asset = {
@@ -77,7 +102,7 @@ export type Asset = {
   url: string; filename: string; thumbnail?: string; duration?: number; width?: number; height?: number; hasAudio?: boolean;
 };
 export type Job = {
-  id: string; kind: 'analysis' | 'rewrite' | 'generation' | 'composition'; status: 'running' | 'completed' | 'failed' | 'needs-input';
+  id: string; kind: 'analysis' | 'analysis-refine' | 'rewrite' | 'generation' | 'composition'; status: 'running' | 'completed' | 'failed' | 'needs-input';
   progress: number; message: string; startedAt: string; finishedAt?: string; videoId?: string; unitId?: string;
 };
 export type ProductionMode = 'veo-native' | 'tts-subtitles';
@@ -136,6 +161,7 @@ export type Project = {
   parentProjectId?: string;
   archivedAt?: string;
   product: Product; market: Market; replication?: Replication; assets: Asset[]; analysis: Analysis | null; rewrite: Rewrite | null;
+  analysisReview?: AnalysisReview;
   analysisMeta?: AnalysisMeta | null;
   analysisRequest?: ModelRequestSnapshot | null; rewriteRequest?: ModelRequestSnapshot | null;
   rewriteStale: boolean; generatedVideos: GeneratedVideo[]; composedVideos?: ComposedVideo[];
@@ -155,7 +181,7 @@ export const defaultReplication: Replication = {
 export const projectPatchSchema = z.object({
   revision: z.number().int().nonnegative(), title: z.string().trim().min(1).max(120),
   parentProjectId: z.uuid().optional(),
-  product: productSchema, market: marketSchema, replication: replicationSchema.optional(), analysis: analysisSchema.nullable(), rewrite: rewriteSchema.nullable(),
+  product: productSchema, market: marketSchema, replication: replicationSchema.optional(), analysis: analysisSchema.nullable(), analysisReview: analysisReviewSchema.optional(), rewrite: rewriteSchema.nullable(),
   productionMode: z.enum(['veo-native', 'tts-subtitles']).default('veo-native'),
   ttsVoice: z.string().max(120).default(''),
   automaticSettings: automaticSettingsSchema.optional(),
@@ -168,7 +194,7 @@ export function stageOf(project: Pick<Project, 'assets' | 'analysis' | 'rewrite'
 export function timeLabel(seconds: number) {
   return `${Math.floor(seconds / 60).toString().padStart(2, '0')}:${Math.floor(seconds % 60).toString().padStart(2, '0')}`;
 }
-export function validateTimeline(shots: Shot[], duration?: number) {
+export function validateTimeline(shots: Pick<Shot, 'id' | 'start' | 'end'>[], duration?: number) {
   const ids = new Set<string>();
   let previousEnd = 0;
   for (const shot of shots) {
@@ -178,7 +204,7 @@ export function validateTimeline(shots: Shot[], duration?: number) {
   }
   return null;
 }
-export function validateContinuousTimeline(shots: Shot[], duration: number) {
+export function validateContinuousTimeline(shots: Pick<Shot, 'id' | 'start' | 'end'>[], duration: number) {
   const basic = validateTimeline(shots, duration);
   if (basic) return basic;
   if (shots[0]?.start > 0.05) return '本地化分镜必须从 0 秒开始。';
