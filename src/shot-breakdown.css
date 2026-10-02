@@ -1,18 +1,17 @@
 .breakdown-workspace { display: grid; gap: 18px; margin-bottom: 24px; }
-.breakdown-overview { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; padding: 18px 22px; border: 1px solid var(--line); border-radius: 10px; }
-.breakdown-overview p { max-width: 1050px; color: var(--muted); font-size: .85rem; line-height: 1.8; }
-.breakdown-overview > span { flex-shrink: 0; color: var(--subtle); font-size: .7rem; }
-.breakdown-source > summary { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 15px 20px; cursor: pointer; list-style: none; color: var(--muted); font-size: .8rem; }
+.breakdown-source > summary { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 15px 20px; cursor: pointer; list-style: none; color: var(--muted); font-size: .8rem; }
 .breakdown-source > summary::-webkit-details-marker { display: none; }
-.breakdown-source > summary span { display: flex; align-items: center; gap: 9px; }
+.breakdown-source-description { flex: 1; min-width: 0; line-height: 1.8; }
+.breakdown-source-toggle { display: flex; flex-shrink: 0; align-items: center; gap: 9px; white-space: nowrap; }
 .breakdown-source[open] > summary { border-bottom: 1px solid var(--line); }
-.breakdown-source[open] > summary > svg { transform: rotate(180deg); }
+.breakdown-source[open] .breakdown-source-toggle > svg:last-child { transform: rotate(180deg); }
 .breakdown-source-body { display: grid; grid-template-columns: minmax(240px, .7fr) minmax(0, 1fr); gap: 24px; padding: 20px; }
 .breakdown-source-body .video-stage.compact { height: 300px; min-height: 0; }
 .breakdown-source-body .video-stage video { max-height: 300px; }
 .breakdown-source-analysis { color: var(--muted); font-size: .8rem; line-height: 1.8; }
 .breakdown-source-analysis h3 { margin: 12px 0 8px; color: var(--text); font-size: .8rem; }
 .breakdown-source-analysis p { margin-bottom: 8px; }
+.breakdown-source-meta { color: var(--subtle); font-size: .7rem; }
 .breakdown-source-analysis details { padding-top: 12px; border-top: 1px solid var(--line); }
 .breakdown-source-analysis summary { cursor: pointer; margin-bottom: 9px; color: var(--text); }
 .shot-breakdown { color: var(--text); }
@@ -86,7 +85,7 @@
 }
 @media (max-width: 780px) {
   .breakdown-source-body { grid-template-columns: 1fr; }
-  .breakdown-overview { flex-direction: column; gap: 8px; }
+  .breakdown-source > summary { flex-direction: column; align-items: flex-start; gap: 10px; }
   .shot-row-heading { gap: 8px; padding: 14px; }
   .shot-row-content, .creative-document-body .shot-row-content { grid-template-columns: 1fr; padding: 0 14px 15px; }
   .shot-row-observations { grid-template-columns: 1fr 1fr; }

@@ -11,3 +11,11 @@ data/
 flow-google-about-download/
 .DS_Store
 *.log
+
+# Local reconstruction dependencies and regenerable model downloads.
+output/fashion-color-cards/.reconstruct-venv/
+output/fashion-color-cards/gaussian-direct/model.safetensors
+output/fashion-color-cards/veo-lite/rvm_mobilenetv3_fp32.torchscript
+output/fashion-color-cards/**/*.blend1
+__pycache__/
+*.py[cod]

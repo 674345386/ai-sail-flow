@@ -1,4 +1,4 @@
-import { countries, defaultReplication, platforms, roles, timeLabel, type ProductionMode, type Project, type Shot } from './domain';
+import { countries, defaultReplication, defaultWorkspace, platforms, roles, timeLabel, type ProductionMode, type Project, type Shot } from './domain';
 import { buildVeoPlan, VEO_CLIP_SECONDS, type VeoPlanUnit } from './veo-plan';
 
 function stamp(seconds: number) {
@@ -121,7 +121,7 @@ export function buildBrief(project: Project) {
   const r = project.rewrite;
   if (!r) return '';
   const replication = project.replication || defaultReplication;
-  return `# ${project.title}\n\n${project.isDemo ? '> 示例项目，非真实 AI 分析结果。\n\n' : ''}生成模型：${project.model}\n\n## 投放与产品资料\n\n- 产品：${project.product.name}\n- 市场：${countries.find(c => c.code === project.market.country)?.name}\n- 语言：${project.market.language}\n- 平台：${platforms.find(p => p.id === project.market.platform)?.name}\n- 购买路径：${project.market.destination === 'shop' ? 'TikTok Shop 商品卡' : '独立站 / 外部网站'}\n- 产品地址：${project.product.landingUrl || '未填写'}\n- 已确认卖点：${project.product.facts}\n\n## 参考视频复刻要求\n\n- 保持：${replication.preserve}\n- 允许改变：${replication.change}\n\n## 创意方向\n\n${r.angle}\n\n${r.audienceInsight}\n\n## 可选开头\n\n${r.hookVariants.map(h => `- **${h.label}**：${h.text}`).join('\n')}\n\n## 本地化说明\n\n${r.localizationNotes.map(n => `- ${n}`).join('\n')}\n\n## 制作备注\n\n${r.productionNotes.map(n => `- ${n}`).join('\n')}\n\n## 分镜脚本\n\n${r.shots.map((s, i) => `### ${i + 1}. ${timeLabel(s.start)}–${timeLabel(s.end)} · ${roles[s.role]}\n\n${s.visual}\n\n动作：${s.action}\n\n口播：${s.narration || '无'}\n\n字幕：${project.market.subtitles ? s.onScreenText || '无' : '关闭'}\n`).join('\n')}\n\n字幕时间码为分镜草案；生成实际成片后需按成片音轨校准。\n`;
+  return `# ${project.title}\n\n${project.isDemo ? '> 示例创意，非真实 AI 分析结果。\n\n' : ''}生成模型：${project.model}\n\n## 投放与产品资料\n\n- 产品：${project.product.name}\n- 市场：${countries.find(c => c.code === project.market.country)?.name}\n- 语言：${project.market.language}\n- 平台：${platforms.find(p => p.id === project.market.platform)?.name}\n- 购买路径：${project.market.destination === 'shop' ? 'TikTok Shop 商品卡' : '独立站 / 外部网站'}\n- 产品地址：${project.product.landingUrl || '未填写'}\n- 已确认卖点：${project.product.facts}\n\n## 参考视频复刻要求\n\n- 保持：${replication.preserve}\n- 允许改变：${replication.change}\n\n## 创意方向\n\n${r.angle}\n\n${r.audienceInsight}\n\n## 可选开头\n\n${r.hookVariants.map(h => `- **${h.label}**：${h.text}`).join('\n')}\n\n## 本地化说明\n\n${r.localizationNotes.map(n => `- ${n}`).join('\n')}\n\n## 制作备注\n\n${r.productionNotes.map(n => `- ${n}`).join('\n')}\n\n## 分镜脚本\n\n${r.shots.map((s, i) => `### ${i + 1}. ${timeLabel(s.start)}–${timeLabel(s.end)} · ${roles[s.role]}\n\n${s.visual}\n\n动作：${s.action}\n\n口播：${s.narration || '无'}\n\n字幕：${project.market.subtitles ? s.onScreenText || '无' : '关闭'}\n`).join('\n')}\n\n字幕时间码为分镜草案；生成实际成片后需按成片音轨校准。\n`;
 }
 export function buildExportFiles(project: Project) {
   if (!project.rewrite || project.rewriteStale) throw new Error('请先生成与当前资料一致的改写方案。');
@@ -137,7 +137,7 @@ export function buildExportFiles(project: Project) {
       note: 'Each unit requests a fixed 8-second Veo source clip. Use targetStart/targetEnd to trim and assemble the final edit; do not render each analysis cut as a separate 8-second clip.',
       units: buildVeoPlan(project.rewrite.shots),
     }, null, 2),
-    'manifest.json': JSON.stringify({ app: 'AI-Sail Flow', version: 1, model: project.model, productionMode: project.productionMode || 'veo-native', projectId: project.id, title: project.title, demo: project.isDemo, sourceAnalysis: project.analysisMeta || null, exportedAt: new Date().toISOString(), product: project.product, market: project.market, replication: project.replication || defaultReplication, productReferences: project.assets.filter(a => a.kind === 'product').map(a => a.name), subtitles: 'Draft timing; align against the final rendered audio.' }, null, 2),
+    'manifest.json': JSON.stringify({ app: 'AI-Sail Flow', version: 2, model: project.model, productionMode: project.productionMode || 'veo-native', workspaceId: defaultWorkspace.id, projectId: project.parentProjectId || null, creativeId: project.id, title: project.title, demo: project.isDemo, sourceAnalysis: project.analysisMeta || null, exportedAt: new Date().toISOString(), product: project.product, market: project.market, replication: project.replication || defaultReplication, productReferences: project.assets.filter(a => a.kind === 'product').map(a => a.name), subtitles: 'Draft timing; align against the final rendered audio.' }, null, 2),
   };
   if (project.market.subtitles || project.productionMode === 'tts-subtitles') files['05-subtitles-draft.srt'] = subtitles(project.rewrite.shots, project.productionMode);
   return files;

@@ -128,8 +128,12 @@ export type AnalysisMeta = {
   transport: 'gemini-inline' | 'gemini-files' | 'openai-images';
   audioSubmitted: boolean; requestedModel: string; providerModel?: string; agenticTrace?: boolean; analyzedAt: string;
 };
+export const defaultWorkspace = { id: 'default', title: '我的工作空间' } as const;
+export type WorkspaceProject = { id: string; workspaceId: string; title: string; createdAt: string; updatedAt: string; revision: number };
+// The existing production record and its API retain the Project name for compatibility; each record represents one creative.
 export type Project = {
   id: string; title: string; createdAt: string; updatedAt: string; revision: number; isDemo: boolean;
+  parentProjectId?: string;
   archivedAt?: string;
   product: Product; market: Market; replication?: Replication; assets: Asset[]; analysis: Analysis | null; rewrite: Rewrite | null;
   analysisMeta?: AnalysisMeta | null;
@@ -141,7 +145,7 @@ export type Project = {
   veoPromptDrafts?: Record<string, { prompt: string; basis: string }>;
   ttsTimingNotice?: TtsTimingNotice;
 };
-export type ProjectSummary = Pick<Project, 'id' | 'title' | 'updatedAt' | 'isDemo' | 'archivedAt'> & { stage: number };
+export type ProjectSummary = Pick<Project, 'id' | 'title' | 'parentProjectId' | 'updatedAt' | 'isDemo' | 'archivedAt'> & { stage: number };
 export const emptyProduct: Product = { name: '', category: '家居生活', facts: '', audience: '', price: '', currency: 'USD', offer: '', landingUrl: '' };
 export const defaultMarket: Market = { country: 'US', language: 'en-US', platform: 'tiktok', destination: 'website', cta: '', tone: 'natural', duration: 'original', people: 'preserve', keepStructure: true, subtitles: true, aspectRatio: '9:16' };
 export const defaultReplication: Replication = {
@@ -150,6 +154,7 @@ export const defaultReplication: Replication = {
 };
 export const projectPatchSchema = z.object({
   revision: z.number().int().nonnegative(), title: z.string().trim().min(1).max(120),
+  parentProjectId: z.uuid().optional(),
   product: productSchema, market: marketSchema, replication: replicationSchema.optional(), analysis: analysisSchema.nullable(), rewrite: rewriteSchema.nullable(),
   productionMode: z.enum(['veo-native', 'tts-subtitles']).default('veo-native'),
   ttsVoice: z.string().max(120).default(''),

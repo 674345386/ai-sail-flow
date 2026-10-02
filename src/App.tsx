@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode, type InputHTMLAttributes, type TextareaHTMLAttributes } from 'react';
 import { Archive, ArchiveRestore, ArrowDownToLine, ArrowLeft, ArrowRight, ArrowUpRight, Check, CheckCheck, ChevronDown, ChevronRight, CircleHelp, CirclePlay, Clapperboard, Copy, Download, Eye, FileJson, FileText, Film, FolderOpen, Globe2, ImagePlus, Info, LayoutList, LoaderCircle, LogOut, Mail, Package, PanelLeft, Plus, Save, ScanLine, Scissors, Settings, Settings2, ShieldCheck, Sparkles, Subtitles, Upload, Video, WandSparkles, Workflow, X } from 'lucide-react';
-import { countries, defaultReplication, languages, platforms, roles, timeLabel, validateContinuousTimeline, validateTimeline, type Project, type ProjectSummary, type Shot, type Product, type Market, type Replication, type ProductionMode, type WorkflowMode } from '../shared/domain';
+import { countries, defaultReplication, defaultWorkspace, languages, platforms, roles, timeLabel, validateContinuousTimeline, validateTimeline, type Project, type ProjectSummary, type WorkspaceProject, type Shot, type Product, type Market, type Replication, type ProductionMode, type WorkflowMode } from '../shared/domain';
 import { buildBrief, buildPrompt, buildExportFiles, buildVeoPromptPreview, buildVeoUnitPrompt, subtitles } from '../shared/export';
 import { buildVeoPlan, type VeoPlanUnit } from '../shared/veo-plan';
 import { api, downloadBlob } from './api';
@@ -8,6 +8,9 @@ import { useImagePaste } from './useImagePaste';
 import { authDisplayName, authEmail, initialAuthState, supabase, supabaseConfigured, type SailAuthState } from './auth';
 import PipelineCanvas from './PipelineCanvas';
 import ShotBreakdown from './ShotBreakdown';
+import ProjectNavigation from './ProjectNavigation';
+import AnimatedBrandMark from './AnimatedBrandMark';
+import ShaderBackdrop from './ShaderBackdrop';
 import { shotReconstructionPrompt } from '../shared/shot-evidence';
 import AutomaticWorkspace, { SpeechTimingConfirmation, WorkflowEntry } from './WorkflowWorkspace';
 const CreativeWorkspace = lazy(() => import('./CreativeWorkspace'));
@@ -40,6 +43,20 @@ function Modal({ title, children, onClose, wide = false }: { title: string; chil
   return <dialog ref={ref} className={`modal ${wide ? 'wide' : ''}`} onCancel={e => { e.preventDefault(); onClose(); }} onClick={e => { if (e.target === e.currentTarget) onClose(); }}><div className="modal-heading"><h2>{title}</h2><button className="icon-btn" aria-label="关闭" onClick={onClose}><X size={18} /></button></div>{children}</dialog>;
 }
 function Badge({ children, tone = '' }: { children: ReactNode; tone?: string }) { return <span className={`badge ${tone}`}>{children}</span>; }
+type OrganizationDialog = { kind: 'project-new' | 'project-edit' | 'creative-new' | 'creative-edit'; parentId: string; title: string; demo?: boolean };
+function OrganizationForm({ dialog, groups, busy, error, onSubmit, onClose }: { dialog: OrganizationDialog; groups: WorkspaceProject[]; busy: boolean; error: string; onSubmit: (title: string, parentId: string) => void; onClose: () => void }) {
+  const [title, setTitle] = useState(dialog.title);
+  const [parentId, setParentId] = useState(dialog.parentId);
+  const creative = dialog.kind.startsWith('creative');
+  const heading = { 'project-new': '新建项目', 'project-edit': '重命名项目', 'creative-new': '新建创意', 'creative-edit': '编辑创意' }[dialog.kind];
+  return <Modal title={heading} onClose={onClose}><form onSubmit={event => { event.preventDefault(); onSubmit(title.trim(), parentId); }}>
+    <p className="modal-description">{creative ? '每个创意独立保存参考素材、镜头拆解、Prompt 与生成结果。' : '项目用于归类相关创意，例如“夏装”。一个项目可以包含多个创意。'}</p>
+    {creative && <Field label="所属项目"><select className="input" value={parentId} disabled={busy} onChange={event => setParentId(event.target.value)}>{groups.map(group => <option key={group.id} value={group.id}>{group.title}</option>)}</select></Field>}
+    <Field label={creative ? '创意名称' : '项目名称'}><Input autoFocus required maxLength={120} value={title} disabled={busy} placeholder={creative ? '例如：色卡夏装换装上、青少年夏装' : '例如：夏装'} onChange={event => setTitle(event.target.value)} /></Field>
+    {error && <p className="field-error" role="alert">{error}</p>}
+    <div className="organization-form-actions"><button type="button" className="btn" disabled={busy} onClick={onClose}>取消</button><button className="btn primary" type="submit" disabled={busy || !title.trim() || (creative && !parentId)}>{busy ? '保存中' : dialog.kind === 'project-new' ? '创建项目' : dialog.kind === 'creative-new' ? '创建创意' : '保存'}</button></div>
+  </form></Modal>;
+}
 function VeoUnitCard({ unit, index, project, disabled, connected, voice, onGenerate, onRecover, onPrompt, onComposeUnit }: { unit: VeoPlanUnit; index: number; project: Project; disabled: boolean; connected: boolean; voice: string; onGenerate: (unitId: string, config: VeoConfig) => void; onRecover: (videoId: string) => void; onPrompt: (unitId: string, mode: ProductionMode, prompt: string, basis: string) => void; onComposeUnit: (videoId: string, voice: string) => void }) {
   const [mode, setMode] = useState<VeoMode>('t2v');
   const [resolution, setResolution] = useState<VeoConfig['resolution']>('720p');
@@ -180,6 +197,8 @@ function AuthDialog({ open, onClose, auth, email, code, stage, onEmailChange, on
 
 export default function App() {
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
+  const [projectGroups, setProjectGroups] = useState<WorkspaceProject[]>([]);
+  const [organizationDialog, setOrganizationDialog] = useState<OrganizationDialog | null>(null);
   const [showArchived, setShowArchived] = useState(false);
   const [project, setProject] = useState<Project | null>(null);
   const [status, setStatus] = useState<Status>({ model: 'gemini-3.8-flash', configured: false, videoGeneration: { provider: 'veo-3.1', models: { t2v: 'veo_3_1', i2v: 'veo_3_1-fl', r2v: 'veo_3_1-components' }, configured: false, duration: 8 } });
@@ -222,7 +241,10 @@ export default function App() {
   const [dragging, setDragging] = useState(false);
 
   const adopt = useCallback((p: Project) => { current.current = p; setProject(p); }, []);
-  const refreshList = useCallback(async () => { setProjects(await api<ProjectSummary[]>('/api/projects')); }, []);
+  const refreshList = useCallback(async () => {
+    const [creatives, groups] = await Promise.all([api<ProjectSummary[]>('/api/projects'), api<WorkspaceProject[]>('/api/workspace/projects')]);
+    setProjects(creatives); setProjectGroups(groups);
+  }, []);
   const change = useCallback((fn: (p: Project) => Project) => {
     const p = current.current;
     if (!p || p.job?.status === 'running' || workflowBusy(p) || observing) return;
@@ -243,7 +265,7 @@ export default function App() {
     const seq = editSequence.current;
     setSaving(true);
     const promise = (async () => {
-      const saved = await api<Project>(`/api/projects/${snapshot.id}`, { method: 'PUT', body: JSON.stringify({ revision: snapshot.revision, title: snapshot.title.trim() || '未命名创意', product: snapshot.product, market: snapshot.market, replication: snapshot.replication || defaultReplication, analysis: snapshot.analysis, rewrite: snapshot.rewrite, productionMode: snapshot.productionMode || 'veo-native', promptFlow: snapshot.promptFlow || 'localized', ttsVoice: snapshot.ttsVoice || '', automaticSettings: snapshot.automaticSettings, veoPromptDrafts: snapshot.veoPromptDrafts || {} }) });
+      const saved = await api<Project>(`/api/projects/${snapshot.id}`, { method: 'PUT', body: JSON.stringify({ revision: snapshot.revision, parentProjectId: snapshot.parentProjectId, title: snapshot.title.trim() || '未命名创意', product: snapshot.product, market: snapshot.market, replication: snapshot.replication || defaultReplication, analysis: snapshot.analysis, rewrite: snapshot.rewrite, productionMode: snapshot.productionMode || 'veo-native', promptFlow: snapshot.promptFlow || 'localized', ttsVoice: snapshot.ttsVoice || '', automaticSettings: snapshot.automaticSettings, veoPromptDrafts: snapshot.veoPromptDrafts || {} }) });
       if (current.current?.id === saved.id) {
         if (editSequence.current === seq) { unsaved.current = false; setDirty(false); adopt(saved); }
         else adopt({ ...current.current, revision: saved.revision, updatedAt: saved.updatedAt, rewriteStale: current.current.rewriteStale || saved.rewriteStale });
@@ -365,20 +387,41 @@ export default function App() {
     field?.scrollIntoView({ block: 'center' });
     setFocusTarget(null);
   }, [step, focusTarget, busy, running]);
-  const switchProject = (id: string) => perform('正在打开项目', async () => {
+  const switchProject = (id: string) => perform('正在打开创意', async () => {
     await flush(); const p = await api<Project>(`/api/projects/${id}`); adopt(p); setDirty(false); unsaved.current = false;
     setStep(p.rewrite ? 2 : p.analysis ? 1 : 0); setSelectedShot(0); setSelectedRewrite(0); setSidebarOpen(false); setShowRequiredErrors(false); setFocusTarget(null); setObserving(false);
   });
-  const newProject = (demo = false) => perform('正在创建项目', async () => {
-    await flush(); const p = await api<Project>('/api/projects', { method: 'POST', body: JSON.stringify({ demo }) });
-    adopt(p); setDirty(false); unsaved.current = false; setStep(demo ? 1 : 0); setSelectedShot(0); setSelectedRewrite(0); setShowRequiredErrors(false); setFocusTarget(null); setObserving(false); setShowArchived(false); await refreshList(); setSidebarOpen(false);
+  const newProject = (demo = false, parentId = current.current?.parentProjectId || projectGroups[0]?.id || '') => {
+    setError(''); setOrganizationDialog({ kind: 'creative-new', parentId, title: demo ? '随行冷萃杯 · 美国市场' : '', demo });
+  };
+  const submitOrganization = (title: string, parentId: string) => perform('正在保存', async () => {
+    if (!organizationDialog) return;
+    await flush();
+    if (organizationDialog.kind === 'project-new') {
+      const group = await api<WorkspaceProject>('/api/workspace/projects', { method: 'POST', body: JSON.stringify({ title }) });
+      await refreshList(); setOrganizationDialog({ kind: 'creative-new', parentId: group.id, title: '' });
+      return;
+    }
+    if (organizationDialog.kind === 'project-edit') {
+      const group = projectGroups.find(item => item.id === parentId);
+      if (!group) throw new Error('找不到这个项目，请刷新后再试。');
+      await api<WorkspaceProject>(`/api/workspace/projects/${parentId}`, { method: 'PUT', body: JSON.stringify({ title, revision: group.revision }) });
+      await refreshList();
+    } else if (organizationDialog.kind === 'creative-edit') {
+      change(creative => ({ ...creative, title, parentProjectId: parentId })); await flush();
+    } else {
+      const demo = Boolean(organizationDialog.demo);
+      const p = await api<Project>('/api/projects', { method: 'POST', body: JSON.stringify({ demo, parentProjectId: parentId, title }) });
+      adopt(p); setDirty(false); unsaved.current = false; setStep(demo ? 1 : 0); setSelectedShot(0); setSelectedRewrite(0); setShowRequiredErrors(false); setFocusTarget(null); setObserving(false); setShowArchived(false); await refreshList(); setSidebarOpen(false);
+    }
+    setOrganizationDialog(null);
   });
-  const setProjectArchived = (id: string, archived: boolean) => perform(archived ? '正在归档项目' : '正在恢复项目', async () => {
+  const setProjectArchived = (id: string, archived: boolean) => perform(archived ? '正在归档创意' : '正在恢复创意', async () => {
     await flush();
     const updated = await api<Project>(`/api/projects/${id}/archive`, { method: 'POST', body: JSON.stringify({ archived }) });
     if (current.current?.id === id) adopt(updated);
     await refreshList();
-    setNotice(archived ? '项目已归档，可在已归档项目中恢复' : '项目已恢复到最近项目');
+    setNotice(archived ? '创意已归档，可在已归档创意中恢复' : '创意已恢复到所属项目');
   });
   const selectWorkflowMode = (mode: WorkflowMode) => perform('正在切换制作方式', async () => {
     let p = await flush(); if (!p) return;
@@ -399,7 +442,7 @@ export default function App() {
     const list = Array.from(files);
     return perform('正在上传素材', async () => {
       const p = await flush(); if (!p) return;
-      if (kind === 'video' && list.length !== 1) throw new Error('每个项目使用一条参考视频。');
+      if (kind === 'video' && list.length !== 1) throw new Error('每个创意使用一条参考视频。');
       if (kind === 'product' && p.assets.filter(a => a.kind === 'product').length + list.length > 3) throw new Error('最多上传 3 张产品/主体参考图。');
       for (const file of list) {
         const max = kind === 'video' ? 250 : 10;
@@ -567,7 +610,7 @@ export default function App() {
       <div className="gf-creator-grid">
         <div className="gf-creator-list"><h2>Flow<br />创作营</h2><button>DTC 品牌团队</button><button>TikTok Shop 卖家</button><button className="active">独立站增长团队</button><button>海外社媒代理商</button></div>
         <div className="gf-creator-about"><p>面向真实出海任务的创意工作流。参考内容提供方法，产品事实和目标市场决定最终表达。</p><button onClick={() => enterWorkspace()}>进入工作台</button></div>
-        <article className="gf-creator-story"><img src="/assets/landing/workflow-creator-team.png" alt="商家与达人共同制作出海视频" /><div><span>创作者案例</span><h3>把一条参考片，变成团队今天就能执行的方案。</h3><p>从镜头理解到本地化改写，再到制作资料包，全部保留在一个项目中。</p><div><button aria-label="上一个案例">←</button><button aria-label="下一个案例">→</button></div></div></article>
+        <article className="gf-creator-story"><img src="/assets/landing/workflow-creator-team.png" alt="商家与达人共同制作出海视频" /><div><span>创作者案例</span><h3>把一条参考片，变成团队今天就能执行的方案。</h3><p>从镜头理解到本地化改写，再到制作资料包，全部保留在同一个创意中。</p><div><button aria-label="上一个案例">←</button><button aria-label="下一个案例">→</button></div></div></article>
       </div>
     </section>
 
@@ -637,29 +680,27 @@ export default function App() {
   });
   const productionPanel = <VeoPanel onPrompt={(unitId, mode, prompt, basis) => change(p => ({ ...p, veoPromptDrafts: { ...p.veoPromptDrafts, [`${mode}:${unitId}`]: { prompt, basis } } }))} project={project} status={status} disabled={disabled} voices={ttsVoices} onModeChange={mode => change(p => ({ ...p, productionMode: mode }))} onVoiceChange={voice => change(p => ({ ...p, ttsVoice: voice }))} onCompose={voice => void composeFinal(voice)} onGenerate={(shotId, config) => void startGeneration(shotId, config)} onRecover={videoId => void recoverGeneration(videoId)} onComposeUnit={(videoId, voice) => void composeUnit(videoId, voice)} />;
 
-  const archivedCount = projects.filter(p => p.archivedAt).length;
-  const visibleProjects = projects.filter(p => showArchived ? Boolean(p.archivedAt) : !p.archivedAt);
+  const parentProject = projectGroups.find(group => group.id === project.parentProjectId);
+  const editParentProject = (group: WorkspaceProject) => { setError(''); setOrganizationDialog({ kind: 'project-edit', parentId: group.id, title: group.title }); };
+  const editCreative = () => { setError(''); setOrganizationDialog({ kind: 'creative-edit', parentId: project.parentProjectId || '', title: project.title }); };
   return <div className="app-shell">
     {sidebarOpen && <button className="sidebar-scrim" aria-label="关闭导航" onClick={() => setSidebarOpen(false)} />}
     <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
       <div className="brand"><div className="brand-icon"><img src="/assets/brand/ai-sail-flow-mark.png" alt="" /></div><div><strong>AI-Sail Flow</strong><span>跨境内容工作台</span></div><Badge>V1</Badge></div>
-      <button className="workspace-picker" onClick={() => setModal('guide')}><span className="workspace-avatar">S</span><span>我的工作空间<small>本机项目</small></span><ChevronDown size={15} /></button>
-      <section className="sidebar-projects" aria-label="项目列表">
-      <div className="nav-section-label recent-label">{showArchived ? '已归档项目' : '最近项目'}<button className="icon-btn" aria-label="新建项目" onClick={() => newProject()} disabled={!!busy}><Plus size={16} /></button></div>
-      <div className="project-list">{visibleProjects.map(p => <div key={p.id} className={`project-row ${p.id === project.id ? 'selected' : ''}`}><button className={`project-link ${p.id === project.id ? 'selected' : ''}`} onClick={() => switchProject(p.id)} disabled={!!busy} title={p.title}><span className="project-dot" /><span>{p.title}</span>{p.isDemo && <small>示例</small>}</button><button className="project-archive-action" aria-label={`${showArchived ? '恢复' : '归档'}项目：${p.title}`} title={showArchived ? '恢复到最近项目' : '归档项目'} disabled={!!busy || (p.id === project.id && running)} onClick={() => setProjectArchived(p.id, !showArchived)}>{showArchived ? <ArchiveRestore size={14} /> : <Archive size={14} />}</button></div>)}{!visibleProjects.length && <p className="project-list-empty">{showArchived ? '暂无已归档项目' : '暂无最近项目'}</p>}</div>
-      <button className={`archive-list-toggle ${showArchived ? 'active' : ''}`} aria-pressed={showArchived} onClick={() => setShowArchived(!showArchived)}>{showArchived ? <ArrowLeft size={15} /> : <Archive size={15} />}<span>{showArchived ? '返回最近项目' : '已归档项目'}</span>{!showArchived && <small>{archivedCount}</small>}</button>
-      </section>
+      <div className="workspace-picker"><span className="workspace-avatar workspace-brand-avatar"><AnimatedBrandMark /></span><span>{defaultWorkspace.title}<small>项目与创意</small></span></div>
+      <ProjectNavigation groups={projectGroups} creatives={projects} currentId={project.id} currentParentId={project.parentProjectId} busy={!!busy} running={running} showArchived={showArchived} onShowArchived={setShowArchived}
+        onNewProject={() => { setError(''); setOrganizationDialog({ kind: 'project-new', parentId: '', title: '' }); }} onRenameProject={editParentProject} onNewCreative={parentId => newProject(false, parentId)} onSelect={switchProject} onArchive={setProjectArchived} />
       <section className="sidebar-current-project" aria-labelledby="sidebar-current-project-title">
-        <span className="sidebar-project-caption">当前项目</span>
-        <div className="sidebar-project-heading"><FolderOpen size={16} /><strong id="sidebar-current-project-title" title={project.title}>{project.title}</strong>{project.archivedAt && <Badge>已归档</Badge>}</div>
+        <span className="sidebar-project-caption">当前创意</span>
+        <div className="sidebar-project-heading"><Clapperboard size={16} /><strong id="sidebar-current-project-title" title={project.title}>{project.title}</strong>{project.archivedAt && <Badge>已归档</Badge>}</div>
         <nav className="workflow-nav" aria-label="制作流程">{steps.map((s, i) => { const Icon = s.icon; return <button key={s.en} className={`nav-item ${step === i ? 'active' : ''}`} disabled={!!busy || (!canvasView && !available[i])} onClick={() => canvasView ? setStep(i) : go(i)}><Icon size={18} /><span>{s.name}</span><span className="nav-number">0{i + 1}</span></button>; })}</nav>
       </section>
       <button className="sidebar-config" onClick={() => setModal('config')}><Settings size={16} /><span>配置</span></button>
     </aside>
     <div className="main-shell">
-      <header className="topbar"><div className="breadcrumbs"><button className="icon-btn mobile-menu" aria-label="打开导航" onClick={() => setSidebarOpen(true)}><PanelLeft size={19} /></button><FolderOpen size={16} /><span>工作空间</span><ChevronRight size={14} /><span className="breadcrumb-current">{project.title}</span></div><div className="topbar-actions"><span className="save-status">{saving ? <LoaderCircle size={14} className="spin" /> : dirty ? <span className="unsaved-dot" /> : <CheckCheck size={14} />}{saving ? '保存中' : dirty ? '待保存' : '已保存'}</span><button className="icon-btn" title="保存项目 ⌘S" aria-label="保存项目" disabled={disabled || !dirty} onClick={() => perform('正在保存', async () => { await flush(); setNotice('已保存'); })}><Save size={17} /></button><span className="topbar-divider" /><button className="btn small" onClick={() => newProject()} disabled={!!busy}><Plus size={15} />新建创意</button><button className="account-chip" onClick={openAuth}><span>{auth.user ? authDisplayName(auth.user).slice(0, 1).toUpperCase() : <Mail size={14} />}</span>{auth.user ? authDisplayName(auth.user) : '登录'}</button></div></header>
+      <header className="topbar"><div className="breadcrumbs"><button className="icon-btn mobile-menu" aria-label="打开导航" onClick={() => setSidebarOpen(true)}><PanelLeft size={19} /></button><FolderOpen size={16} /><span>{defaultWorkspace.title}</span><ChevronRight size={14} /><button className="breadcrumb-project" onClick={() => parentProject && editParentProject(parentProject)} disabled={!!busy} title="重命名项目">{parentProject?.title || '默认项目'}</button><ChevronRight size={14} /><button className="breadcrumb-current breadcrumb-creative" onClick={editCreative} disabled={disabled} title="编辑创意名称与所属项目">{project.title}</button></div><div className="topbar-actions"><span className="save-status">{saving ? <LoaderCircle size={14} className="spin" /> : dirty ? <span className="unsaved-dot" /> : <CheckCheck size={14} />}{saving ? '保存中' : dirty ? '待保存' : '已保存'}</span><button className="icon-btn" title="保存创意 ⌘S" aria-label="保存创意" disabled={disabled || !dirty} onClick={() => perform('正在保存', async () => { await flush(); setNotice('已保存'); })}><Save size={17} /></button><span className="topbar-divider" /><button className="btn small" onClick={() => newProject()} disabled={!!busy}><Plus size={15} />新建创意</button><button className="account-chip" onClick={openAuth}><span>{auth.user ? authDisplayName(auth.user).slice(0, 1).toUpperCase() : <Mail size={14} />}</span>{auth.user ? authDisplayName(auth.user) : '登录'}</button></div></header>
       <main className={canvasView ? 'canvas-workspace-main' : undefined}>
-        {project.archivedAt && <div className="banner sample"><Archive size={16} /><span>此项目已归档，素材和制作结果仍保存在本机。</span><button disabled={!!busy || running} onClick={() => setProjectArchived(project.id, false)}>恢复到最近项目 <ArchiveRestore size={14} /></button></div>}
+        {project.archivedAt && <div className="banner sample"><Archive size={16} /><span>此创意已归档，素材和制作结果仍保存在本机。</span><button disabled={!!busy || running} onClick={() => setProjectArchived(project.id, false)}>恢复到所属项目 <ArchiveRestore size={14} /></button></div>}
         <div className="workspace-controls">{project.workflowMode && <div className="workflow-control-bar"><span>制作方式</span><button className={`btn small ${project.workflowMode === 'automatic' ? 'selected' : ''}`} disabled={!!busy} onClick={() => observing && project.workflowMode === 'automatic' ? setObserving(false) : void selectWorkflowMode('automatic')}><Sparkles size={15} />自动工作流</button><button className={`btn small ${project.workflowMode === 'manual' ? 'selected' : ''}`} disabled={!!busy || project.workflow?.status === 'pausing'} onClick={() => void selectWorkflowMode('manual')}><Settings2 size={15} />{workflowBusy(project) ? '接管并进入手动' : '手动工作流'}</button></div>}<div className="workspace-view-switch" role="group" aria-label="工作台视图"><button type="button" aria-pressed={workspaceView === 'steps'} className={workspaceView === 'steps' ? 'active' : ''} onClick={() => { setWorkspaceView('steps'); if (!available[step]) setStep(project.rewrite ? 3 : project.analysis ? 1 : 0); }}><LayoutList size={15} />步骤视图</button><button type="button" aria-pressed={workspaceView === 'canvas'} className={workspaceView === 'canvas' ? 'active' : ''} onClick={() => setWorkspaceView('canvas')}><Workflow size={15} />画布视图</button></div></div>
         {(canvasView || autoView || !project.workflowMode) && error && <div className="banner error" role="alert"><Info size={16} /><span>{error}</span><button aria-label="关闭错误提示" onClick={() => setError('')}><X size={16} /></button></div>}
         {project.ttsTimingNotice && <SpeechTimingConfirmation notice={project.ttsTimingNotice} disabled={disabled} onConfirm={() => void composeFinal(project.ttsTimingNotice!.voice, project.ttsTimingNotice!.basis)} onManual={() => void selectWorkflowMode('manual')} />}
@@ -674,29 +715,13 @@ export default function App() {
         {manualView && !canvasView && <>
         {project.workflow?.status === 'pausing' && <div className="banner sample" role="status"><LoaderCircle size={16} className="spin" /><span>正在等待当前任务结束。完成后会停止自动推进，并开放编辑。</span></div>}
         {observing && <div className="workflow-observing"><Eye size={18} /><p>正在只读查看制作过程。自动任务继续执行；接管后可以编辑已有结果。</p><button className="btn small" onClick={() => setObserving(false)}>返回自动制作</button><button className="btn small" disabled={!!busy || project.workflow?.status === 'pausing'} onClick={() => void selectWorkflowMode('manual')}>接管并编辑</button><button className="btn small" onClick={() => setShowPipeline(true)}>查看输入与输出</button></div>}
-        <div className="page-heading"><div><div className="eyebrow">CREATIVE WORKSPACE <span>/</span> 0{step + 1}</div><h1>{steps[step].title}</h1><p>{steps[step].description}</p></div><button className="model-badge" onClick={() => setModal('settings')}><Sparkles size={15} /><span>{step === 3 ? 'Veo 3.1' : 'Gemini 3.8 Flash'}</span><span className={`connection-dot ${(step === 3 ? status.videoGeneration.configured : status.configured) ? 'configured' : ''}`} /></button></div>
+        <div className="page-heading sail-shader-surface"><ShaderBackdrop variant="heading" /><div><div className="eyebrow">CREATIVE WORKSPACE <span>/</span> 0{step + 1}</div><h1>{steps[step].title}</h1><p>{steps[step].description}</p></div><button className="model-badge" onClick={() => setModal('settings')}><Sparkles size={15} /><span>{step === 3 ? 'Veo 3.1' : 'Gemini 3.8 Flash'}</span><span className={`connection-dot ${(step === 3 ? status.videoGeneration.configured : status.configured) ? 'configured' : ''}`} /></button></div>
         <div className="stepper" aria-label="工作流步骤">{steps.map((s, i) => <button key={s.en} className={`step-item ${step === i ? 'current' : ''} ${i < step ? 'passed' : ''}`} disabled={!available[i] || !!busy} onClick={() => go(i)}><span className="step-circle">{i < step ? <Check size={14} /> : i + 1}</span><span>{s.name}</span>{i < 3 && <ChevronRight className="step-chevron" size={16} />}</button>)}</div>
-        {project.isDemo && <div className="banner sample"><Info size={16} /><span>当前是手写示例项目，用于体验编辑与导出；不是 Gemini 对真实视频的分析。</span><button onClick={() => newProject()}>新建自己的项目 <ArrowRight size={14} /></button></div>}
+        {project.isDemo && <div className="banner sample"><Info size={16} /><span>当前是手写示例创意，用于体验编辑与导出；不是 Gemini 对真实视频的分析。</span><button onClick={() => newProject()}>新建自己的创意 <ArrowRight size={14} /></button></div>}
         {error && <div className="banner error" role="alert"><Info size={16} /><span>{error}</span><button aria-label="关闭错误提示" onClick={() => setError('')}><X size={16} /></button></div>}
         {project.job?.status === 'failed' && <div className="banner error" role="alert"><Info size={16} /><span>{project.job.message}</span><button disabled={disabled} onClick={() => project.job!.kind === 'generation' ? retryGeneration() : project.job!.kind === 'composition' ? retryComposition() : void startJob(project.job!.kind)}>重试</button></div>}
         {taskRunning && <div className="job-banner" role="status"><div className="job-text"><LoaderCircle size={18} className="spin" /><div><strong>{project.job!.kind === 'analysis' ? '正在理解参考视频' : project.job!.kind === 'rewrite' ? '正在生成本地化方案' : project.job!.kind === 'composition' ? '正在本机合成配音与字幕' : 'Veo 3.1 正在生成分镜'}</strong><span>{project.job!.message}</span></div><span className="job-percent">{project.job!.progress}%</span></div><div className="job-track"><span style={{ width: `${project.job!.progress}%` }} /></div></div>}
-        <div className="project-title-row"><span className="tiny-label">项目名称</span><input aria-label="项目名称" value={project.title} maxLength={120} disabled={disabled} onChange={e => change(p => ({ ...p, title: e.target.value }))} /><span className="project-id">{project.id.slice(0, 8).toUpperCase()}</span></div>
-
-        {step === 0 && <section className="flow-home-hero" aria-labelledby="flow-home-title">
-          <div className="flow-hero-wall" aria-hidden="true">
-            <div className="flow-tile flow-tile-wide">{video ? <video key={`hero-${video.id}`} src={video.url} poster={video.thumbnail} muted autoPlay loop playsInline /> : <div className="flow-placeholder"><Film size={24} /><span>REFERENCE VIDEO</span></div>}</div>
-            <div className="flow-tile flow-tile-tall">{productImages[0] ? <img src={productImages[0].url} alt="" /> : <div className="flow-placeholder warm"><ImagePlus size={22} /><span>PRODUCT</span></div>}</div>
-            <div className="flow-tile flow-tile-small"><div className="flow-gradient" /><span>01 / HOOK</span></div>
-            <div className="flow-tile flow-tile-square">{productImages[1] ? <img src={productImages[1].url} alt="" /> : <div className="flow-placeholder violet"><Sparkles size={22} /><span>IDEA</span></div>}</div>
-            <div className="flow-tile flow-tile-wide lower">{productImages[2] ? <img src={productImages[2].url} alt="" /> : <div className="flow-placeholder blue"><Globe2 size={22} /><span>LOCALIZE</span></div>}</div>
-          </div>
-          <div className="flow-hero-copy">
-            <span className="flow-kicker">AI CREATIVE WORKSPACE · 01</span>
-            <h2 id="flow-home-title"><span className="flow-hero-title-line">把一条视频素材，</span><span className="flow-hero-title-line"><em>变成一套</em>海外增长方案</span></h2>
-            <p>从真实视频出发，拆解有效镜头，改写成适合目标市场的可执行内容。</p>
-            <div className="flow-hero-actions"><button className="flow-cta" onClick={() => video ? void go(1) : videoInput.current?.click()} disabled={disabled}><span>{video ? '开始拆解素材' : '上传素材开始'}</span><ArrowRight size={17} /></button></div>
-          </div>
-        </section>}
+        {step !== 1 && <div className="project-title-row"><span className="tiny-label">创意名称</span><input aria-label="创意名称" value={project.title} maxLength={120} disabled={disabled} onChange={e => change(p => ({ ...p, title: e.target.value }))} /><span className="project-id">{project.id.slice(0, 8).toUpperCase()}</span></div>}
 
         {step === 0 && <div className="workspace-grid materials-grid">
           <section className="panel materials-reference"><div className="panel-heading"><div><Video size={18} /><h2>参考视频</h2></div><span className="secondary-label">镜头与节奏</span></div>
@@ -717,13 +742,17 @@ export default function App() {
             </div>
           </section>
           <div className="materials-help"><div className="insight-card"><span className="tiny-label">创意起点</span><h3>先看见用途，再讲清价值。</h3><p>好的参考片能展示产品如何解决一个具体问题。上传时，优先选择动作完整、声音清晰的片段。</p><button className="text-button" onClick={() => setModal('guide')}>查看创意指南 <ArrowUpRight size={13} /></button></div>
-            <button className="demo-invite" onClick={() => newProject(true)} disabled={!!busy}><span className="demo-icon"><CirclePlay size={20} /></span><span><strong>先看看，一条创意如何完成</strong><small>用示例项目体验分镜编辑、本地化和导出</small></span><ArrowUpRight size={19} /></button>
+            <button className="demo-invite" onClick={() => newProject(true)} disabled={!!busy}><span className="demo-icon"><CirclePlay size={20} /></span><span><strong>先看看，一条创意如何完成</strong><small>用示例创意体验分镜编辑、本地化和导出</small></span><ArrowUpRight size={19} /></button>
           </div>
         </div>}
 
         {step === 1 && <div className="breakdown-workspace">
-          {project.analysis && <div className="breakdown-overview"><p>{project.analysis.summary}</p><span>{project.analysis.duration.toFixed(3)} 秒 · {project.isDemo ? '手写示例' : project.analysisMeta?.mode === 'sampled-frames' ? '抽帧分析' : 'Gemini 视频分析'}</span></div>}
-          <details className="panel breakdown-source"><summary><span><Film size={17} />查看完整原片与整体分析</span><ChevronDown size={15} /></summary><div className="breakdown-source-body"><div>{previewVideo(true)}{project.analysis && <div className="video-timeline">{project.analysis.shots.map((s, i) => <button key={s.id} className={selectedShot === i ? 'selected' : ''} style={{ flex: s.end - s.start }} onClick={() => { setSelectedShot(i); seek(s.start); }} title={`${roles[s.role]} ${s.start.toFixed(3)}–${s.end.toFixed(3)} 秒`}>{i + 1}</button>)}</div>}</div><div className="breakdown-source-analysis">{project.analysis ? <><h3>原片表达与产品观察</h3>{project.analysis.sellingPoints.map((text, i) => <p key={i}>{text}</p>)}<p>{project.analysis.productAppearance}</p>{!!project.analysis.uncertainties.length && <details><summary>需要核对 · {project.analysis.uncertainties.length} 项</summary>{project.analysis.uncertainties.map((text, i) => <p key={i}>{text}</p>)}</details>}</> : <p>上传参考视频后，Gemini 会按实际剪辑和动作段落整理镜头。每行片段和关键帧都从本机原片截取。</p>}</div></div></details>
+          <details className="panel breakdown-source">
+            <summary>
+              {project.analysis && <span className="breakdown-source-description">{project.analysis.summary}</span>}
+              <span className="breakdown-source-toggle"><Film size={17} />查看完整原片与整体分析<ChevronDown size={15} /></span>
+            </summary>
+            <div className="breakdown-source-body"><div>{previewVideo(true)}{project.analysis && <div className="video-timeline">{project.analysis.shots.map((s, i) => <button key={s.id} className={selectedShot === i ? 'selected' : ''} style={{ flex: s.end - s.start }} onClick={() => { setSelectedShot(i); seek(s.start); }} title={`${roles[s.role]} ${s.start.toFixed(3)}–${s.end.toFixed(3)} 秒`}>{i + 1}</button>)}</div>}</div><div className="breakdown-source-analysis">{project.analysis ? <><p className="breakdown-source-meta">{project.analysis.duration.toFixed(3)} 秒 · {project.isDemo ? '手写示例' : project.analysisMeta?.mode === 'sampled-frames' ? '抽帧分析' : 'Gemini 视频分析'}</p><h3>原片表达与产品观察</h3>{project.analysis.sellingPoints.map((text, i) => <p key={i}>{text}</p>)}<p>{project.analysis.productAppearance}</p>{!!project.analysis.uncertainties.length && <details><summary>需要核对 · {project.analysis.uncertainties.length} 项</summary>{project.analysis.uncertainties.map((text, i) => <p key={i}>{text}</p>)}</details>}</> : <p>上传参考视频后，Gemini 会按实际剪辑和动作段落整理镜头。每行片段和关键帧都从本机原片截取。</p>}</div></div></details>
           <section className="panel scene-panel"><div className="panel-heading"><div><Clapperboard size={18} /><h2>镜头片段与证据</h2><Badge>{project.analysis?.shots.length || 0} 个镜头</Badge></div>{project.analysis && <button className="text-button" disabled={disabled || !video} onClick={() => startJob('analysis')}>重新拆解</button>}</div>
             {project.analysis ? <ShotBreakdown project={project} selectedIndex={selectedShot} onSelect={setSelectedShot} onSeek={seek} onCopy={text => void copy(text)} onSplit={splitAnalysisShot} disabled={disabled} renderEditor={(s, i) => sceneEditor(s, i)} /> : <div className="empty-state"><ScanLine size={38} strokeWidth={1.2} /><h3>{running ? '正在逐段理解视频' : '开始拆解你的参考片'}</h3><p>逐镜头整理片段、证据关键帧与可编辑的观察和 Prompt。</p><button className="btn primary" disabled={disabled || !video} onClick={() => startJob('analysis')}><Sparkles size={16} />{status.configured ? '开始视频拆解' : '连接 Gemini 并开始'}</button></div>}
           </section>
@@ -756,12 +785,13 @@ export default function App() {
     {showPipeline && <PipelineCanvas project={project} onClose={() => setShowPipeline(false)} />}
     {notice && <div className="toast" role="status"><Check size={17} />{notice}</div>}
     {busy && <div className="busy-indicator" role="status"><LoaderCircle className="spin" size={14} />{busy}</div>}
+    {organizationDialog && <OrganizationForm key={`${organizationDialog.kind}:${organizationDialog.parentId}`} dialog={organizationDialog} groups={projectGroups} busy={!!busy} error={error} onSubmit={submitOrganization} onClose={() => { if (!busy) setOrganizationDialog(null); }} />}
     {modal === 'config' && <Modal title="配置" onClose={() => setModal(null)}>
       <div className="configuration-options">
         <button className="configuration-option" onClick={() => setModal('settings')}><Sparkles size={18} /><span><strong>Gemini + Veo 3.1</strong><small>{status.videoGeneration.configured ? '视频模型已配置' : '配置视频模型'}</small></span><ChevronRight size={16} /></button>
         <button className="configuration-option" onClick={() => setModal('guide')}><CircleHelp size={18} /><span><strong>创意方法与使用指南</strong><small>查看工作流与创意说明</small></span><ChevronRight size={16} /></button>
       </div>
-      <p className="configuration-local-note"><ShieldCheck size={14} />项目资料保存在本机</p>
+      <p className="configuration-local-note"><ShieldCheck size={14} />项目与创意资料保存在本机</p>
     </Modal>}
     {modal === 'settings' && <Modal title="模型连接" onClose={() => { setModal(null); setApiKey(''); setVeoApiKey(''); setBaseUrl(''); }}>
       <div className="settings-model"><span className="model-symbol"><Sparkles size={22} /></span><div><h3>Gemini 3.8 Flash</h3><code>{status.model} · 视频理解与改写</code></div><Badge>{status.configured ? '已配置' : '待连接'}</Badge></div>

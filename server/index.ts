@@ -6,7 +6,7 @@ import express, { type Request, type Response, type NextFunction } from 'express
 import multer from 'multer';
 import JSZip from 'jszip';
 import { z } from 'zod';
-import { MODEL, projectPatchSchema, validateContinuousTimeline, validateMarket, validateTimeline, type Project, type Asset, type ProductionMode } from '../shared/domain';
+import { MODEL, defaultWorkspace, projectPatchSchema, validateContinuousTimeline, validateMarket, validateTimeline, type Project, type Asset, type ProductionMode } from '../shared/domain';
 import { buildExportFiles, buildVeoUnitPrompt } from '../shared/export';
 import { buildVeoPlan } from '../shared/veo-plan';
 import { workflowBusy } from '../shared/workflow';
@@ -15,7 +15,7 @@ import type { GenerationInput } from './veo';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 try { process.loadEnvFile(path.join(root, '.env')); } catch (err) { if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err; }
 // Load storage after .env so an optional data-directory override takes effect.
-const { createProject, getProject, listProjects, saveProject, uploadDir } = await import('./store');
+const { createProject, getProject, listProjects, saveProject, uploadDir, defaultProjectId, createWorkspaceProject, getWorkspaceProject, listWorkspaceProjects, saveWorkspaceProject } = await import('./store');
 const { configured, configureConnection } = await import('./gemini');
 const { VEO_MODELS, VEO_DURATION, configureGenerationKey, generationConfigured } = await import('./veo');
 const { listTtsVoices } = await import('./compose');
@@ -41,7 +41,7 @@ app.use(express.json({ limit: '3mb' }));
 class HttpError extends Error { constructor(public status: number, message: string) { super(message); } }
 function record(req: Request): Project {
   const project = getProject(String(req.params.id));
-  if (!project) throw new HttpError(404, '找不到这个项目。');
+  if (!project) throw new HttpError(404, '找不到这个创意。');
   return project;
 }
 const uploadsInProgress = new Set<string>();
@@ -63,10 +63,30 @@ app.post('/api/settings/veo', (req, res) => {
   configureGenerationKey(apiKey);
   res.json({ configured: generationConfigured(), verified: false, provider: 'veo-3.1', models: VEO_MODELS });
 });
+app.get('/api/workspace', (_req, res) => res.json(defaultWorkspace));
+app.get('/api/workspace/projects', (_req, res) => res.json(listWorkspaceProjects()));
+app.post('/api/workspace/projects', (req, res) => {
+  const { title } = z.object({ title: z.string().trim().min(1).max(120) }).parse(req.body);
+  res.status(201).json(createWorkspaceProject(title));
+});
+app.put('/api/workspace/projects/:id', (req, res) => {
+  const project = getWorkspaceProject(String(req.params.id));
+  if (!project) throw new HttpError(404, '找不到这个项目。');
+  const { title, revision } = z.object({ title: z.string().trim().min(1).max(120), revision: z.number().int().nonnegative() }).parse(req.body);
+  if (revision !== project.revision) throw new HttpError(409, '项目名称已更新，请刷新后再编辑。');
+  res.json(saveWorkspaceProject({ ...project, title }));
+});
+app.get('/api/workspace/projects/:id/creatives', (req, res) => {
+  const id = String(req.params.id);
+  if (!getWorkspaceProject(id)) throw new HttpError(404, '找不到这个项目。');
+  res.json(listProjects().filter(creative => creative.parentProjectId === id));
+});
+// Existing production endpoints continue to address individual creatives.
 app.get('/api/projects', (_req, res) => res.json(listProjects()));
 app.post('/api/projects', (req, res) => {
-  const { demo } = z.object({ demo: z.boolean().default(false) }).parse(req.body || {});
-  res.status(201).json(createProject(demo));
+  const { demo, parentProjectId, title } = z.object({ demo: z.boolean().default(false), parentProjectId: z.uuid().default(defaultProjectId), title: z.string().trim().min(1).max(120).optional() }).parse(req.body || {});
+  if (!getWorkspaceProject(parentProjectId)) throw new HttpError(404, '所属项目不存在。');
+  res.status(201).json(createProject(demo, parentProjectId, title));
 });
 app.get('/api/projects/:id', (req, res) => res.json(record(req)));
 app.post('/api/projects/:id/shot-media', async (req, res, next) => {
@@ -90,7 +110,8 @@ app.post('/api/projects/:id/archive', (req, res) => {
 app.put('/api/projects/:id', (req, res) => {
   const project = record(req); editable(project);
   const patch = projectPatchSchema.parse(req.body);
-  if (patch.revision !== project.revision) throw new HttpError(409, '项目已更新，请重新打开项目后再编辑。');
+  if (patch.parentProjectId && !getWorkspaceProject(patch.parentProjectId)) throw new HttpError(404, '所属项目不存在。');
+  if (patch.revision !== project.revision) throw new HttpError(409, '创意已更新，请重新打开创意后再编辑。');
   const marketError = validateMarket(patch.market);
   if (marketError) throw new HttpError(400, marketError);
   const promptFlowChanged = (patch.promptFlow || 'localized') !== (project.promptFlow || 'localized');

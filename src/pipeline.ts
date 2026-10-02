@@ -40,7 +40,7 @@ export function buildPipeline(project: Project, mode: ProductionMode, unitId: st
   const cues = unit ? shots.map(shot => ({ shotId: shot.id, start: Math.max(0, shot.start - unit.start), end: Math.min(unit.targetDuration, shot.end - unit.start), narration: shot.narration, onScreenText: shot.onScreenText })) : [];
   const defaultPrompt = unit && project.rewrite ? video?.defaultPrompt || buildVeoUnitPrompt(project, unit, mode) : null;
 
-  add({ id: 'project', title: '项目输入', eyebrow: '01 · 外部输入', status: reference ? 'done' : 'waiting', evidence: 'recorded', inputs: [],
+  add({ id: 'project', title: '创意输入', eyebrow: '01 · 外部输入', status: reference ? 'done' : 'waiting', evidence: 'recorded', inputs: [],
     outputs: [port('reference', '参考视频', reference ? { name: reference.name, mime: reference.mime, size: reference.size, duration: reference.duration, hasAudio: reference.hasAudio } : null),
       port('images', '产品图片', products.map(asset => ({ name: asset.name, mime: asset.mime, size: asset.size }))), port('product', '目标产品资料', project.product), port('market', '市场与语言设置', project.market)],
     transform: '用户上传与填写的资料。媒体只展示元数据，不把视频二进制或 base64 放进画布。', links: reference?.url ? [{ label: '打开参考视频', url: reference.url }] : [] });
@@ -52,7 +52,7 @@ export function buildPipeline(project: Project, mode: ProductionMode, unitId: st
   const direct = project.promptFlow === 'direct-analysis';
   add({ id: 'rewrite-request', title: direct ? '原片分析直连 Prompt' : '本地化改写请求', eyebrow: direct ? '04 · 本地整理' : '04 · Gemini 输入', status: project.job?.kind === 'rewrite' && project.job.status === 'running' ? 'running' : project.rewrite ? 'done' : 'waiting', evidence: direct ? 'reconstructed' : project.rewriteRequest ? 'recorded' : project.rewrite ? 'missing' : 'reconstructed',
     inputs: direct ? [input('analysis', '原片分析', 'analysis', 'analysis')] : [input('analysis', '原片分析', 'analysis', 'analysis'), input('product', '目标产品', 'project', 'product'), input('market', '市场设置', 'project', 'market')], outputs: [port('request', direct ? '无需 Gemini 请求' : '改写请求快照', direct ? null : project.rewriteRequest || null)],
-    transform: direct ? '不发起第二次 Gemini 请求。直接将 Gemini 原片分析整理成分镜，再由用户编辑最终 Veo Prompt。' : '原片结构、目标产品和市场要求进入 Gemini。项目资料可能已编辑；历史真实请求以快照为准。' });
+    transform: direct ? '不发起第二次 Gemini 请求。直接将 Gemini 原片分析整理成分镜，再由用户编辑最终 Veo Prompt。' : '原片结构、目标产品和市场要求进入 Gemini。创意资料可能已编辑；历史真实请求以快照为准。' });
   add({ id: 'rewrite', title: direct ? '原片分镜 / 可编辑' : '交付分镜 JSON', eyebrow: direct ? '05 · 分析结果整理' : '05 · Gemini 输出 / 可编辑', status: project.rewrite ? 'done' : 'waiting', evidence: direct ? 'reconstructed' : project.rewrite ? 'recorded' : 'missing',
     inputs: [input('request', direct ? '原片分析' : '改写请求', direct ? 'analysis' : 'rewrite-request', direct ? 'analysis' : 'request')], outputs: [port('storyboard', '当前分镜 JSON', project.rewrite), port('narration', '整条视频台词', project.rewrite?.shots.map(shot => ({ shotId: shot.id, preferredStart: shot.start, narration: shot.narration })) || [])], transform: direct ? '分镜字段来自原片分析；最终生成 Prompt 可在 Veo 卡片中检查和编辑。' : '模型输出后可由用户编辑。这里展示当前保存的分镜，不一定等于模型最初返回的版本。' });
   add({ id: 'plan', title: '生产单元规划', eyebrow: '06 · 本地转换', status: plan.length ? 'done' : 'waiting', evidence: 'reconstructed',

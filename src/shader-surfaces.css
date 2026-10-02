@@ -1,0 +1,28 @@
+/* Background-only treatments: no changes to content geometry or controls. */
+.sail-shader-surface { position: relative; isolation: isolate; }
+.sail-shader-background {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  display: block;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(120deg, #fff 18%, #ecf3f7 62%, #d9eaf0);
+}
+.sail-shader-renderer { display: block; position: absolute !important; inset: 0; }
+.sail-shader-veil { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, #ffffffed 0%, #ffffff9c 35%, #ffffff24 78%); }
+.sail-shader-heading { border-radius: 10px; }
+.sail-shader-heading .sail-shader-veil { background: linear-gradient(90deg, #fff 0%, #ffffffed 30%, #ffffff44 78%, #ffffff9c 100%); }
+.sail-shader-automatic { background: linear-gradient(135deg, #fafbf9 8%, #e0eadb 60%, #c4dce3); }
+.sail-shader-manual { background: linear-gradient(135deg, #fbfafb 8%, #e5e2ec 60%, #cedee8); }
+.sail-shader-canvas .sail-shader-veil { background: linear-gradient(90deg, #fafcfbe8 0%, #fafcfb80 75%); }
+.sail-shader-hero { z-index: 0; background: radial-gradient(circle at center, transparent 18%, #c8c8d038 25%, #c8c8d01a 33%, transparent 46%), #12121a; }
+.sail-shader-hero .sail-shader-veil { background: none; }
+.flow-home-hero.sail-shader-surface::after { background: none; }
+.workspace-avatar.workspace-brand-avatar { background: transparent; border-color: transparent; padding: 0; }
+.workspace-brand-mark { position: relative; display: block; width: 100%; height: 100%; overflow: hidden; border-radius: inherit; }
+.workspace-brand-mark img, .workspace-brand-mark video { position: absolute; inset: 0; display: block; width: 100%; height: 100%; object-fit: cover; }
+.workspace-brand-mark video { opacity: 0; pointer-events: none; }
+.workspace-brand-mark video.playing { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .workspace-brand-mark video { display: none; } }
