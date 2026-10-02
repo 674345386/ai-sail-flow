@@ -573,27 +573,6 @@ export default function App() {
       <SectionBackdrop src="/assets/landing/product-projector-east-asian.png" className="gf-features-backdrop" />
       <div className="gf-section-label">功能</div>
       <div className="gf-feature-tabs"><span>方案</span><span>创作</span><span>打磨</span><button onClick={() => enterWorkspace(true)}>使用 AI-Sail Flow 开始创作</button></div>
-      <article className="gf-showcase gf-showcase-plan">
-        <h2>方案</h2><div className="gf-showcase-glow" />
-        <div className="gf-showcase-stack"><span /><span /><StudioMockup variant="plan" images={landingImages} /></div>
-        <aside className="gf-glass-note"><span>01</span><strong>从洞察到方向</strong><p>先理解参考视频为什么有效，再结合产品事实和目标市场形成创意方案。</p></aside>
-        <p className="gf-showcase-caption">上传参考视频和产品信息，获得开头钩子、受众切入与完整镜头方案。</p>
-        <div className="gf-showcase-arrows"><button aria-label="上一个功能">←</button><button aria-label="下一个功能">→</button></div>
-      </article>
-      <article className="gf-showcase gf-showcase-create">
-        <h2>创作</h2><div className="gf-showcase-glow" />
-        <div className="gf-showcase-stack"><span /><span /><StudioMockup variant="create" images={landingImages} /></div>
-        <aside className="gf-glass-note"><span>02</span><strong>把方案写成镜头</strong><p>按平台、语言和购买路径生成可拍摄、可剪辑、可继续生成的视频脚本。</p></aside>
-        <p className="gf-showcase-caption">用当地表达重写口播、画面文字与行动引导，不停留在字面翻译。</p>
-        <div className="gf-showcase-arrows"><button aria-label="上一个功能">←</button><button aria-label="下一个功能">→</button></div>
-      </article>
-      <article className="gf-showcase gf-showcase-polish">
-        <h2>打磨</h2><div className="gf-showcase-glow" />
-        <div className="gf-showcase-stack"><span /><span /><StudioMockup variant="polish" images={landingImages} /></div>
-        <aside className="gf-glass-note"><span>03</span><strong>让交付可以直接制作</strong><p>逐镜检查节奏、字幕、产品露出和合规边界，并导出标准提示词包。</p></aside>
-        <p className="gf-showcase-caption">把最终分镜、字幕、制作简报和视频生成提示词一次性带走。</p>
-        <div className="gf-showcase-arrows"><button aria-label="上一个功能">←</button><button aria-label="下一个功能">→</button></div>
-      </article>
     </section>
 
     <section className="gf-tools" id="tools">
