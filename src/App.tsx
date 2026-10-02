@@ -8,6 +8,7 @@ import { useImagePaste } from './useImagePaste';
 import { authDisplayName, authEmail, initialAuthState, supabase, supabaseConfigured, type SailAuthState } from './auth';
 import PipelineCanvas from './PipelineCanvas';
 import ShotBreakdown from './ShotBreakdown';
+import ShotTimelineEditor from './ShotTimelineEditor';
 import ProjectNavigation from './ProjectNavigation';
 import AnimatedBrandMark from './AnimatedBrandMark';
 import ShaderBackdrop from './ShaderBackdrop';
@@ -207,6 +208,7 @@ export default function App() {
   useEffect(() => { try { localStorage.setItem('sop-workspace-view', workspaceView); } catch {} }, [workspaceView]);
   const [showLanding, setShowLanding] = useState(true);
   const [selectedShot, setSelectedShot] = useState(0);
+  const [timelineOpen, setTimelineOpen] = useState(false);
   const [selectedRewrite, setSelectedRewrite] = useState(0);
   const [exportTab, setExportTab] = useState('prompt');
   const [ttsVoices, setTtsVoices] = useState<TtsVoice[]>([]);
@@ -678,6 +680,15 @@ export default function App() {
       { ...source, id: crypto.randomUUID(), start: middle, reconstructionPrompt: undefined, evidenceFrames: source.evidenceFrames?.filter(frame => frame.at >= middle) });
     return { ...p, analysis: { ...p.analysis!, shots } };
   });
+  const applyShotTimings = (updatedShots: Shot[], selectedIndex: number) => {
+    change(p => {
+      if (!p.analysis) return p;
+      return { ...p, analysis: { ...p.analysis, shots: updatedShots } };
+    });
+    setSelectedShot(selectedIndex);
+    setTimelineOpen(false);
+    setNotice('镜头时间线已更新，正在保存');
+  };
   const productionPanel = <VeoPanel onPrompt={(unitId, mode, prompt, basis) => change(p => ({ ...p, veoPromptDrafts: { ...p.veoPromptDrafts, [`${mode}:${unitId}`]: { prompt, basis } } }))} project={project} status={status} disabled={disabled} voices={ttsVoices} onModeChange={mode => change(p => ({ ...p, productionMode: mode }))} onVoiceChange={voice => change(p => ({ ...p, ttsVoice: voice }))} onCompose={voice => void composeFinal(voice)} onGenerate={(shotId, config) => void startGeneration(shotId, config)} onRecover={videoId => void recoverGeneration(videoId)} onComposeUnit={(videoId, voice) => void composeUnit(videoId, voice)} />;
 
   const parentProject = projectGroups.find(group => group.id === project.parentProjectId);
@@ -753,7 +764,7 @@ export default function App() {
               <span className="breakdown-source-toggle"><Film size={17} />查看完整原片与整体分析<ChevronDown size={15} /></span>
             </summary>
             <div className="breakdown-source-body"><div>{previewVideo(true)}{project.analysis && <div className="video-timeline">{project.analysis.shots.map((s, i) => <button key={s.id} className={selectedShot === i ? 'selected' : ''} style={{ flex: s.end - s.start }} onClick={() => { setSelectedShot(i); seek(s.start); }} title={`${roles[s.role]} ${s.start.toFixed(3)}–${s.end.toFixed(3)} 秒`}>{i + 1}</button>)}</div>}</div><div className="breakdown-source-analysis">{project.analysis ? <><p className="breakdown-source-meta">{project.analysis.duration.toFixed(3)} 秒 · {project.isDemo ? '手写示例' : project.analysisMeta?.mode === 'sampled-frames' ? '抽帧分析' : 'Gemini 视频分析'}</p><h3>原片表达与产品观察</h3>{project.analysis.sellingPoints.map((text, i) => <p key={i}>{text}</p>)}<p>{project.analysis.productAppearance}</p>{!!project.analysis.uncertainties.length && <details><summary>需要核对 · {project.analysis.uncertainties.length} 项</summary>{project.analysis.uncertainties.map((text, i) => <p key={i}>{text}</p>)}</details>}</> : <p>上传参考视频后，Gemini 会按实际剪辑和动作段落整理镜头。每行片段和关键帧都从本机原片截取。</p>}</div></div></details>
-          <section className="panel scene-panel"><div className="panel-heading"><div><Clapperboard size={18} /><h2>镜头片段与证据</h2><Badge>{project.analysis?.shots.length || 0} 个镜头</Badge></div>{project.analysis && <button className="text-button" disabled={disabled || !video} onClick={() => startJob('analysis')}>重新拆解</button>}</div>
+          <section className="panel scene-panel"><div className="panel-heading"><div><Clapperboard size={18} /><h2>镜头片段与证据</h2><Badge>{project.analysis?.shots.length || 0} 个镜头</Badge></div>{project.analysis && <div className="breakdown-heading-actions"><button className="btn small" disabled={disabled} onClick={() => { player.current?.pause(); setTimelineOpen(true); }}><Scissors size={14} />编辑镜头时间线</button><button className="text-button" disabled={disabled || !video} onClick={() => startJob('analysis')}>重新拆解</button></div>}</div>
             {project.analysis ? <ShotBreakdown project={project} selectedIndex={selectedShot} onSelect={setSelectedShot} onSeek={seek} onCopy={text => void copy(text)} onSplit={splitAnalysisShot} disabled={disabled} renderEditor={(s, i) => sceneEditor(s, i)} /> : <div className="empty-state"><ScanLine size={38} strokeWidth={1.2} /><h3>{running ? '正在逐段理解视频' : '开始拆解你的参考片'}</h3><p>逐镜头整理片段、证据关键帧与可编辑的观察和 Prompt。</p><button className="btn primary" disabled={disabled || !video} onClick={() => startJob('analysis')}><Sparkles size={16} />{status.configured ? '开始视频拆解' : '连接 Gemini 并开始'}</button></div>}
           </section>
         </div>}
@@ -783,6 +794,7 @@ export default function App() {
       </main>
     </div>
     {showPipeline && <PipelineCanvas project={project} onClose={() => setShowPipeline(false)} />}
+    {timelineOpen && project.analysis && <ShotTimelineEditor key={project.id} shots={project.analysis.shots} duration={project.analysis.duration} video={video} initialIndex={selectedShot} disabled={disabled} onApply={applyShotTimings} onClose={() => setTimelineOpen(false)} />}
     {notice && <div className="toast" role="status"><Check size={17} />{notice}</div>}
     {busy && <div className="busy-indicator" role="status"><LoaderCircle className="spin" size={14} />{busy}</div>}
     {organizationDialog && <OrganizationForm key={`${organizationDialog.kind}:${organizationDialog.parentId}`} dialog={organizationDialog} groups={projectGroups} busy={!!busy} error={error} onSubmit={submitOrganization} onClose={() => { if (!busy) setOrganizationDialog(null); }} />}
