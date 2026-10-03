@@ -1,6 +1,7 @@
 import { countries, defaultReplication, defaultWorkspace, platforms, roles, timeLabel, type ProductionMode, type Project, type Shot } from './domain';
-import { buildVeoPlan, VEO_CLIP_SECONDS, type VeoPlanUnit } from './veo-plan';
+import { buildVeoPlan, clipTiming, VEO_CLIP_SECONDS, type VeoPlanUnit } from './veo-plan';
 import { selectedFocus, selectedFocusBrief } from './focus';
+import { keyframeCurrent } from './storyboard';
 
 function stamp(seconds: number) {
   const ms = Math.round(seconds * 1000);
@@ -15,6 +16,16 @@ function veoUnitPromptData(project: Project, unit: VeoPlanUnit, mode: Production
   const rewrite = project.rewrite!;
   const direct = project.promptFlow === 'direct-analysis';
   const shots = rewrite.shots.filter(shot => unit.sourceShotIds.includes(shot.id));
+  const renderScale = Math.min(1, VEO_CLIP_SECONDS / unit.targetDuration);
+  const firstShot = shots[0];
+  const imageInput = direct ? {} : { imageToVideo: {
+    mode: 'i2v', sourceShotId: firstShot?.sourceShotId, keyframeShotId: firstShot?.id,
+    keyframe: firstShot && keyframeCurrent(project, firstShot) ? firstShot.keyframe?.url : null,
+    required: 'The supplied image is the first frame of this single shot. Preserve its product identity, people, composition, lighting and setting. Animate only this shot using the approved action progression, camera movement and visual effects. Do not create another shot, a montage or an internal cut.',
+  } };
+  const editTiming = { ...clipTiming(unit.targetDuration), rule: unit.targetDuration > VEO_CLIP_SECONDS
+    ? 'The single source clip is slowed to the target editorial duration after generation. Complete this shot action within the generated 8 seconds.'
+    : 'Complete this shot action within the target editorial duration; remaining provider seconds are trimmed.' };
   const replication = project.replication || defaultReplication;
   const referenceStyle = project.analysis ? {
     referenceStyle: {
@@ -22,11 +33,13 @@ function veoUnitPromptData(project: Project, unit: VeoPlanUnit, mode: Production
       preserve: replication.preserve,
       allowedChanges: replication.change,
       imageContextRule: 'The target reference image may include a model, mannequin, stand or background. Use those only when they are the item to replace or are explicitly listed under allowedChanges; do not silently replace the source actor or scene.',
-      keepShotStructure: project.market.keepStructure,
+      keepShotStructure: true,
+      mapping: shots.map(shot => ({ shotId: shot.id, sourceShotId: shot.sourceShotId || shot.id })),
       sourceSummary: project.analysis.summary,
       selectedGlobalFocus: selectedFocus(project.analysis.focusPoints),
-      targetAppearance: project.analysis.productAppearance,
-      shots: project.analysis.shots.filter(shot => shot.start < unit.end && shot.end > unit.start).map(shot => ({
+      sourceProductAppearance: project.analysis.productAppearance,
+      targetAppearance: { facts: project.product.facts, referenceImages: project.assets.filter(asset => asset.kind === 'product').map(asset => asset.name) },
+      shots: project.analysis.shots.filter(source => shots.some(shot => (shot.sourceShotId || shot.id) === source.id)).map(shot => ({
         id: shot.id, start: shot.start, end: shot.end, visual: shot.visual,
         action: shot.action, camera: shot.camera, sound: shot.sound,
         subject: shot.subject, effects: shot.effects, transition: shot.transition,
@@ -37,31 +50,37 @@ function veoUnitPromptData(project: Project, unit: VeoPlanUnit, mode: Production
   } : {};
   if (mode === 'tts-subtitles') return {
     format: 'veo-visual-unit/v1',
-    task: 'Generate one continuous product-video VISUAL clip. The voiceover, captions and on-screen copy will be added after video generation.',
+    task: direct
+      ? 'Recreate this analyzed reference shot as ONE continuous video clip. The voiceover, captions and on-screen copy will be added after video generation.'
+      : 'Animate the supplied first frame as ONE continuous product-video shot. The voiceover, captions and on-screen copy will be added after video generation.',
     output: {
       clipDurationSeconds: VEO_CLIP_SECONDS,
       finalEditRangeSeconds: { start: unit.start, end: unit.end, duration: unit.targetDuration },
       aspectRatio: project.market.aspectRatio,
+      editTiming,
     },
+    ...imageInput,
     ...referenceStyle,
     visualRequirements: 'Follow the visual beats and product actions in order. Keep product identity, people, props, camera and lighting consistent. Leave visual space for later captions. Do not generate speech, subtitles, titles or added text overlays. Preserve only the packaging text naturally present on the product.',
     productFacts: { name: project.product.name, facts: project.product.facts },
     storyboard: shots.map(shot => ({
-      id: shot.id,
+      id: shot.id, sourceShotId: shot.sourceShotId || shot.id,
+      keyframeDirection: shot.keyframePrompt,
       renderRangeSeconds: {
-        start: Number(Math.max(0, shot.start - unit.start).toFixed(3)),
-        end: Number(Math.min(unit.targetDuration, shot.end - unit.start).toFixed(3)),
+        start: Number((Math.max(0, shot.start - unit.start) * renderScale).toFixed(3)),
+        end: Number((Math.min(unit.targetDuration, shot.end - unit.start) * renderScale).toFixed(3)),
       },
       visual: shot.visual, action: shot.action, camera: shot.camera,
       subject: shot.subject, effects: shot.effects, transition: shot.transition,
       productPresence: shot.productPresence, uncertainty: shot.uncertainty,
+      generationPrompt: shot.generationPrompt,
     })),
   };
   const cues = shots.map(shot => ({
     shotId: shot.id,
     renderRangeSeconds: {
-      start: Number(Math.max(0, shot.start - unit.start).toFixed(3)),
-      end: Number(Math.min(unit.targetDuration, shot.end - unit.start).toFixed(3)),
+      start: Number((Math.max(0, shot.start - unit.start) * renderScale).toFixed(3)),
+      end: Number((Math.min(unit.targetDuration, shot.end - unit.start) * renderScale).toFixed(3)),
     },
     spokenText: shot.narration,
     onScreenText: shot.onScreenText,
@@ -71,13 +90,15 @@ function veoUnitPromptData(project: Project, unit: VeoPlanUnit, mode: Production
     format: 'veo-production-unit/v1',
     task: direct
       ? 'Recreate the analyzed reference video for this timeline range. Preserve its observed style, actions, camera, pacing, language, narration, text and sound; apply only the explicitly allowed changes below.'
-      : 'Generate one continuous, finished product-video clip. Follow every mandatory requirement and every timeline cue below.',
+      : 'Animate the supplied first frame as ONE continuous, finished product-video shot. Follow its action progression, camera movement, visual effects, audio and text cues. Do not introduce other shots or internal cuts.',
     output: {
       clipDurationSeconds: VEO_CLIP_SECONDS,
       finalEditRangeSeconds: { start: unit.start, end: unit.end, duration: unit.targetDuration },
       aspectRatio: project.market.aspectRatio,
       marketLanguage: direct ? project.analysis?.sourceLanguage : project.market.language,
+      editTiming,
     },
+    ...imageInput,
     ...referenceStyle,
     mandatoryRequirements: {
       audio: direct
@@ -125,7 +146,7 @@ export function buildBrief(project: Project) {
   const r = project.rewrite;
   if (!r) return '';
   const replication = project.replication || defaultReplication;
-  return `# ${project.title}\n\n${project.isDemo ? '> 示例创意，非真实 AI 分析结果。\n\n' : ''}生成模型：${project.model}\n\n## 投放与产品资料\n\n- 产品：${project.product.name}\n- 市场：${countries.find(c => c.code === project.market.country)?.name}\n- 语言：${project.market.language}\n- 平台：${platforms.find(p => p.id === project.market.platform)?.name}\n- 购买路径：${project.market.destination === 'shop' ? 'TikTok Shop 商品卡' : '独立站 / 外部网站'}\n- 产品地址：${project.product.landingUrl || '未填写'}\n- 已确认卖点：${project.product.facts}\n\n## 参考视频复刻要求\n\n- 保持：${replication.preserve}\n- 允许改变：${replication.change}\n\n## 已选关注重点\n\n${selectedFocusBrief(project.analysis) || '未特别指定'}\n\n## 创意方向\n\n${r.angle}\n\n${r.audienceInsight}\n\n## 可选开头\n\n${r.hookVariants.map(h => `- **${h.label}**：${h.text}`).join('\n')}\n\n## 本地化说明\n\n${r.localizationNotes.map(n => `- ${n}`).join('\n')}\n\n## 制作备注\n\n${r.productionNotes.map(n => `- ${n}`).join('\n')}\n\n## 分镜脚本\n\n${r.shots.map((s, i) => `### ${i + 1}. ${timeLabel(s.start)}–${timeLabel(s.end)} · ${roles[s.role]}\n\n${s.visual}\n\n动作：${s.action}\n\n口播：${s.narration || '无'}\n\n字幕：${project.market.subtitles ? s.onScreenText || '无' : '关闭'}\n`).join('\n')}\n\n字幕时间码为分镜草案；生成实际成片后需按成片音轨校准。\n`;
+  return `# ${project.title}\n\n${project.isDemo ? '> 示例创意，非真实 AI 分析结果。\n\n' : ''}生成模型：${project.model}\n\n## 投放与产品资料\n\n- 产品：${project.product.name}\n- 市场：${countries.find(c => c.code === project.market.country)?.name}\n- 语言：${project.market.language}\n- 平台：${platforms.find(p => p.id === project.market.platform)?.name}\n- 购买路径：${project.market.destination === 'shop' ? 'TikTok Shop 商品卡' : '独立站 / 外部网站'}\n- 产品地址：${project.product.landingUrl || '未填写'}\n- 已确认卖点：${project.product.facts}\n\n## 参考视频复刻要求\n\n- 保持：${replication.preserve}\n- 允许改变：${replication.change}\n\n## 已选关注重点\n\n${selectedFocusBrief(project.analysis) || '未特别指定'}\n\n## 创意方向\n\n${r.angle}\n\n${r.audienceInsight}\n\n## 可选开头\n\n${r.hookVariants.map(h => `- **${h.label}**：${h.text}`).join('\n')}\n\n## 创意改写说明\n\n${r.localizationNotes.map(n => `- ${n}`).join('\n')}\n\n## 制作备注\n\n${r.productionNotes.map(n => `- ${n}`).join('\n')}\n\n## 分镜脚本\n\n${r.shots.map((s, i) => `### ${i + 1}. ${timeLabel(s.start)}–${timeLabel(s.end)} · ${roles[s.role]}\n\n${s.visual}\n\n原片对应镜头：${s.sourceShotId || s.id}\n\n复刻关键帧：${keyframeCurrent(project, s) ? `recreation-keyframes/shot-${String(i + 1).padStart(2, '0')}.${s.keyframe!.filename?.split('.').at(-1)}` : '待生成或待更新'}\n\n动作：${s.action}\n\n口播：${s.narration || '无'}\n\n字幕：${project.market.subtitles ? s.onScreenText || '无' : '关闭'}\n`).join('\n')}\n\n字幕时间码为分镜草案；生成实际成片后需按成片音轨校准。\n`;
 }
 export function buildExportFiles(project: Project) {
   if (!project.rewrite || project.rewriteStale) throw new Error('请先生成与当前资料一致的改写方案。');
@@ -134,11 +155,12 @@ export function buildExportFiles(project: Project) {
     '02-seedance-prompt.txt': buildPrompt(project),
     '03-storyboard.json': buildVeoPromptPreview(project),
     '04-source-analysis.json': JSON.stringify(project.analysis, null, 2),
+    '07-shot-recreation.json': JSON.stringify({ shots: project.rewrite.shots.map(shot => ({ ...shot, keyframeStatus: keyframeCurrent(project, shot) ? 'current' : 'pending-or-stale' })) }, null, 2),
     '06-veo-production-plan.json': JSON.stringify({
       provider: 'veo-3.1',
       sourceClipSeconds: VEO_CLIP_SECONDS,
       finalTimelineSeconds: project.rewrite.shots.at(-1)?.end ?? 0,
-      note: 'Each unit requests a fixed 8-second Veo source clip. Use targetStart/targetEnd to trim and assemble the final edit; do not render each analysis cut as a separate 8-second clip.',
+      note: 'Each reference shot produces one corresponding i2v source clip from its recreated keyframe and shot description. Veo returns 8 seconds; trim short shots and retime long shots to their editorial duration, then concatenate in source shot order.',
       units: buildVeoPlan(project.rewrite.shots),
     }, null, 2),
     'manifest.json': JSON.stringify({ app: 'AI-Sail Flow', version: 2, model: project.model, productionMode: project.productionMode || 'veo-native', workspaceId: defaultWorkspace.id, projectId: project.parentProjectId || null, creativeId: project.id, title: project.title, demo: project.isDemo, sourceAnalysis: project.analysisMeta || null, selectedFocus: selectedFocusBrief(project.analysis), exportedAt: new Date().toISOString(), product: project.product, market: project.market, replication: project.replication || defaultReplication, productReferences: project.assets.filter(a => a.kind === 'product').map(a => a.name), subtitles: 'Draft timing; align against the final rendered audio.' }, null, 2),

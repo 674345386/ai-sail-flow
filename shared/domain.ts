@@ -79,13 +79,29 @@ export const analysisModelSchema = analysisSchema.extend({
   subject: true, effects: true, transition: true, reconstructionPrompt: true, evidenceFrames: true,
   })).min(1).max(120),
 });
+export const rewriteShotSchema = shotSchema.extend({
+  generationPrompt: z.string().max(8000),
+  sourceShotId: z.string().max(80).optional(),
+  keyframePrompt: z.string().max(8000).optional(),
+  keyframe: z.object({
+    status: z.enum(['running', 'completed', 'failed']), basis: z.string().max(80),
+    prompt: z.string().max(100000), model: z.string().max(160),
+    sourceAt: z.number(), sourceFrameUrl: z.string().max(500),
+    filename: z.string().max(200).optional(), url: z.string().max(500).optional(),
+    mime: z.enum(['image/png', 'image/jpeg', 'image/webp']).optional(),
+    error: z.string().max(2000).optional(), generatedAt: z.string().optional(),
+  }).optional(),
+});
 export const rewriteSchema = z.object({
   angle: z.string().max(3000), audienceInsight: z.string().max(3000),
   hookVariants: z.array(z.object({ label: z.string().max(200), text: z.string().max(1000) })).min(1).max(3),
   localizationNotes: z.array(z.string().max(2000)).max(15),
   productionNotes: z.array(z.string().max(2000)).max(15),
   globalPrompt: z.string().max(12000), negativePrompt: z.string().max(6000),
-  shots: z.array(shotSchema.extend({ generationPrompt: z.string().max(8000) })).min(1).max(120),
+  shots: z.array(rewriteShotSchema).min(1).max(120),
+});
+export const rewriteModelSchema = rewriteSchema.extend({
+  shots: z.array(rewriteShotSchema.omit({ keyframe: true }).required({ sourceShotId: true, keyframePrompt: true })).min(1).max(120),
 });
 export type Product = z.infer<typeof productSchema>;
 export type Market = z.infer<typeof marketSchema>;
@@ -102,17 +118,19 @@ export type Asset = {
   url: string; filename: string; thumbnail?: string; duration?: number; width?: number; height?: number; hasAudio?: boolean;
 };
 export type Job = {
-  id: string; kind: 'analysis' | 'analysis-refine' | 'rewrite' | 'generation' | 'composition'; status: 'running' | 'completed' | 'failed' | 'needs-input';
-  progress: number; message: string; startedAt: string; finishedAt?: string; videoId?: string; unitId?: string;
+  id: string; kind: 'analysis' | 'analysis-refine' | 'rewrite' | 'keyframe' | 'generation' | 'composition'; status: 'running' | 'completed' | 'failed' | 'needs-input';
+  progress: number; message: string; startedAt: string; finishedAt?: string; videoId?: string; unitId?: string; shotId?: string;
 };
 export type ProductionMode = 'veo-native' | 'tts-subtitles';
 export type TtsTimingNotice = { targetDuration: number; requiredDuration: number; voice: string; basis: string };
 export type WorkflowMode = 'automatic' | 'manual';
 export type PromptFlow = 'direct-analysis' | 'localized';
-export type WorkflowStage = 'analysis' | 'rewrite' | 'generation' | 'composition' | 'completed';
+export type WorkflowStage = 'analysis' | 'rewrite' | 'keyframe' | 'generation' | 'composition' | 'completed';
+export type WorkflowTarget = 'keyframes' | 'video';
 export type WorkflowRun = {
   id: string; status: 'running' | 'pausing' | 'paused' | 'needs-input' | 'failed' | 'completed';
   stage: WorkflowStage; message: string; startedAt: string; finishedAt?: string;
+  target?: WorkflowTarget;
   maxNewClips: number; newClipCount: number; unitId?: string;
 };
 export const automaticSettingsSchema = z.object({
@@ -135,6 +153,7 @@ export type GeneratedVideo = {
   filename?: string; url?: string; mime?: string; size?: number; width?: number; height?: number;
   hasAudio?: boolean; thumbnail?: string; stale?: boolean; error?: string;
   defaultPrompt?: string; providerRequest?: { model: string; prompt: string; resolution: string; aspect_ratio: string; images?: string[] };
+  keyframeShotId?: string; keyframeFilename?: string; keyframeBasis?: string; keyframeUrl?: string;
 };
 export type ComposedVideo = {
   id: string; mode: ProductionMode; unitId?: string; sourceVideoIds: string[]; voice: string;

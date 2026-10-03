@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { Project, WorkflowMode } from '../shared/domain';
+import type { Project, WorkflowMode, WorkflowTarget } from '../shared/domain';
 import { buildVeoPlan } from '../shared/veo-plan';
 import { editableUnitPrompt, nextWorkflowAction, workflowBusy, workflowRequirements } from '../shared/workflow';
 import { getProject, saveProject } from './store';
@@ -7,6 +7,7 @@ import { launchTask, TaskError, type TaskSpec } from './tasks';
 import { configured } from './gemini';
 import { generationConfigured } from './veo';
 import { TimingConfirmationRequired } from './compose';
+import { keyframeStorageStatus } from './keyframe-storage';
 
 const runners = new Set<string>();
 const save = (id: string, change: (p: Project) => Project) => saveProject(change(getProject(id)!));
@@ -18,17 +19,18 @@ export function setWorkflowMode(id: string, mode: WorkflowMode) {
   return saveProject({ ...p, workflowMode: mode });
 }
 
-export function startWorkflow(id: string, maxNewClips: number) {
+export function startWorkflow(id: string, maxNewClips: number, target: WorkflowTarget = 'keyframes') {
   const p = getProject(id)!;
   if (runners.has(id) || workflowBusy(p) || p.job?.status === 'running') throw new TaskError(409, '当前任务正在处理，请等待完成。');
   const continuing = p.workflow && p.workflow.status !== 'completed';
-  const missing = workflowRequirements(p);
-  if (!configured() && (!p.analysis || (p.promptFlow !== 'direct-analysis' && (!p.rewrite || p.rewriteStale)))) missing.push('连接 Gemini');
-  const next = nextWorkflowAction(p);
-  if (!generationConfigured() && next.kind !== 'compose' && next.kind !== 'completed') missing.push('连接 Veo');
+  const missing = workflowRequirements(p, target);
+  const next = nextWorkflowAction(p, target);
+  if (!configured() && ['analysis', 'keyframe'].includes(next.kind) || !configured() && next.kind === 'rewrite' && p.promptFlow !== 'direct-analysis') missing.push('连接 Gemini');
+  if (target === 'video' && !generationConfigured() && next.kind !== 'compose' && next.kind !== 'completed') missing.push('连接 Veo');
+  if (target === 'video' && p.promptFlow !== 'direct-analysis' && !keyframeStorageStatus().configured && next.kind !== 'compose' && next.kind !== 'completed') missing.push('连接 Supabase 私有图片存储');
   const now = new Date().toISOString();
   const saved = saveProject({ ...p, workflowMode: 'automatic', workflow: {
-    id: continuing ? p.workflow!.id : randomUUID(), status: missing.length ? 'needs-input' : 'running',
+    id: continuing ? p.workflow!.id : randomUUID(), target, status: missing.length ? 'needs-input' : 'running',
     stage: continuing ? p.workflow!.stage : 'analysis', message: missing.length ? missing.join('；') : '正在准备自动制作…',
     startedAt: continuing ? p.workflow!.startedAt : now, maxNewClips, newClipCount: continuing ? p.workflow!.newClipCount : 0,
   } });
@@ -46,7 +48,7 @@ async function run(id: string) {
       if (p.workflow?.status !== 'running' || p.workflowMode !== 'automatic') break;
       const action = nextWorkflowAction(p);
       if (action.kind === 'completed') {
-        save(id, current => ({ ...current, workflow: { ...current.workflow!, status: 'completed', stage: 'completed', message: '视频制作完成，可以预览和下载。', finishedAt: new Date().toISOString() } }));
+        save(id, current => ({ ...current, workflow: { ...current.workflow!, status: 'completed', stage: 'completed', message: current.workflow?.target === 'video' ? '视频制作完成，可以预览和下载。' : '逐镜头复刻关键帧已生成，请检查图片与描述；当前流程在此完成。', finishedAt: new Date().toISOString() } }));
         return;
       }
       let task: TaskSpec;
@@ -58,13 +60,15 @@ async function run(id: string) {
         const unit = buildVeoPlan(p.rewrite!.shots).find(unit => unit.id === action.unitId)!;
         const settings = { resolution: p.automaticSettings?.resolution || '720p' as const, aspectRatio: p.market.aspectRatio === '16:9' ? '16:9' as const : '9:16' as const };
         task = action.recoverId ? { kind: 'recover', videoId: action.recoverId } : { kind: 'generation', input: {
-          unitId: unit.id, prompt: editableUnitPrompt(p, unit), mode: 't2v', images: [], ...settings,
+          unitId: unit.id, prompt: editableUnitPrompt(p, unit), mode: p.promptFlow === 'direct-analysis' ? 't2v' : 'i2v', images: [],
+          keyframeShotId: p.promptFlow === 'direct-analysis' ? undefined : unit.sourceShotIds[0], ...settings,
         } };
-      } else task = action.kind === 'compose' ? { kind: 'compose' } : { kind: action.kind };
+      } else task = action.kind === 'compose' ? { kind: 'compose' } : action.kind === 'keyframe' ? action : { kind: action.kind };
       const stage = action.kind === 'compose' ? 'composition' : action.kind;
-      save(id, current => ({ ...current, workflow: { ...current.workflow!, stage, unitId: action.kind === 'generation' ? action.unitId : undefined, message: action.kind === 'generation' ? `正在制作 ${action.unitId}` : action.kind === 'analysis' ? '正在理解参考视频' : action.kind === 'rewrite' ? current.promptFlow === 'direct-analysis' ? '正在整理原片分析为可编辑 Prompt' : '正在生成本地化分镜' : '正在完成最终视频' } }));
+      save(id, current => ({ ...current, workflow: { ...current.workflow!, stage, unitId: action.kind === 'generation' ? action.unitId : undefined, message: action.kind === 'generation' ? `正在制作 ${action.unitId}` : action.kind === 'analysis' ? '正在理解参考视频' : action.kind === 'keyframe' ? '正在补全复刻关键帧' : action.kind === 'rewrite' ? current.promptFlow === 'direct-analysis' ? '正在整理原片分析为可编辑 Prompt' : '正在逐镜头改写并生成关键帧' : '正在完成最终视频' } }));
       await launchTask(id, task);
       p = getProject(id)!;
+      if (action.kind === 'rewrite' && p.promptFlow !== 'direct-analysis' && p.rewrite?.shots.some(shot => shot.keyframe?.status === 'failed')) throw new TaskError(409, '分镜描述已保存，关键帧生成失败。请检查模型连接或在镜头卡中重试后继续。');
       if (p.workflow?.status !== 'running') break;
     }
     save(id, p => ({ ...p, workflow: { ...p.workflow!, status: 'paused', message: '已停止自动推进，当前结果可在手动工作台查看和编辑。' } }));

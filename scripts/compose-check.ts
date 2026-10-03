@@ -46,10 +46,11 @@ try {
     { ...project.rewrite!.shots[0], start: 0, end: 0.4, narration: 'Enjoy a fresh cup of coffee every morning.', onScreenText: 'Coffee time' },
     { ...project.rewrite!.shots[0], id: 'shot-2', start: 0.4, end: 8, narration: '', onScreenText: '' },
   ];
-  const video = { id, provider: 'veo-3.1' as const, model: 'veo_3_1' as const, unitId: 'veo-unit-01', shotId: 'shot-1',
+  const video = { id, provider: 'veo-3.1' as const, model: 'veo_3_1' as const, unitId: 'veo-shot-shot-1', shotId: 'shot-1',
     productionMode: 'tts-subtitles' as const, status: 'completed' as const, prompt: '', duration: 8, aspectRatio: '9:16' as const,
     filename, startedAt: new Date().toISOString() };
-  const rendered = await composeVideo(project, [video], voice.name, () => {});
+  const secondVideo = { ...video, id: randomUUID(), unitId: 'veo-shot-shot-2', shotId: 'shot-2' };
+  const rendered = await composeVideo(project, [video, secondVideo], voice.name, () => {});
   const { stdout } = await exec('ffprobe', ['-v', 'error', '-show_entries', 'format=duration:stream=codec_type', '-of', 'json', path.join(uploadDir, rendered.filename)]);
   const info = JSON.parse(stdout);
   assert(info.streams.some((stream: { codec_type: string }) => stream.codec_type === 'video'));

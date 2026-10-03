@@ -68,6 +68,8 @@ for (const filename of fs.readdirSync(recordsDir)) {
         finishedAt,
       };
       project.jobHistory = [...(project.jobHistory || []), project.job].slice(-200);
+      if (project.rewrite) project.rewrite = { ...project.rewrite, shots: project.rewrite.shots.map(shot => shot.keyframe?.status === 'running'
+        ? { ...shot, keyframe: { ...shot.keyframe, status: 'failed' as const, error: '服务已重启，关键帧任务已中断；可单独重试此镜头。' } } : shot) };
       if (interruptedGeneration) {
         project.generatedVideos = project.generatedVideos.map(video => video.status === 'running'
           ? { ...video, status: 'failed' as const, error: '服务重启后已停止本地轮询；可恢复查询已提交的上游任务，不会新建或计费。', finishedAt }

@@ -25,6 +25,12 @@ async function loadMedia(key: string, projectId: string, body: string) {
   try { return await pending; } finally { mediaRequests.delete(key); }
 }
 
+export function loadSourceFrames(project: Project, shot: Shot) {
+  const reference = project.assets.find(asset => asset.kind === 'video');
+  const body = JSON.stringify({ assetId: reference?.id, start: shot.start, end: shot.end, evidenceFrames: shot.evidenceFrames, framesOnly: true });
+  return loadMedia(`${project.id}:${body}`, project.id, body);
+}
+
 function FramePreview({ frame, onClose }: { frame: ShotMedia['frames'][number]; onClose: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
   useEffect(() => { const element = dialog.current; element?.showModal(); return () => element?.close(); }, []);

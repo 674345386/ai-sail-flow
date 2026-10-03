@@ -25,7 +25,7 @@
 .automatic-progress { padding: 22px; }
 .automatic-status, .automatic-status > div { display: flex; align-items: center; gap: 12px; }
 .automatic-status { justify-content: space-between; font-size: .85rem; }
-.automatic-stage-list { list-style: none; padding: 0; margin: 28px 0 22px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.automatic-stage-list { list-style: none; padding: 0; margin: 28px 0 22px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
 .automatic-stage-list li { display: flex; gap: 10px; color: var(--muted); }
 .automatic-stage-list li > span { display: flex; align-items: center; justify-content: center; width: 27px; height: 27px; flex-shrink: 0; border: 1px solid var(--line); border-radius: 50%; font-size: .7rem; }
 .automatic-stage-list strong, .automatic-stage-list small { display: block; }
@@ -82,3 +82,9 @@
 .landing-cta-arrow { display: inline-flex; width: 30px; height: 30px; align-items: center; justify-content: center; border-radius: 50%; background: #17191d; color: #fff; }
 @media (max-width: 800px) { .workflow-entry-options, .automatic-materials, .automatic-form-grid, .automatic-result-body { grid-template-columns: 1fr; } .automatic-heading, .automatic-start { flex-direction: column; } .automatic-stage-list { grid-template-columns: 1fr 1fr; } .automatic-start-actions { width: 100%; } .automatic-history time { display: none; } .workflow-control-bar { flex-wrap: wrap; } .automatic-heading-actions { padding-top: 0; } }
 @media (max-width: 800px) { .speech-timing-confirmation { flex-direction: column; align-items: stretch; } }
+
+.automatic-keyframes { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin: 20px 0; }
+.automatic-keyframes figure { margin: 0; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.automatic-keyframes img { display: block; width: 100%; height: 300px; object-fit: contain; background: var(--panel); }
+.automatic-keyframes figcaption { display: grid; gap: 8px; padding: 14px; font-size: .8rem; line-height: 1.7; }
+.automatic-keyframes figcaption span { color: var(--muted); }

@@ -6,11 +6,18 @@ import os from 'node:os';
 import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import type { GeneratedVideo, Project, Shot, TtsTimingNotice } from '../shared/domain';
-import { buildVeoPlan } from '../shared/veo-plan';
+import { buildVeoPlan, clipTiming } from '../shared/veo-plan';
 import { planNarrationTiming, sliceNarrationTiming } from '../shared/narration-timing';
 import { dataDir, uploadDir } from './store';
 
 const exec = promisify(execFile);
+function audioTempoChain(tempo: number) {
+  const filters: string[] = [];
+  while (tempo < .5) { filters.push('atempo=0.5'); tempo /= .5; }
+  while (tempo > 2) { filters.push('atempo=2'); tempo /= 2; }
+  if (Math.abs(tempo - 1) > .00001) filters.push(`atempo=${tempo.toFixed(6)}`);
+  return filters.length ? `${filters.join(',')},` : '';
+}
 const captionRenderer = fileURLToPath(new URL('./render-captions.swift', import.meta.url));
 type Voice = { name: string; language: string };
 type Progress = (percent: number, message: string) => void;
@@ -146,7 +153,10 @@ async function render(project: Project, videos: GeneratedVideo[], requestedVoice
     for (const track of tracks) args.push('-i', track.file);
     for (let index = 0; index < visible.length; index++) args.push('-loop', '1', '-framerate', '30', '-i', path.join(temp, `caption-${index}.png`));
     const filters: string[] = [];
-    units.forEach((unit, index) => filters.push(`[${index}:v]trim=duration=${unit.targetDuration},setpts=PTS-STARTPTS,scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2,fps=30,setsar=1,format=yuv420p[v${index}]`));
+    units.forEach((unit, index) => {
+      const timing = clipTiming(unit.targetDuration, videos[index].duration);
+      filters.push(`[${index}:v]trim=duration=${timing.sourceSeconds},setpts=${timing.videoScale.toFixed(6)}*(PTS-STARTPTS),scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2,fps=30,setsar=1,format=yuv420p[v${index}]`);
+    });
     filters.push(`${units.map((_, index) => `[v${index}]`).join('')}concat=n=${units.length}:v=1:a=0[concat]`);
     const extension = unitId ? 0 : Math.max(0, duration - targetDuration);
     filters.push(extension ? `[concat]tpad=stop_mode=clone:stop_duration=${extension.toFixed(3)}[visual]` : '[concat]null[visual]');
@@ -206,8 +216,9 @@ export async function composeNativeVideo(project: Project, videos: GeneratedVide
     args.push('-i', file);
     const { stdout } = await exec('ffprobe', ['-v', 'error', '-select_streams', 'a', '-show_entries', 'stream=index', '-of', 'csv=p=0', file], { timeout: 20_000 });
     const duration = units[index].targetDuration;
-    filters.push(`[${index}:v]trim=duration=${duration},setpts=PTS-STARTPTS,scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2,fps=30,setsar=1,format=yuv420p[v${index}]`);
-    filters.push(stdout.trim() ? `[${index}:a]atrim=duration=${duration},asetpts=PTS-STARTPTS,aresample=48000,aformat=channel_layouts=stereo,apad,atrim=duration=${duration}[a${index}]` : `anullsrc=channel_layout=stereo:sample_rate=48000,atrim=duration=${duration}[a${index}]`);
+    const timing = clipTiming(duration, video.duration);
+    filters.push(`[${index}:v]trim=duration=${timing.sourceSeconds},setpts=${timing.videoScale.toFixed(6)}*(PTS-STARTPTS),scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2,fps=30,setsar=1,format=yuv420p[v${index}]`);
+    filters.push(stdout.trim() ? `[${index}:a]atrim=duration=${timing.sourceSeconds},asetpts=PTS-STARTPTS,${audioTempoChain(timing.audioTempo)}aresample=48000,aformat=channel_layouts=stereo,apad,atrim=duration=${duration}[a${index}]` : `anullsrc=channel_layout=stereo:sample_rate=48000,atrim=duration=${duration}[a${index}]`);
   }
   const duration = units.reduce((sum, unit) => sum + unit.targetDuration, 0);
   filters.push(`${units.map((_, index) => `[v${index}][a${index}]`).join('')}concat=n=${units.length}:v=1:a=1[video][audio]`);

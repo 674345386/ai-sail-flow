@@ -1,0 +1,51 @@
+.shot-rewrite-board { display: grid; gap: 18px; min-width: 0; }
+.rewrite-board-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.rewrite-board-heading h2 { margin: 0 0 7px; font-size: 18px; }
+.rewrite-board-heading p { margin: 0; color: var(--muted, #747474); font-size: 13px; line-height: 1.6; }
+.rewrite-board-heading .badge { flex-shrink: 0; }
+.rewrite-shot-row { overflow: hidden; border: 1px solid var(--border, #e5e5e5); border-radius: 12px; background: #fff; }
+.rewrite-shot-row.selected { border-color: #b8b8b8; }
+.rewrite-shot-row > header { padding: 16px 20px; display: flex; gap: 12px; justify-content: space-between; align-items: center; border-bottom: 1px solid #ededed; }
+.rewrite-shot-row > header > div, .rewrite-shot-row > header strong { display: flex; gap: 10px; align-items: center; }
+.rewrite-shot-row > header b { font-size: 12px; color: #666; font-variant-numeric: tabular-nums; }
+.rewrite-shot-row > header strong { font-size: 14px; }
+.rewrite-shot-row > header > span { font-size: 12px; color: #777; }
+.rewrite-shot-pair { display: grid; grid-template-columns: 1fr 1fr; }
+.rewrite-shot-pair > section { padding: 18px 20px; min-width: 0; }
+.rewrite-source { border-right: 1px solid #ededed; background: #fafafa; }
+.rewrite-column-label { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; font-weight: 600; margin-bottom: 14px; }
+.rewrite-column-label span { font-size: 11px; font-weight: 400; color: #777; }
+.rewrite-source-frames { display: flex; gap: 6px; min-height: 150px; align-items: center; }
+.rewrite-source-frames > a { flex: 1; min-width: 0; position: relative; }
+.rewrite-source-frames img { width: 100%; max-height: 230px; object-fit: contain; display: block; border-radius: 6px; background: #eeeeee; }
+.rewrite-source-frames a > span { position: absolute; bottom: 5px; left: 5px; font-size: 10px; color: #fff; background: #0009; border-radius: 3px; padding: 2px 4px; }
+.rewrite-target-frame { display: block; background: #f5f5f5; border-radius: 6px; }
+.rewrite-target-frame img { width: 100%; display: block; object-fit: contain; max-height: 270px; border-radius: 6px; }
+.rewrite-frame-placeholder { width: 100%; min-height: 150px; display: flex; gap: 10px; flex-direction: column; align-items: center; justify-content: center; padding: 20px; font-size: 12px; line-height: 1.6; color: #777; background: #f0f0f0; border-radius: 6px; }
+.rewrite-frame-placeholder.target { min-height: 220px; background: #f8f8f8; border: 1px dashed #ddd; }
+.rewrite-shot-pair p { font-size: 13px; line-height: 1.7; margin: 14px 0; overflow-wrap: anywhere; }
+.rewrite-shot-pair dl { margin: 0; display: grid; gap: 9px; }
+.rewrite-shot-pair dl > div { display: grid; grid-template-columns: 78px 1fr; gap: 8px; font-size: 12px; line-height: 1.6; }
+.rewrite-shot-pair dt { color: #888; }
+.rewrite-shot-pair dd { margin: 0; overflow-wrap: anywhere; }
+.rewrite-shot-pair details { margin-top: 15px; font-size: 12px; }
+.rewrite-shot-pair summary { cursor: pointer; color: #656565; }
+.rewrite-shot-pair pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 11px; padding: 12px; border: 1px solid #e9e9e9; border-radius: 6px; line-height: 1.6; }
+.rewrite-shot-actions { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 15px; }
+.rewrite-shot-notice { color: #996323; font-size: 12px; line-height: 1.6; }
+.rewrite-row-editor { border-top: 1px solid #e5e5e5; }
+.rewrite-shot-video { margin-top: 16px; display: grid; gap: 8px; font-size: 12px; color: #777; }
+.rewrite-shot-video video { width: 100%; max-height: 300px; background: #f5f5f5; border-radius: 7px; }
+.veo-linked-keyframe { display: flex; gap: 14px; margin: 16px 0; padding: 12px; background: #fafafa; border: 1px solid #e8e8e8; border-radius: 8px; }
+.veo-linked-keyframe > img { width: 86px; height: 112px; object-fit: contain; border-radius: 5px; }
+.veo-linked-keyframe > div { flex: 1; min-width: 0; }
+.veo-linked-keyframe small { display: block; margin-top: 6px; }
+.rewrite-product-images { display: flex; gap: 8px; margin: 12px 0; }
+.rewrite-product-images img { width: 64px; height: 78px; object-fit: contain; border: 1px solid #eee; border-radius: 6px; }
+.rewrite-product-inputs .muted { font-size: 12px; line-height: 1.6; }
+.rewrite-plan-details > summary { padding: 20px 22px; cursor: pointer; font-size: 14px; }
+.creative-inspector .rewrite-board-heading { flex-direction: column; align-items: flex-start; }
+.creative-inspector .rewrite-shot-pair { grid-template-columns: 1fr; }
+.creative-inspector .rewrite-source { border-right: 0; border-bottom: 1px solid #ededed; }
+.creative-inspector .rewrite-shot-row > header { flex-wrap: wrap; }
+@media (max-width: 850px) { .rewrite-shot-pair { grid-template-columns: 1fr; } .rewrite-source { border-right: 0; border-bottom: 1px solid #ededed; } .rewrite-board-heading, .rewrite-shot-row > header { flex-wrap: wrap; } }

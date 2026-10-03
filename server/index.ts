@@ -10,6 +10,7 @@ import { MODEL, defaultWorkspace, projectPatchSchema, validateContinuousTimeline
 import { buildExportFiles, buildVeoUnitPrompt } from '../shared/export';
 import { buildVeoPlan } from '../shared/veo-plan';
 import { workflowBusy } from '../shared/workflow';
+import { keyframeCurrent } from '../shared/storyboard';
 import type { GenerationInput } from './veo';
 import { compressUploadedVideo } from './video-compression';
 
@@ -17,12 +18,13 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 try { process.loadEnvFile(path.join(root, '.env')); } catch (err) { if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err; }
 // Load storage after .env so an optional data-directory override takes effect.
 const { createProject, getProject, listProjects, saveProject, uploadDir, defaultProjectId, createWorkspaceProject, getWorkspaceProject, listWorkspaceProjects, saveWorkspaceProject } = await import('./store');
-const { configured, configureConnection } = await import('./gemini');
+const { configured, configureConnection, keyframeModel } = await import('./gemini');
 const { VEO_MODELS, VEO_DURATION, configureGenerationKey, generationConfigured } = await import('./veo');
 const { listTtsVoices } = await import('./compose');
 const { launchTask, TaskError } = await import('./tasks');
 const { startWorkflow, setWorkflowMode } = await import('./workflow');
 const { inspectMedia, prepareShotMedia } = await import('./media');
+const { configureKeyframeStorage, keyframeStorageStatus } = await import('./keyframe-storage');
 const port = Number(process.env.SOP_PORT || 4317);
 const app = express();
 app.disable('x-powered-by');
@@ -49,7 +51,7 @@ const uploadsInProgress = new Set<string>();
 function editable(project: Project) {
   if (project.job?.status === 'running' || workflowBusy(project) || uploadsInProgress.has(project.id)) throw new HttpError(409, '当前任务正在处理，请等待完成或接管制作。');
 }
-app.get('/api/status', (_req, res) => res.json({ model: MODEL, configured: configured(), local: true, maxVideoMB: 250, maxImageMB: 10, videoGeneration: { provider: 'veo-3.1', models: VEO_MODELS, configured: generationConfigured(), duration: VEO_DURATION } }));
+app.get('/api/status', (_req, res) => res.json({ model: MODEL, keyframeModel: keyframeModel(), configured: configured(), local: true, maxVideoMB: 250, maxImageMB: 10, keyframeStorage: keyframeStorageStatus(), videoGeneration: { provider: 'veo-3.1', models: VEO_MODELS, configured: generationConfigured(), duration: VEO_DURATION } }));
 app.get('/api/tts/voices', async (req, res, next) => {
   try { res.json(await listTtsVoices()); } catch { next(new HttpError(503, '本机系统配音不可用，请确认 macOS 的 say 命令可运行。')); }
 });
@@ -63,6 +65,14 @@ app.post('/api/settings/veo', (req, res) => {
   const { apiKey } = z.object({ apiKey: z.string().trim().min(16).max(300) }).parse(req.body);
   configureGenerationKey(apiKey);
   res.json({ configured: generationConfigured(), verified: false, provider: 'veo-3.1', models: VEO_MODELS });
+});
+app.post('/api/settings/keyframe-storage', (req, res) => {
+  const { url, apiKey, bucket } = z.object({ url: z.url().max(500), apiKey: z.string().trim().min(16).max(2000),
+    bucket: z.string().trim().regex(/^[a-zA-Z\d][a-zA-Z\d_-]{0,62}$/).default('sop-keyframes') }).parse(req.body);
+  const address = new URL(url);
+  if (address.protocol !== 'https:' || address.username || address.password || /^(localhost|127\.|10\.|192\.168\.|169\.254\.|0\.|172\.(1[6-9]|2\d|3[01])\.)/.test(address.hostname) || address.hostname.includes(':')) throw new HttpError(400, '请输入有效的 Supabase HTTPS 项目地址。');
+  configureKeyframeStorage(url.replace(/\/+$/, ''), apiKey, bucket);
+  res.json({ ...keyframeStorageStatus(), verified: false });
 });
 app.get('/api/workspace', (_req, res) => res.json(defaultWorkspace));
 app.get('/api/workspace/projects', (_req, res) => res.json(listWorkspaceProjects()));
@@ -94,11 +104,11 @@ app.post('/api/projects/:id/shot-media', async (req, res, next) => {
   try {
     const project = record(req);
     const input = z.object({ assetId: z.string().max(80), start: z.number().min(0).max(2700), end: z.number().min(0).max(2700),
-      evidenceFrames: z.array(z.object({ at: z.number().min(0).max(2700), reason: z.string().max(1000) })).max(3).optional() }).parse(req.body);
+      evidenceFrames: z.array(z.object({ at: z.number().min(0).max(2700), reason: z.string().max(1000) })).max(3).optional(), framesOnly: z.boolean().default(false) }).parse(req.body);
     const video = project.assets.find(asset => asset.id === input.assetId && asset.kind === 'video');
     if (!video) throw new HttpError(404, '原片不存在，请先上传参考视频。');
     if (input.end <= input.start || input.end > (video.duration || 0) + .001) throw new HttpError(400, '镜头时间范围超出了原片，请先修正时间。');
-    try { res.json(await prepareShotMedia(video, input)); }
+    try { res.json(await prepareShotMedia(video, input, !input.framesOnly)); }
     catch (error) { throw new HttpError(422, error instanceof Error ? error.message : '镜头媒体提取失败。'); }
   } catch (error) { next(error); }
 });
@@ -213,6 +223,7 @@ app.post('/api/projects/:id/jobs/:kind', (req, res) => {
   if (kind !== 'analysis' && kind !== 'analysis-refine' && kind !== 'rewrite') throw new HttpError(400, '任务类型不正确。');
   acceptedTask(req, res, { kind });
 });
+app.post('/api/projects/:id/keyframes/:shotId', (req, res) => acceptedTask(req, res, { kind: 'keyframe', shotId: String(req.params.shotId) }));
 app.post('/api/projects/:id/workflow/mode', (req, res) => {
   const p = record(req);
   if (uploadsInProgress.has(p.id)) throw new HttpError(409, '请等待素材上传完成。');
@@ -221,8 +232,8 @@ app.post('/api/projects/:id/workflow/mode', (req, res) => {
 });
 app.post('/api/projects/:id/workflow/start', (req, res) => {
   const p = record(req); editable(p);
-  const { maxNewClips } = z.object({ maxNewClips: z.number().int().min(0).max(1000) }).parse(req.body);
-  res.status(202).json(startWorkflow(p.id, maxNewClips));
+  const { maxNewClips, target } = z.object({ maxNewClips: z.number().int().min(0).max(1000).default(0), target: z.enum(['keyframes', 'video']).default('keyframes') }).parse(req.body);
+  res.status(202).json(startWorkflow(p.id, maxNewClips, target));
 });
 app.get('/api/projects/:id/export', async (req, res) => {
   const project = record(req);
@@ -233,6 +244,16 @@ app.get('/api/projects/:id/export', async (req, res) => {
     const ext = asset.mime === 'image/png' ? 'png' : asset.mime === 'image/webp' ? 'webp' : 'jpg';
     zip.file(`product-references/reference-${i + 1}.${ext}`, fs.readFileSync(path.join(uploadDir, asset.filename)));
   }
+  const manifest = project.rewrite.shots.map((shot, index) => {
+    const keyframe = shot.keyframe;
+    const file = keyframeCurrent(project, shot) && keyframe?.filename && /^recreation-[a-f\d-]+\.(png|jpg|webp)$/.test(keyframe.filename) && fs.existsSync(path.join(uploadDir, keyframe.filename)) ? keyframe.filename : undefined;
+    const output = file ? `recreation-keyframes/shot-${String(index + 1).padStart(2, '0')}.${file.split('.').at(-1)}` : undefined;
+    if (file && output && fs.existsSync(path.join(uploadDir, file))) zip.file(output, fs.readFileSync(path.join(uploadDir, file)));
+    return { shotId: shot.id, sourceShotId: shot.sourceShotId || shot.id, sourceAt: keyframe?.sourceAt,
+      sourceFrameUrl: keyframe?.sourceFrameUrl, keyframeFile: output, status: keyframe?.status === 'completed' && !file ? 'stale' : keyframe?.status || 'pending',
+      keyframePrompt: shot.keyframePrompt, visual: shot.visual, generationPrompt: shot.generationPrompt };
+  });
+  zip.file('recreation-keyframes/manifest.json', JSON.stringify(manifest, null, 2));
   const buffer = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
   res.setHeader('Content-Disposition', `attachment; filename="sop-studio-${project.id.slice(0, 8)}.zip"; filename*=UTF-8''${encodeURIComponent(project.title + '.zip')}`);
   res.type('application/zip').send(buffer);
@@ -240,6 +261,7 @@ app.get('/api/projects/:id/export', async (req, res) => {
 app.use('/media', express.static(uploadDir, { dotfiles: 'deny', fallthrough: false, setHeaders(res, filepath) {
   if (filepath.endsWith('.srt')) { res.setHeader('Content-Type', 'application/x-subrip; charset=utf-8'); return; }
   if (filepath.endsWith('.mp4')) { res.setHeader('Content-Type', 'video/mp4'); return; }
+  if (/recreation-[a-f\d-]+\.(png|jpg|webp)$/.test(filepath)) return;
   if (!filepath.endsWith('.jpg')) {
     // Uploaded files use random extensionless names; set the registered, sniffed MIME type.
     const filename = path.basename(filepath);

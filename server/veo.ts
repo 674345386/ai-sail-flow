@@ -22,6 +22,7 @@ export type GenerationInput = {
   resolution: '720p' | '1080p' | 'lite';
   aspectRatio: '16:9' | '9:16';
   images: string[];
+  keyframeShotId?: string;
 };
 type Progress = (progress: number, message: string) => void;
 let sessionKey = '';
@@ -89,6 +90,9 @@ async function pollVideo(id: string, key: string, progress: Progress) {
 export async function generateVideo(input: GenerationInput, prompt: string, progress: Progress, submitted: (id: string) => void) {
   const key = generationKey();
   if (!key) throw new Error('请先配置 Veo 3.1 API Key。');
+  if (!prompt.trim()) throw new Error('视频生成描述不能为空。');
+  if (input.mode !== 't2v' && (!input.images.length || input.images.some(image => !publicHttps(image)))) throw new Error('图生视频需要有效的公网 HTTPS 图片链接，请检查关键帧存储连接。');
+  if (input.mode === 'i2v' && input.images.length > 2 || input.mode === 'r2v' && input.images.length > 3) throw new Error('图片数量超出当前视频模型的限制。');
   progress(15, '正在提交 Veo 3.1 任务…');
   const created = await providerRequest(endpoint, key, requestBody(input, prompt));
   const id = created?.id;

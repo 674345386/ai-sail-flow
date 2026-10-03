@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { randomUUID } from 'node:crypto';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 
@@ -20,20 +20,31 @@ try {
   const { buildVeoUnitPrompt } = await import('../shared/export');
   const { finalVideo, nextWorkflowAction, workflowBusy } = await import('../shared/workflow');
   const { startWorkflow, setWorkflowMode } = await import('../server/workflow');
+  const { configureKeyframeStorage } = await import('../server/keyframe-storage');
+  configureKeyframeStorage('https://storage.example.test', 'test-server-secret-key', 'sop-keyframes');
   const seed = demoProject(randomUUID());
+  const focus = { category: 'product' as const, text: '保持杯体外观', selected: true };
   seed.analysis!.duration = 8;
-  seed.analysis!.shots = [{ ...seed.analysis!.shots[0], start: 0, end: 8 }];
-  seed.rewrite!.shots = [{ ...seed.rewrite!.shots[0], start: 0, end: 8 }];
+  seed.analysis!.focusPoints = [{ ...focus, id: 'focus', source: 'ai', userEdited: false }];
+  seed.analysis!.shots = [{ ...seed.analysis!.shots[0], start: 0, end: 8, subject: '杯子', effects: '', transition: '', reconstructionPrompt: 'A coffee cup.', evidenceFrames: [{ at: 0.5, reason: '杯体' }], focusPoints: seed.analysis!.focusPoints }];
+  seed.rewrite!.shots = [{ ...seed.rewrite!.shots[0], start: 0, end: 8, sourceShotId: 'shot-1', keyframePrompt: 'A coffee cup on a desk.' }];
+  const image = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j1ioAAAAASUVORK5CYII=', 'base64');
+  const productFilename = `${randomUUID()}.png`;
+  await writeFile(path.join(uploadDir, productFilename), image);
   const filename = `veo-${randomUUID()}.mp4`;
   await exec('ffmpeg', ['-y', '-v', 'error', '-f', 'lavfi', '-i', 'color=c=blue:s=96x160:d=8:r=10', '-f', 'lavfi', '-i', 'sine=frequency=440:duration=8', '-c:v', 'libx264', '-c:a', 'aac', '-t', '8', path.join(uploadDir, filename)], { timeout: 20_000 });
   const fixture = await readFile(path.join(uploadDir, filename));
   let project = createProject();
-  project = saveProject({ ...project, product: seed.product, assets: [{ id: randomUUID(), kind: 'video', filename, name: 'reference.mp4', mime: 'video/mp4', size: fixture.length, url: `/media/${filename}`, duration: 8 }], productionMode: 'veo-native' });
+  project = saveProject({ ...project, product: seed.product, market: { ...project.market, duration: 'original' }, assets: [{ id: randomUUID(), kind: 'video', filename, name: 'reference.mp4', mime: 'video/mp4', size: fixture.length, url: `/media/${filename}`, duration: 8 }, { id: randomUUID(), kind: 'product', filename: productFilename, name: 'product.png', mime: 'image/png', size: image.length, url: `/media/${productFilename}` }], productionMode: 'veo-native' });
   assert.equal(nextWorkflowAction(project).kind, 'analysis');
   let analyzeCalls = 0, rewriteCalls = 0, submits = 0, polls = 0;
   let submittedPrompt = '';
   globalThis.fetch = async (url, options) => {
     const target = String(url);
+    if (target.includes('gemini-3.1-flash-image:generateContent')) return Response.json({ candidates: [{ content: { parts: [{ inlineData: { mimeType: 'image/png', data: image.toString('base64') } }] } }] });
+    if (target.endsWith('/bucket/sop-keyframes')) return Response.json({ id: 'sop-keyframes', public: false });
+    if (target.includes('/object/sign/')) return Response.json({ signedURL: '/object/sign/sop-keyframes/frame.png?token=temporary' });
+    if (target.includes('/object/sop-keyframes/')) return Response.json({ Key: 'frame.png' });
     if (target.includes(':generateContent')) {
       analyzeCalls++;
       setWorkflowMode(project.id, 'manual');
@@ -44,7 +55,10 @@ try {
       return Response.json({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(seed.rewrite) } }] });
     }
     if (target === 'https://gaorui.cc/v1/videos' && options?.method === 'POST') {
-      submits++; submittedPrompt = JSON.parse(String(options.body)).prompt;
+      const body = JSON.parse(String(options.body));
+      assert.equal(body.model, 'veo_3_1-fl');
+      assert(body.images[0].startsWith('https://storage.example.test/storage/v1/object/sign/'));
+      submits++; submittedPrompt = body.prompt;
       return Response.json({ id: 'mock-task-1' });
     }
     if (target.endsWith('/videos/mock-task-1')) {
@@ -64,12 +78,12 @@ try {
     await new Promise(resolve => setTimeout(resolve, 20));
     return getProject(project.id)!;
   }
-  startWorkflow(project.id, 1);
+  startWorkflow(project.id, 1, 'video');
   project = await stopped();
   assert.equal(project.workflow?.status, 'paused');
   assert(project.analysis && !project.rewrite, 'Takeover must preserve analysis and stop before rewrite');
   assert.equal(project.workflowMode, 'manual');
-  startWorkflow(project.id, 0);
+  startWorkflow(project.id, 0, 'video');
   project = await stopped();
   assert.equal(project.workflow?.status, 'needs-input');
   assert(project.rewrite && !project.rewriteStale);
@@ -77,13 +91,13 @@ try {
   const unit = buildVeoPlan(project.rewrite!.shots)[0];
   const rawPrompt = 'Keep this exact editable prompt. No JSON format is required.';
   project = saveProject({ ...project, veoPromptDrafts: { [`veo-native:${unit.id}`]: { prompt: rawPrompt, basis: buildVeoUnitPrompt(project, unit) } } });
-  startWorkflow(project.id, 1);
+  startWorkflow(project.id, 1, 'video');
   project = await stopped();
   assert.equal(project.workflow?.status, 'failed');
   assert.equal(project.generatedVideos[0].requestId, 'mock-task-1');
   assert.equal(project.workflow?.newClipCount, 1);
   assert.equal(submittedPrompt, rawPrompt, 'Automatic continuation must preserve the edited prompt');
-  startWorkflow(project.id, 1);
+  startWorkflow(project.id, 1, 'video');
   project = await stopped();
   assert.equal(project.workflow?.status, 'completed');
   assert.equal(analyzeCalls, 1);
