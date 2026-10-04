@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ArrowRight, LoaderCircle, LogOut, Mail, MessageCircle, ShieldCheck, X } from 'lucide-react';
 import { authDisplayName, authEmail, authLoginMethod, supabaseConfigured, validEmailCode, type AuthAvailability, type SailAuthState } from './auth';
 import './auth-module.css';
@@ -10,6 +10,7 @@ export default function AuthDialog({ open, onClose, auth, availability, email, c
   onSendCode: () => void; onVerifyCode: () => void; onWechatSignIn: () => void; onBack: () => void; onSignOut: () => void;
 }) {
   const dialog = useRef<HTMLDivElement>(null);
+  const [brandMarkFailed, setBrandMarkFailed] = useState(false);
   const close = useRef(onClose); close.current = onClose;
   const busy = useRef(auth.busy); busy.current = auth.busy;
   useEffect(() => {
@@ -34,7 +35,7 @@ export default function AuthDialog({ open, onClose, auth, availability, email, c
   return <div className="auth-screen sail-auth-dialog" ref={dialog} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="auth-screen-title" aria-busy={locked}>
     <button type="button" className="auth-screen-close" aria-label="关闭账号窗口" disabled={auth.busy} onClick={onClose}><span>返回</span><X size={16} /></button>
     <div className="auth-screen-content">
-      <div className="auth-screen-brand"><span className="auth-screen-brand-mark"><img src="/assets/brand/ai-sail-flow-mark.png" alt="" /></span><strong>AI-Sail Flow</strong></div>
+      <div className="auth-screen-brand"><span className={`auth-screen-brand-mark${brandMarkFailed ? ' is-fallback' : ''}`}>{brandMarkFailed ? <span aria-hidden="true">SF</span> : <img src="/assets/brand/ai-sail-flow-mark.png" alt="" onError={() => setBrandMarkFailed(true)} />}</span><strong>AI-Sail Flow</strong></div>
       {signedIn ? <div className="auth-account-view">
         <h1 id="auth-screen-title">我的账号</h1><div className="auth-account-icon">{authLoginMethod(auth.user) === '微信' ? <MessageCircle size={21} /> : <Mail size={21} />}</div>
         <strong>{authDisplayName(auth.user)}</strong><span>{authEmail(auth.user) || '微信账号'}</span><span className="auth-method-label">{authLoginMethod(auth.user)}登录</span>
