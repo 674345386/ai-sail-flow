@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { LoaderCircle, LogOut, Pencil, X } from 'lucide-react';
 import { authDisplayName, authEmail, authLoginMethod, supabaseConfigured, validEmailCode, type AuthAvailability, type SailAuthState } from './auth';
@@ -11,7 +11,6 @@ export default function AuthDialog({ open, onClose, auth, availability, email, c
   onSendCode: () => void; onVerifyCode: () => void; onGoogleSignIn: () => void; onBack: () => void; onSignOut: () => void; onEditProfile: () => void; avatarUrl: string;
 }) {
   const dialog = useRef<HTMLDivElement>(null);
-  const [brandMarkFailed, setBrandMarkFailed] = useState(false);
   const close = useRef(onClose); close.current = onClose;
   const busy = useRef(auth.busy); busy.current = auth.busy;
   useEffect(() => {
@@ -38,7 +37,6 @@ export default function AuthDialog({ open, onClose, auth, availability, email, c
     <div className="auth-modal-card" ref={dialog} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="auth-screen-title" aria-busy={locked}>
     <button type="button" className="auth-screen-close" aria-label="关闭账号窗口" disabled={auth.busy} onClick={onClose}><X size={18} /></button>
     <div className="auth-screen-content">
-      <div className="auth-screen-brand"><span className={`auth-screen-brand-mark${brandMarkFailed ? ' is-fallback' : ''}`}>{brandMarkFailed ? <span aria-hidden="true">SF</span> : <img src="/assets/brand/ai-sail-flow-mark.png" alt="" onError={() => setBrandMarkFailed(true)} />}</span><strong>AI-Sail Flow</strong></div>
       {signedIn ? <div className="auth-account-view">
         <h1 id="auth-screen-title">我的账号</h1><div className="auth-account-icon"><img src={avatarUrl} alt="我的头像" /></div>
         <strong>{authDisplayName(auth.user)}</strong><span>{authEmail(auth.user) || '我的账号'}</span><span className="auth-method-label">{authLoginMethod(auth.user)}登录</span>
@@ -61,7 +59,6 @@ export default function AuthDialog({ open, onClose, auth, availability, email, c
             <p className="auth-delivery-hint">没有收到邮件时，可以检查垃圾邮件文件夹。</p>
           </>}
           {auth.error && <div className="auth-error" role="alert">{auth.error}</div>}
-          {auth.status && <div className="auth-status" role="status">{auth.status}</div>}
           <button type="submit" className="auth-continue-button" disabled={locked || !supabaseConfigured || !email.trim() || availability.email === false || (stage === 'code' ? !validEmailCode(code) : resendSeconds > 0)}>{locked && <LoaderCircle size={17} className="spin" />}{stage === 'code' ? '验证并登录' : resendSeconds ? `${resendSeconds} 秒后可再次发送` : '发送邮箱验证码'}</button>
           {stage === 'email' && <p className="auth-legal">无需设置密码。{availability.signup !== false && '首次验证成功后会自动创建账号。'}</p>}
         </form>
