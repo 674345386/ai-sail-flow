@@ -6,6 +6,7 @@ import express, { type Request, type Response, type NextFunction } from 'express
 import multer from 'multer';
 import JSZip from 'jszip';
 import { z } from 'zod';
+import { createClient } from '@supabase/supabase-js';
 import { MODEL, defaultWorkspace, projectPatchSchema, validateContinuousTimeline, validateMarket, validateTimeline, type Project, type Asset, type ProductionMode } from '../shared/domain';
 import { buildExportFiles, buildVeoUnitPrompt } from '../shared/export';
 import { buildVeoPlan } from '../shared/veo-plan';
@@ -24,16 +25,69 @@ const { listTtsVoices } = await import('./compose');
 const { launchTask, TaskError } = await import('./tasks');
 const { startWorkflow, setWorkflowMode } = await import('./workflow');
 const { inspectMedia, prepareShotMedia } = await import('./media');
+const { collectUploadedAsset, listLibraryMedia, getLibraryMedia, libraryMime, initializeMediaLibrary } = await import('./media-library');
+await initializeMediaLibrary();
 const { configureKeyframeStorage, keyframeStorageStatus } = await import('./keyframe-storage');
 const port = Number(process.env.SOP_PORT || 4317);
 const app = express();
 app.disable('x-powered-by');
+const publicAuthEnabled = process.env.SOP_REQUIRE_AUTH === 'true';
+const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
+const supabasePublishableKey = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY || '';
+const allowedHosts = new Set((process.env.SOP_ALLOWED_HOSTS || '').split(',').map(host => host.trim().toLowerCase()).filter(Boolean));
+if (publicAuthEnabled && (!supabaseUrl || !supabasePublishableKey || !allowedHosts.size)) {
+  throw new Error('公网模式需配置 Supabase URL、Publishable Key 和 SOP_ALLOWED_HOSTS。');
+}
+const authClient = publicAuthEnabled ? createClient(supabaseUrl, supabasePublishableKey, { auth: { persistSession: false, autoRefreshToken: false } }) : null;
+const verifiedSessions = new Map<string, { allowed: boolean; expiresAt: number }>();
+const mediaCookie = 'sop_media_session';
+function bearerToken(req: Request) {
+  const header = req.headers.authorization || '';
+  return /^Bearer\s+(.+)$/i.exec(header)?.[1] || '';
+}
+function cookieToken(req: Request) {
+  const value = (req.headers.cookie || '').split(';').map(part => part.trim()).find(part => part.startsWith(`${mediaCookie}=`))?.slice(mediaCookie.length + 1);
+  if (!value) return '';
+  try { return decodeURIComponent(value); } catch { return ''; }
+}
+async function isAllowedToken(token: string) {
+  if (!authClient || !token) return false;
+  const cached = verifiedSessions.get(token);
+  if (cached && cached.expiresAt > Date.now()) return cached.allowed;
+  const { data, error } = await authClient.auth.getUser(token);
+  let expiresAt = Date.now() + 15_000;
+  try {
+    const payload = JSON.parse(Buffer.from(token.split('.')[1] || '', 'base64url').toString('utf8'));
+    if (Number.isFinite(payload.exp)) expiresAt = Math.min(Date.now() + 30_000, payload.exp * 1000);
+  } catch { /* Supabase still validates the token; malformed tokens are rejected below. */ }
+  // Public deployments allow any authenticated Supabase account. The token is
+  // verified by Supabase above; requiring an email here would reintroduce a
+  // single-account gate and prevent OAuth-only identities from signing in.
+  const allowed = !error && Boolean(data.user?.id);
+  if (verifiedSessions.size > 128) {
+    for (const [key, item] of verifiedSessions) if (item.expiresAt <= Date.now()) verifiedSessions.delete(key);
+    if (verifiedSessions.size > 128) verifiedSessions.clear();
+  }
+  verifiedSessions.set(token, { allowed, expiresAt });
+  return allowed;
+}
+function sessionCookieHeader(token: string, maxAgeSeconds: number) {
+  return `${mediaCookie}=${encodeURIComponent(token)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${Math.max(0, maxAgeSeconds)}`;
+}
 app.use((req, res, next) => {
-  const hostname = req.hostname;
-  if (!['127.0.0.1', 'localhost', '[::1]', '::1'].includes(hostname)) return res.status(403).json({ error: '此工作台仅接受本机访问。' });
+  const hostname = req.hostname.toLowerCase();
+  if (!publicAuthEnabled && !['127.0.0.1', 'localhost', '[::1]', '::1'].includes(hostname)) return res.status(403).json({ error: '此工作台仅接受本机访问。' });
+  if (publicAuthEnabled && !allowedHosts.has(hostname)) return res.status(400).json({ error: '访问域名未加入服务白名单。' });
+  const protectedResource = req.path.startsWith('/api') || req.path.startsWith('/media');
   const origin = req.headers.origin;
-  if (origin && ![`http://127.0.0.1:${port}`, `http://localhost:${port}`].includes(origin)) return res.status(403).json({ error: '请求来源不被允许。' });
-  if (req.headers['sec-fetch-site'] === 'cross-site') return res.status(403).json({ error: '不接受跨站请求。' });
+  if (origin && (!publicAuthEnabled || protectedResource)) {
+    let allowedOrigin = [`http://127.0.0.1:${port}`, `http://localhost:${port}`].includes(origin);
+    if (publicAuthEnabled) {
+      try { allowedOrigin = new URL(origin).host.toLowerCase() === String(req.headers.host || '').toLowerCase() && allowedHosts.has(new URL(origin).hostname.toLowerCase()); } catch { allowedOrigin = false; }
+    }
+    if (!allowedOrigin) return res.status(403).json({ error: '请求来源不被允许。' });
+  }
+  if (req.headers['sec-fetch-site'] === 'cross-site' && (!publicAuthEnabled || protectedResource)) return res.status(403).json({ error: '不接受跨站请求。' });
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Referrer-Policy', 'no-referrer');
   res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
@@ -51,7 +105,37 @@ const uploadsInProgress = new Set<string>();
 function editable(project: Project) {
   if (project.job?.status === 'running' || workflowBusy(project) || uploadsInProgress.has(project.id)) throw new HttpError(409, '当前任务正在处理，请等待完成或接管制作。');
 }
-app.get('/api/status', (_req, res) => res.json({ model: MODEL, keyframeModel: keyframeModel(), configured: configured(), local: true, maxVideoMB: 250, maxImageMB: 10, keyframeStorage: keyframeStorageStatus(), videoGeneration: { provider: 'veo-3.1', models: VEO_MODELS, configured: generationConfigured(), duration: VEO_DURATION } }));
+app.get('/api/status', (_req, res) => res.json({ model: MODEL, keyframeModel: keyframeModel(), configured: configured(), local: !publicAuthEnabled, maxVideoMB: 250, maxImageMB: 10, keyframeStorage: keyframeStorageStatus(), videoGeneration: { provider: 'veo-3.1', models: VEO_MODELS, configured: generationConfigured(), duration: VEO_DURATION } }));
+app.post('/api/auth/session', async (req, res) => {
+  if (!publicAuthEnabled) return res.sendStatus(204);
+  const token = bearerToken(req);
+  try {
+    if (!(await isAllowedToken(token))) return res.status(401).json({ error: '登录状态无效，请重新登录。' });
+    const payload = JSON.parse(Buffer.from(token.split('.')[1] || '', 'base64url').toString('utf8'));
+    const maxAge = Number.isFinite(payload.exp) ? Math.min(3600, payload.exp - Math.floor(Date.now() / 1000)) : 0;
+    if (maxAge <= 0) return res.status(401).json({ error: '登录已过期，请重新登录。' });
+    res.setHeader('Set-Cookie', sessionCookieHeader(token, maxAge));
+    return res.sendStatus(204);
+  } catch { return res.status(503).json({ error: '登录服务暂时不可用，请稍后重试。' }); }
+});
+app.delete('/api/auth/session', (_req, res) => {
+  if (publicAuthEnabled) res.setHeader('Set-Cookie', sessionCookieHeader('', 0));
+  res.sendStatus(204);
+});
+app.use('/api', async (req, res, next) => {
+  if (!publicAuthEnabled) return next();
+  try {
+    if (!(await isAllowedToken(bearerToken(req)))) return res.status(401).json({ error: '请先登录，或重新登录后继续。' });
+    return next();
+  } catch { return res.status(503).json({ error: '登录服务暂时不可用，请稍后重试。' }); }
+});
+app.use('/media', async (req, res, next) => {
+  if (!publicAuthEnabled) return next();
+  try {
+    if (!(await isAllowedToken(cookieToken(req)))) return res.status(401).json({ error: '请先登录后查看此素材。' });
+    return next();
+  } catch { return res.status(503).json({ error: '登录服务暂时不可用，请稍后重试。' }); }
+});
 app.get('/api/tts/voices', async (req, res, next) => {
   try { res.json(await listTtsVoices()); } catch { next(new HttpError(503, '本机系统配音不可用，请确认 macOS 的 say 命令可运行。')); }
 });
@@ -75,6 +159,7 @@ app.post('/api/settings/keyframe-storage', (req, res) => {
   res.json({ ...keyframeStorageStatus(), verified: false });
 });
 app.get('/api/workspace', (_req, res) => res.json(defaultWorkspace));
+app.get('/api/media-library', (_req, res) => res.json(listLibraryMedia()));
 app.get('/api/workspace/projects', (_req, res) => res.json(listWorkspaceProjects()));
 app.post('/api/workspace/projects', (req, res) => {
   const { title } = z.object({ title: z.string().trim().min(1).max(120) }).parse(req.body);
@@ -161,6 +246,50 @@ app.put('/api/projects/:id', (req, res) => {
   res.json(saveProject({ ...project, ...patch, generatedVideos, composedVideos, workflow, ttsTimingNotice, analysisMeta: patch.analysis ? project.analysisMeta : null, rewriteStale: project.rewriteStale || (!!patch.rewrite && inputsChanged) }));
 });
 const uploader = multer({ dest: uploadDir, limits: { fileSize: 250 * 1024 * 1024, files: 1, fields: 0 } });
+async function uploadedAsset(file: Express.Multer.File, kind: 'video' | 'product', compress = true): Promise<Asset> {
+  if (kind === 'product' && file.size > 10 * 1024 * 1024) throw new HttpError(400, '单张产品图不能超过 10 MB。');
+  let metadata = await inspectMedia(file.filename, kind);
+  const size = kind === 'video' && compress ? await compressUploadedVideo(file.path, file.size) : file.size;
+  if (size !== file.size) metadata = await inspectMedia(file.filename, kind);
+  return { id: randomUUID(), kind, name: Buffer.from(file.originalname, 'latin1').toString('utf8'), filename: file.filename, url: `/media/${file.filename}`, size, ...metadata };
+}
+function attachAsset(current: Project, asset: Asset) {
+  const video = asset.kind === 'video';
+  if (!video && current.assets.filter(item => item.kind === 'product').length >= 3) throw new HttpError(400, '最多上传 3 张产品参考图。');
+  return saveProject({ ...current, assets: video ? [...current.assets.filter(item => item.kind !== 'video'), asset] : [...current.assets, asset],
+    ttsTimingNotice: undefined, isDemo: video ? false : current.isDemo, analysis: video ? null : current.analysis,
+    analysisReview: video ? { pendingIds: [], suggestions: {} } : current.analysisReview, analysisMeta: video ? null : current.analysisMeta,
+    rewrite: video ? null : current.rewrite, rewriteStale: !video && !!current.rewrite,
+    generatedVideos: (current.generatedVideos || []).map(item => ({ ...item, stale: true })),
+    composedVideos: (current.composedVideos || []).map(item => ({ ...item, stale: true })), job: null });
+}
+app.post('/api/media-library/uploads/:kind', (req, res, next) => {
+  if (!['image', 'video'].includes(String(req.params.kind))) return next(new HttpError(400, '不支持的素材类型。'));
+  uploader.single('file')(req, res, async error => {
+    try {
+      if (error) throw error;
+      if (!req.file) throw new HttpError(400, '请选择一个文件。');
+      const asset = await uploadedAsset(req.file, req.params.kind === 'video' ? 'video' : 'product');
+      res.status(201).json(await collectUploadedAsset(asset));
+    } catch (err) {
+      if (req.file) { fs.unlink(req.file.path, () => {}); fs.unlink(`${req.file.path}.jpg`, () => {}); }
+      next(err);
+    }
+  });
+});
+app.post('/api/projects/:id/library-assets', async (req, res, next) => {
+  try {
+    const project = record(req); editable(project);
+    const { mediaId } = z.object({ mediaId: z.string().regex(/^[a-f0-9]{64}$/) }).parse(req.body);
+    const item = getLibraryMedia(mediaId);
+    if (!item?.filename) throw new HttpError(404, '素材不存在，请刷新素材库。');
+    const kind = item.kind === 'video' ? 'video' : 'product';
+    const metadata = kind === 'video' && !item.duration ? await inspectMedia(item.filename, kind) : {};
+    const current = record(req); editable(current);
+    const asset: Asset = { ...item, ...metadata, id: randomUUID(), kind, filename: item.filename };
+    res.json(attachAsset(current, asset));
+  } catch (err) { next(err); }
+});
 app.post('/api/projects/:id/assets/:kind', (req, res, next) => {
   try {
     const p = record(req); editable(p);
@@ -173,14 +302,10 @@ app.post('/api/projects/:id/assets/:kind', (req, res, next) => {
         if (!req.file) throw new HttpError(400, '请选择一个文件。');
         const kind = String(req.params.kind) as 'video' | 'product';
         if (kind === 'product' && req.file.size > 10 * 1024 * 1024) throw new HttpError(400, '单张产品图不能超过 10 MB。');
-        let metadata = await inspectMedia(req.file.filename, kind);
-        const size = kind === 'video' ? await compressUploadedVideo(req.file.path, req.file.size) : req.file.size;
-        if (size !== req.file.size) metadata = await inspectMedia(req.file.filename, kind);
-        const asset: Asset = { id: randomUUID(), kind, name: Buffer.from(req.file.originalname, 'latin1').toString('utf8'), filename: req.file.filename, url: `/media/${req.file.filename}`, size, ...metadata };
+        const asset = await uploadedAsset(req.file, kind, req.query.source !== 'library');
+        await collectUploadedAsset(asset);
         const current = getProject(p.id)!;
-        const assets = kind === 'video' ? [...current.assets.filter(a => a.kind !== 'video'), asset] : [...current.assets, asset];
-        const nextProject = { ...current, assets, ttsTimingNotice: undefined, isDemo: kind === 'video' ? false : current.isDemo, analysis: kind === 'video' ? null : current.analysis, analysisReview: kind === 'video' ? { pendingIds: [], suggestions: {} } : current.analysisReview, analysisMeta: kind === 'video' ? null : current.analysisMeta, rewrite: kind === 'video' ? null : current.rewrite, rewriteStale: kind === 'product' && !!current.rewrite, generatedVideos: (current.generatedVideos || []).map(video => ({ ...video, stale: true })), composedVideos: (current.composedVideos || []).map(video => ({ ...video, stale: true })), job: null };
-        res.status(201).json(saveProject(nextProject));
+        res.status(201).json(attachAsset(current, asset));
       } catch (err) {
         if (req.file) {
           fs.unlink(req.file.path, () => {});
@@ -265,6 +390,8 @@ app.use('/media', express.static(uploadDir, { dotfiles: 'deny', fallthrough: fal
   if (!filepath.endsWith('.jpg')) {
     // Uploaded files use random extensionless names; set the registered, sniffed MIME type.
     const filename = path.basename(filepath);
+    const archivedMime = libraryMime(filename);
+    if (archivedMime) { res.setHeader('Content-Type', archivedMime); return; }
     for (const p of listProjects()) {
       const project = getProject(p.id)!;
       const asset = project.assets.find(a => a.filename === filename) || project.generatedVideos?.find(a => a.filename === filename) || project.composedVideos?.find(a => a.filename === filename);
@@ -291,4 +418,5 @@ if (process.argv.includes('--production')) {
   const vite = await createServer({ root, server: { middlewareMode: true }, appType: 'spa' });
   app.use(vite.middlewares);
 }
-app.listen(port, '127.0.0.1', () => console.log(`AI-Sail Flow ready at http://127.0.0.1:${port} · ${MODEL} · Gemini ${configured() ? 'configured' : 'not configured'}`));
+const host = process.env.SOP_HOST || '127.0.0.1';
+app.listen(port, host, () => console.log(`AI-Sail Flow ready at http://${host}:${port} · ${MODEL} · Gemini ${configured() ? 'configured' : 'not configured'}`));

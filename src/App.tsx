@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode, type InputHTMLAttributes, type TextareaHTMLAttributes } from 'react';
-import { Archive, ArchiveRestore, ArrowDownToLine, ArrowLeft, ArrowRight, ArrowUpRight, Check, CheckCheck, ChevronDown, ChevronRight, CircleHelp, CirclePlay, Clapperboard, Copy, Download, Eye, FileJson, FileText, Film, FolderOpen, Globe2, ImagePlus, Info, LayoutList, LoaderCircle, LogOut, Mail, Package, PanelLeft, Plus, Save, ScanLine, Scissors, Settings, Settings2, ShieldCheck, Sparkles, Subtitles, Upload, Video, WandSparkles, Workflow, X } from 'lucide-react';
+import { Archive, ArchiveRestore, ArrowDownToLine, ArrowLeft, ArrowRight, ArrowUpRight, Check, CheckCheck, ChevronDown, ChevronRight, CircleHelp, CirclePlay, Clapperboard, Copy, Download, Eye, FileJson, FileText, Film, FolderOpen, Globe2, Grid2X2, ImagePlus, Info, LayoutList, LoaderCircle, LogOut, Mail, Package, Plus, Save, ScanLine, Scissors, Settings, Settings2, ShieldCheck, Sparkles, Subtitles, Upload, Video, WandSparkles, Workflow, X } from 'lucide-react';
 import { countries, defaultReplication, defaultWorkspace, languages, platforms, roles, timeLabel, validateContinuousTimeline, validateTimeline, type FocusPoint, type Project, type ProjectSummary, type WorkspaceProject, type Shot, type Product, type Market, type Replication, type ProductionMode, type WorkflowMode } from '../shared/domain';
 import { mergeFocusPoints } from '../shared/focus';
 import { keyframeCurrent } from '../shared/storyboard';
@@ -7,8 +7,11 @@ import { buildBrief, buildPrompt, buildExportFiles, buildVeoPromptPreview, build
 import { buildVeoPlan, type VeoPlanUnit } from '../shared/veo-plan';
 import { api, downloadBlob } from './api';
 import { useImagePaste } from './useImagePaste';
-import { authDisplayName, authEmail, initialAuthState, supabase, supabaseConfigured, type SailAuthState } from './auth';
-import AssetLibrary from './AssetLibrary';
+import { authDisplayName, authEmail, authErrorMessage, initialAuthState, publicAuthRequired, syncPublicServerSession, supabase, loadAuthAvailability, unknownAuthAvailability, validEmail, validEmailCode, startWechatSignIn, readAuthCallback, clearAuthCallback, type AuthAvailability, type SailAuthState } from './auth';
+import AuthDialog from './AuthDialog';
+import AssetLibrary, { MediaLibraryPage } from './AssetLibrary';
+import type { LibraryMedia } from '../shared/media-library';
+import { libraryFile, mediaChanged, syncMediaLibrary } from './mediaLibrary';
 import PipelineCanvas from './PipelineCanvas';
 import ShotBreakdown from './ShotBreakdown';
 import ShotRewriteBoard, { RewriteProductInputs } from './ShotRewriteBoard';
@@ -51,6 +54,12 @@ function Modal({ title, children, onClose, wide = false }: { title: string; chil
   return <dialog ref={ref} className={`modal ${wide ? 'wide' : ''}`} onCancel={e => { e.preventDefault(); onClose(); }} onClick={e => { if (e.target === e.currentTarget) onClose(); }}><div className="modal-heading"><h2>{title}</h2><button className="icon-btn" aria-label="关闭" onClick={onClose}><X size={18} /></button></div>{children}</dialog>;
 }
 function Badge({ children, tone = '' }: { children: ReactNode; tone?: string }) { return <span className={`badge ${tone}`}>{children}</span>; }
+function SidebarToggleIcon({ expanded }: { expanded: boolean }) {
+  return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <rect x="3" y="3" width="18" height="18" rx="3" />
+    {expanded ? <rect x="5.5" y="5.5" width="4" height="13" rx="1" fill="currentColor" stroke="none" /> : <path d="M9 3.5v17" />}
+  </svg>;
+}
 type OrganizationDialog = { kind: 'project-new' | 'project-edit' | 'creative-new' | 'creative-edit'; parentId: string; title: string; demo?: boolean };
 function OrganizationForm({ dialog, groups, busy, error, onSubmit, onClose }: { dialog: OrganizationDialog; groups: WorkspaceProject[]; busy: boolean; error: string; onSubmit: (title: string, parentId: string) => void; onClose: () => void }) {
   const [title, setTitle] = useState(dialog.title);
@@ -154,58 +163,6 @@ const landingPlans = [
 ];
 const sizeLabel = (bytes: number) => bytes > 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.round(bytes / 1024)} KB`;
 
-function AuthDialog({ open, onClose, auth, email, code, stage, onEmailChange, onCodeChange, onSendCode, onVerifyCode, onGoogleSignIn, onXSignIn, onBack, onSignOut }: {
-  open: boolean;
-  onClose: () => void;
-  auth: SailAuthState;
-  email: string;
-  code: string;
-  stage: 'email' | 'code';
-  onEmailChange: (value: string) => void;
-  onCodeChange: (value: string) => void;
-  onSendCode: () => void;
-  onVerifyCode: () => void;
-  onGoogleSignIn: () => void;
-  onXSignIn: () => void;
-  onBack: () => void;
-  onSignOut: () => void;
-}) {
-  useEffect(() => {
-    if (!open) return;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = previousOverflow; };
-  }, [open]);
-  if (!open) return null;
-  const signedIn = !!auth.user;
-  if (signedIn) return <Modal title="AI-Sail Flow 账号" onClose={onClose}><div className="auth-account-view"><div className="auth-account-icon"><Mail size={20} /></div><strong>{authDisplayName(auth.user)}</strong><span>{authEmail(auth.user)}</span><small>登录状态已保存在此浏览器。工作台仍保持本地运行。</small><button className="btn" onClick={() => { onSignOut(); onClose(); }}><LogOut size={15} />退出登录</button></div></Modal>;
-  return <div className="auth-screen" role="dialog" aria-modal="true" aria-labelledby="auth-screen-title">
-    <button className="auth-screen-close" aria-label="返回首页" onClick={onClose}><span>返回首页</span><X size={16} /></button>
-    <main className="auth-screen-content">
-      <div className="auth-screen-brand"><span className="auth-screen-brand-mark"><img src="/assets/brand/ai-sail-flow-mark.png" alt="" /></span><strong>AI-Sail Flow</strong></div>
-      <div className="auth-screen-intro"><span className="auth-screen-eyebrow">AI-SAIL FLOW · CREATIVE OPERATING SYSTEM</span><h1 id="auth-screen-title">{stage === 'code' ? '检查你的邮箱' : '创建你的出海工作区'}</h1><p>{stage === 'code' ? <>我们已将 6 位验证码发送至 <strong>{email}</strong></> : '从一条参考视频开始，生成可以直接交给团队执行的海外内容方案。'}</p></div>
-      <form className="auth-screen-form" onSubmit={e => { e.preventDefault(); stage === 'email' ? onSendCode() : onVerifyCode(); }}>
-        {!supabaseConfigured && <div className="auth-warning" role="alert">尚未配置 Supabase 环境变量，请在本地 `.env` 中填写登录配置。</div>}
-        {stage === 'email' ? <>
-          <div className="auth-social-stack">
-            <button type="button" className="auth-social-button auth-social-google" onClick={onGoogleSignIn} disabled={auth.busy || !supabaseConfigured}><span className="auth-google-logo" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="#4285F4" d="M21.35 12.27c0-.7-.06-1.37-.18-2.02H12v3.83h5.24a4.48 4.48 0 0 1-1.94 2.94v2.45h3.15c1.85-1.7 2.9-4.2 2.9-7.2Z" /><path fill="#34A853" d="M12 21.5c2.64 0 4.86-.87 6.48-2.36l-3.15-2.45c-.87.58-1.98.92-3.33.92-2.56 0-4.73-1.73-5.51-4.06H3.24V16.1A9.8 9.8 0 0 0 12 21.5Z" /><path fill="#FBBC05" d="M6.49 13.55A5.9 5.9 0 0 1 6.18 12c0-.54.11-1.06.31-1.55V8.02H3.24A9.49 9.49 0 0 0 2.2 12c0 1.44.35 2.8 1.04 3.98l3.25-2.43Z" /><path fill="#EA4335" d="M12 6.39c1.44 0 2.73.5 3.75 1.49l2.81-2.81C16.85 3.45 14.63 2.5 12 2.5a9.8 9.8 0 0 0-8.76 5.52l3.25 2.43C7.27 8.12 9.44 6.39 12 6.39Z" /></svg></span><span>使用 Google 继续</span></button>
-            <button type="button" className="auth-social-button auth-social-x" onClick={onXSignIn} disabled={auth.busy || !supabaseConfigured}><span className="auth-x-logo" aria-hidden="true">𝕏</span><span>使用 X 继续</span></button>
-          </div>
-          <div className="auth-divider"><span>或使用邮箱验证码</span></div>
-          <label className="auth-input-label"><span>邮箱地址</span><input className="input" type="email" autoComplete="email" placeholder="you@example.com" value={email} disabled={auth.busy} onChange={e => onEmailChange(e.target.value)} required /></label>
-        </> : <>
-          <label className="auth-input-label"><span>6 位验证码</span><input className="input auth-code-input" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} placeholder="000000" value={code} disabled={auth.busy} onChange={e => onCodeChange(e.target.value.replace(/\D/g, '').slice(0, 6))} required /></label>
-          <button type="button" className="auth-change-email" onClick={onBack} disabled={auth.busy}>使用其他邮箱</button>
-        </>}
-        {auth.error && <div className="auth-error" role="alert">{auth.error}</div>}
-        {auth.status && <div className="auth-status" role="status">{auth.status}</div>}
-        <button type="submit" className="auth-continue-button" disabled={auth.busy || !email.trim() || (stage === 'code' && code.length !== 6) || !supabaseConfigured}>{auth.busy ? <LoaderCircle size={17} className="spin" /> : <ArrowRight size={17} />}{stage === 'email' ? '继续' : '验证并进入工作区'}</button>
-        {stage === 'email' && <p className="auth-legal">继续即表示你同意 AI-Sail Flow 的使用条款与隐私政策。<br />邮箱验证码登录无需密码，首次登录会自动创建账号。</p>}
-      </form>
-      <div className="auth-screen-footer"><ShieldCheck size={14} /><span>登录后可使用私有云端素材库；创意工作区仍在本机运行</span></div>
-    </main>
-  </div>;
-}
 
 export default function App() {
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
@@ -248,13 +205,17 @@ export default function App() {
   const [authEmailValue, setAuthEmailValue] = useState('');
   const [authCode, setAuthCode] = useState('');
   const [authStage, setAuthStage] = useState<'email' | 'code'>('email');
-  const [assetLibraryKind, setAssetLibraryKind] = useState<'image' | 'video' | null>(null);
+  const [authAvailability, setAuthAvailability] = useState<AuthAvailability>(unknownAuthAvailability);
+  const [authResendAt, setAuthResendAt] = useState(0);
+  const [authResendSeconds, setAuthResendSeconds] = useState(0);
+  const authRequest = useRef(false);
+  const [assetLibraryTarget, setAssetLibraryTarget] = useState<'all' | 'image' | 'video' | null>(null);
+  const [initialMedia, setInitialMedia] = useState<LibraryMedia | null>(null);
+  const [showMediaLibrary, setShowMediaLibrary] = useState(false);
   const current = useRef<Project | null>(null);
   const unsaved = useRef(false);
   const editSequence = useRef(0);
   const savePromise = useRef<Promise<Project | null> | null>(null);
-  const videoInput = useRef<HTMLInputElement>(null);
-  const imageInput = useRef<HTMLInputElement>(null);
   const imageUploadBoxes = useRef<HTMLDivElement>(null);
   const player = useRef<HTMLVideoElement>(null);
   const [dragging, setDragging] = useState(false);
@@ -305,6 +266,8 @@ export default function App() {
     let cancelled = false;
     void (async () => {
       try {
+        if (publicAuthRequired && (!auth.initialized || !auth.session)) return;
+        if (publicAuthRequired && auth.session) await syncPublicServerSession(auth.session.access_token);
         const [list, modelStatus] = await Promise.all([api<ProjectSummary[]>('/api/projects'), api<Status>('/api/status')]);
         let preferred = '';
         try { preferred = localStorage.getItem('sop-current-project') || ''; } catch {}
@@ -315,53 +278,108 @@ export default function App() {
       } catch (e) { if (!cancelled) setBootError(e instanceof Error ? e.message : '无法连接工作台'); }
     })();
     return () => { cancelled = true; };
-  }, [adopt, refreshList]);
+  }, [adopt, refreshList, auth.initialized, auth.session?.access_token]);
   useEffect(() => { if (project?.id) { try { localStorage.setItem('sop-current-project', project.id); } catch {} } }, [project?.id]);
   useEffect(() => {
     if (!supabase) { setAuth({ ...initialAuthState, initialized: true }); return; }
     let cancelled = false;
+    const callback = readAuthCallback();
     const applySession = (session: SailAuthState['session'], status = '', error = '') => {
-      if (!cancelled) setAuth(current => ({ ...current, initialized: true, session, user: session?.user || null, busy: false, status, error }));
+      if (!cancelled) setAuth(current => ({ ...current, initialized: true, session, user: session?.user || null, status, error }));
     };
-    void supabase.auth.getSession().then(({ data, error }) => applySession(data.session, '', error?.message || ''));
+    void supabase.auth.getSession().then(({ data, error }) => {
+      if (cancelled) return;
+      const failure = callback.error || error;
+      applySession(data.session, callback.active && data.session ? '登录成功' : '', failure ? authErrorMessage(failure) : '');
+      if (callback.active) {
+        clearAuthCallback();
+        if (data.session) { setShowLanding(false); setAuthOpen(false); }
+        else { setAuthOpen(true); if (!failure) setAuth(current => ({ ...current, error: '登录授权未完成，请重新开始登录。' })); }
+      }
+    }).catch(error => { if (!cancelled) { applySession(null, '', authErrorMessage(error)); if (callback.active) { clearAuthCallback(); setAuthOpen(true); } } });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      const status = event === 'SIGNED_IN' ? '登录成功' : event === 'SIGNED_OUT' ? '已退出登录' : '';
-      applySession(session, status);
+      if (cancelled) return;
+      setAuth(current => ({ ...current, initialized: true, session, user: session?.user || null,
+        ...(event === 'SIGNED_OUT' ? { status: '已退出登录', error: '' } : {}) }));
+      if (publicAuthRequired && !session) setShowLanding(true);
     });
     return () => { cancelled = true; subscription.unsubscribe(); };
   }, []);
+  useEffect(() => {
+    if (!publicAuthRequired || !auth.initialized) return;
+    if (!auth.session) { void syncPublicServerSession(null).catch(() => {}); return; }
+    void syncPublicServerSession(auth.session.access_token).catch(error => {
+      setAuth(current => ({ ...current, error: error instanceof Error ? error.message : '登录状态同步失败，请重新登录。' }));
+    });
+  }, [auth.initialized, auth.session?.access_token]);
+  useEffect(() => {
+    if (!authOpen) return;
+    let alive = true;
+    void loadAuthAvailability().then(value => { if (alive) setAuthAvailability(value); }).catch(() => { if (alive) setAuthAvailability(unknownAuthAvailability); });
+    return () => { alive = false; };
+  }, [authOpen]);
+  useEffect(() => {
+    const tick = () => setAuthResendSeconds(Math.max(0, Math.ceil((authResendAt - Date.now()) / 1000)));
+    tick(); if (authResendAt <= Date.now()) return;
+    const timer = window.setInterval(() => { tick(); if (authResendAt <= Date.now()) window.clearInterval(timer); }, 1000);
+    return () => window.clearInterval(timer);
+  }, [authResendAt]);
   useEffect(() => {
     if (!dirty || busy || project?.job?.status === 'running') return;
     const timer = setTimeout(() => { void save().catch(e => setError(e.message)); }, 1000);
     return () => clearTimeout(timer);
   }, [project, dirty, busy, save]);
   const sendAuthCode = async () => {
-    if (!supabase || !authEmailValue.trim()) return;
+    if (!supabase || authRequest.current || authResendAt > Date.now()) return;
+    const email = authEmailValue.trim();
+    if (!validEmail(email)) { setAuth(current => ({ ...current, error: '请填写有效的邮箱地址。', status: '' })); return; }
+    authRequest.current = true;
     setAuth(current => ({ ...current, busy: true, error: '', status: '正在发送验证码…' }));
-    const { error: sendError } = await supabase.auth.signInWithOtp({ email: authEmailValue.trim(), options: { shouldCreateUser: true } });
-    if (sendError) setAuth(current => ({ ...current, busy: false, status: '', error: sendError.message }));
-    else { setAuthStage('code'); setAuth(current => ({ ...current, busy: false, status: '验证码已发送，请检查邮箱。', error: '' })); }
+    try {
+      const { error } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: true } });
+      if (error) throw error;
+      setAuthEmailValue(email); setAuthCode(''); setAuthStage('code'); setAuthResendAt(Date.now() + 60000);
+      setAuth(current => ({ ...current, status: '验证码已发送，请检查邮箱。', error: '' }));
+    } catch (error) { setAuth(current => ({ ...current, status: '', error: authErrorMessage(error) })); }
+    finally { authRequest.current = false; setAuth(current => ({ ...current, busy: false })); }
   };
-  const signInWithOAuth = async (provider: 'google' | 'twitter', providerName: string) => {
-    if (!supabase) return;
-    setAuth(current => ({ ...current, busy: true, error: '', status: `正在跳转到 ${providerName}…` }));
-    const { error: oauthError } = await supabase.auth.signInWithOAuth({ provider, options: { redirectTo: `${window.location.origin}${window.location.pathname}` } });
-    if (oauthError) setAuth(current => ({ ...current, busy: false, status: '', error: oauthError.message }));
+  const signInWithWechat = async () => {
+    if (!supabase || authRequest.current) return;
+    authRequest.current = true;
+    setAuth(current => ({ ...current, busy: true, error: '', status: '正在打开微信扫码登录…' }));
+    try {
+      const availability = await loadAuthAvailability(); setAuthAvailability(availability);
+      if (!availability.wechat) { setAuth(current => ({ ...current, status: '', error: '微信登录暂未开通，请使用邮箱验证码登录。' })); return; }
+      await flush();
+      const url = await startWechatSignIn();
+      window.location.assign(url);
+    } catch (error) { setAuth(current => ({ ...current, status: '', error: authErrorMessage(error) })); }
+    finally { authRequest.current = false; setAuth(current => ({ ...current, busy: false })); }
   };
-  const signInWithGoogle = () => signInWithOAuth('google', 'Google');
-  const signInWithX = () => signInWithOAuth('twitter', 'X');
   const verifyAuthCode = async () => {
-    if (!supabase || !authEmailValue.trim() || authCode.length !== 6) return;
+    if (!supabase || authRequest.current || !validEmailCode(authCode)) return;
+    authRequest.current = true;
     setAuth(current => ({ ...current, busy: true, error: '', status: '正在验证…' }));
-    const { data, error: verifyError } = await supabase.auth.verifyOtp({ email: authEmailValue.trim(), token: authCode, type: 'email' });
-    if (verifyError) setAuth(current => ({ ...current, busy: false, status: '', error: verifyError.message }));
-    else { setAuth(current => ({ ...current, busy: false, session: data.session, user: data.user, status: '登录成功', error: '' })); setAuthCode(''); setAuthStage('email'); setAuthOpen(false); }
+    try {
+      const { data, error } = await supabase.auth.verifyOtp({ email: authEmailValue.trim(), token: authCode, type: 'email' });
+      if (error) throw error;
+      if (!data.session || !data.user) throw new Error('登录未完成');
+      setAuth(current => ({ ...current, session: data.session, user: data.user, status: '登录成功', error: '' }));
+      setAuthCode(''); setAuthStage('email'); setAuthOpen(false); setShowLanding(false);
+    } catch (error) { setAuth(current => ({ ...current, status: '', error: authErrorMessage(error) })); }
+    finally { authRequest.current = false; setAuth(current => ({ ...current, busy: false })); }
   };
   const signOut = async () => {
-    if (!supabase) return;
+    if (!supabase || authRequest.current) return;
+    authRequest.current = true;
     setAuth(current => ({ ...current, busy: true, status: '正在退出…', error: '' }));
-    const { error: signOutError } = await supabase.auth.signOut();
-    setAuth(current => ({ ...current, busy: false, status: signOutError ? '' : '已退出登录', error: signOutError?.message || '' }));
+    try {
+      const { error } = await supabase.auth.signOut({ scope: 'local' });
+      if (error) throw error;
+      setAuth(current => ({ ...current, session: null, user: null, status: '已退出登录', error: '' }));
+      setAuthCode(''); setAuthEmailValue(''); setAuthStage('email'); setAuthOpen(false);
+    } catch (error) { setAuth(current => ({ ...current, status: '', error: authErrorMessage(error) })); }
+    finally { authRequest.current = false; setAuth(current => ({ ...current, busy: false })); }
   };
   const openAuth = () => { setAuthOpen(true); setAuthStage(auth.user ? 'email' : authStage); setAuthEmailValue(authEmail(auth.user) || authEmailValue); };
   useEffect(() => {
@@ -406,7 +424,7 @@ export default function App() {
     field?.scrollIntoView({ block: 'center' });
     setFocusTarget(null);
   }, [step, focusTarget, busy, running]);
-  const switchProject = (id: string) => perform('正在打开创意', async () => {
+  const switchProject = (id: string) => perform('正在打开创意', async () => { setShowMediaLibrary(false);
     await flush(); const p = await api<Project>(`/api/projects/${id}`); adopt(p); setDirty(false); unsaved.current = false;
     setStep(p.rewrite ? 2 : p.analysis ? 1 : 0); setSelectedShot(0); setSelectedRewrite(0); setSidebarOpen(false); setShowRequiredErrors(false); setFocusTarget(null); setObserving(false);
   });
@@ -431,7 +449,7 @@ export default function App() {
     } else {
       const demo = Boolean(organizationDialog.demo);
       const p = await api<Project>('/api/projects', { method: 'POST', body: JSON.stringify({ demo, parentProjectId: parentId, title }) });
-      adopt(p); setDirty(false); unsaved.current = false; setStep(demo ? 1 : 0); setSelectedShot(0); setSelectedRewrite(0); setShowRequiredErrors(false); setFocusTarget(null); setObserving(false); setShowArchived(false); await refreshList(); setSidebarOpen(false);
+      adopt(p); setShowMediaLibrary(false); setDirty(false); unsaved.current = false; setStep(demo ? 1 : 0); setSelectedShot(0); setSelectedRewrite(0); setShowRequiredErrors(false); setFocusTarget(null); setObserving(false); setShowArchived(false); await refreshList(); setSidebarOpen(false);
     }
     setOrganizationDialog(null);
   });
@@ -456,7 +474,10 @@ export default function App() {
     setObserving(false);
   });
   const inspectWorkflow = () => { setObserving(true); setStep(project?.rewrite ? 2 : project?.analysis ? 1 : 0); };
-  const enterWorkspace = (create = false, mode?: WorkflowMode) => { setShowLanding(false); setSidebarOpen(false); if (create) void newProject(); else if (mode) void selectWorkflowMode(mode); };
+  const enterWorkspace = (create = false, mode?: WorkflowMode) => {
+    if (publicAuthRequired && !auth.session) { setAuthOpen(true); return; }
+    setShowLanding(false); setSidebarOpen(false); if (create) void newProject(); else if (mode) void selectWorkflowMode(mode);
+  };
   const uploadFiles = (files: FileList | File[], kind: 'video' | 'product') => {
     const list = Array.from(files);
     return perform(kind === 'video' && list.some(file => file.size >= 8 * 1024 * 1024) ? '正在上传并压缩视频' : '正在上传素材', async () => {
@@ -469,14 +490,35 @@ export default function App() {
         const form = new FormData(); form.append('file', file);
         adopt(await api<Project>(`/api/projects/${p.id}/assets/${kind}`, { method: 'POST', body: form }));
       }
-      await refreshList(); setNotice('素材已保存到本机');
+      await refreshList(); mediaChanged(); setNotice('素材已收录到所有媒体');
+      void syncMediaLibrary(auth.user).catch(error => setNotice(error instanceof Error ? error.message : '素材已收录，云端同步暂未完成。'));
     });
   };
-  const openAssetLibrary = (kind: 'image' | 'video') => {
-    if (!auth.user) { setAuthOpen(true); setAuth(current => ({ ...current, error: '', status: '登录后即可使用跨创意云端素材库。' })); return; }
-    setAssetLibraryKind(kind);
+  const openAssetLibrary = (target: 'all' | 'image' | 'video', item: LibraryMedia | null = null) => {
+    setInitialMedia(item); setAssetLibraryTarget(target);
   };
-  useImagePaste(imageUploadBoxes, workspaceView === 'steps' && step === 0 && !busy && !running && !observing && !modal && !showPipeline && !authOpen && !showLanding, files => { void uploadFiles(files, 'product'); });
+  const referenceMedia = async (item: LibraryMedia) => {
+    if (busy || running || observing) throw new Error('当前创意正在处理，请等待完成或接管制作后引用素材。');
+    const kind = item.kind === 'video' ? 'video' : 'product';
+    if (assetLibraryTarget !== 'all' && assetLibraryTarget !== item.kind) throw new Error('请选择与当前入口匹配的素材。');
+    setBusy('正在引用素材'); setError('');
+    try {
+      const p = await flush(); if (!p) throw new Error('请先打开一个创意。');
+      if (p.archivedAt) throw new Error('请先恢复当前创意，再引用素材。');
+      if (kind === 'product' && p.assets.filter(asset => asset.kind === 'product').length >= 3) throw new Error('最多使用 3 张产品/主体参考图，请先移除一张。');
+      let updated: Project;
+      if (item.filename) updated = await api<Project>(`/api/projects/${p.id}/library-assets`, { method: 'POST', body: JSON.stringify({ mediaId: item.id }) });
+      else {
+        const file = await libraryFile(item);
+        const form = new FormData(); form.append('file', file);
+        updated = await api<Project>(`/api/projects/${p.id}/assets/${kind}?source=library`, { method: 'POST', body: form });
+      }
+      adopt(updated); setShowMediaLibrary(false); setStep(0); mediaChanged();
+      await refreshList(); setNotice('素材已添加到当前创意');
+      void syncMediaLibrary(auth.user).catch(error => setNotice(error instanceof Error ? error.message : '素材已引用，云端同步暂未完成。'));
+    } finally { setBusy(''); }
+  };
+  useImagePaste(imageUploadBoxes, workspaceView === 'steps' && step === 0 && !busy && !running && !observing && !modal && !showPipeline && !authOpen && !showLanding && !assetLibraryTarget && !showMediaLibrary, files => { void uploadFiles(files, 'product'); });
   const removeAsset = (id: string) => perform('正在移除素材', async () => { const p = await flush(); if (p) adopt(await api<Project>(`/api/projects/${p.id}/assets/${id}`, { method: 'DELETE' })); });
   const startJob = (kind: 'analysis' | 'analysis-refine' | 'rewrite') => perform('正在准备任务', async () => {
     const p = await flush(); if (!p) return;
@@ -540,21 +582,19 @@ export default function App() {
     if (failed?.requestId) void recoverGeneration(failed.id);
     else if (failed?.unitId) void startGeneration(failed.unitId, { mode: failed.mode || 't2v', resolution: failed.resolution || '720p', aspectRatio: failed.aspectRatio === '16:9' ? '16:9' : '9:16', prompt: failed.prompt, ...(failed.mode && failed.mode !== 't2v' ? { images: failed.imageUrls || [] } : {}) });
   };
-  const go = (n: number) => perform('正在保存', async () => { const p = await flush(); if (p?.workflowMode === 'automatic') setObserving(true); setStep(n); setSidebarOpen(false); });
+  const go = (n: number) => perform('正在保存', async () => { setShowMediaLibrary(false); const p = await flush(); if (p?.workflowMode === 'automatic') setObserving(true); setStep(n); setSidebarOpen(false); });
   const fillProductField = (id: string) => perform('正在打开产品资料', async () => {
     await flush(); setShowRequiredErrors(true); setStep(0); setFocusTarget(id); setSidebarOpen(false);
   });
   const exportZip = () => perform('正在打包', async () => {
     const p = await flush(); if (!p) return;
-    const response = await fetch(`/api/projects/${p.id}/export`);
+    const session = supabase ? (await supabase.auth.getSession()).data.session : null;
+    const response = await fetch(`/api/projects/${p.id}/export`, { credentials: 'same-origin', headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {} });
     if (!response.ok) throw new Error((await response.json()).error);
     downloadBlob(await response.blob(), `${p.title}.zip`); setNotice('提示词包已导出');
   });
   const copy = async (value: string) => { try { await navigator.clipboard.writeText(value); setNotice('已复制'); } catch { setError('浏览器未允许复制，请使用下载按钮。'); } };
 
-  if (!project) return <div className="boot-screen"><div className="brand-icon"><img src="/assets/brand/ai-sail-flow-mark.png" alt="" /></div><h1>AI-Sail Flow</h1>{bootError ? <><p className="error-text">{bootError}</p><button className="btn" onClick={() => location.reload()}>重新连接</button></> : <><LoaderCircle className="spin" /><p>正在打开工作台…</p></>}</div>;
-  const video = project.assets.find(a => a.kind === 'video');
-  const productImages = project.assets.filter(a => a.kind === 'product');
   const landingImages = [
     '/assets/landing/workflow-merchant-daylight.png',
     '/assets/landing/workflow-creator-rooftop.png',
@@ -575,7 +615,7 @@ export default function App() {
     '/assets/landing/outdoor-creator.png',
     '/assets/landing/market-filming.png',
   ];
-  if (showLanding) return <div className="landing-page">
+  if (showLanding || (!project && publicAuthRequired && !auth.session)) return <div className="landing-page">
     <header className="landing-nav">
       <button className="landing-brand" onClick={() => setShowLanding(true)} aria-label="回到首页"><span>AI-Sail Flow</span></button>
       <nav className="landing-links" aria-label="首页导航"><a href="#overview">概览</a><a href="#models">模型</a><a href="#features">功能</a><a href="#tools">工具</a><a href="#creator">Flow 创作营</a><a href="#pricing">价格</a></nav>
@@ -590,7 +630,7 @@ export default function App() {
         <h1>AI-Sail Flow</h1>
         <p>您的专属 AI 出海内容工作室，基于<br />真实视频理解与市场洞察打造而成。</p>
         <div className="landing-workflow-actions"><button className="landing-cta" onClick={() => enterWorkspace(false, 'automatic')}><span>自动制作视频</span><ArrowRight size={18} /></button><button className="landing-cta" onClick={() => enterWorkspace(false, 'manual')}><span>进入 AI-Sail Flow 制作</span><span className="landing-cta-arrow"><ArrowRight size={17} /></span></button></div>
-        <small className="landing-disclaimer"><ShieldCheck size={13} /> 本地部署 · 素材保存在你的设备</small>
+        <small className="landing-disclaimer"><ShieldCheck size={13} /> {publicAuthRequired ? '邮箱验证后即可访问 · 登录用户共用工作区' : '本地部署 · 素材保存在你的设备'}</small>
       </section>
       <a className="landing-scroll" href="#made" aria-label="继续探索"><span>向下探索</span><ArrowDownToLine size={17} /></a>
     </main>
@@ -645,14 +685,17 @@ export default function App() {
     <section className="gf-faq">
       <h2>有疑问?</h2>
       <div>{[
-        ['AI-Sail Flow 会保存我的视频吗？', '本地部署版本把上传素材、项目和导出结果保存在你的设备中。'],
+        ['AI-Sail Flow 会保存我的视频吗？', publicAuthRequired ? '公网部署版本会把项目和上传素材保存在授权工作区；只有获准登录的账号可以访问。' : '本地部署版本把上传素材、项目和导出结果保存在你的设备中。'],
         ['Gemini 3.8 Flash 如何理解完整视频？', '视频与音轨通过原生多模态格式一起输入，用于识别镜头、口播、产品展示和节奏。'],
         ['生成的方案可以直接交给制作团队吗？', '可以。导出包包含分镜、字幕草稿、制作简报和视频生成提示词。'],
       ].map(([question, answer]) => <details key={question}><summary><span>{question}</span><Plus size={18} /></summary><p>{answer}</p></details>)}</div>
     </section>
     <footer className="gf-footer"><strong>AI-Sail Flow</strong><span>本地部署 · Gemini 3.8 Flash · V1</span><nav><a href="#overview">回到顶部</a><button onClick={() => enterWorkspace()}>进入工作台</button></nav></footer>
-    <AuthDialog open={authOpen} onClose={() => setAuthOpen(false)} auth={auth} email={authEmailValue} code={authCode} stage={authStage} onEmailChange={setAuthEmailValue} onCodeChange={setAuthCode} onSendCode={() => { void sendAuthCode(); }} onVerifyCode={() => { void verifyAuthCode(); }} onGoogleSignIn={() => { void signInWithGoogle(); }} onXSignIn={() => { void signInWithX(); }} onBack={() => { setAuthStage('email'); setAuthCode(''); setAuth(current => ({ ...current, error: '', status: '' })); }} onSignOut={() => { void signOut(); }} />
+    <AuthDialog availability={authAvailability} resendSeconds={authResendSeconds} open={authOpen} onClose={() => setAuthOpen(false)} auth={auth} email={authEmailValue} code={authCode} stage={authStage} onEmailChange={setAuthEmailValue} onCodeChange={setAuthCode} onSendCode={() => { void sendAuthCode(); }} onVerifyCode={() => { void verifyAuthCode(); }} onWechatSignIn={() => { void signInWithWechat(); }} onBack={() => { setAuthStage('email'); setAuthCode(''); setAuth(current => ({ ...current, error: '', status: '' })); }} onSignOut={() => { void signOut(); }} />
   </div>;
+  if (!project) return <div className="boot-screen"><div className="brand-icon"><img src="/assets/brand/ai-sail-flow-mark.png" alt="" /></div><h1>AI-Sail Flow</h1>{bootError ? <><p className="error-text">{bootError}</p><button className="btn" onClick={() => location.reload()}>重新连接</button></> : <><LoaderCircle className="spin" /><p>正在打开工作台…</p></>}</div>;
+  const video = project.assets.find(a => a.kind === 'video');
+  const productImages = project.assets.filter(a => a.kind === 'product');
   const disabled = !!busy || running || observing;
   const autoView = project.workflowMode === 'automatic' && !observing;
   const manualView = project.workflowMode === 'manual' || observing;
@@ -761,26 +804,28 @@ export default function App() {
     <aside id="workspace-sidebar" aria-label="工作区导航" className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
       <div className="brand" title="AI-Sail Flow"><span className="brand-compact" aria-hidden="true">SF</span><div className="brand-icon"><img src="/assets/brand/ai-sail-flow-mark.png" alt="" /></div><div><strong>AI-Sail Flow</strong><span>跨境内容工作台</span></div><Badge>V1</Badge></div>
       <div className="workspace-picker" title={defaultWorkspace.title}><span className="workspace-avatar workspace-brand-avatar"><AnimatedBrandMark /></span><span>{defaultWorkspace.title}<small>项目与创意</small></span></div>
+      <button type="button" className={`nav-item sidebar-media-button ${showMediaLibrary ? 'active' : ''}`} aria-label="所有媒体" title="所有媒体" aria-pressed={showMediaLibrary} disabled={!!busy} onClick={() => { setShowMediaLibrary(true); setSidebarOpen(false); }}><Grid2X2 size={18} /><span>所有媒体</span></button>
       <ProjectNavigation collapsed={sidebarIsCollapsed} onExpand={() => { setSidebarCollapsed(false); }} groups={projectGroups} creatives={projects} currentId={project.id} currentParentId={project.parentProjectId} busy={!!busy} running={running} showArchived={showArchived} onShowArchived={setShowArchived}
         onNewProject={() => { setError(''); setOrganizationDialog({ kind: 'project-new', parentId: '', title: '' }); }} onRenameProject={editParentProject} onNewCreative={parentId => newProject(false, parentId)} onSelect={switchProject} onArchive={setProjectArchived} />
       <section className="sidebar-current-project" aria-labelledby="sidebar-current-project-title">
         <span className="sidebar-project-caption">当前创意</span>
         <div className="sidebar-project-heading"><Clapperboard size={16} /><strong id="sidebar-current-project-title" title={project.title}>{project.title}</strong>{project.archivedAt && <Badge>已归档</Badge>}</div>
-        <nav className="workflow-nav" aria-label="制作流程">{steps.map((s, i) => { const Icon = s.icon; return <button key={s.en} className={`nav-item ${step === i ? 'active' : ''}`} aria-label={s.name} title={s.name} disabled={!!busy || (!canvasView && !available[i])} onClick={() => canvasView ? setStep(i) : go(i)}><Icon size={18} /><span>{s.name}</span><span className="nav-number">0{i + 1}</span></button>; })}</nav>
+        <nav className="workflow-nav" aria-label="制作流程">{steps.map((s, i) => { const Icon = s.icon; return <button key={s.en} className={`nav-item ${!showMediaLibrary && step === i ? 'active' : ''}`} aria-label={s.name} title={s.name} disabled={!!busy || (!canvasView && !available[i])} onClick={() => { setShowMediaLibrary(false); if (canvasView) setStep(i); else void go(i); }}><Icon size={18} /><span>{s.name}</span><span className="nav-number">0{i + 1}</span></button>; })}</nav>
       </section>
       <button className="sidebar-config" title="配置" aria-label="配置" onClick={() => setModal('config')}><Settings size={16} /><span>配置</span></button>
     </aside>
     <div className="main-shell">
-      <header className="topbar"><div className="breadcrumbs"><button className="icon-btn sidebar-toggle desktop-sidebar-toggle" aria-label={sidebarIsCollapsed ? '展开侧边栏' : '收起侧边栏'} title={sidebarIsCollapsed ? '展开侧边栏' : '收起侧边栏'} aria-expanded={!sidebarIsCollapsed} aria-controls="workspace-sidebar" onClick={() => { setSidebarOpen(false); setSidebarCollapsed(!sidebarIsCollapsed); }}><PanelLeft size={18} /></button><button className="icon-btn sidebar-toggle mobile-menu" aria-label={sidebarOpen ? '关闭导航' : '打开导航'} title={sidebarOpen ? '关闭导航' : '打开导航'} aria-expanded={sidebarOpen} aria-controls="workspace-sidebar" onClick={() => setSidebarOpen(!sidebarOpen)}><PanelLeft size={18} /></button><FolderOpen size={16} /><span>{defaultWorkspace.title}</span><ChevronRight size={14} /><button className="breadcrumb-project" onClick={() => parentProject && editParentProject(parentProject)} disabled={!!busy} title="重命名项目">{parentProject?.title || '默认项目'}</button><ChevronRight size={14} /><button className="breadcrumb-current breadcrumb-creative" onClick={editCreative} disabled={disabled} title="编辑创意名称与所属项目">{project.title}</button></div><div className="topbar-actions"><span className="save-status">{saving ? <LoaderCircle size={14} className="spin" /> : dirty ? <span className="unsaved-dot" /> : <CheckCheck size={14} />}{saving ? '保存中' : dirty ? '待保存' : '已保存'}</span><button className="icon-btn" title="保存创意 ⌘S" aria-label="保存创意" disabled={disabled || !dirty} onClick={() => perform('正在保存', async () => { await flush(); setNotice('已保存'); })}><Save size={17} /></button><span className="topbar-divider" /><button className="btn small" onClick={() => newProject()} disabled={!!busy}><Plus size={15} />新建创意</button><button className="account-chip" onClick={openAuth}><span>{auth.user ? authDisplayName(auth.user).slice(0, 1).toUpperCase() : <Mail size={14} />}</span>{auth.user ? authDisplayName(auth.user) : '登录'}</button></div></header>
-      <main className={canvasView ? 'canvas-workspace-main' : undefined}>
+      <header className="topbar"><div className="breadcrumbs"><button className="icon-btn sidebar-toggle desktop-sidebar-toggle" aria-label={sidebarIsCollapsed ? '展开侧边栏' : '收起侧边栏'} title={sidebarIsCollapsed ? '展开侧边栏' : '收起侧边栏'} aria-expanded={!sidebarIsCollapsed} aria-controls="workspace-sidebar" onClick={() => { setSidebarOpen(false); setSidebarCollapsed(!sidebarIsCollapsed); }}><SidebarToggleIcon expanded={!sidebarIsCollapsed} /></button><button className="icon-btn sidebar-toggle mobile-menu" aria-label={sidebarOpen ? '关闭导航' : '打开导航'} title={sidebarOpen ? '关闭导航' : '打开导航'} aria-expanded={sidebarOpen} aria-controls="workspace-sidebar" onClick={() => setSidebarOpen(!sidebarOpen)}><SidebarToggleIcon expanded={sidebarOpen} /></button><FolderOpen size={16} /><span>{defaultWorkspace.title}</span><ChevronRight size={14} /><button className="breadcrumb-project" onClick={() => parentProject && editParentProject(parentProject)} disabled={!!busy} title="重命名项目">{parentProject?.title || '默认项目'}</button><ChevronRight size={14} /><button className="breadcrumb-current breadcrumb-creative" onClick={editCreative} disabled={disabled} title="编辑创意名称与所属项目">{project.title}</button></div><div className="topbar-actions"><span className="save-status">{saving ? <LoaderCircle size={14} className="spin" /> : dirty ? <span className="unsaved-dot" /> : <CheckCheck size={14} />}{saving ? '保存中' : dirty ? '待保存' : '已保存'}</span><button className="icon-btn" title="保存创意 ⌘S" aria-label="保存创意" disabled={disabled || !dirty} onClick={() => perform('正在保存', async () => { await flush(); setNotice('已保存'); })}><Save size={17} /></button><span className="topbar-divider" /><button className="btn small" onClick={() => newProject()} disabled={!!busy}><Plus size={15} />新建创意</button><button className="account-chip" onClick={openAuth}><span>{auth.user ? authDisplayName(auth.user).slice(0, 1).toUpperCase() : <Mail size={14} />}</span>{auth.user ? authDisplayName(auth.user) : '登录'}</button></div></header>
+      <main className={showMediaLibrary ? 'media-workspace-main' : canvasView ? 'canvas-workspace-main' : undefined}>
+        {showMediaLibrary ? <MediaLibraryPage user={auth.user} onSelect={item => openAssetLibrary('all', item)} onUpload={() => openAssetLibrary('all')} onSignIn={openAuth} /> : <>
         {project.archivedAt && <div className="banner sample"><Archive size={16} /><span>此创意已归档，素材和制作结果仍保存在本机。</span><button disabled={!!busy || running} onClick={() => setProjectArchived(project.id, false)}>恢复到所属项目 <ArchiveRestore size={14} /></button></div>}
         <div className="workspace-controls">{project.workflowMode && <div className="workflow-control-bar"><span>制作方式</span><button className={`btn small ${project.workflowMode === 'automatic' ? 'selected' : ''}`} disabled={!!busy} onClick={() => observing && project.workflowMode === 'automatic' ? setObserving(false) : void selectWorkflowMode('automatic')}><Sparkles size={15} />自动工作流</button><button className={`btn small ${project.workflowMode === 'manual' ? 'selected' : ''}`} disabled={!!busy || project.workflow?.status === 'pausing'} onClick={() => void selectWorkflowMode('manual')}><Settings2 size={15} />{workflowBusy(project) ? '接管并进入手动' : '手动工作流'}</button></div>}<div className="workspace-view-switch" role="group" aria-label="工作台视图"><button type="button" aria-pressed={workspaceView === 'steps'} className={workspaceView === 'steps' ? 'active' : ''} onClick={() => { setWorkspaceView('steps'); if (!available[step]) setStep(project.rewrite ? 3 : project.analysis ? 1 : 0); }}><LayoutList size={15} />步骤视图</button><button type="button" aria-pressed={workspaceView === 'canvas'} className={workspaceView === 'canvas' ? 'active' : ''} onClick={() => setWorkspaceView('canvas')}><Workflow size={15} />画布视图</button></div></div>
         {(canvasView || autoView || !project.workflowMode) && error && <div className="banner error" role="alert"><Info size={16} /><span>{error}</span><button aria-label="关闭错误提示" onClick={() => setError('')}><X size={16} /></button></div>}
         {project.ttsTimingNotice && <SpeechTimingConfirmation notice={project.ttsTimingNotice} disabled={disabled} onConfirm={() => void composeFinal(project.ttsTimingNotice!.voice, project.ttsTimingNotice!.basis)} onManual={() => void selectWorkflowMode('manual')} />}
         {!project.workflowMode && <WorkflowEntry disabled={!!busy} onSelect={mode => void selectWorkflowMode(mode)} />}
-        {autoView && !canvasView && <AutomaticWorkspace key={project.id} project={project} busy={!!busy} voices={ttsVoices} connected={status.configured} onPatch={patch => change(p => ({ ...p, ...patch }))} onUpload={(files, kind) => void uploadFiles(files, kind)} onStart={max => void startAutomatic(max)} onTakeOver={() => void selectWorkflowMode('manual')} onInspect={inspectWorkflow} onCanvas={() => setShowPipeline(true)} onSettings={() => setModal('settings')} />}
-        {canvasView && <Suspense fallback={<div className="canvas-loading" role="status"><LoaderCircle className="spin" size={20} />正在打开全局画布…</div>}><CreativeWorkspace key={project.id} project={project} step={step} onStep={setStep} disabled={disabled} busyLabel={busy} automatic={autoView} voices={ttsVoices}
-          onPatch={patch => change(p => ({ ...p, ...patch }))} onUpload={(files, kind) => void uploadFiles(files, kind)} onRemove={id => void removeAsset(id)}
+        {autoView && !canvasView && <AutomaticWorkspace key={project.id} project={project} busy={!!busy || !!assetLibraryTarget} voices={ttsVoices} connected={status.configured} onPatch={patch => change(p => ({ ...p, ...patch }))} onUpload={(files, kind) => void uploadFiles(files, kind)} onChooseMedia={kind => openAssetLibrary(kind === 'product' ? 'image' : 'video')} onStart={max => void startAutomatic(max)} onTakeOver={() => void selectWorkflowMode('manual')} onInspect={inspectWorkflow} onCanvas={() => setShowPipeline(true)} onSettings={() => setModal('settings')} />}
+        {canvasView && <Suspense fallback={<div className="canvas-loading" role="status"><LoaderCircle className="spin" size={20} />正在打开全局画布…</div>}><CreativeWorkspace key={project.id} project={project} step={step} onStep={setStep} disabled={disabled || !!assetLibraryTarget} busyLabel={busy} automatic={autoView} voices={ttsVoices}
+          onPatch={patch => change(p => ({ ...p, ...patch }))} onUpload={(files, kind) => void uploadFiles(files, kind)} onChooseMedia={kind => openAssetLibrary(kind === 'product' ? 'image' : 'video')} onRemove={id => void removeAsset(id)}
           onGenerateKeyframe={shotId => void startKeyframe(shotId)} onRun={kind => void startJob(kind)} onRetry={retryJob}
           onExport={exportZip} onCopy={value => void copy(value)} onSettings={() => setModal('settings')} onPipeline={() => setShowPipeline(true)}
           onAutoStart={max => void startAutomatic(max)} onTakeOver={() => void selectWorkflowMode('manual')} renderShotEditor={sceneEditor} production={productionPanel}
@@ -798,8 +843,7 @@ export default function App() {
 
         {step === 0 && <div className="workspace-grid materials-grid">
           <section className="panel materials-reference"><div className="panel-heading"><div><Video size={18} /><h2>参考视频</h2></div><div className="asset-library-inline-actions"><span className="secondary-label">镜头与节奏</span><button type="button" className="text-button" disabled={disabled} onClick={() => openAssetLibrary('video')}><FolderOpen size={14} />素材库</button></div></div>
-              <input ref={videoInput} className="sr-only" type="file" accept="video/mp4,video/quicktime,video/webm,.mov" aria-label="选择参考视频" onChange={e => { if (e.target.files?.length) void uploadFiles(e.target.files, 'video'); e.target.value = ''; }} />
-              {video ? <><div className="video-file-bar"><Film size={15} /><span>{video.name}</span><button className="text-button" disabled={disabled} onClick={() => videoInput.current?.click()}>更换视频</button></div>{previewVideo()}<div className="video-metadata"><span>{timeLabel(video.duration || 0)} 时长</span><span>{video.width} × {video.height}</span><span>{sizeLabel(video.size)}</span><span>{video.hasAudio ? '含音轨' : '无音轨'}</span></div></> : <button className={`upload-drop ${dragging ? 'dragging' : ''}`} disabled={disabled} onClick={() => videoInput.current?.click()} onDragOver={e => { e.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={e => { e.preventDefault(); setDragging(false); if (!disabled && e.dataTransfer.files.length) void uploadFiles(e.dataTransfer.files, 'video'); }}><div className="upload-visual"><span className="upload-outline back" /><span className="upload-outline front"><Film size={27} strokeWidth={1.4} /></span><span className="upload-plus"><Plus size={13} /></span></div><strong>拖入一条值得拆解的视频</strong><span>或点击选择文件</span><small>MP4、MOV、WebM · 最长 10 分钟 · 最大 250 MB</small></button>}
+              {video ? <><div className="video-file-bar"><Film size={15} /><span>{video.name}</span><button className="text-button" disabled={disabled} onClick={() => openAssetLibrary('video')}>更换视频</button></div>{previewVideo()}<div className="video-metadata"><span>{timeLabel(video.duration || 0)} 时长</span><span>{video.width} × {video.height}</span><span>{sizeLabel(video.size)}</span><span>{video.hasAudio ? '含音轨' : '无音轨'}</span></div></> : <button className={`upload-drop ${dragging ? 'dragging' : ''}`} disabled={disabled} onClick={() => openAssetLibrary('video')} onDragOver={e => { e.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={e => { e.preventDefault(); setDragging(false); if (!disabled && e.dataTransfer.files.length) void uploadFiles(e.dataTransfer.files, 'video'); }}><div className="upload-visual"><span className="upload-outline back" /><span className="upload-outline front"><Film size={27} strokeWidth={1.4} /></span><span className="upload-plus"><Plus size={13} /></span></div><strong>拖入一条值得拆解的视频</strong><span>或点击从素材库选择</span><small>MP4、MOV、WebM · 最长 10 分钟 · 最大 250 MB</small></button>}
               <div className="panel-footnote"><ScanLine size={15} /><span>分析画面与原始音轨，提取镜头、动作、口播和商品展示。</span></div>
           </section>
           <section className="panel brief-panel"><div className="panel-heading"><div><Package size={18} /><h2>你的产品</h2></div><span className="secondary-label">信息与外观</span></div><div className="panel-body">
@@ -809,8 +853,7 @@ export default function App() {
             <Field label="目标购买人群" hint="他们在什么情境下，会需要这个产品？"><Textarea rows={2} placeholder="例如：想在家准备咖啡的通勤人群" value={project.product.audience} disabled={disabled} onChange={e => updateProduct({ audience: e.target.value })} /></Field>
           </div>
             <div className="materials-product-images" id="product-references" tabIndex={-1}><div className="panel-heading"><div><ImagePlus size={18} /><h3>产品/主体参考图</h3><Badge>{project.promptFlow === 'direct-analysis' ? '选填' : '改写必填'}</Badge></div><div className="asset-library-inline-actions"><span className="secondary-label">{productImages.length} / 3</span><button type="button" className="text-button" disabled={disabled || productImages.length >= 3} onClick={() => openAssetLibrary('image')}><FolderOpen size={14} />素材库</button></div></div>
-              <input ref={imageInput} className="sr-only" type="file" multiple accept="image/jpeg,image/png,image/webp" aria-label="选择产品/主体参考图" onChange={e => { if (e.target.files?.length) void uploadFiles(e.target.files, 'product'); e.target.value = ''; }} />
-              <div className="product-images" ref={imageUploadBoxes}>{[0, 1, 2].map(i => <div className="product-image-slot" key={i}>{productImages[i] ? <><img src={productImages[i].url} alt={productImages[i].name} /><button className="remove-image" aria-label={`移除 ${productImages[i].name}`} disabled={disabled} onClick={() => removeAsset(productImages[i].id)}><X size={14} /></button><span>{productImages[i].name}</span></> : <button data-image-upload disabled={disabled} aria-label="上传或粘贴产品/主体参考图" onClick={() => imageInput.current?.click()}><Plus size={23} strokeWidth={1.2} /><span>产品/主体参考图</span><small>点击或粘贴图片</small></button>}</div>)}</div>
+              <div className="product-images" ref={imageUploadBoxes}>{[0, 1, 2].map(i => <div className="product-image-slot" key={i}>{productImages[i] ? <><img src={productImages[i].url} alt={productImages[i].name} /><button className="remove-image" aria-label={`移除 ${productImages[i].name}`} disabled={disabled} onClick={() => removeAsset(productImages[i].id)}><X size={14} /></button><span>{productImages[i].name}</span></> : <button data-image-upload disabled={disabled} aria-label="上传或粘贴产品/主体参考图" onClick={() => openAssetLibrary('image')}><Plus size={23} strokeWidth={1.2} /><span>产品/主体参考图</span><small>选择素材或粘贴图片</small></button>}</div>)}</div>
               <div className="panel-footnote"><Info size={14} /><span>鼠标停在上传框后，按 ⌘V / Ctrl+V 粘贴图片。参考图用于约束产品或主体外观，每张最大 10 MB。</span></div>
             </div>
           </section>
@@ -832,7 +875,7 @@ export default function App() {
           </section>
         </div>}
 
-        {step === 2 && <div className="workspace-grid localization-grid"><aside className="detail-column"><RewriteProductInputs project={project} disabled={disabled} onProduct={updateProduct} onUpload={files => void uploadFiles(files, 'product')} /><section className="panel"><div className="panel-heading"><div><Globe2 size={18} /><h2>市场与语言 · 补充设置</h2></div><span className="secondary-label">TARGET</span></div><div className="panel-body">
+        {step === 2 && <div className="workspace-grid localization-grid"><aside className="detail-column"><RewriteProductInputs project={project} disabled={disabled} onProduct={updateProduct} onChooseMedia={() => openAssetLibrary('image')} /><section className="panel"><div className="panel-heading"><div><Globe2 size={18} /><h2>市场与语言 · 补充设置</h2></div><span className="secondary-label">TARGET</span></div><div className="panel-body">
           <div className="form-grid"><Field label="国家 / 地区"><select className="input" disabled={disabled} value={project.market.country} onChange={e => { const c = countries.find(c => c.code === e.target.value)!; updateMarket({ country: c.code, language: c.language }); }}>{countries.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}</select></Field><Field label="目标语言"><select className="input" disabled={disabled} value={project.market.language} onChange={e => updateMarket({ language: e.target.value as Market['language'] })}>{languages.map(([code, label]) => <option key={code} value={code}>{label}</option>)}</select></Field></div>
           <Field label="发布平台"><div className="platform-picker">{platforms.map(p => <button key={p.id} disabled={disabled} className={project.market.platform === p.id ? 'selected' : ''} onClick={() => updateMarket({ platform: p.id, ...(p.id !== 'tiktok' ? { destination: 'website' } : {}) })}>{p.name}</button>)}</div></Field>
           <Field label="购买路径"><select className="input" disabled={disabled} value={project.market.destination} onChange={e => updateMarket({ destination: e.target.value as Market['destination'] })}><option value="website">独立站 / 外部网站</option><option value="shop" disabled={project.market.platform !== 'tiktok'}>TikTok Shop 商品卡</option></select></Field>
@@ -850,6 +893,7 @@ export default function App() {
         {step === 3 && project.rewrite && <div className="workspace-grid export-grid"><section className="panel export-panel"><div className="panel-heading"><div><FileText size={18} /><h2>交付内容预览</h2></div><button className="btn small" onClick={() => copy(exportTab === 'prompt' ? buildPrompt(project) : exportTab === 'brief' ? buildBrief(project) : exportTab === 'json' ? buildVeoPromptPreview(project) : subtitles(project.rewrite!.shots, project.productionMode))}><Copy size={14} />复制</button></div><div className="export-tabs">{[['prompt', '生成提示词'], ['brief', '创意简报'], ['json', '分镜 JSON'], ...((project.market.subtitles || project.productionMode === 'tts-subtitles') ? [['srt', '字幕草稿']] : [])].map(([id, label]) => <button key={id} className={exportTab === id ? 'active' : ''} onClick={() => setExportTab(id)}>{label}</button>)}</div><pre className="code-preview" tabIndex={0}>{exportTab === 'prompt' ? buildPrompt(project) : exportTab === 'brief' ? buildBrief(project) : exportTab === 'json' ? buildVeoPromptPreview(project) : subtitles(project.rewrite.shots, project.productionMode)}</pre><div className="panel-footnote"><Info size={14} /><span>复刻关键帧与描述按原片镜头一一对应；图片可在产品与创意改写阶段检查和重新生成。</span></div></section>{productionPanel}<aside className="detail-column"><section className="panel delivery-card"><div className="delivery-icon"><Package size={28} strokeWidth={1.4} /></div><h2>你的创意制作包</h2><p>从策略到镜头，完整交接。</p><div className="delivery-specs"><div><span>目标市场</span><strong>{market.name} / {project.market.language}</strong></div><div><span>发布平台</span><strong>{platform.name}</strong></div><div><span>画面</span><strong>{project.market.aspectRatio} · {project.rewrite.shots.at(-1)?.end}s</strong></div><div><span>分镜</span><strong>{project.rewrite.shots.length} 个</strong></div></div><div className="file-list">{[[FileText, '创意简报', 'MD'], [FileText, 'Seedance 提示词', 'TXT'], [FileJson, '结构化分镜', 'JSON'], [ScanLine, '原片分析', 'JSON'], ...((project.market.subtitles || project.productionMode === 'tts-subtitles') ? [[Subtitles, '字幕草稿', 'SRT']] : []), [FileJson, '项目清单', 'JSON']].map(([Icon, label, ext], i) => { const FileIcon = Icon as typeof FileText; return <div key={i}><FileIcon size={16} /><span>{label as string}</span><small>{ext as string}</small></div>; })}{productImages.length > 0 && <div><ImagePlus size={16} /><span>产品/主体参考图</span><small>{productImages.length} 张</small></div>}{project.rewrite.shots.some(shot => shot.sourceShotId) && <div><ImagePlus size={16} /><span>复刻关键帧与镜头清单</span><small>{project.rewrite.shots.filter(shot => keyframeCurrent(project, shot)).length} 张</small></div>}</div><button className="btn primary full" disabled={disabled || project.rewriteStale} onClick={exportZip}><Download size={17} />下载完整 ZIP</button>{project.rewriteStale && <p className="error-text">资料已变更，请回到改写页更新方案。</p>}<button className="text-button full centered" disabled={disabled || project.rewriteStale} onClick={() => perform('正在导出', async () => { const p = await flush(); if (!p) return; const files = buildExportFiles(p); downloadBlob(new Blob([files['02-seedance-prompt.txt']], { type: 'text/plain;charset=utf-8' }), `${p.title}-prompt.txt`); })}>仅下载生成提示词 <ArrowDownToLine size={14} /></button></section><div className="insight-card"><span className="tiny-label">制作交接</span><p>按所用视频生成渠道的时长限制分段制作。包装文字与精准字幕可在后期叠加。</p></div></aside></div>}
 
         <footer className="action-bar"><div className="action-context">{step === 0 ? <><ShieldCheck size={16} /><span>点击拆解后，参考素材将发送给 Gemini 处理</span></> : <><CheckCheck size={16} /><span>{project.isDemo ? '示例可编辑，可导出' : '所有编辑自动保存到本机'}</span></>}</div><div className="action-controls">{step === 2 && (disabled || rewriteBlocked) && <div className="rewrite-requirements" id="rewrite-requirements" role="status" aria-live="polite"><Info size={14} /><span>{disabled ? (running ? '当前任务正在处理，完成后可生成方案。' : busy) : <>生成前请补齐（点击定位）：{!project.analysis && <button type="button" onClick={() => go(video ? 1 : 0)}>视频拆解</button>}{missingProductFields.map((field, i) => <span key={field.id}>{(!project.analysis || i > 0) && '、'}<button type="button" title="前往上传素材页补填" onClick={() => fillProductField(field.id)}>{field.label}</button></span>)}</>}</span></div>}<div className="action-buttons">{step > 0 && <button className="btn" disabled={!!busy} onClick={() => go(step - 1)}>上一步</button>}{step === 0 && <button className="btn primary" disabled={disabled || !video} onClick={() => startJob('analysis')}>{disabled ? <LoaderCircle size={16} className="spin" /> : <Sparkles size={16} />}拆解参考视频<ArrowRight size={16} /></button>}{step === 1 && <button className="btn primary" disabled={disabled || !project.analysis} onClick={() => go(2)}>{project.promptFlow === 'direct-analysis' ? '继续设置 Prompt' : '产品与创意改写'}<ArrowRight size={16} /></button>}{step === 2 && <><button className={`btn ${!project.rewrite || project.rewriteStale ? 'primary' : ''}`} disabled={disabled || rewriteBlocked} aria-describedby={disabled || rewriteBlocked ? 'rewrite-requirements' : undefined} onClick={() => startJob('rewrite')}><WandSparkles size={16} />{project.promptFlow === 'direct-analysis' ? project.rewrite && !project.rewriteStale ? '重新整理 Prompt' : '整理原片并生成 Prompt' : project.rewrite ? '重新生成逐镜头方案' : '生成逐镜头方案与关键帧'}</button>{project.rewrite && <button className="btn primary" disabled={disabled || project.rewriteStale} onClick={() => go(3)}>预览交付包<ArrowRight size={16} /></button>}</>}{step === 3 && <button className="btn primary" disabled={disabled || project.rewriteStale} onClick={exportZip}><Download size={16} />导出提示词包</button>}</div></div></footer>
+        </>}
         </>}
       </main>
     </div>
@@ -883,7 +927,7 @@ export default function App() {
       <div className="modal-actions"><a href="https://gaoruitech.apifox.cn/doc-8981138" target="_blank" rel="noreferrer">Veo 接口文档 <ArrowUpRight size={14} /></a><button className="btn primary" disabled={!!busy || (apiKey.trim().length < 16 && veoApiKey.trim().length < 16 && storageKey.trim().length < 16)} onClick={() => perform('正在配置', async () => { if (apiKey.trim()) await api('/api/settings', { method: 'POST', body: JSON.stringify({ apiKey, baseUrl }) }); if (veoApiKey.trim()) await api('/api/settings/veo', { method: 'POST', body: JSON.stringify({ apiKey: veoApiKey }) }); if (storageKey.trim()) await api('/api/settings/keyframe-storage', { method: 'POST', body: JSON.stringify({ url: storageUrl || status.keyframeStorage?.url, apiKey: storageKey, bucket: storageBucket || status.keyframeStorage?.bucket || 'sop-keyframes' }) }); setStatus(await api<Status>('/api/status')); setApiKey(''); setVeoApiKey(''); setBaseUrl(''); setStorageKey(''); setModal(null); setNotice('模型连接已配置'); })}>保存连接</button></div>
     </Modal>}
     {modal === 'guide' && <Modal title="跨境视频创意指南" wide onClose={() => setModal(null)}><p className="modal-description">把平台的创作原则落实到每个镜头。以下是创意建议，不是流量或转化承诺。</p><div className="guide-grid"><article><span className="guide-number">01</span><h3>用情境吸引注意</h3><p>先让观众识别自己的问题，再用具体动作展示产品价值。采用清晰的开头、主体和行动引导。</p><a href="https://ads.tiktok.com/resources/help/article/creative-best-practices?lang=en" target="_blank" rel="noreferrer">TikTok 创意建议 <ArrowUpRight size={13} /></a></article><article><span className="guide-number">02</span><h3>为竖屏观看设计</h3><p>Reels 优先竖屏、有声音的内容。字幕、商品和关键信息避开界面遮挡，生成后按实际版位检查。</p><a href="https://www.facebook.com/business/ads/facebook-instagram-reels-ads" target="_blank" rel="noreferrer">Meta Reels 创意指南 <ArrowUpRight size={13} /></a></article><article><span className="guide-number">03</span><h3>卖点与产品页一致</h3><p>用目标顾客的语言解释用途与收益，填写真实规格、售价和优惠，让视频承诺与落地页保持一致。</p><a href="https://help.shopify.com/en/manual/products/details/product-descriptions/write" target="_blank" rel="noreferrer">Shopify 产品描述指南 <ArrowUpRight size={13} /></a></article><article><span className="guide-number">04</span><h3>让内容可交接</h3><p>原片拆解与新方案分开保存。修改前提会将旧方案标记为待更新，导出时使用最新的镜头与口播。</p><span className="secondary-label">AI-SAIL FLOW 工作方式</span></article></div><div className="guide-footer"><Info size={15} /><span>当前流程生成逐镜头复刻关键帧与描述，作为后续图生视频的输入。可检查、调整单张图片并导出制作包。</span></div></Modal>}
-    <AssetLibrary open={!!assetLibraryKind} user={auth.user} kind={assetLibraryKind || 'image'} onClose={() => setAssetLibraryKind(null)} onSelect={file => { const kind = assetLibraryKind; setAssetLibraryKind(null); if (kind) void uploadFiles([file], kind === 'image' ? 'product' : 'video'); }} />
-    <AuthDialog open={authOpen} onClose={() => setAuthOpen(false)} auth={auth} email={authEmailValue} code={authCode} stage={authStage} onEmailChange={setAuthEmailValue} onCodeChange={setAuthCode} onSendCode={() => { void sendAuthCode(); }} onVerifyCode={() => { void verifyAuthCode(); }} onGoogleSignIn={() => { void signInWithGoogle(); }} onXSignIn={() => { void signInWithX(); }} onBack={() => { setAuthStage('email'); setAuthCode(''); setAuth(current => ({ ...current, error: '', status: '' })); }} onSignOut={() => { void signOut(); }} />
+    <AssetLibrary open={!!assetLibraryTarget} user={auth.user} target={assetLibraryTarget || 'all'} initialSelection={initialMedia} onClose={() => setAssetLibraryTarget(null)} onReference={referenceMedia} onSignIn={() => { setAssetLibraryTarget(null); openAuth(); }} />
+    <AuthDialog availability={authAvailability} resendSeconds={authResendSeconds} open={authOpen} onClose={() => setAuthOpen(false)} auth={auth} email={authEmailValue} code={authCode} stage={authStage} onEmailChange={setAuthEmailValue} onCodeChange={setAuthCode} onSendCode={() => { void sendAuthCode(); }} onVerifyCode={() => { void verifyAuthCode(); }} onWechatSignIn={() => { void signInWithWechat(); }} onBack={() => { setAuthStage('email'); setAuthCode(''); setAuth(current => ({ ...current, error: '', status: '' })); }} onSignOut={() => { void signOut(); }} />
   </div>;
 }

@@ -8,17 +8,15 @@ import './shot-rewrite.css';
 import { videoCurrent } from '../shared/workflow';
 import { buildVeoPlan } from '../shared/veo-plan';
 
-export function RewriteProductInputs({ project, disabled, onProduct, onUpload }: {
-  project: Project; disabled: boolean; onProduct: (patch: Partial<Product>) => void; onUpload: (files: File[]) => void;
+export function RewriteProductInputs({ project, disabled, onProduct, onChooseMedia }: {
+  project: Project; disabled: boolean; onProduct: (patch: Partial<Product>) => void; onChooseMedia: () => void;
 }) {
-  const input = useRef<HTMLInputElement>(null);
   const images = project.assets.filter(asset => asset.kind === 'product');
   return <section className="panel rewrite-product-inputs"><div className="panel-heading"><div><Package size={18} /><h2>你的产品与外观</h2></div></div><div className="panel-body">
     <label className="field"><span className="field-label">产品名称 · 必填</span><input className="input" disabled={disabled} value={project.product.name} maxLength={160} placeholder="本次镜头里要展示的产品" onChange={event => onProduct({ name: event.target.value })} /></label>
     <label className="field"><span className="field-label">已确认的卖点与规格 · 必填</span><textarea className="input textarea" rows={4} disabled={disabled} value={project.product.facts} maxLength={8000} placeholder="材质、颜色、形状、规格和实际用途" onChange={event => onProduct({ facts: event.target.value })} /></label>
     <div className="rewrite-product-images">{images.map(asset => <img src={asset.url} alt={asset.name} key={asset.id} />)}</div>
-    <input ref={input} type="file" className="sr-only" accept="image/jpeg,image/png,image/webp" multiple onChange={event => { const files = Array.from(event.currentTarget.files || []); event.currentTarget.value = ''; if (files.length) onUpload(files); }} />
-    <button className="btn small" disabled={disabled || images.length >= 3} onClick={() => input.current?.click()}><ImagePlus size={14} />{images.length ? '补充产品参考图' : '上传产品参考图 · 必填'}</button>
+    <button className="btn small" disabled={disabled || images.length >= 3} onClick={() => onChooseMedia()}><ImagePlus size={14} />{images.length ? '补充产品参考图' : '上传产品参考图 · 必填'}</button>
     <p className="muted">产品图决定商品外观，原片关键帧决定场景与构图。最多 3 张。</p>
   </div></section>;
 }

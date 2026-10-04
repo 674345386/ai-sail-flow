@@ -1,5 +1,12 @@
+import { publicAuthRequired, supabase } from './auth';
+
 export async function api<T>(url: string, options: RequestInit = {}): Promise<T> {
-  const response = await fetch(url, { ...options, headers: { ...(options.body && !(options.body instanceof FormData) ? { 'Content-Type': 'application/json' } : {}), ...options.headers } });
+  const headers = new Headers(options.headers);
+  if (options.body && !(options.body instanceof FormData) && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
+  const session = supabase ? (await supabase.auth.getSession()).data.session : null;
+  if (session?.access_token) headers.set('Authorization', `Bearer ${session.access_token}`);
+  else if (publicAuthRequired && url !== '/api/status') throw new Error('请先登录后再使用工作台。');
+  const response = await fetch(url, { ...options, headers, credentials: 'same-origin' });
   const data = await response.json().catch(() => ({ error: '服务暂时不可用，请检查本地服务是否正在运行。' }));
   if (!response.ok) throw new Error(data.error || `请求失败 (${response.status})`);
   return data as T;

@@ -3,6 +3,7 @@
 .app-shell .main-shell > main > .workspace-controls { gap: 8px; margin-bottom: 12px; padding-bottom: 8px; }
 .app-shell .main-shell > main.canvas-workspace-main > .workspace-controls { margin-bottom: 8px; }
 .app-shell .topbar { padding-left: 16px; }
+.app-shell > .main-shell > .topbar { position: sticky; top: 0; z-index: 45; }
 .sidebar-toggle { flex-shrink: 0; }
 .desktop-sidebar-toggle { display: grid; }
 .sidebar .brand-compact { display: none; }
