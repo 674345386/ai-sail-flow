@@ -3,7 +3,7 @@ import { ArrowRight, Pause, Play, ShieldCheck } from 'lucide-react';
 import type { WorkflowMode } from '../shared/domain';
 import { useReducedMotion } from './useReducedMotion';
 
-const poster = '/assets/landing/commerce-hero-poster.jpg';
+const poster = '/assets/landing/commerce-hero-reference-poster.jpg';
 
 export default function LandingHero({ authRequired, onEnter }: {
   authRequired: boolean;
@@ -52,7 +52,7 @@ export default function LandingHero({ authRequired, onEnter }: {
         <img src={poster} alt="" fetchPriority="high" />
         {!reducedMotion && !failed && <video
           ref={videoRef}
-          src="/assets/landing/commerce-hero.mp4"
+          src="/assets/landing/commerce-hero-reference.mp4"
           poster={poster}
           autoPlay
           muted
@@ -69,12 +69,12 @@ export default function LandingHero({ authRequired, onEnter }: {
       <div className="commerce-hero-copy">
         <span className="commerce-hero-kicker">为电商出海而创作</span>
         <h1 id="commerce-hero-title">AI-Sail Flow</h1>
-        <p>您的专属 AI 出海内容工作室，基于<br className="commerce-hero-linebreak" />真实视频理解与市场洞察打造而成。</p>
+        <p>您的专属 AI 出海创意视频工作室，<br className="commerce-hero-linebreak" />从真实视频与市场洞察出发，让好创意走向全球。</p>
         <div className="commerce-hero-actions">
           <button className="commerce-hero-primary" onClick={() => onEnter('automatic')}>自动制作视频<ArrowRight size={17} /></button>
           <button className="commerce-hero-secondary" onClick={() => onEnter('manual')}>进入 AI-Sail Flow 制作<ArrowRight size={17} /></button>
         </div>
-        <small className="commerce-hero-note"><ShieldCheck size={13} />{authRequired ? '邮箱验证后即可访问 · 登录用户共用工作区' : '本地部署 · 素材保存在你的设备'}</small>
+        {authRequired && <small className="commerce-hero-note"><ShieldCheck size={13} />邮箱验证后即可访问 · 登录用户共用工作区</small>}
       </div>
       {!reducedMotion && !failed && <button
         className="commerce-hero-playback"

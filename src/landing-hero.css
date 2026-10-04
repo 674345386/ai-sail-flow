@@ -42,11 +42,11 @@
 }
 .commerce-hero-media, .commerce-hero-media img, .commerce-hero-media video, .commerce-hero-scrim { position: absolute; inset: 0; width: 100%; height: 100%; }
 .commerce-hero-media { z-index: -2; pointer-events: none; }
-.commerce-hero-media img, .commerce-hero-media video { display: block; object-fit: cover; object-position: center; }
+.commerce-hero-media img, .commerce-hero-media video { display: block; object-fit: cover; object-position: center top; }
 .commerce-hero-scrim {
   z-index: -1;
   pointer-events: none;
-  background: linear-gradient(180deg, #131a1b14, #10181738 50%, #11171870), radial-gradient(ellipse at 50% 47%, #10181783, #13191a18 68%);
+  background: linear-gradient(180deg, #1014194d, #10141966 50%, #10141970), radial-gradient(ellipse at 50% 47%, #10141970, #10141920 70%);
 }
 .commerce-hero-copy { width: min(760px, 100%); padding: 60px 24px; text-align: center; }
 .commerce-hero-kicker { display: block; margin-bottom: 23px; color: #f3f3ef; font-size: 13px; font-weight: 400; letter-spacing: .035em; }
@@ -65,7 +65,7 @@
 .commerce-hero-stage button:focus-visible { outline: 2px solid #fafaf8; outline-offset: 4px; }
 
 /* Keep existing below-the-fold sections on their original dark canvas. */
-.landing-page > .gf-intro, .landing-page > .gf-models, .landing-page > .gf-features, .landing-page > .gf-tools, .landing-page > .gf-creator, .landing-page > .gf-pricing, .landing-page > .gf-faq, .landing-page > .gf-footer { background-color: #080a09; }
+.landing-page > .gf-intro, .landing-page > .gf-models, .landing-page > .gf-tools, .landing-page > .gf-creator, .landing-page > .gf-pricing, .landing-page > .gf-faq, .landing-page > .gf-footer { background-color: #080a09; }
 
 @media (max-width: 1100px) {
   .landing-page > .landing-nav { grid-template-columns: 1fr auto; }
