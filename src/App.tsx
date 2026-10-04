@@ -7,8 +7,10 @@ import { buildBrief, buildPrompt, buildExportFiles, buildVeoPromptPreview, build
 import { buildVeoPlan, type VeoPlanUnit } from '../shared/veo-plan';
 import { api, downloadBlob } from './api';
 import { useImagePaste } from './useImagePaste';
-import { authDisplayName, authEmail, authErrorMessage, initialAuthState, publicAuthRequired, syncPublicServerSession, supabase, loadAuthAvailability, unknownAuthAvailability, validEmail, validEmailCode, startWechatSignIn, readAuthCallback, clearAuthCallback, type AuthAvailability, type SailAuthState } from './auth';
+import { authDisplayName, authEmail, authErrorMessage, initialAuthState, publicAuthRequired, syncPublicServerSession, supabase, loadAuthAvailability, unknownAuthAvailability, validEmail, validEmailCode, startGoogleSignIn, readAuthCallback, clearAuthCallback, type AuthAvailability, type SailAuthState } from './auth';
 import AuthDialog from './AuthDialog';
+import WelcomeProfileDialog from './WelcomeProfileDialog';
+import { needsProfileSetup, useProfileAvatar } from './userProfile';
 import AssetLibrary, { MediaLibraryPage } from './AssetLibrary';
 import type { LibraryMedia } from '../shared/media-library';
 import { libraryFile, mediaChanged, syncMediaLibrary } from './mediaLibrary';
@@ -203,6 +205,9 @@ export default function App() {
   const [bootError, setBootError] = useState('');
   const [auth, setAuth] = useState<SailAuthState>(initialAuthState);
   const [authOpen, setAuthOpen] = useState(false);
+  const [profileEditing, setProfileEditing] = useState(false);
+  const accountAvatar = useProfileAvatar(auth.user);
+  const profileWelcomeOpen = auth.initialized && !!auth.user && (needsProfileSetup(auth.user) || profileEditing);
   const [authEmailValue, setAuthEmailValue] = useState('');
   const [authCode, setAuthCode] = useState('');
   const [authStage, setAuthStage] = useState<'email' | 'code'>('email');
@@ -302,6 +307,7 @@ export default function App() {
       if (cancelled) return;
       setAuth(current => ({ ...current, initialized: true, session, user: session?.user || null,
         ...(event === 'SIGNED_OUT' ? { status: '已退出登录', error: '' } : {}) }));
+      if (!session) setProfileEditing(false);
       if (publicAuthRequired && !session) setShowLanding(true);
     });
     return () => { cancelled = true; subscription.unsubscribe(); };
@@ -344,15 +350,15 @@ export default function App() {
     } catch (error) { setAuth(current => ({ ...current, status: '', error: authErrorMessage(error) })); }
     finally { authRequest.current = false; setAuth(current => ({ ...current, busy: false })); }
   };
-  const signInWithWechat = async () => {
+  const signInWithGoogle = async () => {
     if (!supabase || authRequest.current) return;
     authRequest.current = true;
-    setAuth(current => ({ ...current, busy: true, error: '', status: '正在打开微信扫码登录…' }));
+    setAuth(current => ({ ...current, busy: true, error: '', status: '正在打开 Google 登录…' }));
     try {
       const availability = await loadAuthAvailability(); setAuthAvailability(availability);
-      if (!availability.wechat) { setAuth(current => ({ ...current, status: '', error: '微信登录暂未开通，请使用邮箱验证码登录。' })); return; }
+      if (!availability.google) { setAuth(current => ({ ...current, status: '', error: 'Google 登录暂未开通，请使用邮箱验证码登录。' })); return; }
       await flush();
-      const url = await startWechatSignIn();
+      const url = await startGoogleSignIn();
       window.location.assign(url);
     } catch (error) { setAuth(current => ({ ...current, status: '', error: authErrorMessage(error) })); }
     finally { authRequest.current = false; setAuth(current => ({ ...current, busy: false })); }
@@ -616,11 +622,15 @@ export default function App() {
     '/assets/landing/outdoor-creator.png',
     '/assets/landing/market-filming.png',
   ];
+  const profileDialog = profileWelcomeOpen && auth.user ? <WelcomeProfileDialog key={auth.user.id} user={auth.user} avatarUrl={accountAvatar} firstRun={needsProfileSetup(auth.user)} onCancel={() => setProfileEditing(false)} onComplete={user => {
+    setAuth(current => current.user?.id === user.id ? { ...current, user, session: current.session ? { ...current.session, user } : null } : current);
+    setProfileEditing(false); setAuthOpen(false); setShowLanding(false);
+  }} /> : null;
   if (showLanding || (!project && publicAuthRequired && !auth.session)) return <div className="landing-page">
     <header className="landing-nav">
       <button className="landing-brand" onClick={() => setShowLanding(true)} aria-label="回到首页"><span>AI-Sail Flow</span></button>
       <nav className="landing-links" aria-label="首页导航"><a href="#overview">概览</a><a href="#models">模型</a><a href="#features">功能</a><a href="#tools">工具</a><a href="#creator">Flow 创作营</a><a href="#pricing">价格</a></nav>
-      <div className="landing-social"><span aria-label="X">𝕏</span><span aria-label="Instagram">◎</span><span aria-label="Discord">◉</span><button aria-label="更多选项">⋮</button><button className="landing-account" onClick={openAuth}>{auth.user ? authDisplayName(auth.user) : '登录'}</button></div>
+      <div className="landing-social"><span aria-label="X">𝕏</span><span aria-label="Instagram">◎</span><span aria-label="Discord">◉</span><button aria-label="更多选项">⋮</button><button className="landing-account" onClick={openAuth}>{auth.user && <img src={accountAvatar} alt="" />}{auth.user ? authDisplayName(auth.user) : '登录'}</button></div>
     </header>
     <LandingHero authRequired={publicAuthRequired} onEnter={mode => enterWorkspace(false, mode)} />
     <section className="gf-intro" id="made">
@@ -680,9 +690,10 @@ export default function App() {
       ].map(([question, answer]) => <details key={question}><summary><span>{question}</span><Plus size={18} /></summary><p>{answer}</p></details>)}</div>
     </section>
     <footer className="gf-footer"><strong>AI-Sail Flow</strong><span>本地部署 · Gemini 3.8 Flash · V1</span><nav><a href="#overview">回到顶部</a><button onClick={() => enterWorkspace()}>进入工作台</button></nav></footer>
-    <AuthDialog availability={authAvailability} resendSeconds={authResendSeconds} open={authOpen} onClose={() => setAuthOpen(false)} auth={auth} email={authEmailValue} code={authCode} stage={authStage} onEmailChange={setAuthEmailValue} onCodeChange={setAuthCode} onSendCode={() => { void sendAuthCode(); }} onVerifyCode={() => { void verifyAuthCode(); }} onWechatSignIn={() => { void signInWithWechat(); }} onBack={() => { setAuthStage('email'); setAuthCode(''); setAuth(current => ({ ...current, error: '', status: '' })); }} onSignOut={() => { void signOut(); }} />
+    {profileDialog}
+    <AuthDialog availability={authAvailability} resendSeconds={authResendSeconds} avatarUrl={accountAvatar} onEditProfile={() => { setAuthOpen(false); setProfileEditing(true); }} open={authOpen && !profileWelcomeOpen} onClose={() => setAuthOpen(false)} auth={auth} email={authEmailValue} code={authCode} stage={authStage} onEmailChange={setAuthEmailValue} onCodeChange={setAuthCode} onSendCode={() => { void sendAuthCode(); }} onVerifyCode={() => { void verifyAuthCode(); }} onGoogleSignIn={() => { void signInWithGoogle(); }} onBack={() => { setAuthStage('email'); setAuthCode(''); setAuth(current => ({ ...current, error: '', status: '' })); }} onSignOut={() => { void signOut(); }} />
   </div>;
-  if (!project) return <div className="boot-screen"><div className="brand-icon"><img src="/assets/brand/ai-sail-flow-mark.png" alt="" /></div><h1>AI-Sail Flow</h1>{bootError ? <><p className="error-text">{bootError}</p><button className="btn" onClick={() => location.reload()}>重新连接</button></> : <><LoaderCircle className="spin" /><p>正在打开工作台…</p></>}</div>;
+  if (!project) return <div className="boot-screen"><div className="brand-icon"><img src="/assets/brand/ai-sail-flow-mark.png" alt="" /></div><h1>AI-Sail Flow</h1>{bootError ? <><p className="error-text">{bootError}</p><button className="btn" onClick={() => location.reload()}>重新连接</button></> : <><LoaderCircle className="spin" /><p>正在打开工作台…</p></>}{profileDialog}</div>;
   const video = project.assets.find(a => a.kind === 'video');
   const productImages = project.assets.filter(a => a.kind === 'product');
   const disabled = !!busy || running || observing;
@@ -804,7 +815,7 @@ export default function App() {
       <button className="sidebar-config" title="配置" aria-label="配置" onClick={() => setModal('config')}><Settings size={16} /><span>配置</span></button>
     </aside>
     <div className="main-shell">
-      <header className="topbar"><div className="breadcrumbs"><button className="icon-btn sidebar-toggle desktop-sidebar-toggle" aria-label={sidebarIsCollapsed ? '展开侧边栏' : '收起侧边栏'} title={sidebarIsCollapsed ? '展开侧边栏' : '收起侧边栏'} aria-expanded={!sidebarIsCollapsed} aria-controls="workspace-sidebar" onClick={() => { setSidebarOpen(false); setSidebarCollapsed(!sidebarIsCollapsed); }}><SidebarToggleIcon expanded={!sidebarIsCollapsed} /></button><button className="icon-btn sidebar-toggle mobile-menu" aria-label={sidebarOpen ? '关闭导航' : '打开导航'} title={sidebarOpen ? '关闭导航' : '打开导航'} aria-expanded={sidebarOpen} aria-controls="workspace-sidebar" onClick={() => setSidebarOpen(!sidebarOpen)}><SidebarToggleIcon expanded={sidebarOpen} /></button><FolderOpen size={16} /><span>{defaultWorkspace.title}</span><ChevronRight size={14} /><button className="breadcrumb-project" onClick={() => parentProject && editParentProject(parentProject)} disabled={!!busy} title="重命名项目">{parentProject?.title || '默认项目'}</button><ChevronRight size={14} /><button className="breadcrumb-current breadcrumb-creative" onClick={editCreative} disabled={disabled} title="编辑创意名称与所属项目">{project.title}</button></div><div className="topbar-actions"><span className="save-status">{saving ? <LoaderCircle size={14} className="spin" /> : dirty ? <span className="unsaved-dot" /> : <CheckCheck size={14} />}{saving ? '保存中' : dirty ? '待保存' : '已保存'}</span><button className="icon-btn" title="保存创意 ⌘S" aria-label="保存创意" disabled={disabled || !dirty} onClick={() => perform('正在保存', async () => { await flush(); setNotice('已保存'); })}><Save size={17} /></button><span className="topbar-divider" /><button className="btn small" onClick={() => newProject()} disabled={!!busy}><Plus size={15} />新建创意</button><button className="account-chip" onClick={openAuth}><span>{auth.user ? authDisplayName(auth.user).slice(0, 1).toUpperCase() : <Mail size={14} />}</span>{auth.user ? authDisplayName(auth.user) : '登录'}</button></div></header>
+      <header className="topbar"><div className="breadcrumbs"><button className="icon-btn sidebar-toggle desktop-sidebar-toggle" aria-label={sidebarIsCollapsed ? '展开侧边栏' : '收起侧边栏'} title={sidebarIsCollapsed ? '展开侧边栏' : '收起侧边栏'} aria-expanded={!sidebarIsCollapsed} aria-controls="workspace-sidebar" onClick={() => { setSidebarOpen(false); setSidebarCollapsed(!sidebarIsCollapsed); }}><SidebarToggleIcon expanded={!sidebarIsCollapsed} /></button><button className="icon-btn sidebar-toggle mobile-menu" aria-label={sidebarOpen ? '关闭导航' : '打开导航'} title={sidebarOpen ? '关闭导航' : '打开导航'} aria-expanded={sidebarOpen} aria-controls="workspace-sidebar" onClick={() => setSidebarOpen(!sidebarOpen)}><SidebarToggleIcon expanded={sidebarOpen} /></button><FolderOpen size={16} /><span>{defaultWorkspace.title}</span><ChevronRight size={14} /><button className="breadcrumb-project" onClick={() => parentProject && editParentProject(parentProject)} disabled={!!busy} title="重命名项目">{parentProject?.title || '默认项目'}</button><ChevronRight size={14} /><button className="breadcrumb-current breadcrumb-creative" onClick={editCreative} disabled={disabled} title="编辑创意名称与所属项目">{project.title}</button></div><div className="topbar-actions"><span className="save-status">{saving ? <LoaderCircle size={14} className="spin" /> : dirty ? <span className="unsaved-dot" /> : <CheckCheck size={14} />}{saving ? '保存中' : dirty ? '待保存' : '已保存'}</span><button className="icon-btn" title="保存创意 ⌘S" aria-label="保存创意" disabled={disabled || !dirty} onClick={() => perform('正在保存', async () => { await flush(); setNotice('已保存'); })}><Save size={17} /></button><span className="topbar-divider" /><button className="btn small" onClick={() => newProject()} disabled={!!busy}><Plus size={15} />新建创意</button><button className="account-chip" onClick={openAuth}><span>{auth.user ? <img src={accountAvatar} alt="" /> : <Mail size={14} />}</span>{auth.user ? authDisplayName(auth.user) : '登录'}</button></div></header>
       <main className={showMediaLibrary ? 'media-workspace-main' : canvasView ? 'canvas-workspace-main' : undefined}>
         {showMediaLibrary ? <MediaLibraryPage user={auth.user} onSelect={item => openAssetLibrary('all', item)} onUpload={() => openAssetLibrary('all')} onSignIn={openAuth} /> : <>
         {project.archivedAt && <div className="banner sample"><Archive size={16} /><span>此创意已归档，素材和制作结果仍保存在本机。</span><button disabled={!!busy || running} onClick={() => setProjectArchived(project.id, false)}>恢复到所属项目 <ArchiveRestore size={14} /></button></div>}
@@ -917,6 +928,7 @@ export default function App() {
     </Modal>}
     {modal === 'guide' && <Modal title="跨境视频创意指南" wide onClose={() => setModal(null)}><p className="modal-description">把平台的创作原则落实到每个镜头。以下是创意建议，不是流量或转化承诺。</p><div className="guide-grid"><article><span className="guide-number">01</span><h3>用情境吸引注意</h3><p>先让观众识别自己的问题，再用具体动作展示产品价值。采用清晰的开头、主体和行动引导。</p><a href="https://ads.tiktok.com/resources/help/article/creative-best-practices?lang=en" target="_blank" rel="noreferrer">TikTok 创意建议 <ArrowUpRight size={13} /></a></article><article><span className="guide-number">02</span><h3>为竖屏观看设计</h3><p>Reels 优先竖屏、有声音的内容。字幕、商品和关键信息避开界面遮挡，生成后按实际版位检查。</p><a href="https://www.facebook.com/business/ads/facebook-instagram-reels-ads" target="_blank" rel="noreferrer">Meta Reels 创意指南 <ArrowUpRight size={13} /></a></article><article><span className="guide-number">03</span><h3>卖点与产品页一致</h3><p>用目标顾客的语言解释用途与收益，填写真实规格、售价和优惠，让视频承诺与落地页保持一致。</p><a href="https://help.shopify.com/en/manual/products/details/product-descriptions/write" target="_blank" rel="noreferrer">Shopify 产品描述指南 <ArrowUpRight size={13} /></a></article><article><span className="guide-number">04</span><h3>让内容可交接</h3><p>原片拆解与新方案分开保存。修改前提会将旧方案标记为待更新，导出时使用最新的镜头与口播。</p><span className="secondary-label">AI-SAIL FLOW 工作方式</span></article></div><div className="guide-footer"><Info size={15} /><span>当前流程生成逐镜头复刻关键帧与描述，作为后续图生视频的输入。可检查、调整单张图片并导出制作包。</span></div></Modal>}
     <AssetLibrary open={!!assetLibraryTarget} user={auth.user} target={assetLibraryTarget || 'all'} initialSelection={initialMedia} onClose={() => setAssetLibraryTarget(null)} onReference={referenceMedia} onSignIn={() => { setAssetLibraryTarget(null); openAuth(); }} />
-    <AuthDialog availability={authAvailability} resendSeconds={authResendSeconds} open={authOpen} onClose={() => setAuthOpen(false)} auth={auth} email={authEmailValue} code={authCode} stage={authStage} onEmailChange={setAuthEmailValue} onCodeChange={setAuthCode} onSendCode={() => { void sendAuthCode(); }} onVerifyCode={() => { void verifyAuthCode(); }} onWechatSignIn={() => { void signInWithWechat(); }} onBack={() => { setAuthStage('email'); setAuthCode(''); setAuth(current => ({ ...current, error: '', status: '' })); }} onSignOut={() => { void signOut(); }} />
+    {profileDialog}
+    <AuthDialog availability={authAvailability} resendSeconds={authResendSeconds} avatarUrl={accountAvatar} onEditProfile={() => { setAuthOpen(false); setProfileEditing(true); }} open={authOpen && !profileWelcomeOpen} onClose={() => setAuthOpen(false)} auth={auth} email={authEmailValue} code={authCode} stage={authStage} onEmailChange={setAuthEmailValue} onCodeChange={setAuthCode} onSendCode={() => { void sendAuthCode(); }} onVerifyCode={() => { void verifyAuthCode(); }} onGoogleSignIn={() => { void signInWithGoogle(); }} onBack={() => { setAuthStage('email'); setAuthCode(''); setAuth(current => ({ ...current, error: '', status: '' })); }} onSignOut={() => { void signOut(); }} />
   </div>;
 }
