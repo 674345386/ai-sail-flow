@@ -10,7 +10,7 @@ services:
     env_file: .env.production
     environment:
       SOP_REQUIRE_AUTH: "true"
-      SOP_ALLOWED_HOSTS: ${PUBLIC_DOMAIN:?Set PUBLIC_DOMAIN in .env.production}
+      SOP_ALLOWED_HOSTS: ${PUBLIC_DOMAIN:?Set PUBLIC_DOMAIN in .env.production},www.${PUBLIC_DOMAIN:?Set PUBLIC_DOMAIN in .env.production}
       SUPABASE_URL: ${VITE_SUPABASE_URL:?Set VITE_SUPABASE_URL in .env.production}
       SUPABASE_PUBLISHABLE_KEY: ${VITE_SUPABASE_PUBLISHABLE_KEY:?Set VITE_SUPABASE_PUBLISHABLE_KEY in .env.production}
       SOP_HOST: 0.0.0.0

@@ -5,7 +5,7 @@ The public configuration runs the existing Express API behind Caddy. Caddy termi
 ## Before deployment
 
 - Use an Ubuntu Server LTS image. The current Lighthouse instance is Ubuntu Server 26.04 LTS.
-- The temporary hostname `203-195-201-217.sslip.io` resolves to the current Lighthouse IPv4 without editing DNS. It does **not** bypass mainland ICP filing: Tencent Cloud says a domain pointing at a mainland-hosted website needs filing, including a subdomain, and unfiled access may be intercepted. Use it only for the explicitly approved short-term test; for production, use `lululib.cn` after filing.
+- The current Alibaba Cloud US-West instance is reachable at `47.254.32.230`. Point the DNS A records for `lululib.cn` and `www.lululib.cn` to this address; Caddy obtains HTTPS certificates once DNS resolves and ports 80/443 are reachable.
 - Allow inbound TCP ports 80 and 443 in Lighthouse firewall. Keep SSH (22) restricted to trusted source IPs where possible. Do not open port 4317.
 - A 2 GB instance can run the service, but builds and FFmpeg work will have less headroom; 4 GB RAM is preferable. The configured app accepts up to 250 MB videos. A 3 Mbps uplink makes large media uploads slow.
 - The instance's local `data/` directory is the production workspace. Do not copy development data into it unless you explicitly intend to publish those project files to this server.
@@ -14,7 +14,7 @@ The public configuration runs the existing Express API behind Caddy. Caddy termi
 
 Copy `.env.production.example` to `.env.production` on the server and set the Supabase URL and publishable key. Add any model API keys as server-side values; never use a `VITE_` prefix for private keys. Protect this file with owner-only permissions.
 
-Set `PUBLIC_DOMAIN` and `SOP_ALLOWED_HOSTS` to the approved host. For a temporary hostname, use `203-195-201-217.sslip.io`; for production use `lululib.cn` only after ICP filing and point its A record at the Lighthouse IPv4. Install Node.js, npm, FFmpeg, and Caddy. Caddy installation options are in its [official Debian/Ubuntu instructions](https://caddyserver.com/docs/install). Caddy obtains and renews a certificate automatically after the hostname resolves to the instance and ports 80/443 are reachable.
+Set `PUBLIC_DOMAIN=lululib.cn` and `SOP_ALLOWED_HOSTS=lululib.cn,www.lululib.cn`. Install Node.js, npm, FFmpeg, and Caddy. Caddy installation options are in its [official Debian/Ubuntu instructions](https://caddyserver.com/docs/install). Caddy obtains and renews a certificate automatically after the hostname resolves to the instance and ports 80/443 are reachable.
 
 Install application dependencies and build the frontend with the production Supabase settings available to Vite. Then install the two systemd units:
 
