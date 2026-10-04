@@ -10,7 +10,7 @@ import { useImagePaste } from './useImagePaste';
 import { authDisplayName, authEmail, authErrorMessage, initialAuthState, publicAuthRequired, syncPublicServerSession, supabase, loadAuthAvailability, unknownAuthAvailability, validEmail, validEmailCode, startGoogleSignIn, readAuthCallback, clearAuthCallback, type AuthAvailability, type SailAuthState } from './auth';
 import AuthDialog from './AuthDialog';
 import WelcomeProfileDialog from './WelcomeProfileDialog';
-import { needsProfileSetup, useProfileAvatar } from './userProfile';
+import { isNewUserFirstLogin, needsProfileSetup, useProfileAvatar } from './userProfile';
 import AssetLibrary, { MediaLibraryPage } from './AssetLibrary';
 import type { LibraryMedia } from '../shared/media-library';
 import { libraryFile, mediaChanged, syncMediaLibrary } from './mediaLibrary';
@@ -207,8 +207,9 @@ export default function App() {
   const [auth, setAuth] = useState<SailAuthState>(initialAuthState);
   const [authOpen, setAuthOpen] = useState(false);
   const [profileEditing, setProfileEditing] = useState(false);
+  const [profileSetupPrompt, setProfileSetupPrompt] = useState(false);
   const accountAvatar = useProfileAvatar(auth.user);
-  const profileWelcomeOpen = auth.initialized && !!auth.user && (needsProfileSetup(auth.user) || profileEditing);
+  const profileWelcomeOpen = auth.initialized && !!auth.user && (profileEditing || (profileSetupPrompt && !showLanding && !!project && needsProfileSetup(auth.user)));
   const [authEmailValue, setAuthEmailValue] = useState('');
   const [authCode, setAuthCode] = useState('');
   const [authStage, setAuthStage] = useState<'email' | 'code'>('email');
@@ -300,7 +301,7 @@ export default function App() {
       applySession(data.session, callback.active && data.session ? '登录成功' : '', failure ? authErrorMessage(failure) : '');
       if (callback.active) {
         clearAuthCallback();
-        if (data.session) { setShowLanding(false); setAuthOpen(false); }
+        if (data.session) { setProfileSetupPrompt(isNewUserFirstLogin(data.session.user)); setShowLanding(false); setAuthOpen(false); }
         else { setAuthOpen(true); if (!failure) setAuth(current => ({ ...current, error: '登录授权未完成，请重新开始登录。' })); }
       }
     }).catch(error => { if (!cancelled) { applySession(null, '', authErrorMessage(error)); if (callback.active) { clearAuthCallback(); setAuthOpen(true); } } });
@@ -308,7 +309,7 @@ export default function App() {
       if (cancelled) return;
       setAuth(current => ({ ...current, initialized: true, session, user: session?.user || null,
         ...(event === 'SIGNED_OUT' ? { status: '已退出登录', error: '' } : {}) }));
-      if (!session) setProfileEditing(false);
+      if (!session) { setProfileEditing(false); setProfileSetupPrompt(false); }
       if (publicAuthRequired && !session) setShowLanding(true);
     });
     return () => { cancelled = true; subscription.unsubscribe(); };
@@ -372,6 +373,7 @@ export default function App() {
       const { data, error } = await supabase.auth.verifyOtp({ email: authEmailValue.trim(), token: authCode, type: 'email' });
       if (error) throw error;
       if (!data.session || !data.user) throw new Error('登录未完成');
+      setProfileSetupPrompt(isNewUserFirstLogin(data.user));
       setAuth(current => ({ ...current, session: data.session, user: data.user, status: '登录成功', error: '' }));
       setAuthCode(''); setAuthStage('email'); setAuthOpen(false); setShowLanding(false);
     } catch (error) { setAuth(current => ({ ...current, status: '', error: authErrorMessage(error) })); }
@@ -623,9 +625,9 @@ export default function App() {
     '/assets/landing/outdoor-creator.png',
     '/assets/landing/market-filming.png',
   ];
-  const profileDialog = profileWelcomeOpen && auth.user ? <WelcomeProfileDialog key={auth.user.id} user={auth.user} avatarUrl={accountAvatar} firstRun={needsProfileSetup(auth.user)} onCancel={() => setProfileEditing(false)} onComplete={user => {
+  const profileDialog = profileWelcomeOpen && auth.user ? <WelcomeProfileDialog key={auth.user.id} user={auth.user} avatarUrl={accountAvatar} firstRun={profileSetupPrompt && needsProfileSetup(auth.user)} onCancel={() => { setProfileEditing(false); setProfileSetupPrompt(false); }} onComplete={user => {
     setAuth(current => current.user?.id === user.id ? { ...current, user, session: current.session ? { ...current.session, user } : null } : current);
-    setProfileEditing(false); setAuthOpen(false); setShowLanding(false);
+    setProfileEditing(false); setProfileSetupPrompt(false); setAuthOpen(false); setShowLanding(false);
   }} /> : null;
   if (showLanding || (!project && publicAuthRequired && !auth.session)) return <div className="landing-page">
     <header className="landing-nav">

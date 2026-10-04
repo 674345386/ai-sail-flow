@@ -38,7 +38,7 @@ Supabase 回到应用时使用当前 origin + `/auth/callback`，SDK 交换授�
 
 ## 首次登录欢迎浮窗
 
-登录用户没有 `user_metadata.profile_completed_at` 时弹出欢迎浮窗，包括恢复已有会话和 Google OAuth 回调。首次设置名称默认完整邮箱地址，可以直接编辑。提供 14 个本地 SVG 配色头像，也支持上传 JPG、PNG、WebP 图片（最大 5 MB），上传前居中裁成 256 × 256 JPEG。
+仅新账号首次成功完成邮箱验证码登录或 OAuth 登录，且尚无 `user_metadata.profile_completed_at` 时，才在工作台加载完成后弹出欢迎浮窗。已有账号、重新打开首页和恢复已有会话都不会自动弹出；用户仍可从账号资料入口主动编辑。新账号判断基于 Supabase 账号创建时间与首次登录时间接近（15 分钟内）。首次设置名称默认完整邮箱地址，可以直接编辑。提供 14 个本地 SVG 配色头像，也支持上传 JPG、PNG、WebP 图片（最大 5 MB），上传前居中裁成 256 × 256 JPEG。
 
 点击“完成，开始创作”后通过 `auth.updateUser` 持久化：
 

@@ -12,6 +12,14 @@ export function needsProfileSetup(user: User | null) {
   return !!user && !user.user_metadata?.profile_completed_at;
 }
 
+export function isNewUserFirstLogin(user: User | null) {
+  if (!user) return false;
+  const createdAt = Date.parse(user.created_at);
+  const lastSignInAt = user.last_sign_in_at ? Date.parse(user.last_sign_in_at) : Date.now();
+  const accountAgeAtFirstSignIn = lastSignInAt - createdAt;
+  return Number.isFinite(createdAt) && Number.isFinite(lastSignInAt) && accountAgeAtFirstSignIn >= 0 && accountAgeAtFirstSignIn <= 15 * 60 * 1000;
+}
+
 function savedAvatarUrl(user: User | null) {
   const url = user?.user_metadata?.avatar_url;
   return typeof url === 'string' && (defaultAvatars.some(avatar => avatar.url === url) || /^https:\/\//.test(url)) ? url : defaultAvatars[0].url;
