@@ -20,6 +20,7 @@ import ShotTimelineEditor from './ShotTimelineEditor';
 import ProjectNavigation from './ProjectNavigation';
 import AnimatedBrandMark from './AnimatedBrandMark';
 import ShaderBackdrop from './ShaderBackdrop';
+import LandingHero from './LandingHero';
 import { shotReconstructionPrompt } from '../shared/shot-evidence';
 import AutomaticWorkspace, { SpeechTimingConfirmation, WorkflowEntry } from './WorkflowWorkspace';
 const CreativeWorkspace = lazy(() => import('./CreativeWorkspace'));
@@ -621,19 +622,7 @@ export default function App() {
       <nav className="landing-links" aria-label="首页导航"><a href="#overview">概览</a><a href="#models">模型</a><a href="#features">功能</a><a href="#tools">工具</a><a href="#creator">Flow 创作营</a><a href="#pricing">价格</a></nav>
       <div className="landing-social"><span aria-label="X">𝕏</span><span aria-label="Instagram">◎</span><span aria-label="Discord">◉</span><button aria-label="更多选项">⋮</button><button className="landing-account" onClick={openAuth}>{auth.user ? authDisplayName(auth.user) : '登录'}</button></div>
     </header>
-    <main className="landing-hero" id="overview">
-      <div className="landing-mosaic" aria-hidden="true">
-        {Array.from({ length: 16 }, (_, i) => <div className={`landing-tile landing-tile-${i + 1}`} key={i}><img src={landingImages[i % landingImages.length]} alt="" /></div>)}
-      </div>
-      <div className="landing-shade" />
-      <section className="landing-copy">
-        <h1>AI-Sail Flow</h1>
-        <p>您的专属 AI 出海内容工作室，基于<br />真实视频理解与市场洞察打造而成。</p>
-        <div className="landing-workflow-actions"><button className="landing-cta" onClick={() => enterWorkspace(false, 'automatic')}><span>自动制作视频</span><ArrowRight size={18} /></button><button className="landing-cta" onClick={() => enterWorkspace(false, 'manual')}><span>进入 AI-Sail Flow 制作</span><span className="landing-cta-arrow"><ArrowRight size={17} /></span></button></div>
-        <small className="landing-disclaimer"><ShieldCheck size={13} /> {publicAuthRequired ? '邮箱验证后即可访问 · 登录用户共用工作区' : '本地部署 · 素材保存在你的设备'}</small>
-      </section>
-      <a className="landing-scroll" href="#made" aria-label="继续探索"><span>向下探索</span><ArrowDownToLine size={17} /></a>
-    </main>
+    <LandingHero authRequired={publicAuthRequired} onEnter={mode => enterWorkspace(false, mode)} />
     <section className="gf-intro" id="made">
       <SectionBackdrop src="/assets/landing/market-creator-v2.png" className="gf-intro-backdrop" />
       <div className="gf-intro-copy"><h2>成就您的<br />出海创意之作</h2><p>从一条真实参考视频出发，把有效镜头、产品表达和购买动机变成可执行的全球内容方案。</p></div>
