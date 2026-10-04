@@ -23,6 +23,7 @@ import ProjectNavigation from './ProjectNavigation';
 import AnimatedBrandMark from './AnimatedBrandMark';
 import ShaderBackdrop from './ShaderBackdrop';
 import LandingHero from './LandingHero';
+import CreativeShowcase from './CreativeShowcase';
 import { shotReconstructionPrompt } from '../shared/shot-evidence';
 import AutomaticWorkspace, { SpeechTimingConfirmation, WorkflowEntry } from './WorkflowWorkspace';
 const CreativeWorkspace = lazy(() => import('./CreativeWorkspace'));
@@ -629,15 +630,11 @@ export default function App() {
   if (showLanding || (!project && publicAuthRequired && !auth.session)) return <div className="landing-page">
     <header className="landing-nav">
       <button className="landing-brand" onClick={() => setShowLanding(true)} aria-label="回到首页"><span>AI-Sail Flow</span></button>
-      <nav className="landing-links" aria-label="首页导航"><a href="#overview">概览</a><a href="#models">模型</a><a href="#features">功能</a><a href="#tools">工具</a><a href="#creator">Flow 创作营</a><a href="#pricing">价格</a></nav>
+      <nav className="landing-links" aria-label="首页导航"><a href="#overview">概览</a><a href="#models">模型</a><a href="#tools">工具</a><a href="#creator">Flow 创作营</a><a href="#pricing">价格</a></nav>
       <div className="landing-social"><span aria-label="X">𝕏</span><span aria-label="Instagram">◎</span><span aria-label="Discord">◉</span><button aria-label="更多选项">⋮</button><button className="landing-account" onClick={openAuth}>{auth.user && <img src={accountAvatar} alt="" />}{auth.user ? authDisplayName(auth.user) : '登录'}</button></div>
     </header>
     <LandingHero authRequired={publicAuthRequired} onEnter={mode => enterWorkspace(false, mode)} />
-    <section className="gf-intro" id="made">
-      <SectionBackdrop src="/assets/landing/market-creator-v2.png" className="gf-intro-backdrop" />
-      <div className="gf-intro-copy"><h2>成就您的<br />出海创意之作</h2><p>从一条真实参考视频出发，把有效镜头、产品表达和购买动机变成可执行的全球内容方案。</p></div>
-      <div className="gf-intro-frame"><StudioMockup variant="gallery" images={landingImages} /></div>
-    </section>
+    <CreativeShowcase />
 
     <section className="gf-models" id="models">
       <SectionBackdrop src="/assets/landing/models-ambient-v2.png" className="gf-models-backdrop" />
@@ -647,12 +644,6 @@ export default function App() {
         <div className="gf-omni-copy"><small>NATIVE MULTIMODAL VIDEO</small><h3>Gemini 3.8 Flash</h3><p>完整视频和音轨一起输入，理解镜头节奏、口播、商品展示与购买引导，把参考创意拆成可执行的内容资产。</p><div><button onClick={() => enterWorkspace()}>使用 AI-Sail Flow</button><button className="ghost">了解模型</button></div></div>
         <span className="gf-omni-badge">VIDEO · AUDIO · PRODUCT CONTEXT</span>
       </article>
-    </section>
-
-    <section className="gf-features" id="features">
-      <SectionBackdrop src="/assets/landing/product-projector-east-asian.png" className="gf-features-backdrop" />
-      <div className="gf-section-label">功能</div>
-      <div className="gf-feature-tabs"><span>方案</span><span>创作</span><span>打磨</span><button onClick={() => enterWorkspace(true)}>使用 AI-Sail Flow 开始创作</button></div>
     </section>
 
     <section className="gf-tools" id="tools">

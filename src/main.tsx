@@ -7,6 +7,7 @@ import './creative-workspace.css';
 import './shader-surfaces.css';
 import './workspace-shell.css';
 import './landing-hero.css';
+import './creative-showcase.css';
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: boolean }> {
   state = { error: false };
