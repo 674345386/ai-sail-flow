@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { ArrowRight, Pause, Play, ShieldCheck } from 'lucide-react';
 import type { WorkflowMode } from '../shared/domain';
 import { useReducedMotion } from './useReducedMotion';
-
-const poster = '/assets/landing/commerce-hero-reference-poster.jpg';
+import heroVideo from './assets/landing/commerce-hero-reference.mp4';
+import poster from './assets/landing/commerce-hero-reference-poster.jpg';
 
 export default function LandingHero({ authRequired, onEnter }: {
   authRequired: boolean;
@@ -52,7 +52,7 @@ export default function LandingHero({ authRequired, onEnter }: {
         <img src={poster} alt="" fetchPriority="high" />
         {!reducedMotion && !failed && <video
           ref={videoRef}
-          src="/assets/landing/commerce-hero-reference.mp4"
+          src={heroVideo}
           poster={poster}
           autoPlay
           muted

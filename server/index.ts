@@ -410,9 +410,17 @@ app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
   res.status(safe ? 400 : 500).json({ error: safe ? message : '操作未完成，请稍后重试。' });
 });
 if (process.argv.includes('--production')) {
-  if (!fs.existsSync(path.join(root, 'dist/index.html'))) throw new Error('请先运行 npm run build。');
-  app.use(express.static(path.join(root, 'dist')));
-  app.get('/{*path}', (_req, res) => res.sendFile(path.join(root, 'dist/index.html')));
+  const distRoot = path.join(root, 'dist');
+  const distAssetsRoot = path.join(distRoot, 'assets');
+  if (!fs.existsSync(path.join(distRoot, 'index.html'))) throw new Error('请先运行 npm run build。');
+  app.use(express.static(distRoot, { setHeaders(res, filepath) {
+    const isGeneratedAsset = path.dirname(filepath) === distAssetsRoot;
+    const hasViteContentHash = /-[A-Za-z0-9_-]{8}\.[^.]+$/.test(path.basename(filepath));
+    if (isGeneratedAsset && hasViteContentHash) {
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    }
+  } }));
+  app.get('/{*path}', (_req, res) => res.sendFile(path.join(distRoot, 'index.html')));
 } else {
   const { createServer } = await import('vite');
   const vite = await createServer({ root, server: { middlewareMode: true }, appType: 'spa' });

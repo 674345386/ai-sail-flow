@@ -1,5 +1,7 @@
 import { useRef } from 'react';
 import { Clapperboard, ScanLine, WandSparkles } from 'lucide-react';
+import heroVideo from './assets/landing/commerce-hero-reference.mp4';
+import heroPoster from './assets/landing/commerce-hero-reference-poster.jpg';
 
 const shots = [
   { title: '色卡开场', time: 0.5, timestamp: '00:00', image: 'opening' },
@@ -32,7 +34,7 @@ export default function CreativeShowcase() {
         <div className="creative-showcase-panel">
           <div className="creative-showcase-panel-heading"><h3>参考视频</h3><span>穿搭与色彩创意</span></div>
           <div className="creative-showcase-film">
-            <video ref={videoRef} src="/assets/landing/commerce-hero-reference.mp4" poster="/assets/landing/commerce-hero-reference-poster.jpg" controls playsInline preload="none" aria-label="穿搭与色彩创意参考视频" />
+            <video ref={videoRef} src={heroVideo} poster={heroPoster} controls playsInline preload="none" aria-label="穿搭与色彩创意参考视频" />
           </div>
         </div>
         <div className="creative-showcase-panel">
