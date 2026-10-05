@@ -1,0 +1,19 @@
+---
+profile:
+  store-selected: true
+ipv6: false
+dns:
+  ipv6: false
+  enable: true
+  enhanced-mode: normal
+sniffer:
+  enable: false
+tun:
+  enable: true
+  stack: gvisor
+  auto-route: true
+  strict-route: false
+  auto-detect-interface: true
+  dns-hijack:
+  - any:53
+  - tcp://any:53

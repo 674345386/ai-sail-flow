@@ -118,7 +118,7 @@ function ShotRow({ project, shot, index, selected, expanded, disabled, onSelect,
     ['镜头重建 Prompt', suggestion.reconstructionPrompt, shot.reconstructionPrompt],
   ] as [string, string | undefined, string | undefined][]).filter(([, proposed, current]) => (proposed || '') !== (current || '')) : [];
   return <article ref={row} className={`shot-breakdown-row ${selected ? 'selected' : ''}`}>
-    <header className="shot-row-heading"><button onClick={onSelect} className="shot-row-title"><b>{String(index + 1).padStart(2, '0')}</b><span><strong>镜头片段 {String(index + 1).padStart(2, '0')}</strong><small>{shot.start.toFixed(3)}–{shot.end.toFixed(3)} 秒 · {(shot.end - shot.start).toFixed(3)} 秒</small></span></button><span className="badge">{roles[shot.role]}</span>{onSeek && <button className="text-button" onClick={() => { onSelect(); onSeek(shot.start); }}><Play size={13} />定位原片</button>}{renderEditor && <button className="btn small" aria-expanded={expanded} onClick={onExpand}>{expanded ? '收起编辑' : '编辑镜头'}<ChevronDown size={13} /></button>}</header>
+    <header className="shot-row-heading"><button onClick={onSelect} className="shot-row-title"><b>{String(index + 1).padStart(2, '0')}</b><span><strong>镜头片段 {String(index + 1).padStart(2, '0')}</strong><small>{shot.start.toFixed(3)}–{shot.end.toFixed(3)} 秒 · {(shot.end - shot.start).toFixed(3)} 秒</small></span></button><span className="badge">{roles[shot.role]}</span>{onSeek && <button className="text-button" onClick={() => { onSelect(); onSeek(shot.start); }}><Play size={13} />定位原片</button>}</header>
     <div className="shot-row-content">
       <div className="shot-row-media">
         {media ? <SourceClip project={project} shot={shot} media={media} index={index} onSelect={onSelect} /> : <><div className="shot-media-label"><Film size={13} /><span>原片片段</span></div><div className="shot-media-placeholder"><Film size={27} /><span>{!reference ? '示例未关联原片' : error ? '画面暂不可用' : <><LoaderCircle size={14} className="spin" />准备证据画面…</>}</span></div></>}
@@ -132,7 +132,7 @@ function ShotRow({ project, shot, index, selected, expanded, disabled, onSelect,
         </button>)}</div> : <div className="shot-evidence-placeholder">{reference ? '从原片提取首帧、中间关键帧、尾帧' : '上传原片后可查看 3 张关键帧'}</div>}
         <p className="shot-evidence-note">{media?.frames.some(frame => frame.selection === 'model') ? '首尾按镜头边界截取 · 中间采用 Gemini 建议 · 点击放大' : '首帧 / 中间关键帧 / 尾帧 · 点击放大'}</p>
       </div>
-      <dl className="shot-row-observations"><div className="shot-observation-wide"><dt>画面与场景</dt><dd>{shot.visual || '未记录'}</dd></div>{[
+      <dl className={`shot-row-observations${renderEditor ? ' editable' : ''}`} onDoubleClick={renderEditor ? onExpand : undefined} title={renderEditor ? '双击编辑镜头信息' : undefined}><div className="shot-observation-wide"><dt>画面与场景</dt><dd>{shot.visual || '未记录'}</dd></div>{[
         ['主体与外观', shot.subject || '未单独记录；参见画面描述'], ['主体动作', shot.action], ['运镜 / 镜头语言', shot.camera],
         ['动效 / 合成', shot.effects || '未单独记录'], ['转场 / 分段依据', shot.transition || '未单独记录'], ['声音 / 口播', [shot.sound, shot.narration].filter(Boolean).join(' · ') || '未记录'],
       ].map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value || '未记录'}</dd></div>)}{shot.uncertainty && <div className="shot-observation-wide shot-uncertainty"><dt>待核对</dt><dd>{shot.uncertainty}</dd></div>}</dl>
