@@ -2,14 +2,19 @@ import type { Shot } from './domain';
 
 // Media is tied to the source interval, not editable descriptive text.
 export function shotEvidenceFrames(shot: Pick<Shot, 'start' | 'end' | 'evidenceFrames'>) {
-  const requested = (shot.evidenceFrames || []).filter(frame => Number.isFinite(frame.at) && frame.at >= shot.start && frame.at < shot.end)
-    .sort((a, b) => a.at - b.at).filter((frame, index, frames) => !index || frame.at - frames[index - 1].at > .025).slice(0, 3);
-  if (requested.length) return requested.map(frame => ({ ...frame, reason: frame.reason || '模型建议核对的画面', selection: 'model' as const }));
   const duration = shot.end - shot.start;
-  return (duration < .5 ? [.5] : [.15, .5, .85]).map((fraction, index, fractions) => ({
-    at: shot.start + duration * fraction,
-    reason: fractions.length === 1 ? '镜头中段' : ['镜头前段', '镜头中段', '镜头后段'][index], selection: 'interval' as const,
-  }));
+  const midpoint = shot.start + duration / 2;
+  const lastAt = shot.end - Math.min(.001, duration / 4);
+  const middle = (shot.evidenceFrames || [])
+    .filter(frame => Number.isFinite(frame.at) && frame.at > shot.start && frame.at < lastAt)
+    .sort((a, b) => Math.abs(a.at - midpoint) - Math.abs(b.at - midpoint))[0];
+  // Always keep three slots, including short shots with repeated source images.
+  return [
+    { at: shot.start, reason: '镜头首帧', selection: 'interval' as const, position: 'first' as const },
+    { at: middle?.at ?? midpoint, reason: middle?.reason || '镜头中间关键帧',
+      selection: middle ? 'model' as const : 'interval' as const, position: 'middle' as const },
+    { at: lastAt, reason: '镜头尾帧', selection: 'interval' as const, position: 'last' as const },
+  ];
 }
 
 export function shotReconstructionPrompt(shot: Shot) {
@@ -28,5 +33,5 @@ export function shotReconstructionPrompt(shot: Shot) {
 export type ShotMedia = {
   key: string; sourceAssetId: string; start: number; end: number;
   clipUrl: string; duration: number;
-  frames: { at: number; reason: string; selection: 'model' | 'interval'; url: string }[];
+  frames: { at: number; reason: string; selection: 'model' | 'interval'; position: 'first' | 'middle' | 'last'; url: string }[];
 };

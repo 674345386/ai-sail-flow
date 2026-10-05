@@ -905,7 +905,7 @@ export default function App() {
     {modal === 'settings' && <Modal title="模型连接" onClose={() => { setModal(null); setApiKey(''); setVeoApiKey(''); setBaseUrl(''); setStorageKey(''); }}>
       <div className="settings-model"><span className="model-symbol"><Sparkles size={22} /></span><div><h3>Gemini 3.8 Flash</h3><code>{status.model} · 视频理解与改写</code></div><Badge>{status.configured ? '已配置' : '待连接'}</Badge></div>
       <div className="settings-model"><span className="model-symbol"><ImagePlus size={22} /></span><div><h3>复刻关键帧图像模型</h3><code>{status.keyframeModel || 'gemini-3.1-flash-image'}</code></div><Badge>{status.configured ? '沿用 Gemini 连接' : '待连接'}</Badge></div>
-      <p className="modal-description">当前先生成逐镜头复刻关键帧。分析、改写和图片生成沿用同一 Gemini 连接；渠道需支持图像模型输出。页面填写的密钥只保存在服务端内存中。</p>
+      <p className="modal-description">当前先生成逐镜头复刻关键帧。分析、改写和图片生成沿用同一 Gemini 连接；渠道需支持图像模型输出。页面填写的 Gemini 密钥保存在服务端私有数据目录，重启后仍可使用。</p>
       <Field label="Gemini API Key · 可选"><Input type="password" autoComplete="off" spellCheck={false} placeholder="输入 Gemini API Key 或兼容渠道 Key" value={apiKey} onChange={e => setApiKey(e.target.value)} /></Field>
       <Field label="Gemini 兼容接口地址 · 可选" hint="Agentic 沿用 gemini-3.8-flash:generateContent；中转需要透传 media_processing: AGENTIC"><Input type="url" autoComplete="off" spellCheck={false} placeholder="https://maiai.ai/v1" value={baseUrl} onChange={e => setBaseUrl(e.target.value)} /></Field>
       <details className="creative-details"><summary>后续视频生成连接（当前无需配置）</summary>

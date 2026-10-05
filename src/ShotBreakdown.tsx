@@ -7,6 +7,7 @@ import { api } from './api';
 import './shot-breakdown.css';
 
 const mediaCache = new Map<string, ShotMedia>();
+const frameLabels = { first: '首帧', middle: '中间关键帧', last: '尾帧' };
 const mediaRequests = new Map<string, Promise<ShotMedia>>();
 let mediaActive = 0;
 const mediaQueue: (() => void)[] = [];
@@ -47,8 +48,10 @@ function ShotRow({ project, shot, index, selected, expanded, disabled, onSelect,
   onSplit?: () => void; onAcceptSuggestion?: () => void; onDismissSuggestion?: () => void; onFocusChange?: (points: FocusPoint[]) => void; renderEditor?: (shot: Shot, index: number) => ReactNode;
 }) {
   const row = useRef<HTMLElement>(null);
+  const preview = useRef<HTMLDivElement>(null);
   const reference = project.assets.find(asset => asset.kind === 'video');
   const [visible, setVisible] = useState(false);
+  const [previewVisible, setPreviewVisible] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [result, setResult] = useState<{ key: string; media?: ShotMedia; error?: string }>();
   const [frame, setFrame] = useState<ShotMedia['frames'][number]>();
@@ -61,6 +64,15 @@ function ShotRow({ project, shot, index, selected, expanded, disabled, onSelect,
     if (!('IntersectionObserver' in window)) { setVisible(true); return; }
     const observer = new IntersectionObserver(entries => { if (entries.some(entry => entry.isIntersecting)) { setVisible(true); observer.disconnect(); } }, { rootMargin: '200px' });
     observer.observe(row.current); return () => observer.disconnect();
+  }, []);
+  useEffect(() => {
+    if (!preview.current || !('IntersectionObserver' in window)) return;
+    // Unlike preparation, preloading follows the current viewport as the user scrolls.
+    const observer = new IntersectionObserver(entries => {
+      setPreviewVisible(entries.some(entry => entry.isIntersecting));
+    }, { rootMargin: '100px' });
+    observer.observe(preview.current);
+    return () => observer.disconnect();
   }, []);
   useEffect(() => {
     if (!visible || !reference || mediaCache.has(requestKey)) return;
@@ -85,11 +97,18 @@ function ShotRow({ project, shot, index, selected, expanded, disabled, onSelect,
   return <article ref={row} className={`shot-breakdown-row ${selected ? 'selected' : ''}`}>
     <header className="shot-row-heading"><button onClick={onSelect} className="shot-row-title"><b>{String(index + 1).padStart(2, '0')}</b><span><strong>镜头片段 {String(index + 1).padStart(2, '0')}</strong><small>{shot.start.toFixed(3)}–{shot.end.toFixed(3)} 秒 · {(shot.end - shot.start).toFixed(3)} 秒</small></span></button><span className="badge">{roles[shot.role]}</span>{onSeek && <button className="text-button" onClick={() => { onSelect(); onSeek(shot.start); }}><Play size={13} />定位原片</button>}{renderEditor && <button className="btn small" aria-expanded={expanded} onClick={onExpand}>{expanded ? '收起编辑' : '编辑镜头'}<ChevronDown size={13} /></button>}</header>
     <div className="shot-row-content">
-      <div className="shot-row-media"><div className="shot-media-label"><Film size={13} /><span>{media ? `原片切片${reference?.hasAudio ? ' · 保留原声' : reference?.hasAudio === false ? ' · 无音轨' : ''}` : '原片片段'}</span>{media && <a href={media.clipUrl} download aria-label={`下载镜头 ${index + 1}`}><Download size={14} /></a>}</div>
-        {media ? <video key={media.key} src={media.clipUrl} poster={media.frames[0]?.url} controls playsInline preload="none" aria-label={`原片镜头片段 ${index + 1}`} onPlay={event => { onSelect(); document.querySelectorAll<HTMLVideoElement>('.shot-row-media video').forEach(video => { if (video !== event.currentTarget) video.pause(); }); }} /> : <div className="shot-media-placeholder">{reference?.thumbnail ? <img src={reference.thumbnail} alt="原片封面，镜头片段正在准备" /> : <Film size={27} />}<span>{!reference ? '示例未关联原片' : error ? '片段暂不可用' : <><LoaderCircle size={14} className="spin" />准备镜头片段…</>}</span></div>}
+      <div ref={preview} className="shot-row-media"><div className="shot-media-label"><Film size={13} /><span>{media ? `原片切片${reference?.hasAudio ? ' · 保留原声' : reference?.hasAudio === false ? ' · 无音轨' : ''}` : '原片片段'}</span>{media && <a href={media.clipUrl} download aria-label={`下载镜头 ${index + 1}`}><Download size={14} /></a>}</div>
+        {media ? <video key={media.key} src={media.clipUrl} poster={media.frames[0]?.url} controls playsInline preload={selected || previewVisible ? 'auto' : 'none'} aria-label={`原片镜头片段 ${index + 1}`} onPlay={event => { onSelect(); document.querySelectorAll<HTMLVideoElement>('.shot-row-media video').forEach(video => { if (video !== event.currentTarget) video.pause(); }); }} /> : <div className="shot-media-placeholder">{reference?.thumbnail ? <img src={reference.thumbnail} alt="原片封面，镜头片段正在准备" /> : <Film size={27} />}<span>{!reference ? '示例未关联原片' : error ? '片段暂不可用' : <><LoaderCircle size={14} className="spin" />准备镜头片段…</>}</span></div>}
         {error && <p className="shot-media-error" role="alert">{error}<button className="text-button" onClick={() => setAttempt(attempt + 1)}><RotateCcw size={12} />重新提取</button></p>}
       </div>
-      <div className="shot-row-evidence"><div className="shot-media-label"><Image size={13} /><span>证据关键帧</span><small>原片真实截帧</small></div>{media ? <div className="shot-frame-strip" style={{ gridTemplateColumns: `repeat(${media.frames.length}, minmax(0, 1fr))` }}>{media.frames.map((item, index) => <button key={item.url} onClick={() => setFrame(item)} title={item.reason}><img src={item.url} alt={`${item.at.toFixed(3)} 秒：${item.reason}`} loading="lazy" /><span>{item.at.toFixed(3)}s</span><small>{item.reason}</small></button>)}</div> : <div className="shot-evidence-placeholder">{reference ? '按镜头时间点从原片提取' : '上传原片后可查看关键帧'}</div>}<p className="shot-evidence-note">{media?.frames.some(frame => frame.selection === 'model') ? 'Gemini 建议的核对时间点 · 点击放大' : '按镜头区间选帧 · 点击放大'}</p></div>
+      <div className="shot-row-evidence">
+        <div className="shot-media-label"><Image size={13} /><span>证据关键帧 · 3 张</span><small>原片真实截帧</small></div>
+        {media ? <div className="shot-frame-strip">{media.frames.map(item => <button key={item.url} onClick={() => setFrame(item)} title={`${frameLabels[item.position]}：${item.reason}`}>
+          <img src={item.url} alt={`${frameLabels[item.position]} · ${item.at.toFixed(3)} 秒：${item.reason}`} loading="lazy" />
+          <b>{frameLabels[item.position]}</b><span>{item.at.toFixed(3)}s</span><small>{item.reason}</small>
+        </button>)}</div> : <div className="shot-evidence-placeholder">{reference ? '从原片提取首帧、中间关键帧、尾帧' : '上传原片后可查看 3 张关键帧'}</div>}
+        <p className="shot-evidence-note">{media?.frames.some(frame => frame.selection === 'model') ? '首尾按镜头边界截取 · 中间采用 Gemini 建议 · 点击放大' : '首帧 / 中间关键帧 / 尾帧 · 点击放大'}</p>
+      </div>
       <dl className="shot-row-observations"><div className="shot-observation-wide"><dt>画面与场景</dt><dd>{shot.visual || '未记录'}</dd></div>{[
         ['主体与外观', shot.subject || '未单独记录；参见画面描述'], ['主体动作', shot.action], ['运镜 / 镜头语言', shot.camera],
         ['动效 / 合成', shot.effects || '未单独记录'], ['转场 / 分段依据', shot.transition || '未单独记录'], ['声音 / 口播', [shot.sound, shot.narration].filter(Boolean).join(' · ') || '未记录'],

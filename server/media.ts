@@ -59,7 +59,7 @@ async function exists(file: string) { try { return (await fs.stat(file)).size > 
 export async function prepareShotMedia(video: Asset, shot: Pick<Shot, 'start' | 'end' | 'evidenceFrames'>, includeClip = true): Promise<ShotMedia> {
   if (!Number.isFinite(shot.start) || !Number.isFinite(shot.end) || shot.start < 0 || shot.end <= shot.start || shot.end > (video.duration || 0) + .001) throw new Error('镜头时间范围超出了原片，请先修正时间。');
   const frames = shotEvidenceFrames(shot);
-  const key = createHash('sha256').update(JSON.stringify(['shot-media-v1', video.filename, shot.start, shot.end, frames.map(frame => frame.at)])).digest('hex').slice(0, 24);
+  const key = createHash('sha256').update(JSON.stringify(['shot-media-v2', video.filename, shot.start, shot.end, frames.map(frame => frame.at)])).digest('hex').slice(0, 24);
   const prefix = `shot-${key}`;
   const clip = path.join(uploadDir, `${prefix}.mp4`);
   const requestKey = `${key}:${includeClip}`;
@@ -77,8 +77,14 @@ export async function prepareShotMedia(video: Asset, shot: Pick<Shot, 'start' | 
           if (await exists(image)) continue;
           const temp = `${image}.${randomUUID()}.part.jpg`;
           try {
-            await exec('ffmpeg', ['-y', '-v', 'error', '-protocol_whitelist', 'file,pipe', '-ss', frame.at.toFixed(6), '-i', absolute,
-              '-map', '0:v:0', '-frames:v', '1', '-vf', 'scale=640:640:force_original_aspect_ratio=decrease:force_divisible_by=2', '-q:v', '3', '-threads', '2', temp], { timeout: 30000, maxBuffer: 1024 * 1024 });
+            // Seeking at end can land on the next shot (or EOF). Decode a bounded
+            // tail window and select its last frame strictly before the cut.
+            const seekAt = frame.position === 'last' ? Math.max(shot.start, shot.end - .5) : frame.at;
+            const filter = [frame.position === 'last' && `trim=end=${(shot.end - seekAt).toFixed(6)},reverse`,
+              'scale=640:640:force_original_aspect_ratio=decrease:force_divisible_by=2'].filter(Boolean).join(',');
+            const inputDuration = frame.position === 'last' ? ['-t', (shot.end - seekAt).toFixed(6)] : [];
+            await exec('ffmpeg', ['-y', '-v', 'error', '-protocol_whitelist', 'file,pipe', '-ss', seekAt.toFixed(6), ...inputDuration, '-i', absolute,
+              '-map', '0:v:0', '-frames:v', '1', '-vf', filter, '-q:v', '3', '-threads', '2', temp], { timeout: 30000, maxBuffer: 1024 * 1024 });
             if (!await exists(temp)) throw new Error('未读取到关键帧。');
             await fs.rename(temp, image);
           } finally { await fs.unlink(temp).catch(() => {}); }

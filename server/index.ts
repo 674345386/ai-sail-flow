@@ -14,6 +14,8 @@ import { workflowBusy } from '../shared/workflow';
 import { keyframeCurrent } from '../shared/storyboard';
 import type { GenerationInput } from './veo';
 import { compressUploadedVideo } from './video-compression';
+import { createSessionVerifier } from './session-verifier';
+import { setShotMediaCacheHeaders } from './media-cache';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 try { process.loadEnvFile(path.join(root, '.env')); } catch (err) { if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err; }
@@ -39,7 +41,11 @@ if (publicAuthEnabled && (!supabaseUrl || !supabasePublishableKey || !allowedHos
   throw new Error('公网模式需配置 Supabase URL、Publishable Key 和 SOP_ALLOWED_HOSTS。');
 }
 const authClient = publicAuthEnabled ? createClient(supabaseUrl, supabasePublishableKey, { auth: { persistSession: false, autoRefreshToken: false } }) : null;
-const verifiedSessions = new Map<string, { allowed: boolean; expiresAt: number }>();
+const verifiedSessions = createSessionVerifier(async token => {
+  if (!authClient) return false;
+  const { data, error } = await authClient.auth.getUser(token);
+  return !error && Boolean(data.user?.id);
+});
 const mediaCookie = 'sop_media_session';
 function bearerToken(req: Request) {
   const header = req.headers.authorization || '';
@@ -52,24 +58,7 @@ function cookieToken(req: Request) {
 }
 async function isAllowedToken(token: string) {
   if (!authClient || !token) return false;
-  const cached = verifiedSessions.get(token);
-  if (cached && cached.expiresAt > Date.now()) return cached.allowed;
-  const { data, error } = await authClient.auth.getUser(token);
-  let expiresAt = Date.now() + 15_000;
-  try {
-    const payload = JSON.parse(Buffer.from(token.split('.')[1] || '', 'base64url').toString('utf8'));
-    if (Number.isFinite(payload.exp)) expiresAt = Math.min(Date.now() + 30_000, payload.exp * 1000);
-  } catch { /* Supabase still validates the token; malformed tokens are rejected below. */ }
-  // Public deployments allow any authenticated Supabase account. The token is
-  // verified by Supabase above; requiring an email here would reintroduce a
-  // single-account gate and prevent OAuth-only identities from signing in.
-  const allowed = !error && Boolean(data.user?.id);
-  if (verifiedSessions.size > 128) {
-    for (const [key, item] of verifiedSessions) if (item.expiresAt <= Date.now()) verifiedSessions.delete(key);
-    if (verifiedSessions.size > 128) verifiedSessions.clear();
-  }
-  verifiedSessions.set(token, { allowed, expiresAt });
-  return allowed;
+  return verifiedSessions.isAllowed(token);
 }
 function sessionCookieHeader(token: string, maxAgeSeconds: number) {
   return `${mediaCookie}=${encodeURIComponent(token)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${Math.max(0, maxAgeSeconds)}`;
@@ -118,8 +107,11 @@ app.post('/api/auth/session', async (req, res) => {
     return res.sendStatus(204);
   } catch { return res.status(503).json({ error: '登录服务暂时不可用，请稍后重试。' }); }
 });
-app.delete('/api/auth/session', (_req, res) => {
-  if (publicAuthEnabled) res.setHeader('Set-Cookie', sessionCookieHeader('', 0));
+app.delete('/api/auth/session', (req, res) => {
+  if (publicAuthEnabled) {
+    verifiedSessions.invalidate(cookieToken(req));
+    res.setHeader('Set-Cookie', sessionCookieHeader('', 0));
+  }
   res.sendStatus(204);
 });
 app.use('/api', async (req, res, next) => {
@@ -384,6 +376,7 @@ app.get('/api/projects/:id/export', async (req, res) => {
   res.type('application/zip').send(buffer);
 });
 app.use('/media', express.static(uploadDir, { dotfiles: 'deny', fallthrough: false, setHeaders(res, filepath) {
+  setShotMediaCacheHeaders(res, filepath);
   if (filepath.endsWith('.srt')) { res.setHeader('Content-Type', 'application/x-subrip; charset=utf-8'); return; }
   if (filepath.endsWith('.mp4')) { res.setHeader('Content-Type', 'video/mp4'); return; }
   if (/recreation-[a-f\d-]+\.(png|jpg|webp)$/.test(filepath)) return;

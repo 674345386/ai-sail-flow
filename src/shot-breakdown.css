@@ -41,7 +41,8 @@
 .shot-frame-strip > button { min-width: 0; padding: 0; border: 0; border-radius: 6px; background: transparent; text-align: left; }
 .shot-frame-strip img { display: block; width: 100%; height: 123px; border: 1px solid #e4eae5; border-radius: 6px; object-fit: contain; background: #f4f7f4; }
 .shot-frame-strip button:hover img { border-color: #8bad96; }
-.shot-frame-strip span { display: block; margin-top: 6px; color: #698775; font-size: .65rem; font-variant-numeric: tabular-nums; }
+.shot-frame-strip b { display: block; margin-top: 6px; color: #698775; font-size: .65rem; font-weight: 500; }
+.shot-frame-strip span { display: block; margin-top: 3px; color: #698775; font-size: .65rem; font-variant-numeric: tabular-nums; }
 .shot-frame-strip small { display: -webkit-box; margin-top: 4px; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; color: #8a9e91; font-size: .62rem; line-height: 1.6; }
 .shot-evidence-placeholder { display: grid; place-items: center; min-height: 145px; padding: 18px; border: 1px dashed #e0e8e2; border-radius: 7px; text-align: center; color: #a4b5a9; font-size: .68rem; }
 .shot-evidence-note { margin-top: 9px; color: #a1b0a6; font-size: .6rem; }
