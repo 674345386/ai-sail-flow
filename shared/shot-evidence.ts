@@ -33,5 +33,5 @@ export function shotReconstructionPrompt(shot: Shot) {
 export type ShotMedia = {
   key: string; sourceAssetId: string; start: number; end: number;
   clipUrl: string; duration: number;
-  frames: { at: number; reason: string; selection: 'model' | 'interval'; position: 'first' | 'middle' | 'last'; url: string }[];
+  frames: { at: number; reason: string; selection: 'model' | 'interval'; position: 'first' | 'middle' | 'last'; url: string; previewUrl?: string }[];
 };

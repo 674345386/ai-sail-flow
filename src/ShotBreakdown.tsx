@@ -28,7 +28,7 @@ async function loadMedia(key: string, projectId: string, body: string) {
 
 export function loadSourceFrames(project: Project, shot: Shot) {
   const reference = project.assets.find(asset => asset.kind === 'video');
-  const body = JSON.stringify({ assetId: reference?.id, start: shot.start, end: shot.end, evidenceFrames: shot.evidenceFrames, framesOnly: true });
+  const body = JSON.stringify({ assetId: reference?.id, start: shot.start, end: shot.end, evidenceFrames: shot.evidenceFrames, framesOnly: true, inlineFrames: true });
   return loadMedia(`${project.id}:${body}`, project.id, body);
 }
 
@@ -37,9 +37,43 @@ function FramePreview({ frame, onClose }: { frame: ShotMedia['frames'][number]; 
   useEffect(() => { const element = dialog.current; element?.showModal(); return () => element?.close(); }, []);
   return <dialog ref={dialog} className="shot-frame-dialog" onCancel={event => { event.preventDefault(); onClose(); }} onClick={event => { if (event.target === event.currentTarget) onClose(); }} aria-label="原片证据关键帧">
     <header><span>原片 {frame.at.toFixed(3)} 秒 · {frame.reason}</span><button className="icon-btn" aria-label="关闭关键帧" onClick={onClose}><X size={18} /></button></header>
-    <img src={frame.url} alt={`原片 ${frame.at.toFixed(3)} 秒的截帧：${frame.reason}`} />
+    <img src={frame.previewUrl || frame.url} alt={`原片 ${frame.at.toFixed(3)} 秒的截帧：${frame.reason}`} />
     <footer><span>图片从上传的原片截取，描述仍需对照核验。</span><a className="btn small" href={frame.url} download><Download size={14} />下载关键帧</a></footer>
   </dialog>;
+}
+
+function SourceClip({ project, shot, media, index, onSelect }: { project: Project; shot: Shot; media: ShotMedia; index: number; onSelect: () => void }) {
+  const reference = project.assets.find(asset => asset.kind === 'video');
+  const body = JSON.stringify({ assetId: reference?.id, start: shot.start, end: shot.end, evidenceFrames: shot.evidenceFrames, framesOnly: false });
+  const key = `${project.id}:${body}`;
+  const [result, setResult] = useState<{ key: string; media?: ShotMedia; intent?: 'play' | 'download'; error?: string }>();
+  const clip = result?.key === key ? result.media : mediaCache.get(key);
+  const preparing = result?.key === key && !result.media && !result.error;
+  const error = result?.key === key ? result.error : undefined;
+  const prepare = async (intent: 'play' | 'download') => {
+    if (preparing) return;
+    if (intent === 'play') onSelect();
+    setResult({ key, intent });
+    try {
+      const loaded = await loadMedia(key, project.id, body);
+      setResult({ key, media: loaded, intent });
+      if (intent === 'download') {
+        const anchor = document.createElement('a'); anchor.href = loaded.clipUrl; anchor.download = `shot-${index + 1}.mp4`;
+        document.body.appendChild(anchor); anchor.click(); anchor.remove();
+      }
+    } catch (error) { setResult({ key, error: error instanceof Error ? error.message : '镜头片段提取失败。' }); }
+  };
+  const poster = media.frames[0]?.previewUrl || media.frames[0]?.url;
+  return <>
+    <div className="shot-media-label"><Film size={13} /><span>原片切片{reference?.hasAudio ? ' · 保留原声' : reference?.hasAudio === false ? ' · 无音轨' : ''}</span>
+      <button className="text-button" disabled={preparing} onClick={() => void prepare('download')} aria-label={`下载镜头 ${index + 1}`}><Download size={14} /></button>
+    </div>
+    {clip ? <video key={clip.key} src={clip.clipUrl} poster={poster} controls playsInline preload="none" autoPlay={result?.key === key && result.intent === 'play'} aria-label={`原片镜头片段 ${index + 1}`} onPlay={event => { onSelect(); document.querySelectorAll<HTMLVideoElement>('.shot-row-media video').forEach(video => { if (video !== event.currentTarget) video.pause(); }); }} />
+      : <button className="shot-clip-preview" disabled={preparing} onClick={() => void prepare('play')} aria-label={`播放原片镜头片段 ${index + 1}`}>
+        <img src={poster} alt="" /><span>{preparing ? <><LoaderCircle size={16} className="spin" />准备片段…</> : <><Play size={16} />播放片段</>}</span>
+      </button>}
+    {error && <p className="shot-media-error" role="alert">{error}<button className="text-button" onClick={() => void prepare('play')}><RotateCcw size={12} />重新提取</button></p>}
+  </>;
 }
 
 function ShotRow({ project, shot, index, selected, expanded, disabled, onSelect, onExpand, onSeek, onCopy, onSplit, onAcceptSuggestion, onDismissSuggestion, onFocusChange, renderEditor }: {
@@ -48,14 +82,12 @@ function ShotRow({ project, shot, index, selected, expanded, disabled, onSelect,
   onSplit?: () => void; onAcceptSuggestion?: () => void; onDismissSuggestion?: () => void; onFocusChange?: (points: FocusPoint[]) => void; renderEditor?: (shot: Shot, index: number) => ReactNode;
 }) {
   const row = useRef<HTMLElement>(null);
-  const preview = useRef<HTMLDivElement>(null);
   const reference = project.assets.find(asset => asset.kind === 'video');
   const [visible, setVisible] = useState(false);
-  const [previewVisible, setPreviewVisible] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [result, setResult] = useState<{ key: string; media?: ShotMedia; error?: string }>();
   const [frame, setFrame] = useState<ShotMedia['frames'][number]>();
-  const body = JSON.stringify({ assetId: reference?.id, start: shot.start, end: shot.end, evidenceFrames: shot.evidenceFrames });
+  const body = JSON.stringify({ assetId: reference?.id, start: shot.start, end: shot.end, evidenceFrames: shot.evidenceFrames, framesOnly: true, inlineFrames: true });
   const requestKey = `${project.id}:${body}`;
   const media = result?.key === requestKey ? result.media : mediaCache.get(requestKey);
   const error = result?.key === requestKey ? result.error : undefined;
@@ -64,15 +96,6 @@ function ShotRow({ project, shot, index, selected, expanded, disabled, onSelect,
     if (!('IntersectionObserver' in window)) { setVisible(true); return; }
     const observer = new IntersectionObserver(entries => { if (entries.some(entry => entry.isIntersecting)) { setVisible(true); observer.disconnect(); } }, { rootMargin: '200px' });
     observer.observe(row.current); return () => observer.disconnect();
-  }, []);
-  useEffect(() => {
-    if (!preview.current || !('IntersectionObserver' in window)) return;
-    // Unlike preparation, preloading follows the current viewport as the user scrolls.
-    const observer = new IntersectionObserver(entries => {
-      setPreviewVisible(entries.some(entry => entry.isIntersecting));
-    }, { rootMargin: '100px' });
-    observer.observe(preview.current);
-    return () => observer.disconnect();
   }, []);
   useEffect(() => {
     if (!visible || !reference || mediaCache.has(requestKey)) return;
@@ -97,14 +120,14 @@ function ShotRow({ project, shot, index, selected, expanded, disabled, onSelect,
   return <article ref={row} className={`shot-breakdown-row ${selected ? 'selected' : ''}`}>
     <header className="shot-row-heading"><button onClick={onSelect} className="shot-row-title"><b>{String(index + 1).padStart(2, '0')}</b><span><strong>镜头片段 {String(index + 1).padStart(2, '0')}</strong><small>{shot.start.toFixed(3)}–{shot.end.toFixed(3)} 秒 · {(shot.end - shot.start).toFixed(3)} 秒</small></span></button><span className="badge">{roles[shot.role]}</span>{onSeek && <button className="text-button" onClick={() => { onSelect(); onSeek(shot.start); }}><Play size={13} />定位原片</button>}{renderEditor && <button className="btn small" aria-expanded={expanded} onClick={onExpand}>{expanded ? '收起编辑' : '编辑镜头'}<ChevronDown size={13} /></button>}</header>
     <div className="shot-row-content">
-      <div ref={preview} className="shot-row-media"><div className="shot-media-label"><Film size={13} /><span>{media ? `原片切片${reference?.hasAudio ? ' · 保留原声' : reference?.hasAudio === false ? ' · 无音轨' : ''}` : '原片片段'}</span>{media && <a href={media.clipUrl} download aria-label={`下载镜头 ${index + 1}`}><Download size={14} /></a>}</div>
-        {media ? <video key={media.key} src={media.clipUrl} poster={media.frames[0]?.url} controls playsInline preload={selected || previewVisible ? 'auto' : 'none'} aria-label={`原片镜头片段 ${index + 1}`} onPlay={event => { onSelect(); document.querySelectorAll<HTMLVideoElement>('.shot-row-media video').forEach(video => { if (video !== event.currentTarget) video.pause(); }); }} /> : <div className="shot-media-placeholder">{reference?.thumbnail ? <img src={reference.thumbnail} alt="原片封面，镜头片段正在准备" /> : <Film size={27} />}<span>{!reference ? '示例未关联原片' : error ? '片段暂不可用' : <><LoaderCircle size={14} className="spin" />准备镜头片段…</>}</span></div>}
+      <div className="shot-row-media">
+        {media ? <SourceClip project={project} shot={shot} media={media} index={index} onSelect={onSelect} /> : <><div className="shot-media-label"><Film size={13} /><span>原片片段</span></div><div className="shot-media-placeholder"><Film size={27} /><span>{!reference ? '示例未关联原片' : error ? '画面暂不可用' : <><LoaderCircle size={14} className="spin" />准备证据画面…</>}</span></div></>}
         {error && <p className="shot-media-error" role="alert">{error}<button className="text-button" onClick={() => setAttempt(attempt + 1)}><RotateCcw size={12} />重新提取</button></p>}
       </div>
       <div className="shot-row-evidence">
         <div className="shot-media-label"><Image size={13} /><span>证据关键帧 · 3 张</span><small>原片真实截帧</small></div>
         {media ? <div className="shot-frame-strip">{media.frames.map(item => <button key={item.url} onClick={() => setFrame(item)} title={`${frameLabels[item.position]}：${item.reason}`}>
-          <img src={item.url} alt={`${frameLabels[item.position]} · ${item.at.toFixed(3)} 秒：${item.reason}`} loading="lazy" />
+          <img src={item.previewUrl || item.url} alt={`${frameLabels[item.position]} · ${item.at.toFixed(3)} 秒：${item.reason}`} decoding="async" />
           <b>{frameLabels[item.position]}</b><span>{item.at.toFixed(3)}s</span><small>{item.reason}</small>
         </button>)}</div> : <div className="shot-evidence-placeholder">{reference ? '从原片提取首帧、中间关键帧、尾帧' : '上传原片后可查看 3 张关键帧'}</div>}
         <p className="shot-evidence-note">{media?.frames.some(frame => frame.selection === 'model') ? '首尾按镜头边界截取 · 中间采用 Gemini 建议 · 点击放大' : '首帧 / 中间关键帧 / 尾帧 · 点击放大'}</p>

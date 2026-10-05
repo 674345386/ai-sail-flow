@@ -1,6 +1,6 @@
-@font-face { font-family: "Sail Workspace Inter"; font-style: normal; font-weight: 400; font-display: swap; src: url("/assets/fonts/workspace-inter-400.ttf") format("truetype"); }
-@font-face { font-family: "Sail Workspace Inter"; font-style: normal; font-weight: 500; font-display: swap; src: url("/assets/fonts/workspace-inter-500.ttf") format("truetype"); }
-@font-face { font-family: "Sail Workspace Inter"; font-style: normal; font-weight: 700; font-display: swap; src: url("/assets/fonts/workspace-inter-700.ttf") format("truetype"); }
+@font-face { font-family: "Sail Workspace Inter"; font-style: normal; font-weight: 400; font-display: swap; src: url("/assets/fonts/workspace-inter-400.woff2") format("woff2"); unicode-range: U+0-24F; }
+@font-face { font-family: "Sail Workspace Inter"; font-style: normal; font-weight: 500; font-display: swap; src: url("/assets/fonts/workspace-inter-500.woff2") format("woff2"); unicode-range: U+0-24F; }
+@font-face { font-family: "Sail Workspace Inter"; font-style: normal; font-weight: 700; font-display: swap; src: url("/assets/fonts/workspace-inter-700.woff2") format("woff2"); unicode-range: U+0-24F; }
 
 /* Reference: downloaded ElevenLabs /app/image-video HTML and
    /app_assets/_next/static/chunks/1ma0tq602jico.css, 2026-09-30.

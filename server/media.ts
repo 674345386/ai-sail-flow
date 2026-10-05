@@ -56,7 +56,7 @@ function releaseMediaSlot() { const next = shotMediaQueue.shift(); if (next) nex
 async function exists(file: string) { try { return (await fs.stat(file)).size > 0; } catch { return false; } }
 
 // Derivatives are local source evidence. No additional model request is made.
-export async function prepareShotMedia(video: Asset, shot: Pick<Shot, 'start' | 'end' | 'evidenceFrames'>, includeClip = true): Promise<ShotMedia> {
+export async function prepareShotMedia(video: Asset, shot: Pick<Shot, 'start' | 'end' | 'evidenceFrames'>, includeClip = true, inlineFrames = false): Promise<ShotMedia> {
   if (!Number.isFinite(shot.start) || !Number.isFinite(shot.end) || shot.start < 0 || shot.end <= shot.start || shot.end > (video.duration || 0) + .001) throw new Error('镜头时间范围超出了原片，请先修正时间。');
   const frames = shotEvidenceFrames(shot);
   const key = createHash('sha256').update(JSON.stringify(['shot-media-v2', video.filename, shot.start, shot.end, frames.map(frame => frame.at)])).digest('hex').slice(0, 24);
@@ -107,5 +107,7 @@ export async function prepareShotMedia(video: Asset, shot: Pick<Shot, 'start' | 
   }
   try { await pending; } finally { if (shotMediaPending.get(requestKey) === pending) shotMediaPending.delete(requestKey); }
   return { key, sourceAssetId: video.id, start: shot.start, end: shot.end, duration: shot.end - shot.start,
-    clipUrl: `/media/${prefix}.mp4`, frames: frames.map((frame, index) => ({ ...frame, url: `/media/${prefix}-${index}.jpg` })) };
+    clipUrl: `/media/${prefix}.mp4`, frames: await Promise.all(frames.map(async (frame, index) => ({ ...frame, url: `/media/${prefix}-${index}.jpg`,
+      ...(inlineFrames ? { previewUrl: `data:image/jpeg;base64,${(await fs.readFile(path.join(uploadDir, `${prefix}-${index}.jpg`))).toString('base64')}` } : {}),
+    }))) };
 }

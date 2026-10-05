@@ -154,7 +154,7 @@ function StudioMockup({ variant, images }: { variant: StudioMockupVariant; image
   </div>;
 }
 function SectionBackdrop({ src, className = '' }: { src: string; className?: string }) {
-  return <div className={`gf-section-backdrop ${className}`} aria-hidden="true"><img src={src} alt="" /></div>;
+  return <div className={`gf-section-backdrop ${className}`} aria-hidden="true"><img src={src} alt="" loading="lazy" decoding="async" fetchPriority="low" /></div>;
 }
 
 const landingTools = ['文字叠加', '视频画面调整工具', '图片编辑器', '分镜脚本工作室', '音色翻译', '口播重写', '节奏诊断', '字幕本地化', '产品事实校验', '提示词包导出'];
@@ -299,6 +299,7 @@ export default function App() {
       if (cancelled) return;
       const failure = callback.error || error;
       applySession(data.session, callback.active && data.session ? '登录成功' : '', failure ? authErrorMessage(failure) : '');
+      if (data.session && !callback.active) setShowLanding(false);
       if (callback.active) {
         clearAuthCallback();
         if (data.session) { setProfileSetupPrompt(isNewUserFirstLogin(data.session.user)); setShowLanding(false); setAuthOpen(false); }
@@ -606,16 +607,16 @@ export default function App() {
   const copy = async (value: string) => { try { await navigator.clipboard.writeText(value); setNotice('已复制'); } catch { setError('浏览器未允许复制，请使用下载按钮。'); } };
 
   const landingImages = [
-    '/assets/landing/workflow-merchant-daylight.png',
-    '/assets/landing/workflow-creator-rooftop.png',
+    '/assets/landing/workflow-merchant-daylight.webp',
+    '/assets/landing/workflow-creator-rooftop.webp',
     '/assets/landing/workflow-localization.png',
-    '/assets/landing/workflow-creator-team.png',
-    '/assets/landing/hero-creator-v2.png',
+    '/assets/landing/workflow-creator-team.webp',
+    '/assets/landing/hero-creator-v2.webp',
     '/assets/landing/market-creator-v2.png',
-    '/assets/landing/social-commerce-toys.png',
+    '/assets/landing/social-commerce-toys.webp',
     '/assets/landing/social-commerce-travel.png',
-    '/assets/landing/models-ambient-v2.png',
-    '/assets/landing/product-earbuds-black-creator.png',
+    '/assets/landing/models-ambient-v2.webp',
+    '/assets/landing/product-earbuds-black-creator.webp',
     '/assets/landing/product-aroma-south-asian.png',
     '/assets/landing/product-projector-east-asian.png',
     '/assets/landing/product-tote-middle-eastern.png',
@@ -629,6 +630,7 @@ export default function App() {
     setAuth(current => current.user?.id === user.id ? { ...current, user, session: current.session ? { ...current.session, user } : null } : current);
     setProfileEditing(false); setProfileSetupPrompt(false); setAuthOpen(false); setShowLanding(false);
   }} /> : null;
+  if (publicAuthRequired && !auth.initialized) return <div className="boot-screen"><LoaderCircle className="spin" /><p>正在恢复工作台…</p></div>;
   if (showLanding || (!project && publicAuthRequired && !auth.session)) return <div className="landing-page">
     <header className="landing-nav">
       <button className="landing-brand" onClick={() => setShowLanding(true)} aria-label="回到首页"><span>AI-Sail Flow</span></button>
@@ -639,32 +641,32 @@ export default function App() {
     <CreativeShowcase />
 
     <section className="gf-models" id="models">
-      <SectionBackdrop src="/assets/landing/models-ambient-v2.png" className="gf-models-backdrop" />
+      <SectionBackdrop src="/assets/landing/models-ambient-v2.webp" className="gf-models-backdrop" />
       <div className="gf-centered-heading"><span>模型</span><h2>我们的模型</h2><p>画面、动作、商品、口播与音轨在同一次分析中被理解，<br />再转换成可以复用的创意结构。</p></div>
       <article className="gf-omni-panel">
-        <SectionBackdrop src="/assets/landing/models-ambient-v2.png" className="gf-omni-backdrop" />
+        <SectionBackdrop src="/assets/landing/models-ambient-v2.webp" className="gf-omni-backdrop" />
         <div className="gf-omni-copy"><small>NATIVE MULTIMODAL VIDEO</small><h3>Gemini 3.8 Flash</h3><p>完整视频和音轨一起输入，理解镜头节奏、口播、商品展示与购买引导，把参考创意拆成可执行的内容资产。</p><div><button onClick={() => enterWorkspace()}>使用 AI-Sail Flow</button><button className="ghost">了解模型</button></div></div>
         <span className="gf-omni-badge">VIDEO · AUDIO · PRODUCT CONTEXT</span>
       </article>
     </section>
 
     <section className="gf-tools" id="tools">
-      <SectionBackdrop src="/assets/landing/product-earbuds-black-creator.png" className="gf-tools-backdrop" />
+      <SectionBackdrop src="/assets/landing/product-earbuds-black-creator.webp" className="gf-tools-backdrop" />
       <div className="gf-centered-heading"><span>工具</span><h2>用自然语言构建内容工具</h2><p>无需切换十几个应用。描述你想完成的任务，<br />让工作流围绕素材和目标市场组织起来。</p></div>
       <div className="gf-tools-layout">
-        <article className="gf-tool-preview"><img src="/assets/landing/product-earbuds-black-creator.png" alt="自然语言内容工具预览" /><div className="gf-tool-preview-shade" /><div className="gf-tool-preview-copy"><small>AI-SAIL TOOL</small><h3>Add your product here</h3><p>把产品放进真实使用情境，再补充当地语言的利益点和行动引导。</p><span>Gemini 3.8 Flash</span></div></article>
+        <article className="gf-tool-preview"><img src="/assets/landing/product-earbuds-black-creator.webp" alt="自然语言内容工具预览" loading="lazy" decoding="async" fetchPriority="low" /><div className="gf-tool-preview-shade" /><div className="gf-tool-preview-copy"><small>AI-SAIL TOOL</small><h3>Add your product here</h3><p>把产品放进真实使用情境，再补充当地语言的利益点和行动引导。</p><span>Gemini 3.8 Flash</span></div></article>
         <div className="gf-tool-list">{landingTools.map((tool, index) => <div key={tool}><span>{tool}</span><small>{String(index + 1).padStart(2, '0')}</small><button onClick={() => enterWorkspace(index === 9)}>探索</button></div>)}</div>
       </div>
       <button className="gf-outline-cta" onClick={() => enterWorkspace(true)}>使用 AI-Sail Flow 构建内容 <ArrowRight size={17} /></button>
     </section>
 
     <section className="gf-creator" id="creator">
-      <div className="gf-creator-backdrop" aria-hidden="true">{[landingImages[4], landingImages[6], landingImages[1], landingImages[3], landingImages[0]].map((src, index) => <img src={src} alt="" key={src} className={`creator-image-${index + 1}`} />)}</div>
+      <div className="gf-creator-backdrop" aria-hidden="true">{[landingImages[4], landingImages[6], landingImages[1], landingImages[3], landingImages[0]].map((src, index) => <img src={src} alt="" key={src} className={`creator-image-${index + 1}`} loading="lazy" decoding="async" fetchPriority="low" />)}</div>
       <div className="gf-creator-scrim" />
       <div className="gf-creator-grid">
         <div className="gf-creator-list"><h2>Flow<br />创作营</h2><button>DTC 品牌团队</button><button>TikTok Shop 卖家</button><button className="active">独立站增长团队</button><button>海外社媒代理商</button></div>
         <div className="gf-creator-about"><p>面向真实出海任务的创意工作流。参考内容提供方法，产品事实和目标市场决定最终表达。</p><button onClick={() => enterWorkspace()}>进入工作台</button></div>
-        <article className="gf-creator-story"><img src="/assets/landing/workflow-creator-team.png" alt="商家与达人共同制作出海视频" /><div><span>创作者案例</span><h3>把一条参考片，变成团队今天就能执行的方案。</h3><p>从镜头理解到本地化改写，再到制作资料包，全部保留在同一个创意中。</p><div><button aria-label="上一个案例">←</button><button aria-label="下一个案例">→</button></div></div></article>
+        <article className="gf-creator-story"><img src="/assets/landing/workflow-creator-team.webp" alt="商家与达人共同制作出海视频" loading="lazy" decoding="async" fetchPriority="low" /><div><span>创作者案例</span><h3>把一条参考片，变成团队今天就能执行的方案。</h3><p>从镜头理解到本地化改写，再到制作资料包，全部保留在同一个创意中。</p><div><button aria-label="上一个案例">←</button><button aria-label="下一个案例">→</button></div></div></article>
       </div>
     </section>
 
@@ -686,7 +688,7 @@ export default function App() {
     {profileDialog}
     <AuthDialog availability={authAvailability} resendSeconds={authResendSeconds} avatarUrl={accountAvatar} onEditProfile={() => { setAuthOpen(false); setProfileEditing(true); }} open={authOpen && !profileWelcomeOpen} onClose={() => setAuthOpen(false)} auth={auth} email={authEmailValue} code={authCode} stage={authStage} onEmailChange={setAuthEmailValue} onCodeChange={setAuthCode} onSendCode={() => { void sendAuthCode(); }} onVerifyCode={() => { void verifyAuthCode(); }} onGoogleSignIn={() => { void signInWithGoogle(); }} onBack={() => { setAuthStage('email'); setAuthCode(''); setAuth(current => ({ ...current, error: '', status: '' })); }} onSignOut={() => { void signOut(); }} />
   </div>;
-  if (!project) return <div className="boot-screen"><div className="brand-icon"><img src="/assets/brand/ai-sail-flow-mark.png" alt="" /></div><h1>AI-Sail Flow</h1>{bootError ? <><p className="error-text">{bootError}</p><button className="btn" onClick={() => location.reload()}>重新连接</button></> : <><LoaderCircle className="spin" /><p>正在打开工作台…</p></>}{profileDialog}</div>;
+  if (!project) return <div className="boot-screen"><div className="brand-icon"><img src="/assets/brand/workspace-mark.png" alt="" /></div><h1>AI-Sail Flow</h1>{bootError ? <><p className="error-text">{bootError}</p><button className="btn" onClick={() => location.reload()}>重新连接</button></> : <><LoaderCircle className="spin" /><p>正在打开工作台…</p></>}{profileDialog}</div>;
   const video = project.assets.find(a => a.kind === 'video');
   const productImages = project.assets.filter(a => a.kind === 'product');
   const disabled = !!busy || running || observing;

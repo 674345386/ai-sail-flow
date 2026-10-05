@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { useReducedMotion } from './useReducedMotion';
+import { useDecorativeMedia } from './useDecorativeMedia';
 
 const ShaderScene = lazy(() => import('./ShaderScene'));
 export type ShaderVariant = 'hero' | 'heading' | 'automatic' | 'manual' | 'canvas';
@@ -20,10 +21,12 @@ function supportsWebGL() {
 /** Decoration stays out of document flow and never intercepts workspace input. */
 export default function ShaderBackdrop({ variant }: { variant: ShaderVariant }) {
   const reduced = useReducedMotion();
+  const decorativeReady = useDecorativeMedia();
+  const animated = decorativeReady && !reduced && variant !== 'heading' && variant !== 'canvas';
   const [supported, setSupported] = useState(false);
-  useEffect(() => { setSupported(supportsWebGL()); }, []);
+  useEffect(() => { if (animated) setSupported(supportsWebGL()); }, [animated]);
   return <span className={`sail-shader-background sail-shader-${variant}`} aria-hidden="true">
-    {supported && !reduced && <Suspense fallback={null}><ShaderScene variant={variant} /></Suspense>}
+    {supported && animated && <Suspense fallback={null}><ShaderScene variant={variant} /></Suspense>}
     <span className="sail-shader-veil" />
   </span>;
 }

@@ -117,14 +117,20 @@ app.delete('/api/auth/session', (req, res) => {
 app.use('/api', async (req, res, next) => {
   if (!publicAuthEnabled) return next();
   try {
-    if (!(await isAllowedToken(bearerToken(req)))) return res.status(401).json({ error: '请先登录，或重新登录后继续。' });
+    const started = performance.now();
+    const allowed = await isAllowedToken(bearerToken(req));
+    res.setHeader('Server-Timing', `auth;dur=${(performance.now() - started).toFixed(1)}`);
+    if (!allowed) return res.status(401).json({ error: '请先登录，或重新登录后继续。' });
     return next();
   } catch { return res.status(503).json({ error: '登录服务暂时不可用，请稍后重试。' }); }
 });
 app.use('/media', async (req, res, next) => {
   if (!publicAuthEnabled) return next();
   try {
-    if (!(await isAllowedToken(cookieToken(req)))) return res.status(401).json({ error: '请先登录后查看此素材。' });
+    const started = performance.now();
+    const allowed = await isAllowedToken(cookieToken(req));
+    res.setHeader('Server-Timing', `auth;dur=${(performance.now() - started).toFixed(1)}`);
+    if (!allowed) return res.status(401).json({ error: '请先登录后查看此素材。' });
     return next();
   } catch { return res.status(503).json({ error: '登录服务暂时不可用，请稍后重试。' }); }
 });
@@ -181,11 +187,17 @@ app.post('/api/projects/:id/shot-media', async (req, res, next) => {
   try {
     const project = record(req);
     const input = z.object({ assetId: z.string().max(80), start: z.number().min(0).max(2700), end: z.number().min(0).max(2700),
-      evidenceFrames: z.array(z.object({ at: z.number().min(0).max(2700), reason: z.string().max(1000) })).max(3).optional(), framesOnly: z.boolean().default(false) }).parse(req.body);
+      evidenceFrames: z.array(z.object({ at: z.number().min(0).max(2700), reason: z.string().max(1000) })).max(3).optional(),
+      framesOnly: z.boolean().default(false), inlineFrames: z.boolean().default(false) }).parse(req.body);
     const video = project.assets.find(asset => asset.id === input.assetId && asset.kind === 'video');
     if (!video) throw new HttpError(404, '原片不存在，请先上传参考视频。');
     if (input.end <= input.start || input.end > (video.duration || 0) + .001) throw new HttpError(400, '镜头时间范围超出了原片，请先修正时间。');
-    try { res.json(await prepareShotMedia(video, input, !input.framesOnly)); }
+    try {
+      const started = performance.now();
+      const media = await prepareShotMedia(video, input, !input.framesOnly, input.inlineFrames);
+      res.append('Server-Timing', `prepare;dur=${(performance.now() - started).toFixed(1)}`);
+      res.json(media);
+    }
     catch (error) { throw new HttpError(422, error instanceof Error ? error.message : '镜头媒体提取失败。'); }
   } catch (error) { next(error); }
 });
@@ -411,6 +423,8 @@ if (process.argv.includes('--production')) {
     const hasViteContentHash = /-[A-Za-z0-9_-]{8}\.[^.]+$/.test(path.basename(filepath));
     if (isGeneratedAsset && hasViteContentHash) {
       res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    } else if (/\.(?:woff2|webp)$/.test(filepath) || filepath.includes(`${path.sep}assets${path.sep}brand${path.sep}`)) {
+      res.setHeader('Cache-Control', 'public, max-age=86400');
     }
   } }));
   app.get('/{*path}', (_req, res) => res.sendFile(path.join(distRoot, 'index.html')));

@@ -33,6 +33,10 @@
 .shot-media-label { display: flex; align-items: center; gap: 6px; min-height: 28px; margin-bottom: 7px; color: #728378; font-size: .65rem; }
 .shot-media-label a, .shot-media-label small { margin-left: auto; color: #86968c; font-size: .6rem; }
 .shot-row-media video { display: block; width: 100%; height: 180px; border-radius: 7px; object-fit: contain; background: #eff3f0; }
+.shot-clip-preview { position: relative; display: block; width: 100%; height: 180px; padding: 0; overflow: hidden; border: 0; border-radius: 7px; background: #eff3f0; }
+.shot-clip-preview img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.shot-clip-preview > span { position: absolute; inset: auto 0 0; display: flex; justify-content: center; align-items: center; gap: 7px; padding: 11px; background: #172f23b3; color: #fff; font-size: .7rem; }
+.shot-media-label > button { margin-left: auto; color: #86968c; }
 .shot-media-placeholder { position: relative; display: flex; align-items: center; justify-content: center; width: 100%; height: 180px; overflow: hidden; border: 1px solid #e2e9e3; border-radius: 7px; background: #f3f6f3; color: #b0bcb3; }
 .shot-media-placeholder img { width: 100%; height: 100%; object-fit: contain; opacity: .5; }
 .shot-media-placeholder > span { position: absolute; left: 6px; right: 6px; bottom: 9px; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 6px; border-radius: 5px; background: #ffffffec; color: #7c8e80; font-size: .63rem; }

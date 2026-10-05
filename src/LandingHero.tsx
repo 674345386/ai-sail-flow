@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ArrowRight, Pause, Play, ShieldCheck } from 'lucide-react';
 import type { WorkflowMode } from '../shared/domain';
 import { useReducedMotion } from './useReducedMotion';
+import { useDecorativeMedia } from './useDecorativeMedia';
 import heroVideo from './assets/landing/commerce-hero-reference.mp4';
 import poster from './assets/landing/commerce-hero-reference-poster.jpg';
 
@@ -11,6 +12,9 @@ export default function LandingHero({ authRequired, onEnter }: {
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const reducedMotion = useReducedMotion();
+  const decorativeReady = useDecorativeMedia();
+  const [requestedPlayback, setRequestedPlayback] = useState(false);
+  const enabled = decorativeReady || requestedPlayback;
   const [paused, setPaused] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -20,7 +24,7 @@ export default function LandingHero({ authRequired, onEnter }: {
     if (!video) return;
     let visible = true;
     const syncPlayback = () => {
-      if (paused || reducedMotion || document.hidden || !visible) video.pause();
+      if (!enabled || paused || reducedMotion || document.hidden || !visible) video.pause();
       else void video.play().catch(() => setPlaying(false));
     };
     const observer = new IntersectionObserver(([entry]) => {
@@ -35,11 +39,17 @@ export default function LandingHero({ authRequired, onEnter }: {
       document.removeEventListener('visibilitychange', syncPlayback);
       video.pause();
     };
-  }, [paused, reducedMotion, failed]);
+  }, [paused, reducedMotion, failed, enabled]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    return () => { if (video) { video.pause(); video.removeAttribute('src'); video.load(); } };
+  }, []);
 
   const togglePlayback = () => {
     if (playing) setPaused(true);
     else {
+      setRequestedPlayback(true);
       setPaused(false);
       // Keep the play attempt inside the click for browsers requiring a gesture.
       void videoRef.current?.play().catch(() => setPlaying(false));
@@ -52,13 +62,13 @@ export default function LandingHero({ authRequired, onEnter }: {
         <img src={poster} alt="" fetchPriority="high" />
         {!reducedMotion && !failed && <video
           ref={videoRef}
-          src={heroVideo}
+          src={enabled ? heroVideo : undefined}
           poster={poster}
-          autoPlay
+          autoPlay={enabled}
           muted
           loop
           playsInline
-          preload="metadata"
+          preload="none"
           tabIndex={-1}
           onPlay={() => setPlaying(true)}
           onPause={() => setPlaying(false)}
