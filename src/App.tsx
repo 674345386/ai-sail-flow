@@ -226,6 +226,7 @@ export default function App() {
   const savePromise = useRef<Promise<Project | null> | null>(null);
   const imageUploadBoxes = useRef<HTMLDivElement>(null);
   const player = useRef<HTMLVideoElement>(null);
+  const pendingSourceSeek = useRef<{ media: HTMLVideoElement; seconds: number } | null>(null);
   const [dragging, setDragging] = useState(false);
 
   const adopt = useCallback((p: Project) => { current.current = p; setProject(p); }, []);
@@ -717,11 +718,26 @@ export default function App() {
     }
     return p;
   });
-  const seek = (seconds: number) => { if (player.current) { const details = player.current.closest('details'); if (details) details.open = true; player.current.currentTime = seconds; player.current.focus(); } };
+  const seek = (seconds: number) => {
+    const media = player.current;
+    if (!media) return;
+    const details = media.closest('details');
+    if (details) details.open = true;
+    // Seeking is an explicit request to load the source; opening the analysis is not.
+    if (media.readyState === 0) {
+      pendingSourceSeek.current = { media, seconds };
+      if (media.preload === 'none') { media.preload = 'auto'; media.load(); }
+    } else media.currentTime = seconds;
+    media.focus();
+  };
   const previewVideo = (compact = false) => <div key={video?.id} className={`video-stage ${compact ? 'compact' : ''} ${video ? 'adaptive' : ''}`} style={video ? { '--video-ratio': video.width && video.height ? video.width / video.height : 16 / 9 } as CSSProperties : undefined}>
-    {video ? <video key={video.id} ref={player} src={video.url} poster={video.thumbnail} controls playsInline preload="metadata" onLoadedMetadata={event => {
+    {video ? <video key={video.id} ref={player} src={video.url} poster={video.thumbnail} controls playsInline preload="none" onLoadedMetadata={event => {
       const media = event.currentTarget;
       if (media.videoWidth > 0 && media.videoHeight > 0) media.style.setProperty('--video-ratio', String(media.videoWidth / media.videoHeight));
+      if (pendingSourceSeek.current?.media === media) {
+        media.currentTime = pendingSourceSeek.current.seconds;
+        pendingSourceSeek.current = null;
+      }
     }} aria-label="参考视频播放器" /> : <div className="demo-frame"><Clapperboard size={38} strokeWidth={1.2} /><span>{project.isDemo ? '示例分镜' : '暂无参考视频'}</span><small>{project.isDemo ? '以下为手写示例，非 AI 分析结果' : '上传后可在这里播放原片'}</small></div>}
   </div>;
   const sceneEditor = (s: Shot, index: number, localized = false) => <div className="scene-editor" key={`${localized}-${s.id}`}>
@@ -797,7 +813,7 @@ export default function App() {
   return <div className={`app-shell ${sidebarIsCollapsed ? 'sidebar-collapsed' : ''}`}>
     {sidebarOpen && <button className="sidebar-scrim" aria-label="关闭导航" onClick={() => setSidebarOpen(false)} />}
     <aside id="workspace-sidebar" aria-label="工作区导航" className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
-      <div className="brand" title="AI-Sail Flow"><span className="brand-compact" aria-hidden="true">SF</span><div className="brand-icon"><img src="/assets/brand/ai-sail-flow-mark.png" alt="" /></div><div><strong>AI-Sail Flow</strong><span>跨境内容工作台</span></div><Badge>V1</Badge></div>
+      <div className="brand" title="AI-Sail Flow"><span className="brand-compact" aria-hidden="true">SF</span><div className="brand-icon"><img src="/assets/brand/ai-sail-flow-mark-small.webp" alt="" width={40} height={40} /></div><div><strong>AI-Sail Flow</strong><span>跨境内容工作台</span></div><Badge>V1</Badge></div>
       <div className="workspace-picker" title={defaultWorkspace.title}><span className="workspace-avatar workspace-brand-avatar"><AnimatedBrandMark /></span><span>{defaultWorkspace.title}<small>项目与创意</small></span></div>
       <button type="button" className={`nav-item sidebar-media-button ${showMediaLibrary ? 'active' : ''}`} aria-label="所有媒体" title="所有媒体" aria-pressed={showMediaLibrary} disabled={!!busy} onClick={() => { setShowMediaLibrary(true); setSidebarOpen(false); }}><Grid2X2 size={18} /><span>所有媒体</span></button>
       <ProjectNavigation collapsed={sidebarIsCollapsed} onExpand={() => { setSidebarCollapsed(false); }} groups={projectGroups} creatives={projects} currentId={project.id} currentParentId={project.parentProjectId} busy={!!busy} running={running} showArchived={showArchived} onShowArchived={setShowArchived}

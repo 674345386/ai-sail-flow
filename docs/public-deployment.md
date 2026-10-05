@@ -40,6 +40,24 @@ In Supabase Authentication URL configuration, add the exact production redirect 
 
 Replace the application source with the new release, rerun `npm ci --include=dev` and `npm run build`, then restart `ai-sail-flow`. Caddy stores certificates under `/var/lib/caddy`, and `data/` persists projects and uploaded media.
 
+## US-West network pacing
+
+The current Alibaba US-West host showed approximately 180–220 ms RTT and substantial retransmissions on the China access route. With CUBIC, HTTPS throughput collapsed and unrelated HTTP/2 streams waited together. The host supports BBR. Install the measured BBR + `fq` settings once on the Linux host:
+
+```sh
+sudo bash scripts/apply-network-tuning.sh
+```
+
+The script persists the kernel modules, TCP defaults, and the default interface's `fq` queue through a systemd unit. BBR takes effect for new TCP connections. Restart the Caddy container after installation when a brief proxy restart is acceptable, then verify a fresh browser connection. This improves loss recovery; it cannot remove cross-Pacific latency or guarantee a particular ISP route.
+
+To restore this host's previous `cubic` + `fq_codel` settings:
+
+```sh
+sudo /usr/local/sbin/ai-sail-flow-network-tuning --rollback
+```
+
+Restart Caddy again so new connections use the restored TCP algorithm. Application releases and persistent media data are independent of these host settings.
+
 ## Deployment environment variables
 
 The production environment requires `PUBLIC_DOMAIN`, `SOP_ALLOWED_HOSTS`, `VITE_SUPABASE_URL`, and `VITE_SUPABASE_PUBLISHABLE_KEY`. The systemd service enables `SOP_REQUIRE_AUTH=true`, binds the app to loopback on port 4317, and persists application files under `data/`.
