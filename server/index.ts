@@ -16,6 +16,7 @@ import type { GenerationInput } from './veo';
 import { compressUploadedVideo } from './video-compression';
 import { createSessionVerifier } from './session-verifier';
 import { setShotMediaCacheHeaders } from './media-cache';
+import { defaultRemixSettings, remixPlanCurrent, remixSettingsSchema } from '../shared/remix';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 try { process.loadEnvFile(path.join(root, '.env')); } catch (err) { if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err; }
@@ -25,6 +26,7 @@ const { configured, configureConnection, keyframeModel } = await import('./gemin
 const { VEO_MODELS, VEO_DURATION, configureGenerationKey, generationConfigured } = await import('./veo');
 const { listTtsVoices } = await import('./compose');
 const { launchTask, TaskError } = await import('./tasks');
+const { launchRemix, RemixError } = await import('./remix');
 const { startWorkflow, setWorkflowMode } = await import('./workflow');
 const { inspectMedia, prepareShotMedia } = await import('./media');
 const { collectUploadedAsset, listLibraryMedia, getLibraryMedia, libraryMime, initializeMediaLibrary } = await import('./media-library');
@@ -183,6 +185,24 @@ app.post('/api/projects', (req, res) => {
   res.status(201).json(createProject(demo, parentProjectId, title));
 });
 app.get('/api/projects/:id', (req, res) => res.json(record(req)));
+app.put('/api/projects/:id/remix', (req, res) => {
+  const project = record(req); editable(project);
+  const body = z.object({ revision: z.number().int().nonnegative(), settings: remixSettingsSchema, prompt: z.string().trim().min(1).max(100000).optional() }).parse(req.body);
+  if (body.revision !== project.revision) throw new HttpError(409, '创意已更新，请刷新后再保存二创要求。');
+  const next: Project = { ...project, remix: { ...(project.remix || { settings: defaultRemixSettings, videos: [] }), settings: body.settings } };
+  if (body.prompt !== undefined) {
+    if (!remixPlanCurrent(next)) throw new HttpError(409, '拆解或二创要求已变更，请先重新编写提示词。');
+    next.remix!.plan = { ...next.remix!.plan!, prompt: body.prompt };
+  }
+  res.json(saveProject(next));
+});
+app.post('/api/projects/:id/remix/:action', (req, res) => {
+  const project = record(req); editable(project);
+  const action = z.enum(['character', 'plan', 'video', 'recover']).parse(req.params.action);
+  const { videoId } = z.object({ videoId: z.string().max(80).optional() }).parse(req.body || {});
+  void launchRemix(project.id, action, videoId).catch(() => {});
+  res.status(202).json(getProject(project.id));
+});
 app.post('/api/projects/:id/shot-media', async (req, res, next) => {
   try {
     const project = record(req);
@@ -391,7 +411,7 @@ app.use('/media', express.static(uploadDir, { dotfiles: 'deny', fallthrough: fal
   setShotMediaCacheHeaders(res, filepath);
   if (filepath.endsWith('.srt')) { res.setHeader('Content-Type', 'application/x-subrip; charset=utf-8'); return; }
   if (filepath.endsWith('.mp4')) { res.setHeader('Content-Type', 'video/mp4'); return; }
-  if (/recreation-[a-f\d-]+\.(png|jpg|webp)$/.test(filepath)) return;
+  if (/(?:recreation|remix-character)-[a-f\d-]+\.(png|jpg|webp)$/.test(filepath)) return;
   if (!filepath.endsWith('.jpg')) {
     // Uploaded files use random extensionless names; set the registered, sniffed MIME type.
     const filename = path.basename(filepath);
@@ -407,7 +427,7 @@ app.use('/media', express.static(uploadDir, { dotfiles: 'deny', fallthrough: fal
 } }));
 app.use('/api', (_req, res) => res.status(404).json({ error: '接口不存在。' }));
 app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
-  if (error instanceof HttpError || error instanceof TaskError) return res.status(error.status).json({ error: error.message });
+  if (error instanceof HttpError || error instanceof TaskError || error instanceof RemixError) return res.status(error.status).json({ error: error.message });
   if (error instanceof z.ZodError) return res.status(400).json({ error: '输入格式不正确，请检查表单或分镜内容。', fields: error.issues.map(i => i.path.join('.')) });
   if (error instanceof multer.MulterError) return res.status(400).json({ error: error.code === 'LIMIT_FILE_SIZE' ? '视频不能超过 250 MB。' : '上传失败，请每次选择一个文件。' });
   const message = error instanceof Error ? error.message : '';

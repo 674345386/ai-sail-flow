@@ -27,13 +27,18 @@ export async function publishKeyframe(project: Project, shot: RewriteShot) {
   if (!keyframeCurrent(project, shot) || !shot.keyframe?.filename || !shot.keyframe.mime || !/^recreation-[a-f\d-]+\.(png|jpg|webp)$/.test(shot.keyframe.filename)) {
     throw new Error('请先生成当前镜头的有效复刻关键帧。');
   }
+  return publishReferenceImage(project.id, shot.keyframe.filename, shot.keyframe.mime, true);
+}
+
+export async function publishReferenceImage(projectId: string, filename: string, mime: string, privateOnly = false) {
+  if (!/^(?:recreation|remix-character)-[a-f\d-]+\.(png|jpg|webp)$/.test(filename)) throw new Error('参考图文件无效。');
   const config = connection();
   if (!config.url || !config.key) throw new Error('请在模型连接设置中连接 Supabase 私有图片存储，再生成镜头视频。');
-  const cacheKey = `${config.url}:${config.bucket}:${project.id}:${shot.keyframe.filename}`;
+  const cacheKey = `${config.url}:${config.bucket}:${privateOnly}:${projectId}:${filename}`;
   const cached = signedImages.get(cacheKey);
   if (cached && cached.expiresAt > Date.now() + 30 * 60_000) return cached.url;
   const client = createClient(config.url, config.key, { auth: { persistSession: false, autoRefreshToken: false } });
-  const bucketKey = `${config.url}:${config.bucket}`;
+  const bucketKey = `${config.url}:${config.bucket}:${privateOnly}`;
   if (!readyBuckets.has(bucketKey)) {
     const { data, error } = await client.storage.getBucket(config.bucket);
     if (error) {
@@ -43,15 +48,15 @@ export async function publishKeyframe(project: Project, shot: RewriteShot) {
       if (creationError) {
         const existing = await client.storage.getBucket(config.bucket);
         if (existing.error || !existing.data) throw new Error('Supabase 私有桶连接失败，请检查服务端密钥、桶名称与存储权限。');
-        if (existing.data.public) throw new Error('关键帧存储桶必须设为私有，请在 Supabase 中关闭该桶的公开访问。');
+        if (privateOnly && existing.data.public) throw new Error('关键帧存储桶必须设为私有，请在 Supabase 中关闭该桶的公开访问。');
       }
-    } else if (data.public) throw new Error('关键帧存储桶必须设为私有，请在 Supabase 中关闭该桶的公开访问。');
+    } else if (privateOnly && data.public) throw new Error('关键帧存储桶必须设为私有，请在 Supabase 中关闭该桶的公开访问。');
     readyBuckets.add(bucketKey);
   }
-  const objectPath = `${project.id}/${shot.keyframe.filename}`;
-  const buffer = await readFile(path.join(uploadDir, shot.keyframe.filename));
+  const objectPath = `${projectId}/${filename}`;
+  const buffer = await readFile(path.join(uploadDir, filename));
   const { error: uploadError } = await client.storage.from(config.bucket).upload(objectPath, buffer, {
-    contentType: shot.keyframe.mime, upsert: true,
+    contentType: mime, upsert: true,
   });
   if (uploadError) throw new Error('复刻关键帧上传失败，请检查 Supabase 私有存储连接与权限。');
   const lifetimeSeconds = 6 * 60 * 60;

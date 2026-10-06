@@ -48,6 +48,7 @@ for (const filename of fs.readdirSync(recordsDir)) {
     }
     // Records created before video rendering was introduced remain readable.
     project.generatedVideos ||= [];
+    if (project.remix) project.remix.videos ||= [];
     project.composedVideos ||= [];
     project.replication ||= { ...defaultReplication };
     project.productionMode ||= 'veo-native';
@@ -68,6 +69,8 @@ for (const filename of fs.readdirSync(recordsDir)) {
         finishedAt,
       };
       project.jobHistory = [...(project.jobHistory || []), project.job].slice(-200);
+      if (project.remix) project.remix = { ...project.remix, videos: project.remix.videos.map(video => video.status === 'running'
+        ? { ...video, status: 'failed' as const, error: '服务已重启；已保存上游任务 ID，可恢复查询。' } : video) };
       if (project.rewrite) project.rewrite = { ...project.rewrite, shots: project.rewrite.shots.map(shot => shot.keyframe?.status === 'running'
         ? { ...shot, keyframe: { ...shot.keyframe, status: 'failed' as const, error: '服务已重启，关键帧任务已中断；可单独重试此镜头。' } } : shot) };
       if (interruptedGeneration) {

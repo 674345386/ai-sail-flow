@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { RemixWorkflow } from './remix';
 
 export const MODEL = 'gemini-3.8-flash';
 export const countries = [
@@ -118,7 +119,7 @@ export type Asset = {
   url: string; filename: string; thumbnail?: string; duration?: number; width?: number; height?: number; hasAudio?: boolean;
 };
 export type Job = {
-  id: string; kind: 'analysis' | 'analysis-refine' | 'rewrite' | 'keyframe' | 'generation' | 'composition'; status: 'running' | 'completed' | 'failed' | 'needs-input';
+  id: string; kind: 'analysis' | 'analysis-refine' | 'rewrite' | 'keyframe' | 'generation' | 'composition' | 'remix-character' | 'remix-plan' | 'remix-video' | 'remix-recover'; status: 'running' | 'completed' | 'failed' | 'needs-input';
   progress: number; message: string; startedAt: string; finishedAt?: string; videoId?: string; unitId?: string; shotId?: string;
 };
 export type ProductionMode = 'veo-native' | 'tts-subtitles';
@@ -189,6 +190,7 @@ export type Project = {
   promptFlow?: PromptFlow;
   veoPromptDrafts?: Record<string, { prompt: string; basis: string }>;
   ttsTimingNotice?: TtsTimingNotice;
+  remix?: RemixWorkflow;
 };
 export type ProjectSummary = Pick<Project, 'id' | 'title' | 'parentProjectId' | 'updatedAt' | 'isDemo' | 'archivedAt'> & { stage: number };
 export const emptyProduct: Product = { name: '', category: '家居生活', facts: '', audience: '', price: '', currency: 'USD', offer: '', landingUrl: '' };
@@ -208,7 +210,7 @@ export const projectPatchSchema = z.object({
   veoPromptDrafts: z.record(z.string(), z.object({ prompt: z.string(), basis: z.string() })).default({}),
 });
 export function stageOf(project: Pick<Project, 'assets' | 'analysis' | 'rewrite' | 'rewriteStale'>) {
-  return project.rewrite && !project.rewriteStale ? 4 : project.analysis ? 3 : project.assets.some(a => a.kind === 'video') ? 2 : 1;
+  return project.analysis ? 3 : project.assets.some(a => a.kind === 'video') ? 2 : 1;
 }
 export function timeLabel(seconds: number) {
   return `${Math.floor(seconds / 60).toString().padStart(2, '0')}:${Math.floor(seconds % 60).toString().padStart(2, '0')}`;

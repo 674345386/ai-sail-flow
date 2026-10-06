@@ -27,7 +27,7 @@ export type GenerationInput = {
 type Progress = (progress: number, message: string) => void;
 let sessionKey = '';
 export function configureGenerationKey(key: string) { sessionKey = key; }
-function generationKey() { return sessionKey || process.env.SOP_VEO_API_KEY || ''; }
+export function generationKey() { return sessionKey || process.env.SOP_VEO_API_KEY || ''; }
 export function generationConfigured() { return Boolean(generationKey()); }
 
 export function requestBody(input: GenerationInput, prompt: string) {
@@ -38,19 +38,19 @@ function detail(payload: any) {
   return String(payload?.error?.message || payload?.failure_reason || payload?.message || payload?.error?.code || '')
     .replace(/(?:sk-|vc)[A-Za-z0-9_-]{12,}/gi, '[REDACTED]').replace(/\s+/g, ' ').slice(0, 220);
 }
-function providerError(status: number, payload: unknown) {
+function providerError(status: number, payload: unknown, label = 'Veo 3.1') {
   const info = detail(payload);
   const hint = status === 401 || status === 403 ? 'API Key 无效或无权限' : status === 402 ? '余额不足' : status === 429 ? '请求过于频繁' : '请求失败';
-  return new Error(`Veo 3.1 ${hint}（HTTP ${status}）${info ? `：${info}` : ''}`);
+  return new Error(`${label} ${hint}（HTTP ${status}）${info ? `：${info}` : ''}`);
 }
-async function providerRequest(url: string, key: string, body?: object) {
+export async function providerRequest(url: string, key: string, body?: object, label?: string) {
   const response = await fetch(url, {
     method: body ? 'POST' : 'GET', redirect: 'manual',
     headers: { Authorization: `Bearer ${key}`, ...(body ? { 'Content-Type': 'application/json' } : {}) },
     ...(body ? { body: JSON.stringify(body) } : {}), signal: AbortSignal.timeout(30_000),
   });
   const payload = await response.json().catch(() => ({}));
-  if (!response.ok) throw providerError(response.status, payload);
+  if (!response.ok) throw providerError(response.status, payload, label);
   return payload;
 }
 function completedUrl(payload: any): string {
@@ -58,7 +58,7 @@ function completedUrl(payload: any): string {
     payload?.video?.url, payload?.output?.url, payload?.output?.video_url, payload?.result?.url,
     payload?.result?.video_url, payload?.data?.url, payload?.data?.video_url,
     payload?.output?.[0]?.url, payload?.output?.[0], payload?.data?.[0]?.url, payload?.result?.[0]?.url,
-    payload?.content?.[0]?.url];
+    payload?.content?.[0]?.url, payload?.metadata?.video_url, payload?.metadata?.url];
   return candidates.find(value => typeof value === 'string' && /^https:\/\//i.test(value)) || '';
 }
 async function pollVideo(id: string, key: string, progress: Progress) {
@@ -108,24 +108,29 @@ export async function resumeVideo(id: string, progress: Progress) {
   return pollVideo(id, key, progress);
 }
 
-export async function saveGeneratedVideo(url: string, id: string, progress: Progress) {
+export async function saveGeneratedVideo(url: string, id: string, progress: Progress, options?: { prefix: string; requestId?: string }) {
   if (!publicHttps(url)) throw new Error('生成结果必须是公网 HTTPS 视频直链。');
   progress(75, '正在保存 Veo 3.1 成片到本机…');
   let response: Response;
   for (let redirect = 0; ; redirect++) {
-    response = await fetch(url, { redirect: 'manual', signal: AbortSignal.timeout(120_000) });
+    response = await fetch(url, { redirect: 'manual', headers: { 'User-Agent': 'Mozilla/5.0', Referer: 'https://gaorui.cc/' }, signal: AbortSignal.timeout(120_000) });
     if (![301, 302, 303, 307, 308].includes(response.status)) break;
     const location = response.headers.get('location');
     if (!location || redirect >= 3) throw new Error('生成视频下载重定向过多。');
     url = new URL(location, url).toString();
     if (!publicHttps(url)) throw new Error('生成视频下载地址重定向到非公网 HTTPS 地址，已拒绝。');
   }
+  if (!response.ok && options?.requestId) {
+    response = await fetch(`${endpoint}/${encodeURIComponent(options.requestId)}/content`, {
+      headers: { Authorization: `Bearer ${generationKey()}` }, redirect: 'error', signal: AbortSignal.timeout(120_000),
+    });
+  }
   if (!response.ok) throw new Error(`无法下载生成结果（HTTP ${response.status}）。`);
   const length = Number(response.headers.get('content-length') || 0);
   if (length > 200 * 1024 * 1024) throw new Error('生成视频超过 200 MB，未保存到本机。');
   const buffer = Buffer.from(await response.arrayBuffer());
   if (buffer.length > 200 * 1024 * 1024) throw new Error('生成视频超过 200 MB，未保存到本机。');
-  const filename = `veo-${id}.mp4`;
+  const filename = `${options?.prefix || 'veo'}-${id}.mp4`;
   const file = path.join(uploadDir, filename);
   await writeFile(file, buffer, { mode: 0o600 });
   try {
