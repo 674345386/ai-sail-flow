@@ -15,7 +15,8 @@ export function launchRemix(id: string, action: RemixAction, videoId?: string) {
   if (!project.analysis || !project.assets.some(asset => asset.kind === 'video')) throw new RemixError(409, '请先完成参考视频拆解。');
   if (project.analysisReview?.pendingIds.length) throw new RemixError(409, '请先重新分析变动镜头，再编写二创提示词。');
   if (['character', 'plan'].includes(action) && !configured()) throw new RemixError(503, '请先连接 Gemini 图像与分析服务。');
-  if (action === 'plan' && !remixCharacterCurrent(project)) throw new RemixError(409, '请先生成与当前人物描述一致的新人物参考图。');
+  if (action === 'character' && !project.remix?.settings.character.trim()) throw new RemixError(400, '请填写人物描述后再生成人物参考图。');
+  if (action === 'plan' && !remixCharacterCurrent(project)) throw new RemixError(409, '请先上传人物参考图，或根据当前人物描述生成人物图。');
   if (action === 'video' && !remixPlanCurrent(project)) throw new RemixError(409, '请先根据当前分析和新人物编写视频提示词。');
   if (['video', 'recover'].includes(action) && !generationConfigured()) throw new RemixError(503, '请先在模型连接中填写视频服务 API Key。');
   if (action === 'video' && !keyframeStorageStatus().configured) throw new RemixError(503, '请先连接 Supabase 私有图片存储。');

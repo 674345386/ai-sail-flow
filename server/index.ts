@@ -16,7 +16,7 @@ import type { GenerationInput } from './veo';
 import { compressUploadedVideo } from './video-compression';
 import { createSessionVerifier } from './session-verifier';
 import { setShotMediaCacheHeaders } from './media-cache';
-import { defaultRemixSettings, remixPlanCurrent, remixSettingsSchema } from '../shared/remix';
+import { characterBasis, defaultRemixSettings, remixPlanCurrent, remixSettingsSchema } from '../shared/remix';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 try { process.loadEnvFile(path.join(root, '.env')); } catch (err) { if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err; }
@@ -270,6 +270,41 @@ app.put('/api/projects/:id', (req, res) => {
   res.json(saveProject({ ...project, ...patch, generatedVideos, composedVideos, workflow, ttsTimingNotice, analysisMeta: patch.analysis ? project.analysisMeta : null, rewriteStale: project.rewriteStale || (!!patch.rewrite && inputsChanged) }));
 });
 const uploader = multer({ dest: uploadDir, limits: { fileSize: 250 * 1024 * 1024, files: 1, fields: 0 } });
+const characterUploader = multer({ dest: uploadDir, limits: { fileSize: 10 * 1024 * 1024, files: 1, fields: 0 } });
+app.post('/api/projects/:id/remix-character', (req, res, next) => {
+  try {
+    const project = record(req); editable(project);
+    const revision = z.coerce.number().int().nonnegative().parse(req.query.revision);
+    if (revision !== project.revision) throw new HttpError(409, '创意已更新，请刷新后再上传人物参考图。');
+    uploadsInProgress.add(project.id);
+    characterUploader.single('file')(req, res, async error => {
+      let renamed: string | undefined;
+      try {
+        if (error instanceof multer.MulterError && error.code === 'LIMIT_FILE_SIZE') throw new HttpError(400, '单张人物参考图不能超过 10 MB。');
+        if (error) throw error;
+        if (!req.file) throw new HttpError(400, '请选择一张人物参考图。');
+        const metadata = await inspectMedia(req.file.filename, 'product');
+        const mime = z.enum(['image/png', 'image/jpeg', 'image/webp']).parse(metadata.mime);
+        const current = getProject(project.id)!;
+        if (current.revision !== revision) throw new HttpError(409, '创意已更新，请刷新后再上传人物参考图。');
+        const extension = mime === 'image/jpeg' ? 'jpg' : mime === 'image/webp' ? 'webp' : 'png';
+        const filename = `remix-character-${randomUUID()}.${extension}`;
+        renamed = path.join(uploadDir, filename);
+        await fs.promises.rename(req.file.path, renamed);
+        const remix = current.remix || { settings: { ...defaultRemixSettings }, videos: [] };
+        res.status(201).json(saveProject({ ...current, job: null, remix: { ...remix, character: {
+          source: 'uploaded', name: Buffer.from(req.file.originalname, 'latin1').toString('utf8'),
+          filename, url: `/media/${filename}`, mime, basis: characterBasis(current),
+          prompt: '', model: 'user-upload', generatedAt: new Date().toISOString(),
+        } } }));
+      } catch (err) {
+        if (renamed) fs.unlink(renamed, () => {});
+        if (req.file) fs.unlink(req.file.path, () => {});
+        next(err);
+      } finally { uploadsInProgress.delete(project.id); }
+    });
+  } catch (err) { next(err); }
+});
 async function uploadedAsset(file: Express.Multer.File, kind: 'video' | 'product', compress = true): Promise<Asset> {
   if (kind === 'product' && file.size > 10 * 1024 * 1024) throw new HttpError(400, '单张产品图不能超过 10 MB。');
   let metadata = await inspectMedia(file.filename, kind);

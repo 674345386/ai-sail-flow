@@ -27,7 +27,7 @@ import CreativeShowcase from './CreativeShowcase';
 import { shotReconstructionPrompt } from '../shared/shot-evidence';
 import AutomaticWorkspace, { SpeechTimingConfirmation, WorkflowEntry } from './WorkflowWorkspace';
 const CreativeWorkspace = lazy(() => import('./CreativeWorkspace'));
-import RemixStage from './RemixStage';
+const RemixStage = lazy(() => import('./RemixStage'));
 import { defaultRemixSettings, remixPlanCurrent, type RemixAction, type RemixSettings } from '../shared/remix';
 import { editableUnitPrompt, finalVideo, nextWorkflowAction, productionSources, videoCurrent, workflowBusy } from '../shared/workflow';
 
@@ -554,6 +554,15 @@ export default function App() {
     if (action) adopt(await api<Project>(`/api/projects/${p.id}/remix/${action}`, { method: 'POST', body: JSON.stringify({ videoId }) }));
     else setNotice('二创要求与提示词已保存');
   });
+  const uploadRemixCharacter = (file: File, settings: RemixSettings) => perform('正在上传人物参考图', async () => {
+    if (file.size > 10 * 1024 * 1024) throw new Error('单张人物参考图不能超过 10 MB。');
+    const p = await flush(); if (!p) return;
+    const saved = await api<Project>(`/api/projects/${p.id}/remix`, { method: 'PUT', body: JSON.stringify({ revision: p.revision, settings }) });
+    adopt(saved);
+    const form = new FormData(); form.append('file', file);
+    adopt(await api<Project>(`/api/projects/${p.id}/remix-character?revision=${saved.revision}`, { method: 'POST', body: form }));
+    setStep(2); setNotice('人物参考图已上传，可直接编写二创提示词');
+  });
   const retryJob = () => {
     if (!project?.job) return;
     if (project.job.kind === 'generation') retryGeneration();
@@ -717,7 +726,7 @@ export default function App() {
   ];
   const rewriteBlocked = !project.analysis || ((project.promptFlow || 'localized') === 'localized' && missingProductFields.length > 0);
   const available = [true, !!video || !!project.analysis, !!project.analysis];
-  const remixPanel = <RemixStage project={project} disabled={disabled} onAction={(action, settings, prompt, videoId) => void startRemix(action, settings, prompt, videoId)} onSave={(settings, prompt) => void startRemix(undefined, settings, prompt)} onCopy={text => void copy(text)} onSettings={() => setModal('settings')} />;
+  const remixPanel = <Suspense fallback={<div className="canvas-loading" role="status"><LoaderCircle className="spin" size={20} />正在打开二创画布…</div>}><RemixStage key={project.id} project={project} disabled={disabled} onAction={(action, settings, prompt, videoId) => void startRemix(action, settings, prompt, videoId)} onSave={(settings, prompt) => void startRemix(undefined, settings, prompt)} onUpload={(file, settings) => void uploadRemixCharacter(file, settings)} onCopy={text => void copy(text)} onSettings={() => setModal('settings')} /></Suspense>;
   const market = countries.find(c => c.code === project.market.country)!;
   const platform = platforms.find(p => p.id === project.market.platform)!;
   const shot = project.analysis?.shots[Math.min(selectedShot, project.analysis.shots.length - 1)];
@@ -842,7 +851,7 @@ export default function App() {
     </aside>
     <div className="main-shell">
       <header className="topbar"><div className="breadcrumbs"><button className="icon-btn sidebar-toggle desktop-sidebar-toggle" aria-label={sidebarIsCollapsed ? '展开侧边栏' : '收起侧边栏'} title={sidebarIsCollapsed ? '展开侧边栏' : '收起侧边栏'} aria-expanded={!sidebarIsCollapsed} aria-controls="workspace-sidebar" onClick={() => { setSidebarOpen(false); setSidebarCollapsed(!sidebarIsCollapsed); }}><SidebarToggleIcon expanded={!sidebarIsCollapsed} /></button><button className="icon-btn sidebar-toggle mobile-menu" aria-label={sidebarOpen ? '关闭导航' : '打开导航'} title={sidebarOpen ? '关闭导航' : '打开导航'} aria-expanded={sidebarOpen} aria-controls="workspace-sidebar" onClick={() => setSidebarOpen(!sidebarOpen)}><SidebarToggleIcon expanded={sidebarOpen} /></button><FolderOpen size={16} /><span>{defaultWorkspace.title}</span><ChevronRight size={14} /><button className="breadcrumb-project" onClick={() => parentProject && editParentProject(parentProject)} disabled={!!busy} title="重命名项目">{parentProject?.title || '默认项目'}</button><ChevronRight size={14} /><button className="breadcrumb-current breadcrumb-creative" onClick={editCreative} disabled={disabled} title="编辑创意名称与所属项目">{project.title}</button></div><div className="topbar-actions"><span className="save-status">{saving ? <LoaderCircle size={14} className="spin" /> : dirty ? <span className="unsaved-dot" /> : <CheckCheck size={14} />}{saving ? '保存中' : dirty ? '待保存' : '已保存'}</span><button className="icon-btn" title="保存创意 ⌘S" aria-label="保存创意" disabled={disabled || !dirty} onClick={() => perform('正在保存', async () => { await flush(); setNotice('已保存'); })}><Save size={17} /></button><span className="topbar-divider" /><button className="btn small" onClick={() => newProject()} disabled={!!busy}><Plus size={15} />新建创意</button><button className="account-chip" onClick={openAuth}><span>{auth.user ? <img src={accountAvatar} alt="" /> : <Mail size={14} />}</span>{auth.user ? authDisplayName(auth.user) : '登录'}</button></div></header>
-      <main className={showMediaLibrary ? 'media-workspace-main' : canvasView ? 'canvas-workspace-main' : undefined}>
+      <main className={showMediaLibrary ? 'media-workspace-main' : canvasView ? 'canvas-workspace-main' : step === 2 ? 'remix-workspace-main' : undefined}>
         {showMediaLibrary ? <MediaLibraryPage user={auth.user} onSelect={item => openAssetLibrary('all', item)} onUpload={() => openAssetLibrary('all')} onSignIn={openAuth} /> : <>
         {project.archivedAt && <div className="banner sample"><Archive size={16} /><span>此创意已归档，素材和制作结果仍保存在本机。</span><button disabled={!!busy || running} onClick={() => setProjectArchived(project.id, false)}>恢复到所属项目 <ArchiveRestore size={14} /></button></div>}
         <div className="workspace-controls"><div className="workspace-view-switch" role="group" aria-label="工作台视图"><button type="button" aria-pressed={workspaceView === 'steps'} className={workspaceView === 'steps' ? 'active' : ''} onClick={() => { setWorkspaceView('steps'); if (!available[step]) setStep(project.remix ? 2 : project.analysis ? 1 : 0); }}><LayoutList size={15} />步骤视图</button><button type="button" aria-pressed={workspaceView === 'canvas'} className={workspaceView === 'canvas' ? 'active' : ''} onClick={() => setWorkspaceView('canvas')}><Workflow size={15} />画布视图</button></div></div>
@@ -850,7 +859,8 @@ export default function App() {
         {project.ttsTimingNotice && <SpeechTimingConfirmation notice={project.ttsTimingNotice} disabled={disabled} onConfirm={() => void composeFinal(project.ttsTimingNotice!.voice, project.ttsTimingNotice!.basis)} onManual={() => void selectWorkflowMode('manual')} />}
 
 
-        {canvasView && <Suspense fallback={<div className="canvas-loading" role="status"><LoaderCircle className="spin" size={20} />正在打开全局画布…</div>}><CreativeWorkspace key={project.id} project={project} step={step} onStep={setStep} disabled={disabled || !!assetLibraryTarget} busyLabel={busy} automatic={autoView} voices={ttsVoices}
+        {canvasView && step === 2 && remixPanel}
+        {canvasView && step !== 2 && <Suspense fallback={<div className="canvas-loading" role="status"><LoaderCircle className="spin" size={20} />正在打开全局画布…</div>}><CreativeWorkspace key={project.id} project={project} step={step} onStep={setStep} disabled={disabled || !!assetLibraryTarget} busyLabel={busy} automatic={autoView} voices={ttsVoices}
           onPatch={patch => change(p => ({ ...p, ...patch }))} onUpload={(files, kind) => void uploadFiles(files, kind)} onChooseMedia={kind => openAssetLibrary(kind === 'product' ? 'image' : 'video')} onRemove={id => void removeAsset(id)}
           onGenerateKeyframe={shotId => void startKeyframe(shotId)} onRun={kind => void startJob(kind)} onRetry={retryJob}
           onExport={exportZip} onCopy={value => void copy(value)} onSettings={() => setModal('settings')} onPipeline={() => setShowPipeline(true)}
