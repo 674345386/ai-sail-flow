@@ -1,0 +1,20 @@
+.remix-prompt-steps { margin-bottom: 18px; padding: 22px 24px; border: 1px solid #e1e6ec; border-radius: 12px; background: #fff; color: #344254; }
+.remix-prompt-steps > header { margin-bottom: 18px; }
+.remix-prompt-steps h2 { margin: 0; font-size: 15px; font-weight: 600; }
+.remix-prompt-steps > header > p { margin: 5px 0 0; color: #8894a4; font-size: 12px; line-height: 1.8; }
+.remix-prompt-steps ol { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; margin: 0; padding: 0; list-style: none; }
+.remix-prompt-steps li { display: flex; align-items: flex-start; gap: 11px; min-width: 0; }
+.remix-prompt-step-number { display: grid; place-items: center; flex-shrink: 0; width: 25px; height: 25px; border: 1px solid #dfe6ef; border-radius: 7px; background: #f7f9fc; color: #748aa5; font-size: 12px; font-weight: 550; }
+.remix-prompt-steps h3 { margin: 1px 0 6px; font-size: 13px; font-weight: 600; line-height: 1.6; }
+.remix-prompt-steps li p { margin: 0; color: #7c899a; font-size: 12px; line-height: 1.9; }
+.remix-prompt-steps > .remix-prompt-steps-output { margin: 17px 0 0; padding-top: 12px; border-top: 1px solid #edf0f4; color: #8f9bad; font-size: 11px; line-height: 1.8; }
+.remix-prompt-steps.is-compact { margin: 0 0 17px; padding: 0 0 15px; border: none; border-bottom: 1px solid #edf0f4; border-radius: 0; }
+.remix-prompt-steps.is-compact > header { margin-bottom: 13px; }
+.remix-prompt-steps.is-compact h2 { color: #738095; font-size: 11px; font-weight: 500; }
+.remix-prompt-steps.is-compact ol { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+.remix-prompt-steps.is-compact li { gap: 9px; }
+.remix-prompt-steps.is-compact .remix-prompt-step-number { width: 21px; height: 21px; border-radius: 6px; font-size: 11px; }
+.remix-prompt-steps.is-compact h3 { margin-top: 0; font-size: 12px; }
+.remix-prompt-steps.is-compact li p { font-size: 11px; line-height: 1.8; }
+.remix-prompt-steps.is-compact > .remix-prompt-steps-output { margin-top: 13px; padding-top: 10px; font-size: 10px; }
+@media (max-width: 700px) { .remix-prompt-steps { padding: 18px; } .remix-prompt-steps ol { grid-template-columns: minmax(0, 1fr); gap: 18px; } }

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { RemixWorkflow } from './remix';
+import type { RemixPromptPhase, RemixWorkflow } from './remix';
 
 export const MODEL = 'gemini-3.8-flash';
 export const countries = [
@@ -120,7 +120,7 @@ export type Asset = {
 };
 export type Job = {
   id: string; kind: 'analysis' | 'analysis-refine' | 'rewrite' | 'keyframe' | 'generation' | 'composition' | 'remix-character' | 'remix-plan' | 'remix-video' | 'remix-recover'; status: 'running' | 'completed' | 'failed' | 'needs-input';
-  progress: number; message: string; startedAt: string; finishedAt?: string; videoId?: string; unitId?: string; shotId?: string;
+  remixPhase?: RemixPromptPhase; progress: number; message: string; startedAt: string; finishedAt?: string; videoId?: string; unitId?: string; shotId?: string;
 };
 export type ProductionMode = 'veo-native' | 'tts-subtitles';
 export type TtsTimingNotice = { targetDuration: number; requiredDuration: number; voice: string; basis: string };

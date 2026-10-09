@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { Job, Project } from '../shared/domain';
-import { defaultRemixSettings, REMIX_MODEL, remixCharacterCurrent, remixPlanCurrent, remixVideoBasis, type RemixAction, type RemixVideo } from '../shared/remix';
+import { defaultRemixSettings, REMIX_MODEL, remixCharacterCurrent, remixPlanCurrent, remixVideoBasis, type RemixAction, type RemixVideo, type RemixPromptPhase } from '../shared/remix';
 import { getProject, saveProject } from './store';
 import { configured, generateRemixCharacter, planRemix } from './gemini';
 import { generationConfigured, saveGeneratedVideo } from './veo';
@@ -29,17 +29,20 @@ export function launchRemix(id: string, action: RemixAction, videoId?: string) {
     video = { ...video, status: 'running', error: undefined };
   } else if (action === 'video') {
     video = { id: randomUUID(), basis: remixVideoBasis(project), model: REMIX_MODEL, status: 'running',
-      prompt: project.remix!.plan!.prompt, ...{ resolution: project.remix!.settings.resolution, aspectRatio: project.remix!.settings.aspectRatio },
+      prompt: project.remix!.plan!.prompt, ...{ resolution: project.remix!.settings.resolution, aspectRatio: project.remix!.settings.aspectRatio }, bgmMode: project.remix!.settings.bgmMode || 'reference',
       characterFilename: project.remix!.character!.filename, startedAt: now };
   }
-  const job: Job = { id: randomUUID(), kind: `remix-${action}` as Job['kind'], status: 'running', progress: 2, message: '正在准备二创任务…', startedAt: now, videoId: video?.id };
+  const job: Job = { id: randomUUID(), kind: `remix-${action}` as Job['kind'], status: 'running', ...(action === 'plan' ? { remixPhase: 'evidence' as const } : {}), progress: 2, message: '正在准备二创任务…', startedAt: now, videoId: video?.id };
   saveProject({ ...project, job, remix: { ...project.remix!, videos: action === 'video' ? [...project.remix!.videos, video!] : action === 'recover' ? project.remix!.videos.map(item => item.id === video!.id ? video! : item) : project.remix!.videos } });
-  const progress = (n: number, message: string) => update(id, current => ({ ...current, job: { ...current.job!, progress: n, message } }));
+  const progress = (n: number, message: string, phase?: RemixPromptPhase) => update(id, current => ({ ...current, job: { ...current.job!, progress: n, message, ...(phase ? { remixPhase: phase } : {}) } }));
   return (async () => {
     try {
       if (action === 'character' || action === 'plan') {
         const snapshot = getProject(id)!;
-        const result = action === 'character' ? await generateRemixCharacter(snapshot, snapshot.remix!.settings) : await planRemix(snapshot, progress);
+        const result = action === 'character' ? await generateRemixCharacter(snapshot, snapshot.remix!.settings) : await planRemix(snapshot, progress, (correction, usage) => {
+          update(id, current => ({ ...current, remix: { ...current.remix!, correction },
+            usage: { input: current.usage.input + usage.input, output: current.usage.output + usage.output } }));
+        });
         update(id, current => ({ ...current, remix: { ...current.remix!, ...('character' in result ? { character: result.character } : { plan: result.plan }) },
           usage: { input: current.usage.input + result.usage.input, output: current.usage.output + result.usage.output } }));
       } else {

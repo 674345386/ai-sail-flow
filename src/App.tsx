@@ -28,6 +28,8 @@ import { shotReconstructionPrompt } from '../shared/shot-evidence';
 import AutomaticWorkspace, { SpeechTimingConfirmation, WorkflowEntry } from './WorkflowWorkspace';
 const CreativeWorkspace = lazy(() => import('./CreativeWorkspace'));
 const RemixStage = lazy(() => import('./RemixStage'));
+import RemixPromptSteps from './RemixPromptSteps';
+import { RemixObservableResults } from './RemixObservability';
 import { defaultRemixSettings, remixPlanCurrent, type RemixAction, type RemixSettings } from '../shared/remix';
 import { editableUnitPrompt, finalVideo, nextWorkflowAction, productionSources, videoCurrent, workflowBusy } from '../shared/workflow';
 
@@ -912,7 +914,7 @@ export default function App() {
           </section>
         </div>}
 
-        {step === 2 && remixPanel}
+        {step === 2 && <><RemixPromptSteps /><RemixObservableResults project={project} onCopy={text => void copy(text)} />{remixPanel}</>}
 
         <footer className="action-bar"><div className={`action-context${step === 1 && project.analysis ? ' action-context--breakdown' : ''}`}><CheckCheck size={16} /><span>所有编辑自动保存到本机</span>{step === 1 && project.analysis && <button className="text-button" disabled={disabled || !video} onClick={() => startJob('analysis')}>重新拆解</button>}</div><div className="action-buttons">{step > 0 && <button className="btn" disabled={!!busy} onClick={() => go(step - 1)}>上一步</button>}{step === 0 && <button className="btn primary" disabled={disabled || !video} onClick={() => startJob('analysis')}><Sparkles size={16} />拆解参考视频<ArrowRight size={16} /></button>}{step === 1 && <button className="btn primary" disabled={disabled || !project.analysis} onClick={() => go(2)}>人物与视频二创<ArrowRight size={16} /></button>}</div></footer>
         </>}

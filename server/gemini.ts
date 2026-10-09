@@ -9,7 +9,7 @@ import { bindRewriteToSource, keyframeBasis, sourceShotFor, type RewriteShot } f
 import { aiFocusPoints, selectedFocusBrief } from '../shared/focus';
 import { dataDir, uploadDir } from './store';
 import { extractKeyframes, prepareShotMedia } from './media';
-import { buildRemixPrompt, characterBasis, remixPlanBasis, remixPlanSchema, type RemixSettings } from '../shared/remix';
+import { buildRemixPrompt, buildRemixAudio, getRemixSettings, characterBasis, remixPlanBasis, remixTimingSchema, remixCorrectionPatchSchema, applyRemixShotPatches, remixCorrectionBasis, type RemixCorrection, type RemixPromptPhase, type RemixSettings } from '../shared/remix';
 
 const connectionFile = path.join(dataDir, '.gemini-connection.json');
 function savedConnection(): { apiKey: string; baseUrl: string } | null {
@@ -553,38 +553,67 @@ export async function generateRemixCharacter(project: Project, settings: RemixSe
   return { character: { ...result.image, model, prompt, basis: characterBasis(project) }, usage: result.usage };
 }
 
-export async function planRemix(project: Project, progress: (n: number, message: string) => void) {
-  const settings = project.remix!.settings;
+export async function planRemix(
+  project: Project,
+  progress: (n: number, message: string, phase?: RemixPromptPhase) => void,
+  onCorrection?: (correction: RemixCorrection, usage: { input: number; output: number }) => void,
+) {
+  const settings = getRemixSettings(project);
   const video = project.assets.find(asset => asset.kind === 'video')!;
-  const parts: Part[] = [];
-  const character = project.remix!.character!;
-  parts.push({ text: 'TARGET PERSON REFERENCE: This image defines the replacement character identity. Use its face, hair and body across all shots; source video people are not identity references.' },
-    { inlineData: { mimeType: character.mime, data: (await readFile(path.join(uploadDir, character.filename))).toString('base64') } });
-  const evidence = [];
-  for (const [index, shot] of project.analysis!.shots.entries()) {
-    progress(10 + Math.round(index / project.analysis!.shots.length * 40), `正在读取镜头证据 ${index + 1}/${project.analysis!.shots.length}…`);
+  const sourceShots = project.analysis!.shots;
+  const correctionParts: Part[] = [];
+  const evidence: RemixCorrection['evidence'] = [];
+  const startedAt = new Date().toISOString();
+  for (const [index, shot] of sourceShots.entries()) {
+    progress(10 + Math.round(index / sourceShots.length * 25), `正在准备镜头 ${index + 1}/${sourceShots.length} 的分析与关键帧…`, 'evidence');
     const media = await prepareShotMedia(video, shot, false);
-    evidence.push({ shotId: shot.id, sourceStart: shot.start, sourceEnd: shot.end, frames: media.frames.map(frame => ({ at: frame.at, url: frame.url })) });
-    parts.push({ text: `SOURCE SHOT DATA: ${JSON.stringify(shot)}` });
-    for (const frame of media.frames) parts.push({ text: `${shot.id} ${frame.position} @ ${frame.at.toFixed(3)}s` },
+    evidence.push({ shotId: shot.id, sourceStart: shot.start, sourceEnd: shot.end,
+      frames: media.frames.map(frame => ({ at: frame.at, url: frame.url, position: frame.position })) });
+    correctionParts.push({ text: `SOURCE SHOT DATA: ${JSON.stringify(shot)}` });
+    for (const frame of media.frames) correctionParts.push({ text: `${shot.id} ${frame.position} @ ${frame.at.toFixed(3)}s` },
       { inlineData: { mimeType: 'image/jpeg', data: (await readFile(path.join(uploadDir, path.basename(frame.url)))).toString('base64') } });
   }
-  const task = `Write a 10-second recreation video treatment from the supplied source shot analysis and evidence frames. Descriptions must be in Chinese. Read the reference clothing, props, scene, brand layouts, actions and camera accurately. Keep observation separate from creative changes. Replace every source person with the single character in the TARGET PERSON REFERENCE image. Supplemental character description: ${settings.character || 'Use the target image'}. If this description differs from the target image, the image takes precedence. User preserve requirements: ${settings.preserve}. Allowed changes: ${settings.changes}. Selected priorities: ${selectedFocusBrief(project.analysis)}. Produce exactly one output shot per source shot, with the same IDs and order. Compress and creatively schedule all shots within exactly 10 seconds, starting at 0 and ending at 10 with no gaps or overlaps. Do not claim these are the original cut times. Each description must specify clothes, props, scene, action, camera and transitions, including visible original text when retained. Do not invent product facts. Adapt each action to the allocated time. Preserve the source sound language unless the user requests a change; do not add speech to music-led footage. Never describe the original person's identity. The downstream video model receives ONLY the target character image and this treatment, so each shot must be self-contained. Source summary: ${project.analysis!.summary}.`;
-  progress(55, '正在根据原片证据与修改要求编排10秒二创提示词…');
+  const call = async <T extends z.ZodType>(parts: Part[], schema: T, task: string) => compatibleBaseUrl()
+    ? generateCompatible(parts.map(part => part.text ? { type: 'text' as const, text: part.text } : {
+      type: 'image_url' as const, image_url: { url: `data:${part.inlineData!.mimeType};base64,${part.inlineData!.data}` },
+    }), schema, task)
+    : generate(client(), parts, schema, task);
   try {
-    const generated = compatibleBaseUrl()
-      ? await generateCompatible(parts.map(part => part.text ? { type: 'text' as const, text: part.text } : {
-        type: 'image_url' as const, image_url: { url: `data:${part.inlineData!.mimeType};base64,${part.inlineData!.data}` },
-      }), remixPlanSchema, task)
-      : await generate(client(), parts, remixPlanSchema, task);
-    const plan = generated.result;
-    if (plan.shots.length !== project.analysis!.shots.length || plan.shots.some((shot, index) => shot.sourceShotId !== project.analysis!.shots[index].id)) throw new Error('二创分镜未按原片镜头顺序一一对应，请重新编写提示词。');
+    progress(40, '正在对照关键帧，生成补充与校正记录…', 'correction');
+    const inspected = await call(correctionParts, remixCorrectionPatchSchema,
+      `Improve SOURCE SHOT DATA using its supplied first, middle and last evidence frames. SOURCE VIDEO ANALYSIS IS THE BASELINE, not a summary to replace. Return exactly one patch record per shot, with the original IDs and order. Do NOT rewrite or summarize the full scene; the server preserves every untouched source field verbatim. Each change has sourceField (the exact JSON key), field (human category), kind, original, corrected and evidencePositions. For 补充, append a specific new visible detail; original can be empty and existing details must not be replaced. For 校正, original MUST be an exact, uniquely occurring substring copied from that sourceField, and corrected replaces ONLY that substring. Use the smallest span necessary; retain all unrelated details in the field. For 确认, record evidence only: the original text remains unchanged. Do not turn a detailed action/camera sequence into a shorter sentence. Preserve the complete ordered action sequence, movement directions, starting and ending states, fine movements, subject/object details, pose, clothing and accessories when present, scene layout, lighting, composition, camera motion, lens effects, visible text and transitions unless supplied evidence specifically contradicts them. Derive all details from the current source records and frames; do not assume a particular subject, activity, scene, product, genre or number of shots. Missing fields are not permission to invent details. Apply a supported correction to EVERY affected field, including visual, action, camera, effects, transition and reconstructionPrompt, so corrected facts cannot conflict with uncorrected duplicates. Still images cannot disprove an action occurring between sampled frames, infer new camera motion, or establish sound; preserve temporal observations and original sound/voice. A boundary frame may belong to a neighboring shot: do not add a new transition/action based on that frame alone; record uncertainty if needed. Only supplied frame positions may be cited. Keep uncertain text/product details uncertain. No character replacement, 10-second compression, creative edits, invented facts or new transitions in this stage.`);
+    if (inspected.result.shots.length !== sourceShots.length || inspected.result.shots.some((shot, index) => shot.sourceShotId !== sourceShots[index].id)) {
+      throw new Error('关键帧校正记录未按原片镜头顺序一一对应，请重新编写提示词。');
+    }
+    const correction: RemixCorrection = { shots: inspected.result.shots.map((patch, index) => applyRemixShotPatches(sourceShots[index], patch)), id: randomUUID(), basis: remixCorrectionBasis(project),
+      model: MODEL, startedAt, completedAt: new Date().toISOString(), sourceShots, evidence };
+    // Persist this real intermediate output before starting the downstream request.
+    onCorrection?.(correction, inspected.usage);
+    progress(65, '关键帧校正记录已保存，正在合并镜头分析与校正信息编写提示词…', 'prompt');
+    const character = project.remix!.character!;
+    const parts: Part[] = [
+      { text: 'TARGET PERSON REFERENCE: This image defines the replacement character identity. Use its face, hair and body across all shots; source video people are not identity references.' },
+      { inlineData: { mimeType: character.mime, data: (await readFile(path.join(uploadDir, character.filename))).toString('base64') } },
+      { text: `SOURCE VIDEO ANALYSIS: ${JSON.stringify(project.analysis)}` },
+      { text: `KEYFRAME CORRECTION RESULT: ${JSON.stringify(correction.shots)}` },
+    ];
+    const task = `Allocate the corrected source shots to exactly 10 seconds. Return ONLY sourceShotId, start and end for every shot, retaining original IDs and order, starting at 0 and ending at 10 without gaps or overlaps. Use corrected action complexity, original relative durations and selected priorities to allocate time. Do not rewrite any shot description, visual detail, camera action, effects, transition, text or sound; the server carries the corrected fields directly into the final prompt. This stage changes timing only. Person identity follows TARGET PERSON REFERENCE; clothing, scene, props and actions remain as corrected unless the user's explicit changes request otherwise. Preserve requirements: ${settings.preserve}. Allowed changes: ${settings.changes}. Selected priorities: ${selectedFocusBrief(project.analysis)}.`;
+    const generated = await call(parts, remixTimingSchema, task);
+    const plan = {
+      direction: '沿用逐镜头校正后的完整资料，保持镜头顺序；按下列时间分配执行动作与运镜，并结合人物参考及用户明确提出的二创要求。',
+      audio: buildRemixAudio(sourceShots, settings, video.hasAudio),
+      shots: generated.result.shots.map((shot, index) => ({ ...shot, description: correction.shots[index]?.description || '' })),
+    };
+    if (plan.shots.length !== sourceShots.length || plan.shots.some((shot, index) => shot.sourceShotId !== sourceShots[index].id)) throw new Error('二创分镜未按原片镜头顺序一一对应，请重新编写提示词。');
     let end = 0;
     for (const shot of plan.shots) {
       if (shot.end <= shot.start || Math.abs(shot.start - end) > .01) throw new Error('二创分镜时间不连续，请重新编写提示词。');
       end = shot.end;
     }
     if (Math.abs(end - 10) > .01) throw new Error('二创分镜必须覆盖完整10秒，请重新编写提示词。');
-    return { plan: { ...plan, prompt: buildRemixPrompt(plan, settings), evidence, basis: remixPlanBasis(project), model: MODEL, generatedAt: new Date().toISOString() }, usage: generated.usage };
+    const correctedProject = { ...project, remix: { ...project.remix!, correction } };
+    return { plan: { ...plan, prompt: buildRemixPrompt(plan, settings), evidence, correctionId: correction.id,
+      basis: remixPlanBasis(correctedProject), model: MODEL, generatedAt: new Date().toISOString() },
+      usage: { input: generated.usage.input + (onCorrection ? 0 : inspected.usage.input), output: generated.usage.output + (onCorrection ? 0 : inspected.usage.output) } };
   } catch (error) { throw providerError(error); }
 }

@@ -17,6 +17,25 @@
 .remix-node { width: 320px; border: 1px solid #e3e7ec; border-radius: 12px; background: #fff; box-shadow: 0 3px 14px #27374805; }
 .remix-node--prompt { width: 450px; }
 .remix-node--video { width: 420px; }
+.remix-node--action { width: 360px; border-color: #cbd9e9; }
+.remix-node--action .remix-node-drag { background: #f2f6fb; border-radius: 12px 12px 0 0; }
+.remix-node--action .remix-node-drag > span > svg { color: #6f91b9; }
+.remix-node--action:has(.remix-generation-inputs) { width: 420px; }
+.remix-node--frameInfo { width: 450px; }
+.remix-node-role { display: flex; align-items: center; gap: 8px; min-height: 32px; padding: 5px 14px; color: #9aa6b5; font-size: 9px; border-bottom: 1px solid #f0f3f6; }
+.remix-node-role > span { padding: 2px 6px; border-radius: 4px; color: #748b77; background: #f0f5f1; font-weight: 500; }
+.remix-node--action .remix-node-role > span { color: #6489b7; background: #edf3fb; }
+.remix-node--source .remix-node-role > span, .remix-node--shot .remix-node-role > span, .remix-node--frames .remix-node-role > span, .remix-node--character .remix-node-role > span { color: #8793a2; background: #f2f4f7; }
+.remix-action-method { margin: 0 0 10px; color: #6988ad; font-size: 11px; font-weight: 550; }
+.remix-action-io { display: grid; grid-template-columns: 45px minmax(0, 1fr); gap: 9px 10px; padding: 12px; margin-bottom: 15px; border: 1px solid #e6edf5; border-radius: 7px; background: #f9fbfd; font-size: 10px; line-height: 1.8; }
+.remix-action-io > span { color: #94a5ba; }
+.remix-action-io > p { margin: 0; color: #6f8299; }
+.remix-frame-index { max-height: 300px; overflow: auto; margin-top: 12px; }
+.remix-frame-index-row { display: flex; flex-direction: column; align-items: flex-start; gap: 7px; width: 100%; padding: 11px 10px; border: 0; border-bottom: 1px solid #edf1f5; background: #fff; color: #7f8fa4; text-align: left; }
+.remix-frame-index-row:hover { background: #f5f8fc; }
+.remix-frame-index-row > strong { font-size: 11px; font-weight: 550; }
+.remix-frame-index-row > span { display: flex; flex-wrap: wrap; gap: 10px; font-size: 9px; color: #93a5bc; }
+.remix-frame-index-row small { font-size: 10px; color: #8495aa; }
 .remix-node-drag { display: flex; align-items: center; justify-content: space-between; gap: 10px; height: 43px; padding: 0 14px; border-bottom: 1px solid #eff1f3; cursor: grab; }
 .remix-node-drag:active { cursor: grabbing; }
 .remix-node-drag > span { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 550; }
@@ -50,6 +69,7 @@
 .remix-node--character .remix-node-form { border-top: 1px solid #eef0f3; }
 .remix-field { display: flex; flex-direction: column; gap: 7px; margin-bottom: 12px; }
 .remix-field > span, .remix-prompt-label > span { color: #687380; font-size: 11px; }
+.remix-field .remix-audio-hint { color: #8c98a9; font-size: 10px; line-height: 1.7; }
 .remix-stage textarea, .remix-stage select { width: 100%; border: 1px solid #e4e8ee; border-radius: 7px; background: #fbfcfd; color: #39424e; font-size: 12px; line-height: 1.7; padding: 9px 10px; }
 .remix-stage textarea { resize: vertical; min-height: 64px; }
 .remix-stage textarea:focus, .remix-stage select:focus { border-color: #a0bfe7 !important; box-shadow: 0 0 0 2px #91bdf218; }
@@ -157,3 +177,46 @@ main.canvas-workspace-main > .remix-stage { height: auto; min-height: 0; }
 .remix-generation-input-row small { color: #a1aab7; font-size: 9px; }
 .remix-generation-input-state { color: #96a3b4; font-size: 10px; }
 .remix-generation-inputs > p { margin-top: 10px; padding-top: 9px; border-top: 1px solid #eff2f5; color: #8a96a7; font-size: 10px; line-height: 1.7; }
+.remix-node--analysis, .remix-node--correction { width: 450px; }
+.remix-observation-result { padding: 15px; }
+.remix-prompt-view-actions { display: flex; flex-wrap: wrap; gap: 7px; margin: 12px 0; }
+.remix-prompt-shot-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 0; border-bottom: 1px solid #eef1f5; }
+.remix-prompt-shot-row > strong { display: flex; flex-direction: column; gap: 3px; color: #6f7e92; font-size: 11px; font-weight: 550; }
+.remix-prompt-shot-row small { color: #9ca7b7; font-size: 10px; font-weight: 400; }
+.remix-prompt-change-links { display: flex; flex-direction: column; gap: 5px; }
+.remix-prompt-change-links > button { display: flex; justify-content: space-between; align-items: center; gap: 8px; width: 100%; padding: 9px 10px; border: 1px solid #e8edf4; border-radius: 6px; color: #6a7e98; background: #fafcfe; text-align: left; cursor: pointer; font-size: 11px; }
+.remix-prompt-change-links > button:hover { border-color: #b7cde9; background: #f0f5fd; }
+.remix-prompt-change-links small { display: flex; align-items: center; gap: 6px; color: #8e9fb4; font-size: 10px; }
+.remix-observation-meta { display: flex; flex-direction: column; gap: 4px; padding-bottom: 10px; }
+.remix-observation-meta strong { color: #617184; font-size: 11px; font-weight: 550; }
+.remix-observation-meta span, .remix-observation-meta small { color: #9ca7b7; font-size: 10px; overflow-wrap: anywhere; }
+.remix-observation-intro { margin: 0 0 12px; color: #8c98a9; font-size: 11px; line-height: 1.8; }
+.remix-observation-scroll { max-height: 390px; overflow: auto; padding-right: 5px; margin-bottom: 14px; }
+.remix-observation-scroll > details { margin: 0; padding: 10px 0; border-bottom: 1px solid #eef1f5; }
+.remix-observation-scroll > details > summary { color: #6f7e92; font-size: 11px; cursor: pointer; }
+.remix-observation-fields { margin: 12px 0 0; }
+.remix-observation-fields > div { display: grid; grid-template-columns: 85px minmax(0, 1fr); gap: 9px; padding: 5px 0; font-size: 10px; line-height: 1.8; }
+.remix-observation-fields dt { color: #a0abba; }
+.remix-observation-fields dd { margin: 0; color: #748296; overflow-wrap: anywhere; }
+.remix-original-snapshot { padding: 8px; background: #f8fafc; border-radius: 6px; }
+.remix-correction-changes > article { margin-top: 10px; padding: 10px; border: 1px solid #e8edf4; border-radius: 7px; background: #fcfdfe; }
+.remix-correction-changes header { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.remix-correction-changes header strong { font-size: 11px; font-weight: 550; color: #6a7e98; }
+.remix-correction-changes header > span { color: #8e9fb4; font-size: 10px; }
+.remix-correction-changes p { display: flex; flex-direction: column; gap: 2px; margin-top: 8px; color: #76869b; font-size: 10px; line-height: 1.8; }
+.remix-correction-changes p > b { color: #a7b1bf; font-size: 9px; font-weight: 400; }
+.remix-correction-evidence { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 8px; }
+.remix-correction-evidence a { color: #7095c5; font-size: 9px; }
+.remix-corrected-description { margin-top: 12px; padding: 10px; background: #f4f7fb; border-radius: 6px; }
+.remix-corrected-description strong { color: #7186a0; font-size: 10px; font-weight: 550; }
+.remix-corrected-description > p { margin-top: 6px; color: #74849a; font-size: 10px; line-height: 1.8; white-space: pre-wrap; overflow-wrap: anywhere; }
+.remix-result-copy-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.remix-observation-empty { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 25px 14px; color: #a7b1c0; text-align: center; }
+.remix-observation-empty p { max-width: 330px; font-size: 11px; line-height: 1.9; }
+.remix-observation-empty small { font-size: 10px; }
+.remix-observation-panels { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-bottom: 18px; }
+.remix-observation-panels > section { min-width: 0; border: 1px solid #e1e6ec; border-radius: 12px; background: #fff; color: #344254; }
+.remix-observation-panels h2 { padding: 16px 17px 0; font-size: 13px; font-weight: 550; }
+.remix-observation-panels summary { color: #74849a; cursor: pointer; font-size: 11px; }
+.remix-observation-panels .remix-button { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border: 1px solid #e2e6eb; border-radius: 7px; background: #fff; color: #75849a; font-size: 11px; }
+@media (max-width: 850px) { .remix-observation-panels { grid-template-columns: minmax(0, 1fr); } }
