@@ -70,13 +70,47 @@ function client() {
   if (!key) throw new Error('请先在模型设置连接 Gemini，或在服务端配置 GEMINI_API_KEY。');
   return new GoogleGenAI({ apiKey: key, httpOptions: { timeout: 180000, retryOptions: { attempts: 1 } } });
 }
+function networkDetails(error: unknown) {
+  const details: { code?: string; hostname?: string; message?: string }[] = [];
+  const seen = new Set<unknown>();
+  const visit = (value: unknown, depth = 0) => {
+    if (!value || typeof value !== 'object' || seen.has(value) || depth > 5) return;
+    seen.add(value);
+    const item = value as { code?: string; hostname?: string; message?: string; cause?: unknown; errors?: unknown[] };
+    if (item.code || item.hostname || item.message) details.push({ code: item.code, hostname: item.hostname, message: item.message });
+    visit(item.cause, depth + 1);
+    if (Array.isArray(item.errors)) item.errors.forEach(child => visit(child, depth + 1));
+  };
+  visit(error);
+  return details;
+}
 function networkHint(error: unknown) {
-  const code = (error as { cause?: { code?: string }; code?: string })?.cause?.code || (error as { code?: string })?.code || '';
-  if (!/UND_ERR_CONNECT|UND_ERR_SOCKET|ECONNREFUSED|ECONNRESET|ENOTFOUND|EAI_AGAIN|ETIMEDOUT/.test(code)) return '';
+  const details = networkDetails(error);
+  const codes = [...new Set(details.flatMap(item => item.code ? [item.code] : []))];
+  const code = codes.join(' / ');
+  if (!/UND_ERR_|ECONN|ENOTFOUND|EAI_AGAIN|ETIMEDOUT|EPIPE|EPERM|EACCES|ERR_TLS|ERR_SSL|CERT_|SELF_SIGNED|UNABLE_TO_/.test(code) && !details.some(item => item.message === 'fetch failed')) return '';
+  let target = '';
+  try { target = new URL(compatibleBaseUrl() || 'https://generativelanguage.googleapis.com').hostname; } catch { /* Invalid URLs are handled by the request. */ }
+  const hostname = details.find(item => item.hostname)?.hostname || target;
+  const hostHint = hostname ? `，域名 ${hostname.replace(/[^a-zA-Z0-9.:[\]-]/g, '').slice(0, 150)}` : '';
+  if (/EPERM|EACCES/.test(code)) return `服务进程的网络访问被系统拒绝（${code}${hostHint}）。请从允许联网的终端重新启动服务；本地素材已保存。`;
+  if (/ENOTFOUND|EAI_AGAIN/.test(code)) return `模型接口域名解析失败（${code}${hostHint}）。请检查接口地址、DNS 或代理配置后重试；本地素材已保存。`;
   const proxy = process.env.HTTPS_PROXY || process.env.https_proxy || process.env.HTTP_PROXY || process.env.http_proxy || '';
   if (proxy && process.env.NODE_USE_ENV_PROXY !== '1')
-    return `无法连接模型接口（${code}）。本机代理 ${proxy} 未被 Node 使用，请用 npm run dev 或 npm start 启动服务后重试。`;
-  return `无法连接模型接口（${code}）${proxy ? `，当前代理 ${proxy}` : ''}。请检查网络后重试；本地素材已保存。`;
+    return `无法连接模型接口（${code}${hostHint}）。本机代理未被 Node 使用，请用 npm run dev 或 npm start 启动服务后重试。`;
+  const reason = !code ? details.find(item => item.message && item.message !== 'fetch failed')?.message?.replace(/sk-[A-Za-z0-9_-]+/g, '[REDACTED]').slice(0, 120) : '';
+  return `模型网络请求失败（${code || 'FETCH_FAILED'}${hostHint}）${reason ? `：${reason}` : ''}${proxy ? '，已配置代理' : ''}。本地素材已保存。`;
+}
+export async function checkModelConnection() {
+  const key = sessionKey || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+  if (!key) throw new Error('请先配置模型连接。');
+  const endpoint = compatibleBaseUrl() ? compatibleEndpoint().replace(/\/chat\/completions$/, '/models') : 'https://generativelanguage.googleapis.com/v1beta/models';
+  try {
+    const response = await fetch(endpoint, { headers: compatibleBaseUrl() ? { Authorization: `Bearer ${key}` } : { 'x-goog-api-key': key }, redirect: 'manual', signal: AbortSignal.timeout(15000) });
+    await response.body?.cancel();
+    if (!response.ok) throw Object.assign(new Error(`连接检查返回 HTTP ${response.status}`), { status: response.status });
+    return { connected: true, hostname: new URL(endpoint).hostname };
+  } catch (error) { throw providerError(error); }
 }
 function providerError(error: unknown) {
   const status = (error as { status?: number })?.status;

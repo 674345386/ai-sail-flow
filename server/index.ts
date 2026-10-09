@@ -3,6 +3,7 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import express, { type Request, type Response, type NextFunction } from 'express';
+import http from 'node:http';
 import multer from 'multer';
 import JSZip from 'jszip';
 import { z } from 'zod';
@@ -20,9 +21,15 @@ import { characterBasis, defaultRemixSettings, remixPlanCurrent, remixSettingsSc
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 try { process.loadEnvFile(path.join(root, '.env')); } catch (err) { if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err; }
+// NODE_USE_ENV_PROXY is read at process startup, before .env is loaded. Reapply
+// proxy configuration now so services started outside a proxy-enabled shell use it too.
+if (process.env.NODE_USE_ENV_PROXY === '1') {
+  const setProxy = (http as typeof http & { setGlobalProxyFromEnv?: (env: NodeJS.ProcessEnv) => () => void }).setGlobalProxyFromEnv;
+  setProxy?.(process.env);
+}
 // Load storage after .env so an optional data-directory override takes effect.
 const { createProject, getProject, listProjects, saveProject, uploadDir, defaultProjectId, createWorkspaceProject, getWorkspaceProject, listWorkspaceProjects, saveWorkspaceProject } = await import('./store');
-const { configured, configureConnection, keyframeModel } = await import('./gemini');
+const { configured, configureConnection, keyframeModel, checkModelConnection } = await import('./gemini');
 const { VEO_MODELS, VEO_DURATION, configureGenerationKey, generationConfigured } = await import('./veo');
 const { listTtsVoices } = await import('./compose');
 const { launchTask, TaskError } = await import('./tasks');
@@ -144,6 +151,9 @@ app.post('/api/settings', (req, res) => {
   if (baseUrl && !/^https?:\/\//i.test(baseUrl)) throw new HttpError(400, '兼容接口地址必须以 http:// 或 https:// 开头。');
   configureConnection(apiKey, baseUrl);
   res.json({ configured: true, verified: false, provider: baseUrl ? 'openai-compatible' : 'google' });
+});
+app.post('/api/settings/check', async (_req, res) => {
+  try { res.json(await checkModelConnection()); } catch (error) { res.status(502).json({ error: error instanceof Error ? error.message : '模型连接检查失败。' }); }
 });
 app.post('/api/settings/veo', (req, res) => {
   const { apiKey } = z.object({ apiKey: z.string().trim().min(16).max(300) }).parse(req.body);

@@ -53,6 +53,8 @@ npm start
 
 用 `npm run dev` / `npm start` 启动：两个脚本都带 `NODE_USE_ENV_PROXY=1`。Node 的全局 fetch 默认忽略 `HTTPS_PROXY`，直接 `tsx server/index.ts` 起服务会绕过本机代理，Google 直连超时约 10.5 秒、兼容接口被劫持成 404，界面上看到的却是「模型连接失败」或「渠道未提供 gemini-3.8-flash」。
 
+如果启动终端没有继承本机代理，可在本地 `.env` 设置 `HTTPS_PROXY` 和 `HTTP_PROXY`，并用 `NO_PROXY=localhost,127.0.0.1,::1` 保持本机请求直连。服务器在读取 `.env` 后重新初始化代理，因此文件中的代理也会用于模型请求（需要支持 `http.setGlobalProxyFromEnv` 的 Node.js 版本，当前本机 24.14.1 已验证）。修改后重启服务生效。
+
 「兼容接口地址」按 OpenAI 协议填 base URL，例如 `https://maiai.ai/v1`。裸域名、`/v1beta` 这类版本根，或整条 `.../v1/chat/completions` 也接受，服务端归一化成同一个 endpoint。
 
 Veo 3.1 视频生成使用独立的 `SOP_VEO_API_KEY`（或模型设置中的 Veo Key），固定请求 `https://gaorui.cc/v1/videos`，不复用 Gemini / maiai.ai 密钥。文生视频使用 `veo_3_1` 且不传 `images`；首尾帧图生视频使用 `veo_3_1-fl`，传 1–2 张图片 URL（首帧、可选尾帧）；参考图生视频使用 `veo_3_1-components`，传至少 1 张图片 URL。三种模式均发送提示词、`resolution`（`720p` / `1080p` / `lite`）、`aspect_ratio`（`9:16` / `16:9`），固定输出 8 秒，不发送 `duration`。接口图片必须是可访问的 HTTPS 链接。改写流程由服务端自动上传所选复刻关键帧到 Supabase 私有桶，生成有效期 6 小时的临时链接传给 Veo；无需手动复制图片地址。任务提交后按 ID 轮询，完成后下载到本机。若下载失败但上游任务 ID 已取得，可在交付页恢复同一任务，不会再次提交付费生成。[Veo 3.1 接口文档](https://doc.gaoruitech.cn/doc-8981138)。
