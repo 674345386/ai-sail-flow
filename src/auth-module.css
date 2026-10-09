@@ -119,3 +119,6 @@
 @media (prefers-reduced-transparency: reduce) {
   .auth-screen.sail-auth-dialog { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(20, 23, 26, .6); }
 }
+
+.sail-auth-dialog .auth-screen-brand-mark { width: 44px; height: 44px; margin: 0 auto 18px; }
+.sail-auth-dialog .auth-screen-brand-mark img { width: 44px; height: 44px; }

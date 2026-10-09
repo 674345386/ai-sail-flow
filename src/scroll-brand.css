@@ -1,0 +1,75 @@
+/*
+ * ScrollBrand
+ *   --sb-mark        : cap height of the final S3 mark (A / I / sail height)
+ *   --sb-word-scale  : wordmark size relative to the mark (unitless).
+ *                      0.5 -> wordmark cap height = 15px when --sb-mark is 30px
+ *                      (~ a 1.25rem Arial wordmark). Use ~0.75 where the old
+ *                      brand was 2rem.
+ * Colour comes from `currentColor` (i.e. .landing-brand { color }).
+ */
+.scroll-brand {
+  --sb-mark: 30px;
+  --sb-word-scale: 0.5;
+  --sb-u: calc(var(--sb-mark) / 200); /* 1 S3 unit */
+
+  position: relative;
+  display: inline-block;
+  vertical-align: middle;
+  flex: none;
+  /* Fixed layout box (no reflow while scrolling): wide enough for the wordmark
+     or the mark, whichever is larger. */
+  width: max(calc(var(--sb-u) * 1462 * var(--sb-word-scale)), calc(var(--sb-u) * 347));
+  height: var(--sb-mark);
+  color: inherit;
+  line-height: 0;
+  letter-spacing: normal;
+}
+
+.scroll-brand__svg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: calc(var(--sb-u) * 1462);
+  height: var(--sb-mark);
+  overflow: visible;
+  pointer-events: none;
+  transform-origin: 0 50%; /* A's left foot, cap centre */
+  will-change: transform;
+}
+
+.scroll-brand__glyph,
+.scroll-brand__sail {
+  transform-box: fill-box;
+  will-change: transform, opacity;
+}
+
+.scroll-brand__glyph {
+  transform-origin: 50% 100%;
+}
+
+.scroll-brand__hyphen {
+  transform-origin: 0% 50%;
+}
+
+.scroll-brand__sail {
+  transform-origin: 0% 100%; /* foot of the mast */
+}
+
+.scroll-brand.sb-fade .scroll-brand__svg {
+  animation: sb-fade 180ms ease-out;
+}
+
+@keyframes sb-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Drop layer promotion at rest so the static states rasterise exactly like the source SVG. */
+.scroll-brand[data-state="mark"] .scroll-brand__svg,
+.scroll-brand[data-state="mark"] .scroll-brand__glyph,
+.scroll-brand[data-state="mark"] .scroll-brand__sail,
+.scroll-brand[data-state="wordmark"] .scroll-brand__svg,
+.scroll-brand[data-state="wordmark"] .scroll-brand__glyph,
+.scroll-brand[data-state="wordmark"] .scroll-brand__sail {
+  will-change: auto;
+}

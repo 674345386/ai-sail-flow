@@ -45,7 +45,7 @@ export default function AuthDialog({ open, onClose, auth, availability, email, c
         <button type="button" className="btn" disabled={locked} onClick={onEditProfile}><Pencil size={15} />编辑个人资料</button>
         <button type="button" className="btn" disabled={locked} onClick={onSignOut}>{auth.busy ? <LoaderCircle className="spin" size={15} /> : <LogOut size={15} />}退出登录</button>
       </div> : <>
-        <div className="auth-screen-intro"><h1 id="auth-screen-title">{stage === 'code' ? '输入邮箱验证码' : '登录 AI-Sail Flow'}</h1><p>{stage === 'code' ? <>验证码已发送至 <strong>{email}</strong></> : '使用邮箱验证码或 Google 账号，进入你的创意工作区。'}</p></div>
+        <div className="auth-screen-intro"><div className="auth-screen-brand-mark"><img src="/assets/brand/logo/ai-sail-flow-logo-dark.svg" alt="AI-Sail Flow" width={38} height={38} /></div><h1 id="auth-screen-title">{stage === 'code' ? '输入邮箱验证码' : '登录 AI-Sail Flow'}</h1><p>{stage === 'code' ? <>验证码已发送至 <strong>{email}</strong></> : '使用邮箱验证码或 Google 账号，进入你的创意工作区。'}</p></div>
         <form className="auth-screen-form" onSubmit={event => { event.preventDefault(); if (stage === 'email') onSendCode(); else onVerifyCode(); }}>
           {!supabaseConfigured && <div className="auth-warning" role="alert">登录服务尚未连接，请联系管理员。</div>}
           {stage === 'email' ? <>

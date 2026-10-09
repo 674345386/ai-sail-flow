@@ -93,3 +93,11 @@
   .commerce-hero-actions button, .commerce-hero-playback { transition: none; }
   .commerce-hero-actions button:hover { transform: none; }
 }
+
+
+/* Logo beside the wordmark fades and tucks away as the wordmark morphs into the mark */
+.landing-brand { --sb-p: 0; }
+.landing-brand .landing-brand-logo { --sb-lp: min(1, calc(var(--sb-p) * 2.6)); display: block; flex: none; width: 30px; height: 30px; opacity: calc(1 - var(--sb-lp)); margin-right: calc(-40px * var(--sb-lp)); transform: translateX(calc(-8px * var(--sb-lp))) scale(calc(1 - .35 * var(--sb-lp))) rotate(calc(-12deg * var(--sb-lp))); filter: blur(calc(3px * var(--sb-lp))); transform-origin: center; }
+
+/* Smaller final mark; wordmark keeps its original size (15px cap height) */
+.landing-brand .scroll-brand { --sb-mark: 20px; --sb-word-scale: .75; }
