@@ -73,3 +73,11 @@
 .scroll-brand[data-state="wordmark"] .scroll-brand__sail {
   will-change: auto;
 }
+
+/* Bold wordmark at rest (matches the sidebar title); thins back to the exact S3 mark as it morphs. */
+.scroll-brand__bold {
+  stroke: currentColor;
+  stroke-linejoin: round;
+  stroke-width: calc(13 * (1 - var(--sb-p, 0)));
+  paint-order: stroke fill;
+}

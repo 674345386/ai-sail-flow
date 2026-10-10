@@ -1395,3 +1395,12 @@ main { padding: 42px 42px 0; max-width: 1740px; }
 @media (max-width: 780px) {
   .generated-video-item { grid-template-columns: 1fr; }
 }
+
+/* Chinese copy in the 拆解引擎 section: calmer size and normal CJK tracking */
+.gf-models .gf-centered-heading h2 { font-size: clamp(2rem, 3vw, 3.4rem); font-weight: 500; line-height: 1.15; letter-spacing: .01em; }
+.gf-models .gf-omni-copy h3 { margin-top: 20px; font-size: clamp(2.2rem, 3.6vw, 4rem); font-weight: 500; line-height: 1.12; letter-spacing: .02em; }
+.gf-models .gf-omni-copy p { margin-top: 22px; }
+@media (max-width: 760px) {
+  .gf-models .gf-centered-heading h2 { font-size: 1.9rem; }
+  .gf-models .gf-omni-copy h3 { font-size: 2rem; }
+}

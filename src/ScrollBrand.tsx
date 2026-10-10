@@ -261,15 +261,15 @@ export default function ScrollBrand({ distance = 420, smoothing = 0.1, className
           </mask>
         </defs>
         <g fill="currentColor" fillRule="evenodd">
-          <path d={A_PATH} />
-          <path d={I_PATH} />
+          <path className="scroll-brand__bold" d={A_PATH} />
+          <path className="scroll-brand__bold" d={I_PATH} />
           {GLYPHS.map((g, i) => (
             <path
               key={i}
               ref={(el) => {
                 letterRefs.current[i] = el;
               }}
-              className={g.ch === "-" ? "scroll-brand__glyph scroll-brand__hyphen" : "scroll-brand__glyph"}
+              className={g.ch === "-" ? "scroll-brand__glyph scroll-brand__hyphen scroll-brand__bold" : "scroll-brand__glyph scroll-brand__bold"}
               d={g.d}
             />
           ))}

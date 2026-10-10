@@ -24,7 +24,7 @@ import AnimatedBrandMark from './AnimatedBrandMark';
 import ShaderBackdrop from './ShaderBackdrop';
 import LandingHero from './LandingHero';
 import ScrollBrand from "./ScrollBrand";
-import CreativeShowcase from './CreativeShowcase';
+import LandingSections from './LandingSections';
 import { shotReconstructionPrompt } from '../shared/shot-evidence';
 import AutomaticWorkspace, { SpeechTimingConfirmation, WorkflowEntry } from './WorkflowWorkspace';
 const CreativeWorkspace = lazy(() => import('./CreativeWorkspace'));
@@ -684,41 +684,11 @@ export default function App() {
   if (showLanding || (!project && publicAuthRequired && !auth.session)) return <div className="landing-page">
     <header className="landing-nav">
       <button className="landing-brand" onClick={() => setShowLanding(true)} aria-label="回到首页"><img className="landing-brand-logo" src="/assets/brand/sail-mark-dark-bold.svg" alt="" width={30} height={30} /><ScrollBrand /></button>
-      <nav className="landing-links" aria-label="首页导航"><a href="#overview">概览</a><a href="#models">模型</a><a href="#tools">工具</a><a href="#creator">Flow 创作营</a><a href="#pricing">价格</a></nav>
+      <nav className="landing-links" aria-label="首页导航"><a href="#overview">概览</a><a href="#models">拆解</a><a href="#tools">工具</a><a href="#creator">Flow 创作营</a><a href="#pricing">价格</a></nav>
       <div className="landing-social"><span aria-label="X">𝕏</span><span aria-label="Instagram">◎</span><span aria-label="Discord">◉</span><button aria-label="更多选项">⋮</button><button className="landing-account" onClick={openAuth}>{auth.user && <img src={accountAvatar} alt="" />}{auth.user ? authDisplayName(auth.user) : '登录'}</button></div>
     </header>
     <LandingHero authRequired={publicAuthRequired} onEnter={mode => enterWorkspace(false, mode)} />
-    <CreativeShowcase />
-
-    <section className="gf-models" id="models">
-      <SectionBackdrop src="/assets/landing/models-ambient-v2.webp" className="gf-models-backdrop" />
-      <div className="gf-centered-heading"><span>模型</span><h2>我们的模型</h2><p>画面、动作、商品、口播与音轨在同一次分析中被理解，<br />再转换成可以复用的创意结构。</p></div>
-      <article className="gf-omni-panel">
-        <SectionBackdrop src="/assets/landing/models-ambient-v2.webp" className="gf-omni-backdrop" />
-        <div className="gf-omni-copy"><small>NATIVE MULTIMODAL VIDEO</small><h3>Gemini 3.8 Flash</h3><p>完整视频和音轨一起输入，理解镜头节奏、口播、商品展示与购买引导，把参考创意拆成可执行的内容资产。</p><div><button onClick={() => enterWorkspace()}>使用 AI-Sail Flow</button><button className="ghost">了解模型</button></div></div>
-        <span className="gf-omni-badge">VIDEO · AUDIO · PRODUCT CONTEXT</span>
-      </article>
-    </section>
-
-    <section className="gf-tools" id="tools">
-      <SectionBackdrop src="/assets/landing/product-earbuds-black-creator.webp" className="gf-tools-backdrop" />
-      <div className="gf-centered-heading"><span>工具</span><h2>用自然语言构建内容工具</h2><p>无需切换十几个应用。描述你想完成的任务，<br />让工作流围绕素材和目标市场组织起来。</p></div>
-      <div className="gf-tools-layout">
-        <article className="gf-tool-preview"><img src="/assets/landing/product-earbuds-black-creator.webp" alt="自然语言内容工具预览" loading="lazy" decoding="async" fetchPriority="low" /><div className="gf-tool-preview-shade" /><div className="gf-tool-preview-copy"><small>AI-SAIL TOOL</small><h3>Add your product here</h3><p>把产品放进真实使用情境，再补充当地语言的利益点和行动引导。</p><span>Gemini 3.8 Flash</span></div></article>
-        <div className="gf-tool-list">{landingTools.map((tool, index) => <div key={tool}><span>{tool}</span><small>{String(index + 1).padStart(2, '0')}</small><button onClick={() => enterWorkspace(index === 9)}>探索</button></div>)}</div>
-      </div>
-      <button className="gf-outline-cta" onClick={() => enterWorkspace(true)}>使用 AI-Sail Flow 构建内容 <ArrowRight size={17} /></button>
-    </section>
-
-    <section className="gf-creator" id="creator">
-      <div className="gf-creator-backdrop" aria-hidden="true">{[landingImages[4], landingImages[6], landingImages[1], landingImages[3], landingImages[0]].map((src, index) => <img src={src} alt="" key={src} className={`creator-image-${index + 1}`} loading="lazy" decoding="async" fetchPriority="low" />)}</div>
-      <div className="gf-creator-scrim" />
-      <div className="gf-creator-grid">
-        <div className="gf-creator-list"><h2>Flow<br />创作营</h2><button>DTC 品牌团队</button><button>TikTok Shop 卖家</button><button className="active">独立站增长团队</button><button>海外社媒代理商</button></div>
-        <div className="gf-creator-about"><p>面向真实出海任务的创意工作流。参考内容提供方法，产品事实和目标市场决定最终表达。</p><button onClick={() => enterWorkspace()}>进入工作台</button></div>
-        <article className="gf-creator-story"><img src="/assets/landing/workflow-creator-team.webp" alt="商家与达人共同制作出海视频" loading="lazy" decoding="async" fetchPriority="low" /><div><span>创作者案例</span><h3>把一条参考片，变成团队今天就能执行的方案。</h3><p>从镜头理解到本地化改写，再到制作资料包，全部保留在同一个创意中。</p><div><button aria-label="上一个案例">←</button><button aria-label="下一个案例">→</button></div></div></article>
-      </div>
-    </section>
+    <LandingSections onEnter={() => enterWorkspace()} />
 
     <section className="gf-pricing" id="pricing">
       <div className="gf-centered-heading"><h2>价格</h2><p>本地版当前开放体验；云端与团队方案将在验证后公布。</p><button className="gf-small-outline" onClick={() => enterWorkspace()}>使用 AI-Sail Flow</button></div>
@@ -863,7 +833,11 @@ export default function App() {
   return <div className={`app-shell ${sidebarIsCollapsed ? 'sidebar-collapsed' : ''}`}>
     {sidebarOpen && <button className="sidebar-scrim" aria-label="关闭导航" onClick={() => setSidebarOpen(false)} />}
     <aside id="workspace-sidebar" aria-label="工作区导航" className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
-      <div className="brand" title="AI-Sail Flow"><span className="brand-compact" aria-hidden="true">SF</span><div className="brand-icon"><img src="/assets/brand/sail-mark-dark.svg" alt="" width={40} height={40} /></div><div><strong>AI-Sail Flow</strong><span>跨境内容工作台</span></div><Badge>V1</Badge></div>
+      <a className="brand" href="/" title="回到门户首页" aria-label="AI-Sail Flow，回到门户首页" aria-disabled={!!busy} onClick={event => {
+        if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+        event.preventDefault();
+        void perform('正在保存', async () => { await flush(); setSidebarOpen(false); setShowLanding(true); window.scrollTo(0, 0); });
+      }}><span className="brand-compact" aria-hidden="true">SF</span><div className="brand-icon"><img src="/assets/brand/sail-mark-dark.svg" alt="" width={40} height={40} /></div><div><strong>AI-Sail Flow</strong><span>跨境内容工作台</span></div><Badge>V1</Badge></a>
       <div className="workspace-picker" title={defaultWorkspace.title}><span className="workspace-avatar workspace-brand-avatar"><AnimatedBrandMark /></span><span>{defaultWorkspace.title}<small>项目与创意</small></span></div>
       <button type="button" className={`nav-item sidebar-media-button ${showMediaLibrary ? 'active' : ''}`} aria-label="所有媒体" title="所有媒体" aria-pressed={showMediaLibrary} disabled={!!busy} onClick={() => { setShowMediaLibrary(true); setSidebarOpen(false); }}><Grid2X2 size={18} /><span>所有媒体</span></button>
       <ProjectNavigation collapsed={sidebarIsCollapsed} onExpand={() => { setSidebarCollapsed(false); }} groups={projectGroups} creatives={projects} currentId={project.id} currentParentId={project.parentProjectId} busy={!!busy} running={running} showArchived={showArchived} onShowArchived={setShowArchived}

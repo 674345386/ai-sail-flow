@@ -286,6 +286,8 @@ button, input, textarea, select { font-family: inherit; }
 .main-shell { margin-left: 248px; }
 .brand { order: 0; padding: 0 4px 20px; gap: 0; min-height: 40px; }
 .brand-icon, .brand div > span { display: none; }
+.sidebar .brand { color: var(--text); text-decoration: none; cursor: pointer; }
+.sidebar .brand:hover { color: var(--text); }
 .brand strong { font-size: 20px; line-height: 28px; font-weight: 700; letter-spacing: -.7px; }
 .sidebar > .nav-section-label:not(.recent-label) { display: none; }
 .sidebar > .workflow-nav { display: grid; order: 1; gap: 4px; margin-bottom: 24px; }
