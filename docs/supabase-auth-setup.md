@@ -1,6 +1,6 @@
 # AI-Sail Flow 登录与个人资料
 
-项目使用火山 Supabase 原生 Auth，前端仅使用 anon / publishable key。当前界面提供邮箱验证码和 Google 账号登录，微信入口及授权代码已移除。
+项目通过 Supabase Auth 提供邮箱验证码登录，前端仅使用 anon / publishable key。迁移目标为阿里云自托管实例 `https://supabase-47-254-32-230.sslip.io`。Google、微信等 OAuth 入口已从本次构建移除。生产邮箱登录与文件存储已切换并验证；SMTP 已配置。源库结构已导出核对：唯一 public 表 `health_check` 已按结构迁入为空表，4 条私有文件策略已同步；火山平台内部表与配额触发器不迁入。原用户记录与文件不迁入。
 
 ## 邮箱验证码
 
@@ -8,7 +8,7 @@
 - Email provider 开启、允许新账号注册、保持邮箱确认开启。
 - Confirm Signup 和 Magic Link 邮件模板必须包含 `{{ .Token }}`，以支持首次注册和已有账号登录。
 - 当前验证码为 6 位、有效期 10 分钟；界面兼容 6–10 位数字，重发冷却 60 秒。最终限流和过期由 Supabase 执行。
-- SMTP 已使用用户指定的 163 发信邮箱：`smtp.163.com`、端口 `465`、SSL/TLS，Sender Name 为 `AI-Sail Flow`。SMTP 授权码只保存在 Supabase 控制台。
+- 发信配置沿用用户指定的 163 邮箱：`smtp.163.com`、端口 `465`、SSL/TLS，Sender Name 为 `AI-Sail Flow`。真实授权码仅保存在私密配置中。`deploy/supabase/configure-email.py` 在写入配置前校验 SMTP 登录，配置六位、10 分钟有效的验证码与 60 秒重发间隔。
 - SMTP 返回 `550 User has no permission` 时检查邮箱 SMTP 服务是否开启；返回 `535 authentication failed` 时检查客户端授权码。
 
 邮件模板示例：
@@ -20,25 +20,15 @@
 <p>请在应用中输入验证码完成登录。若不是你本人发起，请忽略这封邮件。</p>
 ```
 
-## Google 账号登录
+## 邮箱模板与回调配置
 
-调用 `signInWithOAuth({ provider: 'google' })`，继续使用 PKCE 授权流程。2026-10-04 查询实例公开 Auth settings：Email 已开启，Google 尚未开启；用户要求先完成代码。
+注册确认和已有账号登录均使用 `public/auth-email/code.html`，必须显示 `{{ .Token }}`。Auth 对应的模板 URL 为 `https://lululib.cn/auth-email/code.html`，随应用部署。
 
-配置时：
-
-1. 在 Google Cloud 创建 OAuth 的 Web application Client ID。授权 JavaScript origin 添加 `https://lululib.cn`；若使用 www，再添加 `https://www.lululib.cn`。
-2. Google 的 Authorized redirect URI 填入 Supabase Provider 页面显示的完整 Callback URL：
-   `https://br-right-duck-4cebf7ce.supabase.aidap-global.cn-beijing.volces.com/auth/v1/callback`
-3. 在火山 Supabase 的 Google Provider 保存 Client ID、Client Secret 并开启。Client Secret 不写入前端或代码仓库。
-4. Supabase 的 Redirect URLs 添加 `https://lululib.cn/auth/callback`，使用 www 时再添加 `https://www.lululib.cn/auth/callback`。Site URL 使用正式站点地址。
-
-前端每次打开登录窗口读取最新 Provider 开关。Google 尚未开启时保留入口并显示“暂未开通”，邮箱验证码继续可用。配置开启后重新打开窗口即可使用，无需为了更改 Provider 配置重新构建前端。
-
-Supabase 回到应用时使用当前 origin + `/auth/callback`，SDK 交换授权码、清理回调参数并进入工作区。开发环境可添加 `http://127.0.0.1:4317/auth/callback` 与 `http://localhost:4317/auth/callback`；如需覆盖应用回调，使用 `VITE_AUTH_REDIRECT_URL` 并重新构建。
+Site URL 使用 `https://lululib.cn`，Redirect URLs 保留 `https://lululib.cn/auth/callback` 和 `https://www.lululib.cn/auth/callback`。浏览器通过 SDK 保存和刷新会话，并向 Sail 后端同步登录状态。新的 Supabase 实例使用独立签名密钥，原会话需重新登录。
 
 ## 首次登录欢迎浮窗
 
-仅新账号首次成功完成邮箱验证码登录或 OAuth 登录，且尚无 `user_metadata.profile_completed_at` 时，才在工作台加载完成后弹出欢迎浮窗。已有账号、重新打开首页和恢复已有会话都不会自动弹出；用户仍可从账号资料入口主动编辑。新账号判断基于 Supabase 账号创建时间与首次登录时间接近（15 分钟内）。首次设置名称默认完整邮箱地址，可以直接编辑。提供 14 个本地 SVG 配色头像，也支持上传 JPG、PNG、WebP 图片（最大 5 MB），上传前居中裁成 256 × 256 JPEG。
+仅新账号首次成功完成邮箱验证码登录，且尚无 `user_metadata.profile_completed_at` 时，才在工作台加载完成后弹出欢迎浮窗。已有账号、重新打开首页和恢复已有会话都不会自动弹出；用户仍可从账号资料入口主动编辑。新账号判断基于 Supabase 账号创建时间与首次登录时间接近（15 分钟内）。首次设置名称默认完整邮箱地址，可以直接编辑。提供 14 个本地 SVG 配色头像，也支持上传 JPG、PNG、WebP 图片（最大 5 MB），上传前居中裁成 256 × 256 JPEG。
 
 点击“完成，开始创作”后通过 `auth.updateUser` 持久化：
 

@@ -40,7 +40,7 @@ VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
 ```
 
-首页右上角「登录」支持邮箱验证码、Google OAuth 和 X OAuth。Supabase Dashboard 需要开启 Email Provider，并把邮件模板配置为显示 `{{ .Token }}` 六位验证码；Google Provider 需要填入 Google Cloud OAuth Client ID/Secret，X Provider 需要填入 X Developer OAuth 2.0 Client ID/Secret，并分别把 Supabase 回调地址加入对应平台。Redirect URLs 至少加入 `http://127.0.0.1:4317/**` 和 `http://localhost:4317/**`。`SUPABASE_SECRET_KEY` 不参与这一阶段，不能放进 `VITE_*` 或任何浏览器代码。
+首页右上角「登录」使用邮箱数字验证码。Supabase Auth 需要开启 Email Provider，并配置注册确认和登录邮件模板以显示 `{{ .Token }}` 六位验证码。阿里云自托管部署说明见 `docs/supabase-auth-setup.md`；SMTP 授权码与服务端 Key 保存在服务器私密配置中。`SUPABASE_SECRET_KEY` 不能放进 `VITE_*` 或浏览器代码。
 
 生产构建：
 
