@@ -33,6 +33,7 @@ import RemixPromptSteps from './RemixPromptSteps';
 import { RemixObservableResults } from './RemixObservability';
 import { defaultRemixSettings, remixPlanCurrent, type RemixAction, type RemixSettings } from '../shared/remix';
 import { editableUnitPrompt, finalVideo, nextWorkflowAction, productionSources, videoCurrent, workflowBusy } from '../shared/workflow';
+import { appTitle, parseRoute, replaceNextUrl, routePath, stepTitles, useUrlSync, type AppRoute } from './useUrlSync';
 
 const steps = [
   { name: '上传素材', en: 'MATERIALS', icon: Upload, title: '准备你的创意素材', description: '用一条参考视频，定义下一条内容的起点。' },
@@ -169,6 +170,11 @@ const landingPlans = [
   { name: 'Studio', price: '即将推出', note: '内容工作室', features: ['多项目管理', '制作资料包', '团队工作流'] },
   { name: 'Enterprise', price: '联系我们', note: '企业方案', features: ['私有化部署', '自定义模型通道', '专属支持'] },
 ];
+// Step requested by a URL, if this creative can show it in the steps view; otherwise its default step.
+const routeStep = (p: Project, requested?: number, canvas = false) => {
+  const allowed = requested === 0 || requested === 1 && (canvas || !!p.analysis || p.assets.some(a => a.kind === 'video')) || requested === 2 && (canvas || !!p.analysis);
+  return allowed ? requested! : p.remix ? 2 : p.analysis ? 1 : 0;
+};
 const sizeLabel = (bytes: number) => bytes > 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.round(bytes / 1024)} KB`;
 
 
@@ -224,6 +230,7 @@ export default function App() {
   const [assetLibraryTarget, setAssetLibraryTarget] = useState<'all' | 'image' | 'video' | null>(null);
   const [initialMedia, setInitialMedia] = useState<LibraryMedia | null>(null);
   const [showMediaLibrary, setShowMediaLibrary] = useState(false);
+  const [routeReady, setRouteReady] = useState(false);
   const current = useRef<Project | null>(null);
   const unsaved = useRef(false);
   const editSequence = useRef(0);
@@ -284,10 +291,21 @@ export default function App() {
         const [list, modelStatus] = await Promise.all([api<ProjectSummary[]>('/api/projects'), api<Status>('/api/status')]);
         let preferred = '';
         try { preferred = localStorage.getItem('sop-current-project') || ''; } catch {}
+        const route = parseRoute(window.location.pathname);
+        const wanted = route?.kind === 'creative' ? route.id : '';
+        const missing = !!wanted && !list.some(p => p.id === wanted);
+        if (wanted && !missing) preferred = wanted;
         const activeProjects = list.filter(p => !p.archivedAt);
-        const id = activeProjects.find(p => p.id === preferred)?.id || activeProjects[0]?.id || list.find(p => p.id === preferred)?.id || list[0]?.id;
+        const id = (wanted && !missing ? wanted : '') || activeProjects.find(p => p.id === preferred)?.id || activeProjects[0]?.id || list.find(p => p.id === preferred)?.id || list[0]?.id;
         const p = id ? await api<Project>(`/api/projects/${id}`) : await api<Project>('/api/projects', { method: 'POST', body: '{}' });
-        if (!cancelled) { setStatus(modelStatus); adopt(p); setShowArchived(Boolean(p.archivedAt)); setStep(p.remix ? 2 : p.analysis ? 1 : 0); await refreshList(); }
+        if (!cancelled) {
+          const target = route?.kind === 'creative' && !missing ? route : undefined;
+          replaceNextUrl(); setStatus(modelStatus); adopt(p); setShowArchived(Boolean(p.archivedAt)); setStep(routeStep(p, target?.step, target?.canvas));
+          if (route && route.kind !== 'landing') { setShowLanding(false); setShowMediaLibrary(route.kind === 'library'); }
+          if (target) setWorkspaceView(target.canvas ? 'canvas' : 'steps');
+          if (missing) setError('链接中的创意不存在或已被删除，已为你打开默认创意。');
+          setRouteReady(true); await refreshList();
+        }
       } catch (e) { if (!cancelled) setBootError(e instanceof Error ? e.message : '无法连接工作台'); }
     })();
     return () => { cancelled = true; };
@@ -304,10 +322,10 @@ export default function App() {
       if (cancelled) return;
       const failure = callback.error || error;
       applySession(data.session, callback.active && data.session ? '登录成功' : '', failure ? authErrorMessage(failure) : '');
-      if (data.session && !callback.active) setShowLanding(false);
+      if (data.session && !callback.active) { replaceNextUrl(); setShowLanding(false); }
       if (callback.active) {
         clearAuthCallback();
-        if (data.session) { setProfileSetupPrompt(isNewUserFirstLogin(data.session.user)); setShowLanding(false); setAuthOpen(false); }
+        if (data.session) { replaceNextUrl(); setProfileSetupPrompt(isNewUserFirstLogin(data.session.user)); setShowLanding(false); setAuthOpen(false); }
         else { setAuthOpen(true); if (!failure) setAuth(current => ({ ...current, error: '登录授权未完成，请重新开始登录。' })); }
       }
     }).catch(error => { if (!cancelled) { applySession(null, '', authErrorMessage(error)); if (callback.active) { clearAuthCallback(); setAuthOpen(true); } } });
@@ -316,7 +334,7 @@ export default function App() {
       setAuth(current => ({ ...current, initialized: true, session, user: session?.user || null,
         ...(event === 'SIGNED_OUT' ? { status: '已退出登录', error: '' } : {}) }));
       if (!session) { setProfileEditing(false); setProfileSetupPrompt(false); }
-      if (publicAuthRequired && !session) setShowLanding(true);
+      if (publicAuthRequired && !session) { replaceNextUrl(); setShowLanding(true); }
     });
     return () => { cancelled = true; subscription.unsubscribe(); };
   }, []);
@@ -426,7 +444,7 @@ export default function App() {
         if (cancelled || current.current?.id !== id) return;
         failures = 0; adopt(p);
         if (p.job?.status === 'running' || workflowBusy(p)) timer = setTimeout(poll, 1800);
-        else { await refreshList(); if (p.job?.status === 'completed') { setStep(p.job.kind === 'analysis' || p.job.kind === 'analysis-refine' ? 1 : 2); setNotice(p.job.message); } }
+        else { await refreshList(); if (p.job?.status === 'completed') { replaceNextUrl(); setStep(p.job.kind === 'analysis' || p.job.kind === 'analysis-refine' ? 1 : 2); setNotice(p.job.message); } }
       } catch (e) { if (!cancelled) { failures++; setError(failures > 2 ? '暂时无法获取任务进度，正在重新连接…' : '连接暂时中断，任务仍可能在后台运行。'); timer = setTimeout(poll, 4000); } }
     };
     timer = setTimeout(poll, 1200);
@@ -440,9 +458,10 @@ export default function App() {
     field?.scrollIntoView({ block: 'center' });
     setFocusTarget(null);
   }, [step, focusTarget, busy, running]);
-  const switchProject = (id: string) => perform('正在打开创意', async () => { setShowMediaLibrary(false);
+  const switchProject = (id: string, target?: { step?: number; canvas?: boolean }) => perform('正在打开创意', async () => { setShowMediaLibrary(false);
     await flush(); const p = await api<Project>(`/api/projects/${id}`); adopt(p); setDirty(false); unsaved.current = false;
-    setStep(p.remix ? 2 : p.analysis ? 1 : 0); setSelectedShot(0); setSelectedRewrite(0); setSidebarOpen(false); setShowRequiredErrors(false); setFocusTarget(null); setObserving(false);
+    if (target) setWorkspaceView(target.canvas ? 'canvas' : 'steps');
+    setStep(routeStep(p, target?.step, target ? !!target.canvas : workspaceView === 'canvas')); setSelectedShot(0); setSelectedRewrite(0); setSidebarOpen(false); setShowRequiredErrors(false); setFocusTarget(null); setObserving(false);
   });
   const newProject = (demo = false, parentId = current.current?.parentProjectId || projectGroups[0]?.id || '') => {
     setError(''); setOrganizationDialog({ kind: 'creative-new', parentId, title: demo ? '随行冷萃杯 · 美国市场' : '', demo });
@@ -631,6 +650,23 @@ export default function App() {
     if (!response.ok) throw new Error((await response.json()).error);
     downloadBlob(await response.blob(), `${p.title}.zip`); setNotice('提示词包已导出');
   });
+  // URL <-> view state (see src/useUrlSync.ts).
+  const applyRoute = async (route: AppRoute) => {
+    if (route.kind === 'landing') { setShowLanding(true); return; }
+    if (publicAuthRequired && !auth.session) { setShowLanding(true); setAuthOpen(true); return; }
+    setShowLanding(false); setSidebarOpen(false);
+    if (route.kind === 'library') { setShowMediaLibrary(true); return; }
+    if (route.id !== current.current?.id) { await switchProject(route.id, { step: route.step, canvas: route.canvas }); return; }
+    await perform('正在保存', async () => {
+      setShowMediaLibrary(false); await flush();
+      const p = current.current; if (!p) return;
+      setWorkspaceView(route.canvas ? 'canvas' : 'steps');
+      if (!route.canvas || route.step !== undefined) setStep(routeStep(p, route.step, !!route.canvas));
+    });
+  };
+  const viewRoute: AppRoute | null = showLanding ? { kind: 'landing' } : !project ? null : showMediaLibrary ? { kind: 'library' } : workspaceView === 'canvas' ? { kind: 'creative', id: project.id, canvas: true } : { kind: 'creative', id: project.id, step };
+  const viewTitle = !viewRoute || viewRoute.kind === 'landing' ? `${appTitle} · 跨境内容工作台` : viewRoute.kind === 'library' ? `所有媒体 · ${appTitle}` : `${project?.title.trim() || '未命名创意'} · ${viewRoute.canvas ? '画布' : stepTitles[step]} · ${appTitle}`;
+  useUrlSync({ path: viewRoute ? routePath(viewRoute) : '', title: viewTitle, ready: routeReady, paused: !!busy, onRoute: applyRoute });
   const copy = async (value: string) => { try { await navigator.clipboard.writeText(value); setNotice('已复制'); } catch { setError('浏览器未允许复制，请使用下载按钮。'); } };
 
   const landingImages = [
