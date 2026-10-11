@@ -198,3 +198,38 @@
 /* block 1 follows the reference's smaller column type */
 .ls-section .ls-tools-block:first-child .ls-tool-col h3 { font-size: 22px; line-height: 1.32; word-break: keep-all; overflow-wrap: anywhere; }
 .ls-section .ls-tools-block:first-child .ls-tool-body { font-size: 13px; line-height: 1.62; }
+
+/* #tools proportions matched to the reference (measured at 1914px CSS viewport):
+   grid 1404px wide, 3 × 458px columns, 15px gutter, 16:9 media, headline ~52px. */
+.ls-tools .ls-wrap { max-width: 1444px; padding: 0 20px; }
+.ls-tools-grid { gap: 15px; }
+.ls-tools-block > h2 { max-width: 1100px; margin-bottom: 54px; font-size: clamp(30px, 4.6vw, 52px); line-height: 1.1; letter-spacing: -.015em; }
+.ls-section .ls-tool-label { margin-bottom: 15px; font-size: 22px; line-height: 1.25; }
+.ls-tool-media { aspect-ratio: 16 / 9; border-radius: 6px; }
+.ls-section .ls-tools-block:first-child .ls-tool-col h3 { margin-top: 32px; font-size: 22.5px; line-height: 1.2; }
+.ls-section .ls-tools-block:first-child .ls-tool-body { margin-top: 22px; font-size: 13.5px; line-height: 1.45; }
+.ls-tool-actions { gap: 6px; margin-top: 44px; }
+.ls-tool-actions button { height: 29px; padding: 0 10px; font-size: 13px; border-radius: 4px; }
+.ls-section .ls-tool-note { margin-top: 18px; font-size: 11.5px; }
+@media (max-width: 900px) {
+  .ls-tools-grid { gap: 56px; }
+  .ls-tools-block > h2 { margin-bottom: 36px; }
+  .ls-tool-actions { margin-top: 24px; }
+  .ls-section .ls-tools-block:first-child .ls-tool-col h3 { margin-top: 24px; }
+  .ls-section .ls-tools-block:first-child .ls-tool-body { margin-top: 14px; }
+}
+
+/* #tools header reuses the compare-section header (big headline left, short paragraph right) */
+.ls-tools-head { margin-bottom: 54px; }
+.ls-tools-aside { max-width: 420px; justify-self: end; }
+.ls-tools-aside p { font-size: 18px; }
+.ls-models { display: flex; flex-wrap: wrap; gap: 10px 22px; margin: 22px 0 0; padding: 0; list-style: none; }
+.ls-models li { display: inline-flex; align-items: center; gap: 8px; color: var(--ls-ink-2); font-size: 15px; font-weight: 500; opacity: 0; transform: translateY(8px); transition: opacity .6s var(--ls-ease), transform .6s var(--ls-ease); transition-delay: calc(var(--i) * 90ms + 350ms); }
+.ls-tools-head.is-visible .ls-models li { opacity: 1; transform: none; }
+.ls-models svg { flex: none; width: 19px; height: 19px; }
+@media (max-width: 860px) {
+  .ls-tools-aside { justify-self: start; margin-top: 18px; }
+  .ls-tools-aside p { font-size: 16px; }
+  .ls-models { display: grid; grid-template-columns: repeat(2, max-content); gap: 12px 32px; }
+}
+@media (prefers-reduced-motion: reduce) { .ls-models li { opacity: 1; transform: none; transition: none; } }
