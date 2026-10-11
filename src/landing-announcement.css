@@ -1,0 +1,79 @@
+.landing-page > .landing-announcement {
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  color: #fff;
+  background: linear-gradient(105deg, #2346ab 0%, #5544a1 54%, #1357b3 100%);
+}
+
+.landing-announcement::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: .15;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='128' height='128'%3E%3Cfilter id='grain'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Cpath fill='%23fff' filter='url(%23grain)' d='M0 0h128v128H0z'/%3E%3C/svg%3E");
+}
+
+.landing-announcement-inner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  max-width: 1220px;
+  min-height: 46px;
+  margin: 0 auto;
+  padding: 8px 56px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.landing-announcement-message { margin: 0; }
+.landing-announcement-actions { display: inline-flex; flex-shrink: 0; align-items: center; gap: 12px; }
+.landing-announcement-link { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+.landing-announcement-link:hover { text-decoration-thickness: 2px; }
+.landing-announcement-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 28px;
+  padding: 3px 10px;
+  border: 1px solid #ffffff70;
+  border-radius: 4px;
+  background: #ffffff08;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.landing-announcement-button:hover { border-color: #ffffffb3; background: #ffffff18; }
+.landing-announcement-close {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  transform: translateY(-50%);
+  cursor: pointer;
+}
+.landing-announcement-close:hover { background: #ffffff18; }
+.landing-announcement-link:focus-visible, .landing-announcement-button:focus-visible, .landing-announcement-close:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+
+@media (max-width: 680px) {
+  .landing-announcement-inner { flex-direction: column; gap: 6px; padding: 10px 48px; font-size: 13px; }
+  .landing-announcement-actions { gap: 14px; }
+  .landing-announcement-button { min-height: 32px; }
+  .landing-announcement-close { top: 4px; right: 4px; width: 40px; height: 40px; transform: none; }
+}

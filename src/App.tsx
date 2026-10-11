@@ -23,6 +23,7 @@ import ProjectNavigation from './ProjectNavigation';
 import AnimatedBrandMark from './AnimatedBrandMark';
 import ShaderBackdrop from './ShaderBackdrop';
 import LandingHero from './LandingHero';
+import LandingAnnouncement from './LandingAnnouncement';
 import ScrollBrand from "./ScrollBrand";
 import LandingSections from './LandingSections';
 import { shotReconstructionPrompt } from '../shared/shot-evidence';
@@ -682,6 +683,7 @@ export default function App() {
   }} /> : null;
   if (publicAuthRequired && !auth.initialized) return <div className="boot-screen"><LoaderCircle className="spin" /><p>正在恢复工作台…</p></div>;
   if (showLanding || (!project && publicAuthRequired && !auth.session)) return <div className="landing-page">
+    <LandingAnnouncement onEnter={() => enterWorkspace()} />
     <header className="landing-nav">
       <button className="landing-brand" onClick={() => setShowLanding(true)} aria-label="回到首页"><img className="landing-brand-logo" src="/assets/brand/sail-mark-dark-bold.svg" alt="" width={30} height={30} /><ScrollBrand /></button>
       <nav className="landing-links" aria-label="首页导航"><a href="#overview">概览</a><a href="#models">拆解</a><a href="#tools">工具</a><a href="#creator">Flow 创作营</a><a href="#pricing">价格</a></nav>
