@@ -67,9 +67,22 @@ export async function loadAuthAvailability(): Promise<AuthAvailability> {
   return { email: settings.external?.email === true, signup: settings.disable_signup !== true };
 }
 
+export const AUTH_REQUEST_TIMEOUT_MS = 15000;
+export class AuthTimeoutError extends Error {
+  code = 'auth_timeout';
+  constructor() { super('auth request timeout'); this.name = 'AuthTimeoutError'; }
+}
+/** Rejects with AuthTimeoutError if the auth request does not settle in time, so the UI never spins forever. */
+export function withAuthTimeout<T>(request: Promise<T>, ms = AUTH_REQUEST_TIMEOUT_MS): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new AuthTimeoutError()), ms); });
+  return Promise.race([request, timeout]).finally(() => clearTimeout(timer));
+}
+
 export function authErrorMessage(error: unknown) {
-  const value = error as { code?: string; message?: string; status?: number };
+  const value = error as { code?: string; message?: string; status?: number; name?: string };
   const text = value?.message || (typeof error === 'string' ? error : '');
+  if (value?.code === 'auth_timeout' || value?.name === 'AuthRetryableFetchError' || error instanceof TypeError || (typeof value?.status === 'number' && (value.status === 0 || value.status >= 500))) return '网络连接暂时失败，请稍后重试。';
   if (value?.status === 429 || /over_.*rate_limit|rate_limit/.test(value?.code || '') || /too many|rate limit|after \d+ seconds/i.test(text)) return '请求太频繁，请稍后再试。';
   if (value?.code === 'otp_expired' || /token.*expired|token.*invalid|otp.*expired/i.test(text)) return '验证码已失效或不正确，请检查验证码，或重新发送。';
   if (value?.code === 'email_address_invalid' || /invalid.*email/i.test(text)) return '请填写有效的邮箱地址。';

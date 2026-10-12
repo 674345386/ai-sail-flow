@@ -7,7 +7,7 @@ import { buildBrief, buildPrompt, buildExportFiles, buildVeoPromptPreview, build
 import { buildVeoPlan, type VeoPlanUnit } from '../shared/veo-plan';
 import { api, downloadBlob } from './api';
 import { useImagePaste } from './useImagePaste';
-import { authDisplayName, authEmail, authErrorMessage, initialAuthState, publicAuthRequired, syncPublicServerSession, supabase, loadAuthAvailability, unknownAuthAvailability, validEmail, validEmailCode, readAuthCallback, clearAuthCallback, type AuthAvailability, type SailAuthState } from './auth';
+import { authDisplayName, authEmail, authErrorMessage, initialAuthState, publicAuthRequired, syncPublicServerSession, supabase, loadAuthAvailability, unknownAuthAvailability, validEmail, validEmailCode, withAuthTimeout, readAuthCallback, clearAuthCallback, type AuthAvailability, type SailAuthState } from './auth';
 import AuthDialog from './AuthDialog';
 import WelcomeProfileDialog from './WelcomeProfileDialog';
 import { isNewUserFirstLogin, needsProfileSetup, useProfileAvatar } from './userProfile';
@@ -370,7 +370,7 @@ export default function App() {
     authRequest.current = true;
     setAuth(current => ({ ...current, busy: true, error: '', status: '正在发送验证码…' }));
     try {
-      const { error } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: true } });
+      const { error } = await withAuthTimeout(supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: true } }));
       if (error) throw error;
       setAuthEmailValue(email); setAuthCode(''); setAuthStage('code'); setAuthResendAt(Date.now() + 60000);
       setAuth(current => ({ ...current, status: '验证码已发送，请检查邮箱。', error: '' }));
@@ -382,7 +382,7 @@ export default function App() {
     authRequest.current = true;
     setAuth(current => ({ ...current, busy: true, error: '', status: '正在验证…' }));
     try {
-      const { data, error } = await supabase.auth.verifyOtp({ email: authEmailValue.trim(), token: authCode, type: 'email' });
+      const { data, error } = await withAuthTimeout(supabase.auth.verifyOtp({ email: authEmailValue.trim(), token: authCode, type: 'email' }));
       if (error) throw error;
       if (!data.session || !data.user) throw new Error('登录未完成');
       setProfileSetupPrompt(isNewUserFirstLogin(data.user));
