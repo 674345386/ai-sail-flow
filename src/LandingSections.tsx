@@ -293,7 +293,7 @@ function CreatorSection({ onEnter }: { onEnter: () => void }) {
 /* ---------- 6 · CTA band ---------- */
 function CtaBand({ onEnter }: { onEnter: () => void }) {
   const ref = useReveal<HTMLElement>();
-  return <section ref={ref} className="ls-cta" aria-labelledby="ls-cta-title">
+  return <section ref={ref} className="ls-cta" id="start" aria-labelledby="ls-cta-title">
     <LoopVideo name="cta-ambient" label="" className="ls-cta-video" />
     <div className="ls-cta-scrim" />
     <div className="ls-wrap ls-cta-inner" data-reveal>

@@ -1,0 +1,27 @@
+/* "本页目录" — left table of contents. Full panel needs a ≥240px gutter (≥1680px wide);
+   1280–1679px collapses to a dot rail with tooltips; hidden below 1280px. */
+.landing-page > .landing-toc, .landing-toc { position: fixed; z-index: 30; top: calc(76px + 28px); left: 24px; width: 168px; font-family: "Sail Workspace Inter", Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif; opacity: 0; transform: translateX(-8px); pointer-events: none; transition: opacity .35s ease, transform .45s cubic-bezier(.2,.7,.1,1); }
+.landing-page > .landing-toc.is-visible, .landing-toc.is-visible { opacity: 1; transform: none; pointer-events: auto; }
+.landing-toc-title { margin: 0 0 10px 12px; color: #1c1d1f; font-size: 11px; font-weight: 600; letter-spacing: .02em; }
+.landing-toc ol { margin: 0; padding: 0; list-style: none; border-left: 1px solid rgba(14,15,16,.12); }
+.landing-toc li { margin: 0; }
+.landing-toc a { position: relative; display: block; margin: 1px 0 1px -1px; padding: 6px 10px 6px 12px; border-left: 2px solid transparent; border-radius: 0 6px 6px 0; color: #77797c; font-size: 12px; line-height: 1.35; text-decoration: none; transition: color .2s ease, background .2s ease, border-color .2s ease; }
+.landing-toc a:hover { color: #1c1d1f; }
+.landing-toc a.is-active { border-left-color: #1c1d1f; background: rgba(14,15,16,.06); color: #111214; font-weight: 500; }
+.landing-toc a:focus-visible { outline: 2px solid #3b82f6; outline-offset: 1px; }
+
+@media (max-width: 1679px) {
+  .landing-page > .landing-toc, .landing-toc { left: 0; width: 18px; top: 50%; transform: translate(-6px, -50%); }
+  .landing-page > .landing-toc.is-visible, .landing-toc.is-visible { transform: translateY(-50%); }
+  .landing-toc-title { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .landing-toc ol { border-left: 0; display: grid; gap: 2px; }
+  .landing-toc a { width: 14px; height: 18px; margin: 0; padding: 0; border: 0; border-radius: 0; background: none !important; }
+  .landing-toc a span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .landing-toc a::before { content: ""; position: absolute; top: 50%; left: 5px; width: 4px; height: 4px; margin-top: -2px; border-radius: 2px; background: rgba(14,15,16,.28); transition: height .25s ease, margin .25s ease, background .2s ease; }
+  .landing-toc a.is-active::before { height: 14px; margin-top: -7px; background: #1c1d1f; }
+  .landing-toc a:hover::before { background: #1c1d1f; }
+  .landing-toc a::after { content: attr(data-label); position: absolute; top: 50%; left: 20px; padding: 4px 8px; border-radius: 4px; background: #1c1d1f; color: #fff; font-size: 11px; white-space: nowrap; opacity: 0; transform: translate(-4px, -50%); pointer-events: none; transition: opacity .15s ease, transform .15s ease; }
+  .landing-toc a:hover::after, .landing-toc a:focus-visible::after { opacity: 1; transform: translate(0, -50%); }
+}
+@media (max-width: 1279px) { .landing-page > .landing-toc, .landing-toc { display: none; } }
+@media (prefers-reduced-motion: reduce) { .landing-toc, .landing-toc a, .landing-toc a::before, .landing-toc a::after { transition: none; } }

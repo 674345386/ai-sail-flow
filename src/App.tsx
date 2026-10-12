@@ -26,6 +26,8 @@ import LandingHero from './LandingHero';
 import LandingAnnouncement from './LandingAnnouncement';
 import ScrollBrand from "./ScrollBrand";
 import LandingSections from './LandingSections';
+import LandingToc from './LandingToc';
+import LandingBackground from './LandingBackground';
 import { shotReconstructionPrompt } from '../shared/shot-evidence';
 import AutomaticWorkspace, { SpeechTimingConfirmation, WorkflowEntry } from './WorkflowWorkspace';
 const CreativeWorkspace = lazy(() => import('./CreativeWorkspace'));
@@ -682,7 +684,8 @@ export default function App() {
     setProfileEditing(false); setProfileSetupPrompt(false); setAuthOpen(false); setShowLanding(false);
   }} /> : null;
   if (publicAuthRequired && !auth.initialized) return <div className="boot-screen"><LoaderCircle className="spin" /><p>正在恢复工作台…</p></div>;
-  if (showLanding || (!project && publicAuthRequired && !auth.session)) return <div className="landing-page">
+  if (showLanding || (!project && publicAuthRequired && !auth.session)) return <div className="landing-page landing-dark">
+    <LandingBackground />
     <LandingAnnouncement onEnter={() => enterWorkspace()} />
     <header className="landing-nav">
       <button className="landing-brand" onClick={() => setShowLanding(true)} aria-label="回到首页"><img className="landing-brand-logo" src="/assets/brand/sail-mark-dark-bold.svg" alt="" width={30} height={30} /><ScrollBrand /></button>
@@ -691,6 +694,7 @@ export default function App() {
     </header>
     <LandingHero authRequired={publicAuthRequired} onEnter={mode => enterWorkspace(false, mode)} />
     <LandingSections onEnter={() => enterWorkspace()} />
+    <LandingToc />
 
     <section className="gf-pricing" id="pricing">
       <div className="gf-centered-heading"><h2>价格</h2><p>本地版当前开放体验；云端与团队方案将在验证后公布。</p><button className="gf-small-outline" onClick={() => enterWorkspace()}>使用 AI-Sail Flow</button></div>
