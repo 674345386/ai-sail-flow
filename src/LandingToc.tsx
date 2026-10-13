@@ -3,10 +3,10 @@ import './landing-toc.css';
 
 const items = [
   { id: 'overview', label: '概览' },
+  { id: 'tools', label: '工具' },
   { id: 'made', label: '作品' },
   { id: 'models', label: '拆解' },
   { id: 'compare', label: '对比' },
-  { id: 'tools', label: '工具' },
   { id: 'creator', label: 'Flow 创作营' },
   { id: 'start', label: '开始创作' },
   { id: 'pricing', label: '价格' },

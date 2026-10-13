@@ -204,16 +204,19 @@ const MODEL_MARKS = [
   { name: 'Grok', path: 'M9.27 15.29l7.978-5.897c.391-.29.95-.177 1.137.272.98 2.369.542 5.215-1.41 7.169-1.951 1.954-4.667 2.382-7.149 1.406l-2.711 1.257c3.889 2.661 8.611 2.003 11.562-.953 2.341-2.344 3.066-5.539 2.388-8.42l.006.007c-.983-4.232.242-5.924 2.75-9.383.06-.082.12-.164.179-.248l-3.301 3.305v-.01L9.267 15.292M7.623 16.723c-2.792-2.67-2.31-6.801.071-9.184 1.761-1.763 4.647-2.483 7.166-1.425l2.705-1.25a7.808 7.808 0 00-1.829-1A8.975 8.975 0 005.984 5.83c-2.533 2.536-3.33 6.436-1.962 9.764 1.022 2.487-.653 4.246-2.34 6.022-.599.63-1.199 1.259-1.682 1.925l7.62-6.815', fill: '#0f0f10', evenOdd: true },
 ];
 
+// Alphabetical, and shown as an endless marquee so no provider reads as "first" (no ranking implied).
 function ModelMarks() {
-  return <ul className="ls-models" aria-label="支持的模型">
-    {MODEL_MARKS.map((mark, index) => <li key={mark.name} style={{ '--i': index } as CSSProperties}>
+  const marks = [...MODEL_MARKS].sort((x, y) => x.name.localeCompare(y.name, 'en'));
+  const list = (copy: number) => <ul className="ls-models" aria-label={copy ? undefined : '支持的模型（按字母排序）'} aria-hidden={copy ? true : undefined}>
+    {marks.map(mark => <li key={mark.name}>
       <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        {mark.name === 'Gemini' && <defs><linearGradient id="ls-gemini-gradient" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse"><stop offset="0" stopColor="#4285F4" /><stop offset=".55" stopColor="#9B72CB" /><stop offset="1" stopColor="#D96570" /></linearGradient></defs>}
+        {mark.name === 'Gemini' && !copy && <defs><linearGradient id="ls-gemini-gradient" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse"><stop offset="0" stopColor="#4285F4" /><stop offset=".55" stopColor="#9B72CB" /><stop offset="1" stopColor="#D96570" /></linearGradient></defs>}
         <path d={mark.path} fill={mark.fill} fillRule={mark.evenOdd ? 'evenodd' : undefined} />
       </svg>
       <span>{mark.name}</span>
     </li>)}
   </ul>;
+  return <div className="ls-models-marquee"><div className="ls-models-track">{list(0)}{list(1)}{list(2)}{list(3)}</div></div>;
 }
 
 function FeatureSection({ onEnter }: { onEnter: () => void }) {
@@ -308,10 +311,10 @@ function CtaBand({ onEnter }: { onEnter: () => void }) {
 
 export default function LandingSections({ onEnter }: { onEnter: () => void }) {
   return <>
+    <FeatureSection onEnter={onEnter} />
     <StatementSection onEnter={onEnter} />
     <StepStorySection onEnter={onEnter} />
     <CompareSection />
-    <FeatureSection onEnter={onEnter} />
     <CreatorSection onEnter={onEnter} />
     <CtaBand onEnter={onEnter} />
   </>;
