@@ -1,0 +1,243 @@
+import type { Dict } from './i18n';
+
+/* All landing-page + login copy. The Chinese entry is the source of truth for meaning; English mirrors it. */
+const zh = {
+  nav: { home: '回到首页', aria: '首页导航', overview: '概览', models: '拆解', tools: '工具', creator: 'Flow 创作营', pricing: '价格', more: '更多选项', signIn: '登录' },
+  announcement: { aria: '产品公告', message: '限时优惠：订阅享 8 折，活动截至 11 月 30 日', details: '了解功能', action: '立即体验', close: '关闭促销公告' },
+  hero: {
+    kicker: '为电商出海而创作',
+    lead: '您的专属 AI 出海创意视频工作室，', lead2: '从真实视频与市场洞察出发，让好创意走向全球。',
+    auto: '自动制作视频', manual: '进入 AI-Sail Flow 制作',
+    note: '邮箱验证后即可访问 · 登录用户共用工作区',
+    pause: '暂停背景动画', play: '播放背景动画',
+  },
+  tools: {
+    aria: '工具', title: ['从发现热点到完成创作，', '让好想法成为好作品'] as [string, string],
+    aside: '实时跟进业界最强的生成模型，用最先进的制作流程，把每一个热点变成你的作品。',
+    modelsAria: '支持的模型（按字母排序）',
+    columns: [
+      { label: 'Creative｜创意', alt: '两位顾客提着购物袋走在街头的示意画面', title: '把灵感变成画面，让创意有更多可能。', body: '在同一个工作空间中，完成视频拆解、图片生成与内容改写。围绕你的产品和受众，将参考素材转化为新的创意方案，让每一个想法都有清晰的创作起点。', actions: ['开始创作', '了解更多'], note: '画面为示意素材。' },
+      { label: 'Easy Dev｜轻松创作', alt: '创作者在工作室用平板查看一组分镜的示意画面', title: '从一个想法出发，轻松推进每一步创作。', body: '上传参考视频，补充产品信息，跟随引导完成镜头拆解、人物生成与视频二创。将复杂的制作过程拆成清晰步骤，减少重复操作，让你把精力放在内容本身。', actions: ['立即体验', '查看创作指南'], note: '' },
+      { label: 'Trend Radar｜挖掘热点', alt: '两位创作者在工作室里一起审看热门视频的示意画面', title: '看懂热门内容，找到适合你的创作机会。', body: '从热门视频中拆解吸引注意的开场、推动观看的节奏，以及打动受众的产品表达。提炼值得借鉴的创意结构，结合你的产品与目标市场，为下一条视频找到方向。', actions: ['开始拆解', '探索创意案例'], note: '' },
+    ],
+  },
+  statement: {
+    eyebrow: '为出海短视频团队打造', title: ['别人跑出来的爆款，', '是你下一条视频的分镜。'] as [string, string],
+    body: '上传一条参考视频，AI-Sail Flow 逐镜头拆开它的结构，再按你的产品重新写、重新出首帧、重新生成。方法照搬，表达是你自己的。',
+    stats: [['1 条', '参考视频起步'], ['逐镜头', '拆解与重写'], ['单镜', '不满意只重做这一镜']] as [string, string][],
+    upload: '上传一条参考视频',
+    reels: [
+      { market: '美国', category: '护肤精华', note: '参考片 8 个镜头 → 换成自家精华瓶' },
+      { market: '欧洲', category: '亚麻衬衫 · 服饰', note: '保留晨光机位，口播改成本地说法' },
+      { market: '中东', category: '冷萃杯 · 户外', note: '倒饮特写逐帧对齐原片构图' },
+      { market: '日本', category: '桌面充电灯 · 3C', note: '夜景运镜照搬，替换产品外观' },
+      { market: '北欧', category: '家居 · 软装', note: '同一条参考，换品类再出一版' },
+    ],
+    reelAlt: (market: string, category: string) => `${market}市场 ${category} 示意短片`,
+    footnote: '画面为示意素材，展示同一套流程在不同品类与市场中的用法。',
+    swipe: '左右滑动查看 5 个案例 →',
+    platforms: '适用于 TikTok · Instagram Reels · YouTube Shorts 等竖屏短视频',
+  },
+  steps: {
+    eyebrow: '拆解引擎', title: '看懂一条爆款，只要一次',
+    body: '从一条参考视频到一组能直接开拍、能直接生成的新素材，中间每一步都摆在你面前，随时可以停下来改。',
+    items: [
+      { title: '放进一条你想复刻的爆款', body: '直接上传 TikTok、Reels 或 Shorts 的成片。不需要脚本、不需要标注，视频和音轨会一起被读取。', meta: '支持竖屏短视频 · 自动抽取音轨' },
+      { title: '逐镜头读懂爆款', body: '每个镜头一张关键帧、一段描述：在拍什么、怎么运镜、商品在第几秒出场、哪一句口播推动了下单。整条视频的节奏一目了然。', meta: '关键帧 · 运镜 · 口播 · 商品时刻' },
+      { title: '按你的产品重写每一镜', body: '产品长什么样，以你上传的产品图为准；构图、场景、动作和运镜，沿用原镜头。卖点只写你确认过的事实，不替你编。', meta: '产品图约束外观 · 原镜头约束构图' },
+      { title: '生成新的首帧，并排对照原片', body: '每一镜先出一张重制首帧，和原镜头左右并排看。哪一镜不对，改提示词、单独重试，其余镜头不受影响。', meta: '图生视频首帧 · 单镜重试' },
+      { title: '导出，或直接生成视频', body: '把分镜、首帧和提示词打包交给剪辑或外部工具，也可以直接调用 Veo 3.1 逐镜生成，再配音、加字幕、拼成完整成片。', meta: '提示词包 · Veo 3.1 · 配音字幕' },
+    ],
+    primary: '拆解我的第一条视频', secondary: '看看做出来的视频',
+  },
+  compare: {
+    eyebrow: '拆解视图 / 原画面', title: ['每一帧，都被读成', '可以复用的结构。'] as [string, string],
+    body: '拖动看看：左边是 AI-Sail Flow 从一个镜头里读到的东西——景别、人物位置、商品出场的时间点、运镜方式。重写时，这些骨架原样保留，主角换成你的产品。',
+    remakeAlt: '参考镜头原画面示意', sourceAlt: '同一镜头的拆解视图：标注景别、人物与商品出场时间',
+    left: '拆解视图', right: '原画面', slider: '拖动对比拆解视图与原画面',
+    specs: [
+      { title: '沿用原片', items: ['镜头顺序与时长', '构图、景别与运镜', '开场钩子与节奏点'] },
+      { title: '换成你的', items: ['产品外观，以产品图为准', '卖点与口播，只用确认过的事实', '场景和人物，贴合目标市场'] },
+      { title: '由你把关', items: ['逐镜并排审阅', '改提示词，单镜重试', '满意的镜头锁定不动'] },
+    ],
+  },
+  creator: {
+    eyebrow: 'Flow 创作营', title: ['给每天都在', '找下一条爆款的人'] as [string, string],
+    body: '不同团队卡在不同地方。选一个最像你的，看看这套流程会怎么接进你的日常。',
+    tabsAria: '选择团队类型', enter: '进入工作台',
+    sceneAlt: (name: string) => `${name}的工作场景示意`,
+    teams: [
+      { name: 'TikTok Shop 卖家', line: '一周要上二十条新视频？', body: '把同类目里跑量的视频拆开，按自家 SKU 批量重写，挑出最像的镜头先测。' },
+      { name: '独立站增长团队', line: '投放素材总是不够换。', body: '同一条爆款结构，换场景、换人物、换开场钩子，几个版本一次出齐。' },
+      { name: '海外社媒代理商', line: '客户多，市场也多。', body: '每个客户一个创意，产品事实和目标市场分开管理，交付物统一成提示词包。' },
+      { name: 'DTC 品牌内容组', line: '要快，也要守住品牌。', body: '外观以产品图为准，卖点只用确认过的说法，审阅时逐镜对照原片。' },
+    ],
+    marketsTitle: '同一条参考，按市场改写语言、场景和说法',
+    labels: { lang: '语言', platform: '常见平台', tone: '常见打法' },
+    markets: [
+      { name: '北美', lang: '英语 · 西语', tone: '真实测评、开箱、前后对比' },
+      { name: '中东', lang: '阿拉伯语 · 英语', tone: '质感场景、家庭与礼赠' },
+      { name: '东南亚', lang: '印尼语 · 泰语 · 越南语', tone: '高频直给、价格与促销' },
+      { name: '日韩', lang: '日语 · 韩语', tone: '细节特写、克制的口播' },
+    ],
+  },
+  cta: { title: ['挑一条你最想复刻的视频，', '现在就开始拆。'] as [string, string], primary: '拆解我的第一条视频', pricing: '查看价格' },
+  pricing: {
+    title: '价格', body: '本地版当前开放体验；云端与团队方案将在验证后公布。', use: '使用 AI-Sail Flow', start: '立即开始', register: '登记意向',
+    note: '* 后续方案、额度和价格以正式发布信息为准。',
+    plans: [
+      { name: '免费', price: '¥0', note: '本地体验', features: ['1 个本地工作区', '视频与音轨理解', '基础提示词包'] },
+      { name: 'Creator', price: '即将推出', note: '个人创作者', features: ['完整视频拆解', '多市场改写', '可编辑分镜'] },
+      { name: 'Pro', price: '即将推出', note: '增长团队', features: ['批量创意方向', '团队交付格式', '品牌语气模板'] },
+      { name: 'Studio', price: '即将推出', note: '内容工作室', features: ['多项目管理', '制作资料包', '团队工作流'] },
+      { name: 'Enterprise', price: '联系我们', note: '企业方案', features: ['私有化部署', '自定义模型通道', '专属支持'] },
+    ],
+  },
+  faq: {
+    title: '有疑问?',
+    saveQ: 'AI-Sail Flow 会保存我的视频吗？',
+    saveCloud: '公网部署版本会把项目和上传素材保存在授权工作区；只有获准登录的账号可以访问。',
+    saveLocal: '本地部署版本把上传素材、项目和导出结果保存在你的设备中。',
+    geminiQ: 'Gemini 3.8 Flash 如何理解完整视频？', geminiA: '视频与音轨通过原生多模态格式一起输入，用于识别镜头、口播、产品展示和节奏。',
+    handoffQ: '生成的方案可以直接交给制作团队吗？', handoffA: '可以。导出包包含分镜、字幕草稿、制作简报和视频生成提示词。',
+  },
+  footer: { meta: '本地部署 · Gemini 3.8 Flash · V1', top: '回到顶部', enter: '进入工作台' },
+  toc: { title: '本页目录', overview: '概览', tools: '工具', made: '作品', models: '拆解', compare: '对比', creator: 'Flow 创作营', start: '开始创作', pricing: '价格' },
+  boot: { restoring: '正在恢复工作台…' },
+};
+export type LandingMessages = typeof zh;
+
+const en: LandingMessages = {
+  nav: { home: 'Back to home', aria: 'Main navigation', overview: 'Overview', models: 'Breakdown', tools: 'Tools', creator: 'Flow Studio', pricing: 'Pricing', more: 'More options', signIn: 'Sign in' },
+  announcement: { aria: 'Announcement', message: 'Limited-time offer: 20% off subscriptions, through November 30', details: 'See features', action: 'Try it now', close: 'Dismiss promotion' },
+  hero: {
+    kicker: 'Made for cross-border e-commerce',
+    lead: 'Your own AI studio for global creative video — ', lead2: 'built on real videos and market insight, so great ideas travel worldwide.',
+    auto: 'Auto-create a video', manual: 'Create in AI-Sail Flow',
+    note: 'Verify your email to get access · Signed-in users share one workspace',
+    pause: 'Pause background video', play: 'Play background video',
+  },
+  tools: {
+    aria: 'Tools', title: ['From trend to final cut —', 'good ideas become great work'],
+    aside: 'We keep up with the strongest generative models as they ship, and pair them with a modern production workflow to turn every trend into your own work.',
+    modelsAria: 'Supported models (alphabetical)',
+    columns: [
+      { label: 'Creative', alt: 'Illustrative shot of two shoppers walking down a street with shopping bags', title: 'Turn inspiration into visuals and open up more creative options.', body: 'Break down videos, generate images and rewrite content in one workspace. Shape reference footage into fresh creative concepts built around your product and audience, so every idea starts from a clear point.', actions: ['Start creating', 'Learn more'], note: 'Illustrative footage.' },
+      { label: 'Easy Dev', alt: 'Illustrative shot of a creator reviewing a storyboard on a tablet in a studio', title: 'Start from one idea and move through every step with ease.', body: 'Upload a reference video, add your product details, and follow guided steps for shot breakdown, character generation and video remixing. Complex production becomes clear steps with less repetitive work, so you can focus on the content itself.', actions: ['Try it now', 'Read the guide'], note: '' },
+      { label: 'Trend Radar', alt: 'Illustrative shot of two creators reviewing trending videos together in a studio', title: 'Understand what’s trending and find the right creative opening.', body: 'Break down the hooks that grab attention, the pacing that keeps people watching, and the product moments that win viewers over. Distil the creative structures worth borrowing, and match them to your product and target market to set direction for your next video.', actions: ['Start a breakdown', 'Explore examples'], note: '' },
+    ],
+  },
+  statement: {
+    eyebrow: 'Built for global short-video teams', title: ['Someone else’s hit', 'is your next storyboard.'],
+    body: 'Upload a reference video. AI-Sail Flow takes its structure apart shot by shot, then rewrites, re-frames and regenerates it for your product. Borrow the method; the expression stays yours.',
+    stats: [['1 video', 'is all you need to start'], ['Shot by shot', 'breakdown and rewrite'], ['Per shot', 'redo only the one you don’t like']],
+    upload: 'Upload a reference video',
+    reels: [
+      { market: 'US', category: 'Skincare serum', note: '8-shot reference → swapped in our own serum bottle' },
+      { market: 'Europe', category: 'Linen shirt · Apparel', note: 'Kept the morning-light camera setup, localised the voiceover' },
+      { market: 'Middle East', category: 'Cold-brew tumbler · Outdoor', note: 'Pour close-up matched to the original framing, frame by frame' },
+      { market: 'Japan', category: 'Desk charging lamp · Electronics', note: 'Same night-scene camera moves, new product look' },
+      { market: 'Nordics', category: 'Home · Soft furnishings', note: 'Same reference, new category, another version' },
+    ],
+    reelAlt: (market, category) => `Illustrative short for the ${market} market: ${category}`,
+    footnote: 'Illustrative footage showing the same workflow across categories and markets.',
+    swipe: 'Swipe to see all 5 examples →',
+    platforms: 'Works for vertical short video on TikTok · Instagram Reels · YouTube Shorts and more',
+  },
+  steps: {
+    eyebrow: 'Breakdown engine', title: 'Understand a hit video in one pass',
+    body: 'From one reference video to a set of new assets you can shoot or generate right away — every step is laid out in front of you, and you can stop to edit at any point.',
+    items: [
+      { title: 'Drop in the hit you want to recreate', body: 'Upload the finished TikTok, Reels or Shorts video. No script, no tagging — video and audio are read together.', meta: 'Vertical short video · Audio extracted automatically' },
+      { title: 'Understand it shot by shot', body: 'Each shot gets a keyframe and a description: what’s on screen, how the camera moves, when the product appears, and which line of voiceover drove the sale. The pacing of the whole video at a glance.', meta: 'Keyframes · Camera · Voiceover · Product moments' },
+      { title: 'Rewrite every shot for your product', body: 'How the product looks follows the product images you upload; framing, setting, action and camera moves follow the original shot. Selling points only use facts you’ve confirmed — nothing invented for you.', meta: 'Product images set the look · Original shot sets the framing' },
+      { title: 'Generate new first frames, side by side with the original', body: 'Each shot first gets a remade first frame, shown next to the original. If one is off, edit its prompt and retry just that shot — the rest stay untouched.', meta: 'Image-to-video first frames · Per-shot retry' },
+      { title: 'Export, or generate the video directly', body: 'Package storyboards, first frames and prompts for your editor or other tools — or call Veo 3.1 to generate shot by shot, then add voiceover and subtitles and assemble the final cut.', meta: 'Prompt pack · Veo 3.1 · Voiceover & subtitles' },
+    ],
+    primary: 'Break down my first video', secondary: 'See finished videos',
+  },
+  compare: {
+    eyebrow: 'Breakdown view / Original', title: ['Every frame, read as', 'structure you can reuse.'],
+    body: 'Drag to compare: on the left is what AI-Sail Flow reads from a single shot — shot size, where people stand, when the product appears, how the camera moves. When rewriting, that skeleton stays as is, and your product takes the lead.',
+    remakeAlt: 'Illustration of the original reference shot', sourceAlt: 'Breakdown view of the same shot, annotating shot size, people and product timing',
+    left: 'Breakdown', right: 'Original', slider: 'Drag to compare the breakdown view with the original',
+    specs: [
+      { title: 'Kept from the original', items: ['Shot order and duration', 'Framing, shot size and camera moves', 'Opening hook and beats'] },
+      { title: 'Swapped for yours', items: ['Product look, based on your product images', 'Selling points and voiceover, from confirmed facts only', 'Settings and people that fit your target market'] },
+      { title: 'You stay in control', items: ['Side-by-side review, shot by shot', 'Edit prompts and retry a single shot', 'Lock the shots you’re happy with'] },
+    ],
+  },
+  creator: {
+    eyebrow: 'Flow Studio', title: ['For people who spend every day', 'hunting for the next hit'],
+    body: 'Every team gets stuck somewhere different. Pick the one most like yours and see how this workflow fits into your day.',
+    tabsAria: 'Choose your team type', enter: 'Open the workspace',
+    sceneAlt: name => `Illustrative work scene: ${name}`,
+    teams: [
+      { name: 'TikTok Shop sellers', line: 'Twenty new videos a week?', body: 'Break down the videos driving volume in your category, batch-rewrite them for your own SKUs, and test the closest shots first.' },
+      { name: 'DTC site growth teams', line: 'Never enough ad creative to rotate.', body: 'One proven structure, new settings, new people, new opening hooks — several versions in one go.' },
+      { name: 'Global social agencies', line: 'Many clients, many markets.', body: 'One project per client, with product facts and target markets managed separately, and every deliverable packaged as a prompt pack.' },
+      { name: 'DTC brand content teams', line: 'Fast, but on-brand.', body: 'The look follows your product images, selling points use only approved claims, and review compares every shot against the original.' },
+    ],
+    marketsTitle: 'One reference, rewritten per market — language, setting and messaging',
+    labels: { lang: 'Languages', platform: 'Common platforms', tone: 'Common approaches' },
+    markets: [
+      { name: 'North America', lang: 'English · Spanish', tone: 'Honest reviews, unboxings, before-and-after' },
+      { name: 'Middle East', lang: 'Arabic · English', tone: 'Premium settings, family and gifting' },
+      { name: 'Southeast Asia', lang: 'Indonesian · Thai · Vietnamese', tone: 'Fast and direct, price and promotions' },
+      { name: 'Japan & Korea', lang: 'Japanese · Korean', tone: 'Detail close-ups, understated voiceover' },
+    ],
+  },
+  cta: { title: ['Pick the video you most want to recreate —', 'and start breaking it down now.'], primary: 'Break down my first video', pricing: 'See pricing' },
+  pricing: {
+    title: 'Pricing', body: 'The local edition is open to try now; cloud and team plans will be announced once validated.', use: 'Use AI-Sail Flow', start: 'Get started', register: 'Register interest',
+    note: '* Future plans, quotas and prices are subject to the official release.',
+    plans: [
+      { name: 'Free', price: '¥0', note: 'Local trial', features: ['1 local workspace', 'Video and audio understanding', 'Basic prompt pack'] },
+      { name: 'Creator', price: 'Coming soon', note: 'Individual creators', features: ['Full video breakdown', 'Multi-market rewrites', 'Editable storyboards'] },
+      { name: 'Pro', price: 'Coming soon', note: 'Growth teams', features: ['Batch creative directions', 'Team delivery formats', 'Brand voice templates'] },
+      { name: 'Studio', price: 'Coming soon', note: 'Content studios', features: ['Multi-project management', 'Production kits', 'Team workflows'] },
+      { name: 'Enterprise', price: 'Contact us', note: 'Enterprise plans', features: ['Private deployment', 'Custom model routing', 'Dedicated support'] },
+    ],
+  },
+  faq: {
+    title: 'Questions?',
+    saveQ: 'Does AI-Sail Flow store my videos?',
+    saveCloud: 'The hosted edition stores projects and uploads in an authorised workspace; only approved signed-in accounts can access it.',
+    saveLocal: 'The local edition keeps uploads, projects and exports on your own device.',
+    geminiQ: 'How does Gemini 3.8 Flash understand a whole video?', geminiA: 'Video and audio go in together in a native multimodal format, used to identify shots, voiceover, product showcases and pacing.',
+    handoffQ: 'Can I hand the generated plan straight to a production team?', handoffA: 'Yes. The export pack includes storyboards, draft subtitles, a production brief and video-generation prompts.',
+  },
+  footer: { meta: 'Local deployment · Gemini 3.8 Flash · V1', top: 'Back to top', enter: 'Open the workspace' },
+  toc: { title: 'On this page', overview: 'Overview', tools: 'Tools', made: 'Showcase', models: 'Breakdown', compare: 'Compare', creator: 'Flow Studio', start: 'Get started', pricing: 'Pricing' },
+  boot: { restoring: 'Restoring your workspace…' },
+};
+export const LANDING: Dict<LandingMessages> = { en, 'zh-CN': zh };
+
+const authZh = {
+  close: '关闭账号窗口', account: '我的账号', avatar: '我的头像', method: (m: string) => `${m}登录`,
+  methods: { Google: 'Google', email: '邮箱', account: '账号' },
+  kept: '登录状态会在此浏览器中保留，你可以使用自己的私有云端素材。', editProfile: '编辑个人资料', signOut: '退出登录',
+  codeTitle: '输入邮箱验证码', title: '登录 AI-Sail Flow', sentTo: '验证码已发送至 ', intro: '使用邮箱验证码，进入你的创意工作区。',
+  notConnected: '登录服务尚未连接，请联系管理员。', emailLabel: '邮箱地址', emailPlaceholder: '输入邮箱地址', emailOff: '邮箱登录暂未开通，请稍后再试。',
+  codeLabel: '邮箱中的数字验证码', codePlaceholder: '输入验证码', changeEmail: '更换邮箱', resendIn: (s: number) => `${s} 秒后重新发送`, resend: '重新发送验证码',
+  spam: '没有收到邮件时，可以检查垃圾邮件文件夹。', verify: '验证并登录', sendIn: (s: number) => `${s} 秒后可再次发送`, send: '发送邮箱验证码',
+  noPassword: '无需设置密码。', autoCreate: '首次验证成功后会自动创建账号。',
+  status: { invalidEmail: '请填写有效的邮箱地址。', sending: '正在发送验证码…', sent: '验证码已发送，请检查邮箱。', verifying: '正在验证…', incomplete: '登录未完成', success: '登录成功', signingOut: '正在退出…', signedOut: '已退出登录' },
+  errors: { network: '网络连接暂时失败，请稍后重试。', rate: '请求太频繁，请稍后再试。', otp: '验证码已失效或不正确，请检查验证码，或重新发送。', email: '请填写有效的邮箱地址。', signup: '当前暂不开放新账号注册，请使用已有账号登录。', smtp: '验证码邮件暂时无法发送，请稍后重试。', pkce: '登录授权已失效，请在当前浏览器重新开始登录。', denied: '已取消 Google 授权，你可以重新登录或使用邮箱验证码。', generic: '登录未完成，请重试。' },
+  defaultUser: 'AI-Sail 用户',
+};
+export type AuthMessages = typeof authZh;
+const authEn: AuthMessages = {
+  close: 'Close account window', account: 'My account', avatar: 'My avatar', method: m => `Signed in with ${m}`,
+  methods: { Google: 'Google', email: 'email', account: 'account' },
+  kept: 'You’ll stay signed in on this browser and can use your own private cloud assets.', editProfile: 'Edit profile', signOut: 'Sign out',
+  codeTitle: 'Enter your email code', title: 'Sign in to AI-Sail Flow', sentTo: 'We sent a code to ', intro: 'Use a one-time email code to enter your creative workspace.',
+  notConnected: 'The sign-in service isn’t connected yet. Please contact your administrator.', emailLabel: 'Email address', emailPlaceholder: 'Enter your email', emailOff: 'Email sign-in isn’t available yet. Please try again later.',
+  codeLabel: 'Numeric code from the email', codePlaceholder: 'Enter code', changeEmail: 'Use a different email', resendIn: s => `Resend in ${s}s`, resend: 'Resend code',
+  spam: 'Didn’t get it? Check your spam folder.', verify: 'Verify and sign in', sendIn: s => `Send again in ${s}s`, send: 'Send email code',
+  noPassword: 'No password needed. ', autoCreate: 'Your account is created automatically the first time you verify.',
+  status: { invalidEmail: 'Please enter a valid email address.', sending: 'Sending code…', sent: 'Code sent — check your inbox.', verifying: 'Verifying…', incomplete: 'Sign-in not completed', success: 'Signed in', signingOut: 'Signing out…', signedOut: 'Signed out' },
+  errors: { network: 'Network connection failed. Please try again shortly.', rate: 'Too many requests. Please try again later.', otp: 'That code has expired or is incorrect. Check it, or send a new one.', email: 'Please enter a valid email address.', signup: 'New sign-ups are currently closed. Please sign in with an existing account.', smtp: 'We couldn’t send the code email right now. Please try again shortly.', pkce: 'Your sign-in session expired. Please start again in this browser.', denied: 'Google authorisation was cancelled. You can try again or use an email code.', generic: 'Sign-in didn’t complete. Please try again.' },
+  defaultUser: 'AI-Sail user',
+};
+export const AUTH_TEXT: Dict<AuthMessages> = { en: authEn, 'zh-CN': authZh };

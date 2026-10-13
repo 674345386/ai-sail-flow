@@ -1,0 +1,19 @@
+/* Header language switch (landing). */
+.lang-switch { position: relative; display: inline-flex; font-size: 13px; line-height: 1; }
+.landing-nav .landing-social .lang-switch-button { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; border: 1px solid rgba(255,255,255,.18); border-radius: 999px; background: rgba(255,255,255,.04); color: inherit; font-size: 13px; font-weight: 500; line-height: 1; cursor: pointer; transition: background .2s, border-color .2s; }
+.landing-nav .landing-social .lang-switch-button:hover { background: rgba(255,255,255,.1); border-color: rgba(255,255,255,.32); }
+.lang-switch-button:focus-visible, .lang-switch-menu button:focus-visible { outline: 2px solid #d9a46a; outline-offset: 2px; }
+.lang-switch-menu { position: absolute; top: calc(100% + 8px); right: 0; z-index: 60; min-width: 150px; margin: 0; padding: 6px; list-style: none; border: 1px solid rgba(255,255,255,.12); border-radius: 12px; background: rgba(18,18,20,.92); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); box-shadow: 0 18px 50px rgba(0,0,0,.5); }
+.landing-nav .landing-social .lang-switch-menu button { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; padding: 9px 10px; border: 0; border-radius: 8px; background: none; color: #e9e8e4; font-size: 13px; line-height: 1.2; text-align: left; cursor: pointer; }
+.landing-nav .landing-social .lang-switch-menu button:hover { background: rgba(255,255,255,.08); }
+.lang-switch-menu [aria-selected="true"] button { color: #fff; font-weight: 600; }
+/* Keep the open menu above the background-config pill. */
+.landing-page > .landing-nav:has(.lang-switch.is-open) { z-index: 50; }
+@media (max-width: 680px) {
+  .landing-nav .landing-social .lang-switch-button { height: 30px; padding: 0 9px; font-size: 12px; }
+}
+.landing-nav .landing-social .lang-switch-button span, .landing-nav .landing-social .lang-switch-menu span { font-size: inherit; font-weight: inherit; line-height: 1; }
+.landing-page .landing-nav .landing-social .lang-switch-button span, .landing-page .landing-nav .landing-social .lang-switch-menu span { font-size: 13px; font-weight: 500; }
+@media (max-width: 680px) { .landing-page .landing-nav .landing-social .lang-switch-button span { font-size: 12px; } }
+/* English headlines run longer than Chinese; keep the #tools headline to two lines. */
+html[lang="en"] .landing-page .ls-tools-head h2 { font-size: clamp(28px, 3vw, 42px); }

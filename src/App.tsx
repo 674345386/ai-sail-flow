@@ -28,6 +28,8 @@ import ScrollBrand from "./ScrollBrand";
 import LandingSections from './LandingSections';
 import LandingToc from './LandingToc';
 import LandingBackground from './LandingBackground';
+import { LanguageSwitch, pick, useDict } from './i18n';
+import { AUTH_TEXT, LANDING } from './landing-i18n';
 import { shotReconstructionPrompt } from '../shared/shot-evidence';
 import AutomaticWorkspace, { SpeechTimingConfirmation, WorkflowEntry } from './WorkflowWorkspace';
 const CreativeWorkspace = lazy(() => import('./CreativeWorkspace'));
@@ -166,13 +168,6 @@ function SectionBackdrop({ src, className = '' }: { src: string; className?: str
 }
 
 const landingTools = ['文字叠加', '视频画面调整工具', '图片编辑器', '分镜脚本工作室', '音色翻译', '口播重写', '节奏诊断', '字幕本地化', '产品事实校验', '提示词包导出'];
-const landingPlans = [
-  { name: '免费', price: '¥0', note: '本地体验', features: ['1 个本地工作区', '视频与音轨理解', '基础提示词包'] },
-  { name: 'Creator', price: '即将推出', note: '个人创作者', features: ['完整视频拆解', '多市场改写', '可编辑分镜'] },
-  { name: 'Pro', price: '即将推出', note: '增长团队', features: ['批量创意方向', '团队交付格式', '品牌语气模板'] },
-  { name: 'Studio', price: '即将推出', note: '内容工作室', features: ['多项目管理', '制作资料包', '团队工作流'] },
-  { name: 'Enterprise', price: '联系我们', note: '企业方案', features: ['私有化部署', '自定义模型通道', '专属支持'] },
-];
 // Step requested by a URL, if this creative can show it in the steps view; otherwise its default step.
 const routeStep = (p: Project, requested?: number, canvas = false) => {
   const allowed = requested === 0 || requested === 1 && (canvas || !!p.analysis || p.assets.some(a => a.kind === 'video')) || requested === 2 && (canvas || !!p.analysis);
@@ -335,7 +330,7 @@ export default function App() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (cancelled) return;
       setAuth(current => ({ ...current, initialized: true, session, user: session?.user || null,
-        ...(event === 'SIGNED_OUT' ? { status: '已退出登录', error: '' } : {}) }));
+        ...(event === 'SIGNED_OUT' ? { status: pick(AUTH_TEXT).status.signedOut, error: '' } : {}) }));
       if (!session) { setProfileEditing(false); setProfileSetupPrompt(false); }
       if (publicAuthRequired && !session) { replaceNextUrl(); setShowLanding(true); }
     });
@@ -368,27 +363,27 @@ export default function App() {
   const sendAuthCode = async () => {
     if (!supabase || authRequest.current || authResendAt > Date.now()) return;
     const email = authEmailValue.trim();
-    if (!validEmail(email)) { setAuth(current => ({ ...current, error: '请填写有效的邮箱地址。', status: '' })); return; }
+    if (!validEmail(email)) { setAuth(current => ({ ...current, error: pick(AUTH_TEXT).status.invalidEmail, status: '' })); return; }
     authRequest.current = true;
-    setAuth(current => ({ ...current, busy: true, error: '', status: '正在发送验证码…' }));
+    setAuth(current => ({ ...current, busy: true, error: '', status: pick(AUTH_TEXT).status.sending }));
     try {
       const { error } = await withAuthTimeout(supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: true } }));
       if (error) throw error;
       setAuthEmailValue(email); setAuthCode(''); setAuthStage('code'); setAuthResendAt(Date.now() + 60000);
-      setAuth(current => ({ ...current, status: '验证码已发送，请检查邮箱。', error: '' }));
+      setAuth(current => ({ ...current, status: pick(AUTH_TEXT).status.sent, error: '' }));
     } catch (error) { setAuth(current => ({ ...current, status: '', error: authErrorMessage(error) })); }
     finally { authRequest.current = false; setAuth(current => ({ ...current, busy: false })); }
   };
   const verifyAuthCode = async () => {
     if (!supabase || authRequest.current || !validEmailCode(authCode)) return;
     authRequest.current = true;
-    setAuth(current => ({ ...current, busy: true, error: '', status: '正在验证…' }));
+    setAuth(current => ({ ...current, busy: true, error: '', status: pick(AUTH_TEXT).status.verifying }));
     try {
       const { data, error } = await withAuthTimeout(supabase.auth.verifyOtp({ email: authEmailValue.trim(), token: authCode, type: 'email' }));
       if (error) throw error;
-      if (!data.session || !data.user) throw new Error('登录未完成');
+      if (!data.session || !data.user) throw new Error(pick(AUTH_TEXT).status.incomplete);
       setProfileSetupPrompt(isNewUserFirstLogin(data.user));
-      setAuth(current => ({ ...current, session: data.session, user: data.user, status: '登录成功', error: '' }));
+      setAuth(current => ({ ...current, session: data.session, user: data.user, status: pick(AUTH_TEXT).status.success, error: '' }));
       setAuthCode(''); setAuthStage('email'); setAuthOpen(false); setShowLanding(false);
     } catch (error) { setAuth(current => ({ ...current, status: '', error: authErrorMessage(error) })); }
     finally { authRequest.current = false; setAuth(current => ({ ...current, busy: false })); }
@@ -396,7 +391,7 @@ export default function App() {
   const signOut = async () => {
     if (!supabase || authRequest.current) return;
     authRequest.current = true;
-    setAuth(current => ({ ...current, busy: true, status: '正在退出…', error: '' }));
+    setAuth(current => ({ ...current, busy: true, status: pick(AUTH_TEXT).status.signingOut, error: '' }));
     try {
       const { error } = await supabase.auth.signOut({ scope: 'local' });
       if (error) throw error;
@@ -659,6 +654,7 @@ export default function App() {
   useUrlSync({ path: viewRoute ? routePath(viewRoute) : '', title: viewTitle, ready: routeReady, paused: !!busy, onRoute: applyRoute });
   const copy = async (value: string) => { try { await navigator.clipboard.writeText(value); setNotice('已复制'); } catch { setError('浏览器未允许复制，请使用下载按钮。'); } };
 
+  const L = useDict(LANDING);
   const landingImages = [
     '/assets/landing/workflow-merchant-daylight.webp',
     '/assets/landing/workflow-creator-rooftop.webp',
@@ -683,34 +679,34 @@ export default function App() {
     setAuth(current => current.user?.id === user.id ? { ...current, user, session: current.session ? { ...current.session, user } : null } : current);
     setProfileEditing(false); setProfileSetupPrompt(false); setAuthOpen(false); setShowLanding(false);
   }} /> : null;
-  if (publicAuthRequired && !auth.initialized) return <div className="boot-screen"><LoaderCircle className="spin" /><p>正在恢复工作台…</p></div>;
+  if (publicAuthRequired && !auth.initialized) return <div className="boot-screen"><LoaderCircle className="spin" /><p>{L.boot.restoring}</p></div>;
   if (showLanding || (!project && publicAuthRequired && !auth.session)) return <div className="landing-page landing-dark">
     <LandingBackground />
     <LandingAnnouncement onEnter={() => enterWorkspace()} />
     <header className="landing-nav">
-      <button className="landing-brand" onClick={() => setShowLanding(true)} aria-label="回到首页"><img className="landing-brand-logo" src="/assets/brand/sail-mark-dark-bold.svg" alt="" width={30} height={30} /><ScrollBrand /></button>
-      <nav className="landing-links" aria-label="首页导航"><a href="#overview">概览</a><a href="#models">拆解</a><a href="#tools">工具</a><a href="#creator">Flow 创作营</a><a href="#pricing">价格</a></nav>
-      <div className="landing-social"><span aria-label="X">𝕏</span><span aria-label="Instagram">◎</span><span aria-label="Discord">◉</span><button aria-label="更多选项">⋮</button><button className="landing-account" onClick={openAuth}>{auth.user && <img src={accountAvatar} alt="" />}{auth.user ? authDisplayName(auth.user) : '登录'}</button></div>
+      <button className="landing-brand" onClick={() => setShowLanding(true)} aria-label={L.nav.home}><img className="landing-brand-logo" src="/assets/brand/sail-mark-dark-bold.svg" alt="" width={30} height={30} /><ScrollBrand /></button>
+      <nav className="landing-links" aria-label={L.nav.aria}><a href="#overview">{L.nav.overview}</a><a href="#models">{L.nav.models}</a><a href="#tools">{L.nav.tools}</a><a href="#creator">{L.nav.creator}</a><a href="#pricing">{L.nav.pricing}</a></nav>
+      <div className="landing-social"><span aria-label="X">𝕏</span><span aria-label="Instagram">◎</span><span aria-label="Discord">◉</span><button aria-label={L.nav.more}>⋮</button><LanguageSwitch /><button className="landing-account" onClick={openAuth}>{auth.user && <img src={accountAvatar} alt="" />}{auth.user ? authDisplayName(auth.user) : L.nav.signIn}</button></div>
     </header>
     <LandingHero authRequired={publicAuthRequired} onEnter={mode => enterWorkspace(false, mode)} />
     <LandingSections onEnter={() => enterWorkspace()} />
     <LandingToc />
 
     <section className="gf-pricing" id="pricing">
-      <div className="gf-centered-heading"><h2>价格</h2><p>本地版当前开放体验；云端与团队方案将在验证后公布。</p><button className="gf-small-outline" onClick={() => enterWorkspace()}>使用 AI-Sail Flow</button></div>
-      <div className="gf-plan-grid">{landingPlans.map((plan, index) => <article key={plan.name} className={index === 0 ? 'active' : ''}><span>{plan.name}</span><small>{plan.note}</small><div className="gf-plan-price">{plan.price}</div><button onClick={() => enterWorkspace()}>{index === 0 ? '立即开始' : '登记意向'}</button><ul>{plan.features.map(feature => <li key={feature}><Check size={13} />{feature}</li>)}</ul></article>)}</div>
-      <p className="gf-pricing-note">* 后续方案、额度和价格以正式发布信息为准。</p>
+      <div className="gf-centered-heading"><h2>{L.pricing.title}</h2><p>{L.pricing.body}</p><button className="gf-small-outline" onClick={() => enterWorkspace()}>{L.pricing.use}</button></div>
+      <div className="gf-plan-grid">{L.pricing.plans.map((plan, index) => <article key={plan.name} className={index === 0 ? 'active' : ''}><span>{plan.name}</span><small>{plan.note}</small><div className="gf-plan-price">{plan.price}</div><button onClick={() => enterWorkspace()}>{index === 0 ? L.pricing.start : L.pricing.register}</button><ul>{plan.features.map(feature => <li key={feature}><Check size={13} />{feature}</li>)}</ul></article>)}</div>
+      <p className="gf-pricing-note">{L.pricing.note}</p>
     </section>
 
     <section className="gf-faq">
-      <h2>有疑问?</h2>
+      <h2>{L.faq.title}</h2>
       <div>{[
-        ['AI-Sail Flow 会保存我的视频吗？', publicAuthRequired ? '公网部署版本会把项目和上传素材保存在授权工作区；只有获准登录的账号可以访问。' : '本地部署版本把上传素材、项目和导出结果保存在你的设备中。'],
-        ['Gemini 3.8 Flash 如何理解完整视频？', '视频与音轨通过原生多模态格式一起输入，用于识别镜头、口播、产品展示和节奏。'],
-        ['生成的方案可以直接交给制作团队吗？', '可以。导出包包含分镜、字幕草稿、制作简报和视频生成提示词。'],
+        [L.faq.saveQ, publicAuthRequired ? L.faq.saveCloud : L.faq.saveLocal],
+        [L.faq.geminiQ, L.faq.geminiA],
+        [L.faq.handoffQ, L.faq.handoffA],
       ].map(([question, answer]) => <details key={question}><summary><span>{question}</span><Plus size={18} /></summary><p>{answer}</p></details>)}</div>
     </section>
-    <footer className="gf-footer"><strong>AI-Sail Flow</strong><span>本地部署 · Gemini 3.8 Flash · V1</span><nav><a href="#overview">回到顶部</a><button onClick={() => enterWorkspace()}>进入工作台</button></nav></footer>
+    <footer className="gf-footer"><strong>AI-Sail Flow</strong><span>{L.footer.meta}</span><nav><a href="#overview">{L.footer.top}</a><button onClick={() => enterWorkspace()}>{L.footer.enter}</button></nav></footer>
     {profileDialog}
     <AuthDialog availability={authAvailability} resendSeconds={authResendSeconds} avatarUrl={accountAvatar} onEditProfile={() => { setAuthOpen(false); setProfileEditing(true); }} open={authOpen && !profileWelcomeOpen} onClose={() => setAuthOpen(false)} auth={auth} email={authEmailValue} code={authCode} stage={authStage} onEmailChange={setAuthEmailValue} onCodeChange={setAuthCode} onSendCode={() => { void sendAuthCode(); }} onVerifyCode={() => { void verifyAuthCode(); }} onBack={() => { setAuthStage('email'); setAuthCode(''); setAuth(current => ({ ...current, error: '', status: '' })); }} onSignOut={() => { void signOut(); }} />
   </div>;

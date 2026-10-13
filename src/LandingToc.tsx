@@ -1,26 +1,20 @@
 import { useEffect, useState } from 'react';
 import './landing-toc.css';
+import { useDict } from './i18n';
+import { LANDING } from './landing-i18n';
 
-const items = [
-  { id: 'overview', label: '概览' },
-  { id: 'tools', label: '工具' },
-  { id: 'made', label: '作品' },
-  { id: 'models', label: '拆解' },
-  { id: 'compare', label: '对比' },
-  { id: 'creator', label: 'Flow 创作营' },
-  { id: 'start', label: '开始创作' },
-  { id: 'pricing', label: '价格' },
-];
+const items = ['overview', 'tools', 'made', 'models', 'compare', 'creator', 'start', 'pricing'] as const;
 const NAV_OFFSET = 76;
 
 /** "本页目录" — fixed left table of contents with scroll-spy. Visible after the hero, hidden once pricing takes over. */
 export default function LandingToc() {
+  const t = useDict(LANDING).toc;
   const [active, setActive] = useState('overview');
   const [pastHero, setPastHero] = useState(false);
   const [atPricing, setAtPricing] = useState(false);
 
   useEffect(() => {
-    const sections = items.map(item => document.getElementById(item.id)).filter((el): el is HTMLElement => !!el);
+    const sections = items.map(id => document.getElementById(id)).filter((el): el is HTMLElement => !!el);
     const spy = new IntersectionObserver(entries => entries.forEach(entry => { if (entry.isIntersecting) setActive(entry.target.id); }), { rootMargin: '-40% 0px -55% 0px' });
     sections.forEach(section => spy.observe(section));
     const hero = document.getElementById('overview');
@@ -41,12 +35,12 @@ export default function LandingToc() {
   };
   const visible = pastHero && !atPricing;
 
-  return <nav className={`landing-toc${visible ? ' is-visible' : ''}`} aria-label="本页目录" aria-hidden={!visible} inert={!visible}>
-    <p className="landing-toc-title">本页目录</p>
+  return <nav className={`landing-toc${visible ? ' is-visible' : ''}`} aria-label={t.title} aria-hidden={!visible} inert={!visible}>
+    <p className="landing-toc-title">{t.title}</p>
     <ol>
-      {items.map(item => <li key={item.id}>
-        <a href={`#${item.id}`} data-label={item.label} aria-current={active === item.id ? 'location' : undefined} className={active === item.id ? 'is-active' : ''} onClick={event => { event.preventDefault(); go(item.id); }}>
-          <span>{item.label}</span>
+      {items.map(id => <li key={id}>
+        <a href={`#${id}`} data-label={t[id]} aria-current={active === id ? 'location' : undefined} className={active === id ? 'is-active' : ''} onClick={event => { event.preventDefault(); go(id); }}>
+          <span>{t[id]}</span>
         </a>
       </li>)}
     </ol>

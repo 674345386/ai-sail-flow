@@ -5,11 +5,14 @@ import { useReducedMotion } from './useReducedMotion';
 import { useDecorativeMedia } from './useDecorativeMedia';
 import heroVideo from './assets/landing/commerce-hero-reference.mp4';
 import poster from './assets/landing/commerce-hero-reference-poster.jpg';
+import { useDict } from './i18n';
+import { LANDING } from './landing-i18n';
 
 export default function LandingHero({ authRequired, onEnter }: {
   authRequired: boolean;
   onEnter: (mode: WorkflowMode) => void;
 }) {
+  const t = useDict(LANDING).hero;
   const videoRef = useRef<HTMLVideoElement>(null);
   const reducedMotion = useReducedMotion();
   const decorativeReady = useDecorativeMedia();
@@ -77,20 +80,20 @@ export default function LandingHero({ authRequired, onEnter }: {
       </div>
       <div className="commerce-hero-scrim" aria-hidden="true" />
       <div className="commerce-hero-copy">
-        <span className="commerce-hero-kicker">为电商出海而创作</span>
+        <span className="commerce-hero-kicker">{t.kicker}</span>
         <h1 id="commerce-hero-title">AI-Sail Flow</h1>
-        <p>您的专属 AI 出海创意视频工作室，<br className="commerce-hero-linebreak" />从真实视频与市场洞察出发，让好创意走向全球。</p>
+        <p>{t.lead}<br className="commerce-hero-linebreak" />{t.lead2}</p>
         <div className="commerce-hero-actions">
-          <button className="commerce-hero-primary" onClick={() => onEnter('automatic')}>自动制作视频<ArrowRight size={17} /></button>
-          <button className="commerce-hero-secondary" onClick={() => onEnter('manual')}>进入 AI-Sail Flow 制作<ArrowRight size={17} /></button>
+          <button className="commerce-hero-primary" onClick={() => onEnter('automatic')}>{t.auto}<ArrowRight size={17} /></button>
+          <button className="commerce-hero-secondary" onClick={() => onEnter('manual')}>{t.manual}<ArrowRight size={17} /></button>
         </div>
-        {authRequired && <small className="commerce-hero-note"><ShieldCheck size={13} />邮箱验证后即可访问 · 登录用户共用工作区</small>}
+        {authRequired && <small className="commerce-hero-note"><ShieldCheck size={13} />{t.note}</small>}
       </div>
       {!reducedMotion && !failed && <button
         className="commerce-hero-playback"
         onClick={togglePlayback}
-        aria-label={playing ? '暂停背景动画' : '播放背景动画'}
-        title={playing ? '暂停背景动画' : '播放背景动画'}
+        aria-label={playing ? t.pause : t.play}
+        title={playing ? t.pause : t.play}
       >{playing ? <Pause size={15} /> : <Play size={15} />}</button>}
     </section>
   </main>;

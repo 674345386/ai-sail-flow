@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import './landing-background.css';
+import { getLang, useLang } from './i18n';
 
 /* Animated ambient background for the landing page (original design: slow drifting blurred colour pools,
    vignette and grain). Fixed behind the landing content, with a collapsible live config panel. */
@@ -121,14 +122,20 @@ export default function LandingBackground() {
     const json = JSON.stringify({ ...cfg, colors: cfg.colors.slice(0, cfg.count) }, null, 2);
     try { await navigator.clipboard.writeText(json); }
     catch { const ta = document.createElement('textarea'); ta.value = json; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); }
-    setToast('已复制 JSON · Copied');
+    setToast(getLang() === 'en' ? 'JSON copied' : '已复制 JSON');
   };
 
   const style = { '--lbg-base': cfg.base, '--lbg-blur': `${cfg.blur}px`, '--lbg-bright': cfg.bright, '--lbg-sat': cfg.sat, '--lbg-blend': cfg.blend, '--lbg-vig': cfg.vig, '--lbg-grain': cfg.grain } as React.CSSProperties;
   const groups = [...new Set(SLIDERS.map(s => s.group))];
+  // English UI shows English only; Chinese UI keeps the English term as small helper text.
+  const { lang } = useLang();
+  const en = lang === 'en';
+  const bi = (zh: string, eng: string) => en ? <>{eng}</> : <>{zh}<small>{eng}</small></>;
+  const plain = (zh: string, eng: string) => en ? eng : zh;
+  const group = (g: string) => { const [zh, eng] = g.split(' · '); return plain(`${zh} · ${eng}`, eng); };
   const slider = (s: typeof SLIDERS[number]) => <div className="lbg-row" key={s.key}>
-    <label><span>{s.zh}<small>{s.en}</small></span><output>{s.fmt(cfg[s.key])}</output></label>
-    <input type="range" min={s.min} max={s.max} step={s.step} value={cfg[s.key]} aria-label={`${s.zh} ${s.en}`} onChange={e => update({ [s.key]: +e.target.value } as Partial<Config>)} />
+    <label><span>{bi(s.zh, s.en)}</span><output>{s.fmt(cfg[s.key])}</output></label>
+    <input type="range" min={s.min} max={s.max} step={s.step} value={cfg[s.key]} aria-label={plain(s.zh, s.en)} onChange={e => update({ [s.key]: +e.target.value } as Partial<Config>)} />
   </div>;
 
   return <>
@@ -141,25 +148,25 @@ export default function LandingBackground() {
       <div className="lbg-grain" />
     </div>
 
-    <aside ref={panelRef} className={`lbg-panel${open ? '' : ' is-collapsed'}`} style={style} aria-label="背景配置">
+    <aside ref={panelRef} className={`lbg-panel${open ? '' : ' is-collapsed'}`} style={style} aria-label={plain('背景配置', 'Background settings')}>
       <button type="button" className="lbg-head" aria-expanded={open} onClick={() => setOpen(o => !o)}>
-        <span><i className="lbg-dot" />背景配置<small>Background</small></span><span className="lbg-chev" aria-hidden="true">▾</span>
+        <span><i className="lbg-dot" />{bi('背景配置', 'Background')}</span><span className="lbg-chev" aria-hidden="true">▾</span>
       </button>
       {open && <div className="lbg-body">
-        <div className="lbg-sec">配色 · Palette</div>
+        <div className="lbg-sec">{plain('配色 · Palette', 'Palette')}</div>
         <div className="lbg-presets">{Object.entries(PRESETS).map(([k, p]) => <button type="button" key={k} className={cfg.preset === k ? 'is-on' : ''} onClick={() => update({ preset: k, base: p.base, colors: [...p.colors] })}>
-          <span>{p.name}<small>{p.en}</small></span><span className="lbg-sw">{p.colors.slice(0, 5).map(c => <i key={c} style={{ background: c }} />)}</span></button>)}</div>
-        <div className="lbg-row"><label><span>色块颜色<small>Blob colours</small></span></label>
-          <div className="lbg-colors">{Array.from({ length: cfg.count }, (_, i) => <input key={i} type="color" value={cfg.colors[i]} title={`色块 ${i + 1}`} aria-label={`色块 ${i + 1} 颜色`} onChange={e => setColor(i, e.target.value)} />)}</div></div>
-        <div className="lbg-row lbg-inline"><label><span>底色<small>Base colour</small></span></label><input type="color" value={cfg.base} aria-label="底色" onChange={e => update({ base: e.target.value, preset: null })} /></div>
-        {groups.map(g => <div key={g}><div className="lbg-sec">{g}</div>{SLIDERS.filter(s => s.group === g).map(slider)}
-          {g === '色调 · Look' && <div className="lbg-row"><label><span>混合模式<small>Blend mode</small></span></label>
-            <select value={cfg.blend} onChange={e => update({ blend: e.target.value as Config['blend'] })}><option value="normal">普通 normal</option><option value="screen">滤色 screen</option><option value="lighten">变亮 lighten</option><option value="overlay">叠加 overlay</option></select></div>}</div>)}
+          <span>{bi(p.name, p.en)}</span><span className="lbg-sw">{p.colors.slice(0, 5).map(c => <i key={c} style={{ background: c }} />)}</span></button>)}</div>
+        <div className="lbg-row"><label><span>{bi('色块颜色', 'Blob colours')}</span></label>
+          <div className="lbg-colors">{Array.from({ length: cfg.count }, (_, i) => <input key={i} type="color" value={cfg.colors[i]} title={plain(`色块 ${i + 1}`, `Blob ${i + 1}`)} aria-label={plain(`色块 ${i + 1} 颜色`, `Blob ${i + 1} colour`)} onChange={e => setColor(i, e.target.value)} />)}</div></div>
+        <div className="lbg-row lbg-inline"><label><span>{bi('底色', 'Base colour')}</span></label><input type="color" value={cfg.base} aria-label={plain('底色', 'Base colour')} onChange={e => update({ base: e.target.value, preset: null })} /></div>
+        {groups.map(g => <div key={g}><div className="lbg-sec">{group(g)}</div>{SLIDERS.filter(s => s.group === g).map(slider)}
+          {g === '色调 · Look' && <div className="lbg-row"><label><span>{bi('混合模式', 'Blend mode')}</span></label>
+            <select value={cfg.blend} onChange={e => update({ blend: e.target.value as Config['blend'] })}><option value="normal">{plain('普通 normal', 'Normal')}</option><option value="screen">{plain('滤色 screen', 'Screen')}</option><option value="lighten">{plain('变亮 lighten', 'Lighten')}</option><option value="overlay">{plain('叠加 overlay', 'Overlay')}</option></select></div>}</div>)}
         <div className="lbg-btns">
-          <button type="button" onClick={() => update({ paused: !cfg.paused })}>{cfg.paused ? '▶ 播放' : '⏸ 暂停'}<small>{cfg.paused ? 'Play' : 'Pause'}</small></button>
-          <button type="button" onClick={randomize}>🎲 随机<small>Randomize</small></button>
-          <button type="button" onClick={() => { setCfg({ ...DEFAULT, colors: [...DEFAULT.colors] }); setToast('已重置 · Reset'); }}>↺ 重置<small>Reset</small></button>
-          <button type="button" onClick={copy}>⧉ 复制 JSON<small>Copy</small></button>
+          <button type="button" onClick={() => update({ paused: !cfg.paused })}>{cfg.paused ? bi('▶ 播放', en ? '▶ Play' : 'Play') : bi('⏸ 暂停', en ? '⏸ Pause' : 'Pause')}</button>
+          <button type="button" onClick={randomize}>{bi('🎲 随机', en ? '🎲 Randomize' : 'Randomize')}</button>
+          <button type="button" onClick={() => { setCfg({ ...DEFAULT, colors: [...DEFAULT.colors] }); setToast(plain('已重置', 'Reset done')); }}>{bi('↺ 重置', en ? '↺ Reset' : 'Reset')}</button>
+          <button type="button" onClick={copy}>{bi('⧉ 复制 JSON', en ? '⧉ Copy JSON' : 'Copy')}</button>
         </div>
         <div className="lbg-toast" role="status">{toast}</div>
       </div>}

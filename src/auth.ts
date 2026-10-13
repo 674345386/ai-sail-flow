@@ -1,4 +1,6 @@
 import { createClient, type Session, type User } from '@supabase/supabase-js';
+import { pick } from './i18n';
+import { AUTH_TEXT } from './landing-i18n';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim() || '';
 const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim() || '';
@@ -50,7 +52,7 @@ export const initialAuthState: SailAuthState = {
 export function authDisplayName(user: User | null) {
   if (!user) return '';
   const metadata = user.user_metadata || {};
-  return String(metadata.display_name || metadata.full_name || metadata.name || metadata.nickname || user.email || 'AI-Sail 用户').trim();
+  return String(metadata.display_name || metadata.full_name || metadata.name || metadata.nickname || user.email || pick(AUTH_TEXT).defaultUser).trim();
 }
 
 export function authEmail(user: User | null) {
@@ -80,18 +82,19 @@ export function withAuthTimeout<T>(request: Promise<T>, ms = AUTH_REQUEST_TIMEOU
 }
 
 export function authErrorMessage(error: unknown) {
+  const m = pick(AUTH_TEXT).errors;
   const value = error as { code?: string; message?: string; status?: number; name?: string };
   const text = value?.message || (typeof error === 'string' ? error : '');
-  if (value?.code === 'auth_timeout' || value?.name === 'AuthRetryableFetchError' || error instanceof TypeError || (typeof value?.status === 'number' && (value.status === 0 || value.status >= 500))) return '网络连接暂时失败，请稍后重试。';
-  if (value?.status === 429 || /over_.*rate_limit|rate_limit/.test(value?.code || '') || /too many|rate limit|after \d+ seconds/i.test(text)) return '请求太频繁，请稍后再试。';
-  if (value?.code === 'otp_expired' || /token.*expired|token.*invalid|otp.*expired/i.test(text)) return '验证码已失效或不正确，请检查验证码，或重新发送。';
-  if (value?.code === 'email_address_invalid' || /invalid.*email/i.test(text)) return '请填写有效的邮箱地址。';
-  if (/signups?.*not allowed|signup.*disabled/i.test(text)) return '当前暂不开放新账号注册，请使用已有账号登录。';
-  if (/sending.*email|smtp|email.*send/i.test(text)) return '验证码邮件暂时无法发送，请稍后重试。';
-  if (/pkce|code verifier|flow state/i.test(text)) return '登录授权已失效，请在当前浏览器重新开始登录。';
-  if (/access_denied|denied|cancel/i.test(text)) return '已取消 Google 授权，你可以重新登录或使用邮箱验证码。';
-  if (/fetch|network|timeout|abort/i.test(text)) return '网络连接暂时失败，请稍后重试。';
-  return '登录未完成，请重试。';
+  if (value?.code === 'auth_timeout' || value?.name === 'AuthRetryableFetchError' || error instanceof TypeError || (typeof value?.status === 'number' && (value.status === 0 || value.status >= 500))) return m.network;
+  if (value?.status === 429 || /over_.*rate_limit|rate_limit/.test(value?.code || '') || /too many|rate limit|after \d+ seconds/i.test(text)) return m.rate;
+  if (value?.code === 'otp_expired' || /token.*expired|token.*invalid|otp.*expired/i.test(text)) return m.otp;
+  if (value?.code === 'email_address_invalid' || /invalid.*email/i.test(text)) return m.email;
+  if (/signups?.*not allowed|signup.*disabled/i.test(text)) return m.signup;
+  if (/sending.*email|smtp|email.*send/i.test(text)) return m.smtp;
+  if (/pkce|code verifier|flow state/i.test(text)) return m.pkce;
+  if (/access_denied|denied|cancel/i.test(text)) return m.denied;
+  if (/fetch|network|timeout|abort/i.test(text)) return m.network;
+  return m.generic;
 }
 
 export function validEmail(email: string) { return email.trim().length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()); }
@@ -117,6 +120,6 @@ export function clearAuthCallback() {
 export function authLoginMethod(user: User | null) {
   const providers = user?.identities?.map(identity => identity.provider) || [];
   if (providers.includes('google')) return 'Google';
-  if (user?.email) return '邮箱';
-  return '账号';
+  if (user?.email) return pick(AUTH_TEXT).methods.email;
+  return pick(AUTH_TEXT).methods.account;
 }
