@@ -17,9 +17,26 @@
 .landing-nav .landing-links a { color: #747570; font-size: 13px; }
 .landing-nav .landing-links a:first-child, .landing-nav .landing-links a:hover { color: #191b1d; }
 .landing-nav .landing-social { gap: 18px; color: #191b1d; font-size: 18px; }
-.landing-nav .landing-social span:nth-child(2) { font-size: 24px; }
+.landing-nav .landing-social > span:nth-child(2) { font-size: 24px; }
 .landing-nav .landing-social button { font-size: 21px; }
-.landing-nav .landing-social .landing-account { display: block; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; font-weight: 500; }
+.landing-nav .landing-social .landing-account { display: inline-flex; align-items: center; gap: 7px; max-width: 160px; min-width: 0; min-height: 32px; white-space: nowrap; font-size: 15px; font-weight: 500; line-height: 1.4; }
+.landing-nav .landing-account > img { display: block; flex: 0 0 20px; width: 20px; height: 20px; border-radius: 50%; object-fit: cover; }
+.landing-nav .landing-account .account-name { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; font: inherit; line-height: inherit; }
+.landing-nav .landing-account .account-name-text { display: inline-block; white-space: nowrap; font: inherit; line-height: inherit; vertical-align: top; }
+.landing-account:is(:hover, :focus-visible) .account-name.is-overflowing { text-overflow: clip; }
+.landing-account:is(:hover, :focus-visible) .is-overflowing .account-name-text { animation: account-name-scroll var(--account-name-duration) linear infinite alternate; }
+@keyframes account-name-scroll {
+  0%, 15% { transform: translateX(0); }
+  85%, 100% { transform: translateX(var(--account-name-offset)); }
+}
+@media (hover: none) {
+  .landing-account .account-name.is-overflowing { text-overflow: clip; }
+  .landing-account .is-overflowing .account-name-text { animation: account-name-scroll var(--account-name-duration) linear infinite alternate; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .landing-nav .landing-account .account-name.is-overflowing { text-overflow: ellipsis; }
+  .landing-nav .landing-account .is-overflowing .account-name-text { animation: none; }
+}
 
 .landing-page > .commerce-hero {
   max-width: 1840px;

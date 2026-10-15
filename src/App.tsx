@@ -9,6 +9,7 @@ import { api, downloadBlob } from './api';
 import { useImagePaste } from './useImagePaste';
 import { authDisplayName, authEmail, authErrorMessage, initialAuthState, publicAuthRequired, syncPublicServerSession, supabase, loadAuthAvailability, unknownAuthAvailability, validEmail, validEmailCode, withAuthTimeout, readAuthCallback, clearAuthCallback, type AuthAvailability, type SailAuthState } from './auth';
 import AuthDialog from './AuthDialog';
+import AccountName from './AccountName';
 import WelcomeProfileDialog from './WelcomeProfileDialog';
 import { isNewUserFirstLogin, needsProfileSetup, useProfileAvatar } from './userProfile';
 import AssetLibrary, { MediaLibraryPage } from './AssetLibrary';
@@ -686,7 +687,7 @@ export default function App() {
     <header className="landing-nav">
       <button className="landing-brand" onClick={() => setShowLanding(true)} aria-label={L.nav.home}><img className="landing-brand-logo" src="/assets/brand/sail-mark-dark-bold.svg" alt="" width={30} height={30} /><ScrollBrand /></button>
       <nav className="landing-links" aria-label={L.nav.aria}><a href="#overview">{L.nav.overview}</a><a href="#models">{L.nav.models}</a><a href="#tools">{L.nav.tools}</a><a href="#creator">{L.nav.creator}</a><a href="#pricing">{L.nav.pricing}</a></nav>
-      <div className="landing-social"><span aria-label="X">𝕏</span><span aria-label="Instagram">◎</span><span aria-label="Discord">◉</span><button aria-label={L.nav.more}>⋮</button><LanguageSwitch /><button className="landing-account" onClick={openAuth}>{auth.user && <img src={accountAvatar} alt="" />}{auth.user ? authDisplayName(auth.user) : L.nav.signIn}</button></div>
+      <div className="landing-social"><span aria-label="X">𝕏</span><span aria-label="Instagram">◎</span><span aria-label="Discord">◉</span><button aria-label={L.nav.more}>⋮</button><LanguageSwitch /><button className="landing-account" onClick={openAuth}>{auth.user && <img src={accountAvatar} alt="" />}{auth.user ? <AccountName name={authDisplayName(auth.user)} /> : L.nav.signIn}</button></div>
     </header>
     <LandingHero authRequired={publicAuthRequired} onEnter={mode => enterWorkspace(false, mode)} />
     <LandingSections onEnter={() => enterWorkspace()} />
