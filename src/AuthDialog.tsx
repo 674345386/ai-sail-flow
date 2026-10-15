@@ -1,9 +1,10 @@
 import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { LoaderCircle, LogOut, Pencil, X } from 'lucide-react';
+import { ArrowUpRight, LoaderCircle, LogOut, Pencil, X } from 'lucide-react';
 import { authDisplayName, authEmail, authLoginMethod, supabaseConfigured, validEmailCode, type AuthAvailability, type SailAuthState } from './auth';
 import './auth-module.css';
-import { useDict } from './i18n';
+import { useDict, useLang } from './i18n';
+import { detectWebmail, WebmailIcon } from './webmail';
 import { AUTH_TEXT } from './landing-i18n';
 
 export default function AuthDialog({ open, onClose, auth, availability, email, code, stage, resendSeconds, onEmailChange, onCodeChange, onSendCode, onVerifyCode, onBack, onSignOut, onEditProfile, avatarUrl }: {
@@ -13,6 +14,10 @@ export default function AuthDialog({ open, onClose, auth, availability, email, c
   onSendCode: () => void; onVerifyCode: () => void; onBack: () => void; onSignOut: () => void; onEditProfile: () => void; avatarUrl: string;
 }) {
   const t = useDict(AUTH_TEXT);
+  const { lang } = useLang();
+  const webmail = stage === 'code' ? detectWebmail(email) : null;
+  // Code step: keep the caret in the code field (the webmail link is secondary).
+  useEffect(() => { if (open && stage === 'code') window.setTimeout(() => document.querySelector<HTMLInputElement>('.auth-code-input')?.focus(), 0); }, [open, stage]);
   const dialog = useRef<HTMLDivElement>(null);
   const close = useRef(onClose); close.current = onClose;
   const busy = useRef(auth.busy); busy.current = auth.busy;
@@ -57,6 +62,7 @@ export default function AuthDialog({ open, onClose, auth, availability, email, c
           </> : <>
             <label className="auth-input-label"><span>{t.codeLabel}</span><input className="input auth-code-input" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6,10}" minLength={6} maxLength={10} placeholder={t.codePlaceholder} value={code} disabled={locked} onChange={event => onCodeChange(event.target.value.replace(/\D/g, '').slice(0, 10))} required /></label>
             <div className="auth-code-actions"><button type="button" className="auth-change-email" onClick={onBack} disabled={locked}>{t.changeEmail}</button><button type="button" className="auth-change-email" onClick={onSendCode} disabled={locked || resendSeconds > 0}>{resendSeconds ? t.resendIn(resendSeconds) : t.resend}</button></div>
+            {webmail && <a className="auth-webmail-link" href={webmail.url} target="_blank" rel="noopener noreferrer"><WebmailIcon provider={webmail} /><span>{t.openMail(webmail.name[lang])}</span><ArrowUpRight size={15} aria-hidden="true" /><span className="sr-only">{t.newTab}</span></a>}
             <p className="auth-delivery-hint">{t.spam}</p>
           </>}
           {auth.error && <div className="auth-error" role="alert">{auth.error}</div>}

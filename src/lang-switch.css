@@ -17,3 +17,14 @@
 @media (max-width: 680px) { .landing-page .landing-nav .landing-social .lang-switch-button span { font-size: 12px; } }
 /* English headlines run longer than Chinese; keep the #tools headline to two lines. */
 html[lang="en"] .landing-page .ls-tools-head h2 { font-size: clamp(28px, 3vw, 42px); }
+
+/* Workspace sidebar: language switch beside Settings, sharing the same context/localStorage as the landing page. */
+.sidebar-footer-row { order: 3; display: flex; align-items: center; gap: 6px; margin-top: auto; }
+.sidebar-footer-row .sidebar-config { order: 0; flex: 1; min-width: 0; margin-top: 0; }
+.sidebar .lang-switch-button { display: inline-flex; align-items: center; gap: 5px; height: 32px; padding: 0 9px; border: 1px solid rgba(0,0,0,.1); border-radius: 999px; background: transparent; color: var(--muted, #666); font-size: 12px; font-weight: 500; line-height: 1; cursor: pointer; white-space: nowrap; }
+.sidebar .lang-switch-button:hover { background: #eee; color: var(--text, #111); }
+.sidebar .lang-switch-menu { top: auto; bottom: calc(100% + 8px); right: 0; left: auto; border-color: rgba(0,0,0,.1); background: #fff; box-shadow: 0 12px 32px rgba(0,0,0,.14); -webkit-backdrop-filter: none; backdrop-filter: none; }
+.sidebar .lang-switch-menu button { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; padding: 8px 10px; border: 0; border-radius: 8px; background: none; color: var(--text, #111); font-size: 13px; line-height: 1.2; text-align: left; cursor: pointer; }
+.sidebar .lang-switch-menu button:hover { background: #f2f2f2; }
+.sidebar-collapsed .sidebar-footer-row { flex-direction: column; align-self: center; }
+.sidebar-collapsed .sidebar .lang-switch-menu, .sidebar-collapsed .lang-switch-menu { left: 0; right: auto; }

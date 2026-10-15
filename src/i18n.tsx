@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Check, Globe } from 'lucide-react';
+import { applyAppLang } from './app-i18n';
 
 /* Lightweight i18n: a typed dictionary per feature + one context.
    To add a language: add it to LANGUAGES, then TypeScript will flag every dictionary that lacks it. */
@@ -29,6 +30,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   const [lang, setLangState] = useState<Lang>(currentLang);
   currentLang = lang;
   useEffect(() => {
+    applyAppLang(lang);
     document.documentElement.lang = LANGUAGES.find(item => item.code === lang)?.htmlLang || lang;
     try { localStorage.setItem(STORAGE_KEY, lang); } catch { /* storage unavailable */ }
   }, [lang]);

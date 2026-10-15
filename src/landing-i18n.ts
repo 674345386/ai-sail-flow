@@ -11,6 +11,11 @@ const zh = {
     note: '邮箱验证后即可访问 · 登录用户共用工作区',
     pause: '暂停背景动画', play: '播放背景动画',
   },
+  heroAlt: {
+    a: { eyebrow: '跨境电商 AI 视频工作室', pre: '为', post: '市场打造创意视频', markets: ['美国', '英国', '德国', '法国', '日本', '巴西', '澳大利亚'] },
+    b: { title: ['好创意，', '走向每一个市场。'], pre: '', post: '，都在一个工作台完成。', uses: ['拆解参考视频', '换新人物二创', '本地化配音与字幕', '导出制作包'] },
+    c: { badge: '跨境内容工作台', steps: ['参考视频', '镜头拆解', '二创', '成片'], stepsAria: '制作流程' },
+  },
   tools: {
     aria: '工具', title: ['从发现热点到完成创作，', '让好想法成为好作品'] as [string, string],
     aside: '实时跟进业界最强的生成模型，用最先进的制作流程，把每一个热点变成你的作品。',
@@ -117,6 +122,11 @@ const en: LandingMessages = {
     note: 'Verify your email to get access · Signed-in users share one workspace',
     pause: 'Pause background video', play: 'Play background video',
   },
+  heroAlt: {
+    a: { eyebrow: 'AI video studio for cross-border e-commerce', pre: 'Creative video for', post: '', markets: ['the US', 'the UK', 'Germany', 'France', 'Japan', 'Brazil', 'Australia'] },
+    b: { title: ['Great ideas,', 'ready for every market.'], pre: '', post: ' — all in one workspace.', uses: ['Break down reference videos', 'Remix with new characters', 'Localise voiceover & captions', 'Export a production pack'] },
+    c: { badge: 'Cross-border content studio', steps: ['Reference video', 'Shot breakdown', 'Remix', 'Final video'], stepsAria: 'Production flow' },
+  },
   tools: {
     aria: 'Tools', title: ['From trend to final cut —', 'good ideas become great work'],
     aside: 'We keep up with the strongest generative models as they ship, and pair them with a modern production workflow to turn every trend into your own work.',
@@ -220,7 +230,7 @@ const authZh = {
   codeTitle: '输入邮箱验证码', title: '登录 AI-Sail Flow', sentTo: '验证码已发送至 ', intro: '使用邮箱验证码，进入你的创意工作区。',
   notConnected: '登录服务尚未连接，请联系管理员。', emailLabel: '邮箱地址', emailPlaceholder: '输入邮箱地址', emailOff: '邮箱登录暂未开通，请稍后再试。',
   codeLabel: '邮箱中的数字验证码', codePlaceholder: '输入验证码', changeEmail: '更换邮箱', resendIn: (s: number) => `${s} 秒后重新发送`, resend: '重新发送验证码',
-  spam: '没有收到邮件时，可以检查垃圾邮件文件夹。', verify: '验证并登录', sendIn: (s: number) => `${s} 秒后可再次发送`, send: '发送邮箱验证码',
+  spam: '没有收到邮件时，可以检查垃圾邮件文件夹。', openMail: (name: string) => `打开 ${name}`, newTab: '（在新标签页打开）', verify: '验证并登录', sendIn: (s: number) => `${s} 秒后可再次发送`, send: '发送邮箱验证码',
   noPassword: '无需设置密码。', autoCreate: '首次验证成功后会自动创建账号。',
   status: { invalidEmail: '请填写有效的邮箱地址。', sending: '正在发送验证码…', sent: '验证码已发送，请检查邮箱。', verifying: '正在验证…', incomplete: '登录未完成', success: '登录成功', signingOut: '正在退出…', signedOut: '已退出登录' },
   errors: { network: '网络连接暂时失败，请稍后重试。', rate: '请求太频繁，请稍后再试。', otp: '验证码已失效或不正确，请检查验证码，或重新发送。', email: '请填写有效的邮箱地址。', signup: '当前暂不开放新账号注册，请使用已有账号登录。', smtp: '验证码邮件暂时无法发送，请稍后重试。', pkce: '登录授权已失效，请在当前浏览器重新开始登录。', denied: '已取消 Google 授权，你可以重新登录或使用邮箱验证码。', generic: '登录未完成，请重试。' },
@@ -234,7 +244,7 @@ const authEn: AuthMessages = {
   codeTitle: 'Enter your email code', title: 'Sign in to AI-Sail Flow', sentTo: 'We sent a code to ', intro: 'Use a one-time email code to enter your creative workspace.',
   notConnected: 'The sign-in service isn’t connected yet. Please contact your administrator.', emailLabel: 'Email address', emailPlaceholder: 'Enter your email', emailOff: 'Email sign-in isn’t available yet. Please try again later.',
   codeLabel: 'Numeric code from the email', codePlaceholder: 'Enter code', changeEmail: 'Use a different email', resendIn: s => `Resend in ${s}s`, resend: 'Resend code',
-  spam: 'Didn’t get it? Check your spam folder.', verify: 'Verify and sign in', sendIn: s => `Send again in ${s}s`, send: 'Send email code',
+  spam: 'Didn’t get it? Check your spam folder.', openMail: name => `Open ${name}`, newTab: '(opens in a new tab)', verify: 'Verify and sign in', sendIn: s => `Send again in ${s}s`, send: 'Send email code',
   noPassword: 'No password needed. ', autoCreate: 'Your account is created automatically the first time you verify.',
   status: { invalidEmail: 'Please enter a valid email address.', sending: 'Sending code…', sent: 'Code sent — check your inbox.', verifying: 'Verifying…', incomplete: 'Sign-in not completed', success: 'Signed in', signingOut: 'Signing out…', signedOut: 'Signed out' },
   errors: { network: 'Network connection failed. Please try again shortly.', rate: 'Too many requests. Please try again later.', otp: 'That code has expired or is incorrect. Check it, or send a new one.', email: 'Please enter a valid email address.', signup: 'New sign-ups are currently closed. Please sign in with an existing account.', smtp: 'We couldn’t send the code email right now. Please try again shortly.', pkce: 'Your sign-in session expired. Please start again in this browser.', denied: 'Google authorisation was cancelled. You can try again or use an email code.', generic: 'Sign-in didn’t complete. Please try again.' },
