@@ -63,6 +63,8 @@ Veo 3.1 视频生成使用独立的 `SOP_VEO_API_KEY`（或模型设置中的 Ve
 
 复刻关键帧默认使用 `gemini-3.1-flash-image`，可通过 `SOP_KEYFRAME_MODEL` 指定兼容的图像模型；模型渠道需要支持图片输出。文本改写与图片生成分别记录结果，图片失败时保留镜头描述并支持单张重试。
 
+新人物参考图使用独立的 OpenAI 兼容 Images API（`POST /images/generations`，非流式）。可在「模型连接」填写图片渠道 Key、Base URL 和模型，或通过服务端 `SOP_IMAGE_API_KEY`、`SOP_IMAGE_BASE_URL`、`SOP_IMAGE_MODEL` 配置。默认地址为 `https://api.qzftech.top/v1`，模型选择顺序为 `gpt-image-2.5-flare`、`gpt-image-2.5-sunburst`、`gpt-image-2`，默认选 Flare；请求失败不会自动切换模型。每个图片任务在调用前记录到 `data/image-attempts/`，只发一次 POST、禁用自动重试。超时、断线或网关错误视为结果未知，重复执行同一任务不会再次提交；`X-Client-Request-Id` 仅用于追踪，不能替代服务端任务去重。连接配置保存在服务端私有文件 `data/.image-generation.json`，不会返回 API Key。复刻关键帧仍走支持参考图输入的 Gemini 图像通道。
+
 默认视频拆解使用 Gemini 3.8 Flash Agentic Video Understanding：沿用原来的 `.../v1beta/models/gemini-3.8-flash:generateContent` 中转地址，在视频 Part 上发送 `media_processing: "AGENTIC"`，由模型动态检查时间线、画面和音轨。无需切换到 Interactions API；中转需透传这个 Gemini 原生字段。视频仍通过 `inline_data` 发送，受现有中转请求体大小限制。可显式设置 `SOP_VIDEO_ANALYSIS_MODE=static` 使用旧版完整视频单次分析，或设置 `SOP_VIDEO_ANALYSIS_MODE=frames` 通过兼容图像接口使用无音轨抽帧模式。文字改写在兼容网关模式下继续使用 `/v1/chat/completions`。
 
 Agentic 模式在原有 `generateContent` 请求内传输 Base64 视频；视频超过兼容渠道的内联请求上限时会失败。抽帧模式不分析音轨，结果会明确标记。分析模式与是否提交音轨会保存到项目和导出清单。

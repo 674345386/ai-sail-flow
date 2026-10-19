@@ -49,6 +49,7 @@ const steps = [
 type Status = {
   model: string; configured: boolean;
   keyframeModel?: string;
+  imageGeneration?: { configured: boolean; baseUrl: string; model: string; models: string[] };
   keyframeStorage?: { configured: boolean; url: string; bucket: string };
   videoGeneration: { provider: string; models: { t2v: string; i2v: string; r2v: string }; configured: boolean; duration: number };
 };
@@ -195,6 +196,9 @@ export default function App() {
   const [ttsVoices, setTtsVoices] = useState<TtsVoice[]>([]);
   const [modal, setModal] = useState<'config' | 'settings' | 'guide' | null>(null);
   const [apiKey, setApiKey] = useState('');
+  const [imageApiKey, setImageApiKey] = useState('');
+  const [imageBaseUrl, setImageBaseUrl] = useState('');
+  const [imageModel, setImageModel] = useState('');
   const [veoApiKey, setVeoApiKey] = useState('');
   const [storageUrl, setStorageUrl] = useState('');
   const [storageKey, setStorageKey] = useState('');
@@ -930,15 +934,19 @@ export default function App() {
     {organizationDialog && <OrganizationForm key={`${organizationDialog.kind}:${organizationDialog.parentId}`} dialog={organizationDialog} groups={projectGroups} busy={!!busy} error={error} onSubmit={submitOrganization} onClose={() => { if (!busy) setOrganizationDialog(null); }} />}
     {modal === 'config' && <Modal title="配置" onClose={() => setModal(null)}>
       <div className="configuration-options">
-        <button className="configuration-option" onClick={() => setModal('settings')}><Sparkles size={18} /><span><strong>Gemini 分析与图像生成</strong><small>{status.configured ? '模型已配置' : '配置 Gemini 模型'}</small></span><ChevronRight size={16} /></button>
+        <button className="configuration-option" onClick={() => setModal('settings')}><Sparkles size={18} /><span><strong>模型与图片生成</strong><small>{status.configured && status.imageGeneration?.configured ? '模型已配置' : '配置模型连接'}</small></span><ChevronRight size={16} /></button>
         <button className="configuration-option" onClick={() => setModal('guide')}><CircleHelp size={18} /><span><strong>创意方法与使用指南</strong><small>查看工作流与创意说明</small></span><ChevronRight size={16} /></button>
       </div>
       <p className="configuration-local-note"><ShieldCheck size={14} />项目与创意资料保存在本机</p>
     </Modal>}
-    {modal === 'settings' && <Modal title="模型连接" onClose={() => { setModal(null); setApiKey(''); setVeoApiKey(''); setBaseUrl(''); setStorageKey(''); }}>
+    {modal === 'settings' && <Modal title="模型连接" onClose={() => { setModal(null); setApiKey(''); setImageApiKey(''); setVeoApiKey(''); setBaseUrl(''); setStorageKey(''); }}>
       <div className="settings-model"><span className="model-symbol"><Sparkles size={22} /></span><div><h3>Gemini 3.8 Flash</h3><code>{status.model} · 视频理解与改写</code></div><Badge>{status.configured ? '已配置' : '待连接'}</Badge></div>
-      <div className="settings-model"><span className="model-symbol"><ImagePlus size={22} /></span><div><h3>新人物参考图模型</h3><code>{status.keyframeModel || 'gemini-3.1-flash-image'}</code></div><Badge>{status.configured ? '沿用 Gemini 连接' : '待连接'}</Badge></div>
-      <p className="modal-description">视频拆解、二创提示词编写和新人物图生成沿用同一 Gemini 连接；渠道需支持图像模型输出。页面填写的 Gemini 密钥保存在服务端私有数据目录，重启后仍可使用。</p>
+      <div className="settings-model"><span className="model-symbol"><ImagePlus size={22} /></span><div><h3>图片生成 · 新人物参考图</h3><code>{status.imageGeneration?.model || 'gpt-image-2.5-flare'}</code></div><Badge>{status.imageGeneration?.configured ? '已配置' : '待连接'}</Badge></div>
+      <p className="modal-description">新人物图使用独立 Images API，默认模型为 Flare。单次提交、关闭自动重试；超时或网关错误后原任务结果待核对，不会自动换模型重发。复刻关键帧仍使用支持参考图输入的 Gemini 图像模型（{status.keyframeModel || 'gemini-3.1-flash-image'}）。</p>
+      <Field label="图片生成 API Key"><Input type="password" autoComplete="off" spellCheck={false} placeholder={status.imageGeneration?.configured ? '已配置，更新时再填写' : '输入图片渠道 Key'} value={imageApiKey} onChange={e => setImageApiKey(e.target.value)} /></Field>
+      <Field label="图片生成接口地址"><Input type="url" autoComplete="off" spellCheck={false} placeholder={status.imageGeneration?.baseUrl || 'https://api.qzftech.top/v1'} value={imageBaseUrl} onChange={e => setImageBaseUrl(e.target.value)} /></Field>
+      <Field label="图片模型"><select className="input" value={imageModel || status.imageGeneration?.model || 'gpt-image-2.5-flare'} onChange={e => setImageModel(e.target.value)}>{(status.imageGeneration?.models || ['gpt-image-2.5-flare', 'gpt-image-2.5-sunburst', 'gpt-image-2']).map(model => <option key={model} value={model}>{model}</option>)}</select></Field>
+      <p className="modal-description">模型优先顺序：Flare → Sunburst → GPT Image 2。这里选择单次请求使用的模型；失败后不会自动降级重发。</p>
       <Field label="Gemini API Key · 可选"><Input type="password" autoComplete="off" spellCheck={false} placeholder="输入 Gemini API Key 或兼容渠道 Key" value={apiKey} onChange={e => setApiKey(e.target.value)} /></Field>
       <Field label="Gemini 兼容接口地址 · 可选" hint="Agentic 沿用 gemini-3.8-flash:generateContent；中转需要透传 media_processing: AGENTIC"><Input type="url" autoComplete="off" spellCheck={false} placeholder="https://maiai.ai/v1" value={baseUrl} onChange={e => setBaseUrl(e.target.value)} /></Field>
       <details className="creative-details"><summary>Omni 视频与人物参考图存储连接</summary>
@@ -950,7 +958,7 @@ export default function App() {
       <Field label="存储桶名称"><Input autoComplete="off" value={storageBucket || status.keyframeStorage?.bucket || 'sop-keyframes'} onChange={event => setStorageBucket(event.target.value)} /></Field>
       <div className="settings-note"><ShieldCheck size={16} /><p>Omni 使用异步任务接口：提交任务、保存任务 ID、查询状态、下载成片。新人物图上传到指定存储桶，使用临时链接作为参考图；新建存储桶默认为私有。</p></div>
       </details>
-      <div className="modal-actions"><a href="https://gaoruitech.apifox.cn/doc-8842676" target="_blank" rel="noreferrer">Omni 接口文档 <ArrowUpRight size={14} /></a><button className="btn primary" disabled={!!busy || (apiKey.trim().length < 16 && veoApiKey.trim().length < 16 && storageKey.trim().length < 16)} onClick={() => perform('正在配置', async () => { if (apiKey.trim()) await api('/api/settings', { method: 'POST', body: JSON.stringify({ apiKey, baseUrl }) }); if (veoApiKey.trim()) await api('/api/settings/veo', { method: 'POST', body: JSON.stringify({ apiKey: veoApiKey }) }); if (storageKey.trim()) await api('/api/settings/keyframe-storage', { method: 'POST', body: JSON.stringify({ url: storageUrl || status.keyframeStorage?.url, apiKey: storageKey, bucket: storageBucket || status.keyframeStorage?.bucket || 'sop-keyframes' }) }); setStatus(await api<Status>('/api/status')); setApiKey(''); setVeoApiKey(''); setBaseUrl(''); setStorageKey(''); setModal(null); setNotice('模型连接已配置'); })}>保存连接</button></div>
+      <div className="modal-actions"><a href="https://gaoruitech.apifox.cn/doc-8842676" target="_blank" rel="noreferrer">Omni 接口文档 <ArrowUpRight size={14} /></a><button className="btn primary" disabled={!!busy || (apiKey.trim().length < 16 && imageApiKey.trim().length < 16 && !imageModel && veoApiKey.trim().length < 16 && storageKey.trim().length < 16)} onClick={() => perform('正在配置', async () => { if (apiKey.trim()) await api('/api/settings', { method: 'POST', body: JSON.stringify({ apiKey, baseUrl }) }); if (imageApiKey.trim() || imageModel || imageBaseUrl.trim()) await api('/api/settings/image-generation', { method: 'POST', body: JSON.stringify({ ...(imageApiKey.trim() ? { apiKey: imageApiKey } : {}), ...(imageBaseUrl.trim() ? { baseUrl: imageBaseUrl } : {}), model: imageModel || status.imageGeneration?.model || 'gpt-image-2.5-flare' }) }); if (veoApiKey.trim()) await api('/api/settings/veo', { method: 'POST', body: JSON.stringify({ apiKey: veoApiKey }) }); if (storageKey.trim()) await api('/api/settings/keyframe-storage', { method: 'POST', body: JSON.stringify({ url: storageUrl || status.keyframeStorage?.url, apiKey: storageKey, bucket: storageBucket || status.keyframeStorage?.bucket || 'sop-keyframes' }) }); setStatus(await api<Status>('/api/status')); setApiKey(''); setImageApiKey(''); setImageModel(''); setImageBaseUrl(''); setVeoApiKey(''); setBaseUrl(''); setStorageKey(''); setModal(null); setNotice('模型连接已配置'); })}>保存连接</button></div>
     </Modal>}
     {modal === 'guide' && <Modal title="跨境视频创意指南" wide onClose={() => setModal(null)}><p className="modal-description">把平台的创作原则落实到每个镜头。以下是创意建议，不是流量或转化承诺。</p><div className="guide-grid"><article><span className="guide-number">01</span><h3>用情境吸引注意</h3><p>先让观众识别自己的问题，再用具体动作展示产品价值。采用清晰的开头、主体和行动引导。</p><a href="https://ads.tiktok.com/resources/help/article/creative-best-practices?lang=en" target="_blank" rel="noreferrer">TikTok 创意建议 <ArrowUpRight size={13} /></a></article><article><span className="guide-number">02</span><h3>为竖屏观看设计</h3><p>Reels 优先竖屏、有声音的内容。字幕、商品和关键信息避开界面遮挡，生成后按实际版位检查。</p><a href="https://www.facebook.com/business/ads/facebook-instagram-reels-ads" target="_blank" rel="noreferrer">Meta Reels 创意指南 <ArrowUpRight size={13} /></a></article><article><span className="guide-number">03</span><h3>卖点与产品页一致</h3><p>用目标顾客的语言解释用途与收益，填写真实规格、售价和优惠，让视频承诺与落地页保持一致。</p><a href="https://help.shopify.com/en/manual/products/details/product-descriptions/write" target="_blank" rel="noreferrer">Shopify 产品描述指南 <ArrowUpRight size={13} /></a></article><article><span className="guide-number">04</span><h3>让内容可交接</h3><p>原片拆解与新方案分开保存。修改前提会将旧方案标记为待更新，导出时使用最新的镜头与口播。</p><span className="secondary-label">AI-SAIL FLOW 工作方式</span></article></div><div className="guide-footer"><Info size={15} /><span>当前流程生成逐镜头复刻关键帧与描述，作为后续图生视频的输入。可检查、调整单张图片并导出制作包。</span></div></Modal>}
     <AssetLibrary open={!!assetLibraryTarget} user={auth.user} target={assetLibraryTarget || 'all'} initialSelection={initialMedia} onClose={() => setAssetLibraryTarget(null)} onReference={referenceMedia} onSignIn={() => { setAssetLibraryTarget(null); openAuth(); }} />

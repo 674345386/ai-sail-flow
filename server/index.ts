@@ -30,6 +30,7 @@ if (process.env.NODE_USE_ENV_PROXY === '1') {
 // Load storage after .env so an optional data-directory override takes effect.
 const { createProject, getProject, listProjects, saveProject, uploadDir, defaultProjectId, createWorkspaceProject, getWorkspaceProject, listWorkspaceProjects, saveWorkspaceProject } = await import('./store');
 const { configured, configureConnection, keyframeModel, checkModelConnection } = await import('./gemini');
+const { imageGenerationStatus, configureImageGeneration, IMAGE_MODELS } = await import('./image-generation');
 const { VEO_MODELS, VEO_DURATION, configureGenerationKey, generationConfigured } = await import('./veo');
 const { listTtsVoices } = await import('./compose');
 const { launchTask, TaskError } = await import('./tasks');
@@ -103,7 +104,7 @@ const uploadsInProgress = new Set<string>();
 function editable(project: Project) {
   if (project.job?.status === 'running' || workflowBusy(project) || uploadsInProgress.has(project.id)) throw new HttpError(409, '当前任务正在处理，请等待完成或接管制作。');
 }
-app.get('/api/status', (_req, res) => res.json({ model: MODEL, keyframeModel: keyframeModel(), configured: configured(), local: !publicAuthEnabled, maxVideoMB: 250, maxImageMB: 10, keyframeStorage: keyframeStorageStatus(), videoGeneration: { provider: 'veo-3.1', models: VEO_MODELS, configured: generationConfigured(), duration: VEO_DURATION } }));
+app.get('/api/status', (_req, res) => res.json({ model: MODEL, keyframeModel: keyframeModel(), configured: configured(), imageGeneration: imageGenerationStatus(), local: !publicAuthEnabled, maxVideoMB: 250, maxImageMB: 10, keyframeStorage: keyframeStorageStatus(), videoGeneration: { provider: 'veo-3.1', models: VEO_MODELS, configured: generationConfigured(), duration: VEO_DURATION } }));
 app.post('/api/auth/session', async (req, res) => {
   if (!publicAuthEnabled) return res.sendStatus(204);
   const token = bearerToken(req);
@@ -154,6 +155,11 @@ app.post('/api/settings', (req, res) => {
 });
 app.post('/api/settings/check', async (_req, res) => {
   try { res.json(await checkModelConnection()); } catch (error) { res.status(502).json({ error: error instanceof Error ? error.message : '模型连接检查失败。' }); }
+});
+app.post('/api/settings/image-generation', (req, res) => {
+  const { apiKey, baseUrl, model } = z.object({ apiKey: z.string().trim().min(16).max(300).optional(), baseUrl: z.url().max(300).optional(), model: z.enum(IMAGE_MODELS) }).parse(req.body);
+  configureImageGeneration({ apiKey, baseUrl, model });
+  res.json(imageGenerationStatus());
 });
 app.post('/api/settings/veo', (req, res) => {
   const { apiKey } = z.object({ apiKey: z.string().trim().min(16).max(300) }).parse(req.body);

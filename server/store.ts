@@ -65,7 +65,7 @@ for (const filename of fs.readdirSync(recordsDir)) {
       project.job = {
         ...project.job,
         status: 'failed',
-        message: interruptedGeneration ? '服务已重启，上游任务可继续查询；请点击“恢复已生成任务”。' : '服务已重启，上次任务已中断。可以重新发起。',
+        message: interruptedGeneration ? '服务已重启，上游任务可继续查询；请点击“恢复已生成任务”。' : project.job.kind === 'remix-character' ? '服务已重启，图片请求结果可能未知；请核对后再决定是否新建任务。' : '服务已重启，上次任务已中断。可以重新发起。',
         finishedAt,
       };
       project.jobHistory = [...(project.jobHistory || []), project.job].slice(-200);

@@ -1,11 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import type { Job, Project } from '../shared/domain';
-import { defaultRemixSettings, REMIX_MODEL, remixCharacterCurrent, remixPlanCurrent, remixVideoBasis, type RemixAction, type RemixVideo, type RemixPromptPhase } from '../shared/remix';
+import { characterBasis, defaultRemixSettings, REMIX_MODEL, remixCharacterCurrent, remixPlanCurrent, remixVideoBasis, type RemixAction, type RemixVideo, type RemixPromptPhase } from '../shared/remix';
 import { getProject, saveProject } from './store';
 import { configured, generateRemixCharacter, planRemix } from './gemini';
 import { generationConfigured, saveGeneratedVideo } from './veo';
 import { keyframeStorageStatus, publishReferenceImage } from './keyframe-storage';
 import { submitOmni, waitOmni } from './omni';
+import { imageAttemptStatus, imageGenerationStatus } from './image-generation';
 
 export class RemixError extends Error { constructor(public status: number, message: string) { super(message); } }
 function update(id: string, mutate: (project: Project) => Project) { return saveProject(mutate(getProject(id)!)); }
@@ -14,8 +15,15 @@ export function launchRemix(id: string, action: RemixAction, videoId?: string) {
   if (project.job?.status === 'running') throw new RemixError(409, '当前任务正在处理。');
   if (!project.analysis || !project.assets.some(asset => asset.kind === 'video')) throw new RemixError(409, '请先完成参考视频拆解。');
   if (project.analysisReview?.pendingIds.length) throw new RemixError(409, '请先重新分析变动镜头，再编写二创提示词。');
-  if (['character', 'plan'].includes(action) && !configured()) throw new RemixError(503, '请先连接 Gemini 图像与分析服务。');
+  if (action === 'character' && !imageGenerationStatus().configured) throw new RemixError(503, '请先连接图片生成服务。');
+  if (action === 'plan' && !configured()) throw new RemixError(503, '请先连接 Gemini 分析服务。');
   if (action === 'character' && !project.remix?.settings.character.trim()) throw new RemixError(400, '请填写人物描述后再生成人物参考图。');
+  if (action === 'character') {
+    const basis = characterBasis(project);
+    if ([project.job, ...(project.jobHistory || [])].some(job => job?.kind === 'remix-character' && job.imageBasis === basis && job.status !== 'completed' && ['submitting', 'unknown'].includes(imageAttemptStatus(job.id) || ''))) {
+      throw new RemixError(409, '相同人物描述的图片请求结果待核对；为避免重复生成和扣费，不能再次提交。');
+    }
+  }
   if (action === 'plan' && !remixCharacterCurrent(project)) throw new RemixError(409, '请先上传人物参考图，或根据当前人物描述生成人物图。');
   if (action === 'video' && !remixPlanCurrent(project)) throw new RemixError(409, '请先根据当前分析和新人物编写视频提示词。');
   if (['video', 'recover'].includes(action) && !generationConfigured()) throw new RemixError(503, '请先在模型连接中填写视频服务 API Key。');
@@ -32,14 +40,14 @@ export function launchRemix(id: string, action: RemixAction, videoId?: string) {
       prompt: project.remix!.plan!.prompt, ...{ resolution: project.remix!.settings.resolution, aspectRatio: project.remix!.settings.aspectRatio }, bgmMode: project.remix!.settings.bgmMode || 'reference',
       characterFilename: project.remix!.character!.filename, startedAt: now };
   }
-  const job: Job = { id: randomUUID(), kind: `remix-${action}` as Job['kind'], status: 'running', ...(action === 'plan' ? { remixPhase: 'evidence' as const } : {}), progress: 2, message: '正在准备二创任务…', startedAt: now, videoId: video?.id };
+  const job: Job = { id: randomUUID(), kind: `remix-${action}` as Job['kind'], status: 'running', ...(action === 'plan' ? { remixPhase: 'evidence' as const } : {}), ...(action === 'character' ? { imageBasis: characterBasis(project) } : {}), progress: 2, message: '正在准备二创任务…', startedAt: now, videoId: video?.id };
   saveProject({ ...project, job, remix: { ...project.remix!, videos: action === 'video' ? [...project.remix!.videos, video!] : action === 'recover' ? project.remix!.videos.map(item => item.id === video!.id ? video! : item) : project.remix!.videos } });
   const progress = (n: number, message: string, phase?: RemixPromptPhase) => update(id, current => ({ ...current, job: { ...current.job!, progress: n, message, ...(phase ? { remixPhase: phase } : {}) } }));
   return (async () => {
     try {
       if (action === 'character' || action === 'plan') {
         const snapshot = getProject(id)!;
-        const result = action === 'character' ? await generateRemixCharacter(snapshot, snapshot.remix!.settings) : await planRemix(snapshot, progress, (correction, usage) => {
+        const result = action === 'character' ? await generateRemixCharacter(snapshot, snapshot.remix!.settings, job.id) : await planRemix(snapshot, progress, (correction, usage) => {
           update(id, current => ({ ...current, remix: { ...current.remix!, correction },
             usage: { input: current.usage.input + usage.input, output: current.usage.output + usage.output } }));
         });
