@@ -8,6 +8,7 @@ import { configured } from './gemini';
 import { generationConfigured } from './veo';
 import { TimingConfirmationRequired } from './compose';
 import { keyframeStorageStatus } from './keyframe-storage';
+import { imageGenerationStatus } from './image-generation';
 
 const runners = new Set<string>();
 const save = (id: string, change: (p: Project) => Project) => saveProject(change(getProject(id)!));
@@ -25,7 +26,8 @@ export function startWorkflow(id: string, maxNewClips: number, target: WorkflowT
   const continuing = p.workflow && p.workflow.status !== 'completed';
   const missing = workflowRequirements(p, target);
   const next = nextWorkflowAction(p, target);
-  if (!configured() && ['analysis', 'keyframe'].includes(next.kind) || !configured() && next.kind === 'rewrite' && p.promptFlow !== 'direct-analysis') missing.push('连接 Gemini');
+  if (!configured() && (next.kind === 'analysis' || next.kind === 'rewrite' && p.promptFlow !== 'direct-analysis')) missing.push('连接 Gemini 分析服务');
+  if (!imageGenerationStatus().configured && (next.kind === 'keyframe' || next.kind === 'rewrite' && p.promptFlow !== 'direct-analysis')) missing.push('连接图片生成服务');
   if (target === 'video' && !generationConfigured() && next.kind !== 'compose' && next.kind !== 'completed') missing.push('连接 Veo');
   if (target === 'video' && p.promptFlow !== 'direct-analysis' && !keyframeStorageStatus().configured && next.kind !== 'compose' && next.kind !== 'completed') missing.push('连接 Supabase 私有图片存储');
   const now = new Date().toISOString();

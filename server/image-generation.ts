@@ -1,13 +1,14 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { dataDir, uploadDir } from './store';
 
 export const IMAGE_MODELS = ['gpt-image-2.5-flare', 'gpt-image-2.5-sunburst', 'gpt-image-2'] as const;
 export type ImageModel = typeof IMAGE_MODELS[number];
 type Connection = { apiKey: string; baseUrl: string; model: ImageModel };
 type ImageResult = { filename: string; url: string; mime: 'image/png' | 'image/jpeg' | 'image/webp'; generatedAt: string; model: ImageModel };
-type Attempt = { key: string; status: 'submitting' | 'completed' | 'unknown'; model: ImageModel; prompt: string; requestId: string; result?: ImageResult; error?: string };
+type Attempt = { key: string; status: 'submitting' | 'completed' | 'rejected' | 'unknown'; model: ImageModel; prompt: string; fingerprint?: string; requestId: string; result?: ImageResult; error?: string };
+export type ImageReference = { data: Buffer; mime: 'image/png' | 'image/jpeg' | 'image/webp'; filename: string };
 const connectionFile = path.join(dataDir, '.image-generation.json');
 const attemptDir = path.join(dataDir, 'image-attempts');
 fs.mkdirSync(attemptDir, { recursive: true, mode: 0o700 });
@@ -46,34 +47,49 @@ function saveAttempt(attempt: Attempt) {
   try { fs.writeFileSync(temporary, JSON.stringify(attempt), { mode: 0o600, flag: 'wx' }); fs.renameSync(temporary, dest); }
   catch (error) { fs.rmSync(temporary, { force: true }); throw error; }
 }
-export async function generateImage(input: { idempotencyKey: string; prompt: string; aspectRatio?: string; prefix: string }): Promise<ImageResult> {
+export async function generateImage(input: { idempotencyKey: string; prompt: string; aspectRatio?: string; prefix: string; model?: ImageModel; references?: ImageReference[] }): Promise<ImageResult> {
   if (!/^[a-f\d-]{36}$/.test(input.idempotencyKey) || !/^[a-z][a-z-]*$/.test(input.prefix)) throw new Error('图片任务标识无效。');
   if (!session.apiKey) throw new Error('请先连接图片生成服务。');
+  const references = input.references || [];
+  if (references.length > 16 || references.some(ref => !ref.data.length || ref.data.length > 20 * 1024 * 1024 || !/^[\w.-]{1,100}$/.test(ref.filename)) || references.reduce((sum, ref) => sum + ref.data.length, 0) > 50 * 1024 * 1024) throw new Error('参考图数量或大小超过图片接口限制。');
+  const model = input.model || session.model;
+  if (!IMAGE_MODELS.includes(model)) throw new Error('图片模型无效。');
+  const fingerprint = createHash('sha256').update(JSON.stringify([model, input.prompt, input.aspectRatio, references.map(ref => [ref.filename, ref.mime, createHash('sha256').update(ref.data).digest('hex')])])).digest('hex');
   const existing = attemptPath(input.idempotencyKey);
   if (fs.existsSync(existing)) {
     const prior = JSON.parse(fs.readFileSync(existing, 'utf8')) as Attempt;
-    if (prior.prompt !== input.prompt) throw new Error('同一图片任务不能使用不同提示词。');
+    if (prior.fingerprint ? prior.fingerprint !== fingerprint : prior.prompt !== input.prompt) throw new Error('同一图片任务不能使用不同请求参数。');
     if (prior.status === 'completed' && prior.result && fs.existsSync(path.join(uploadDir, prior.result.filename))) return prior.result;
+    if (prior.status === 'rejected') throw new Error(prior.error || '图片接口拒绝了该任务。');
     throw new Error('该图片任务已提交，结果待核对；为避免重复生成和扣费，不会自动重发。');
   }
-  const model = session.model;
   const requestId = randomUUID();
-  const attempt: Attempt = { key: input.idempotencyKey, status: 'submitting', model, prompt: input.prompt, requestId };
+  const attempt: Attempt = { key: input.idempotencyKey, status: 'submitting', model, prompt: input.prompt, fingerprint, requestId };
   // Reserve before submitting, including across multiple server processes.
   try { fs.writeFileSync(existing, JSON.stringify(attempt), { mode: 0o600, flag: 'wx' }); }
   catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'EEXIST') throw new Error('该图片任务已提交，结果待核对；不会重复生成。');
     throw error;
   }
+  let rejected = false;
   try {
-    const size = input.aspectRatio === '16:9' ? '1536x1024' : input.aspectRatio === '9:16' ? '1024x1536' : '1024x1024';
-    const response = await fetch(`${session.baseUrl}/images/generations`, {
+    const size = input.aspectRatio === '16:9' ? '1536x1024' : ['9:16', '4:5'].includes(input.aspectRatio || '') ? '1024x1536' : '1024x1024';
+    const form = new FormData();
+    if (references.length) {
+      form.set('model', model); form.set('prompt', input.prompt); form.set('n', '1'); form.set('size', size);
+      form.set('quality', 'medium'); form.set('output_format', 'png');
+      for (const reference of references) form.append('image[]', new Blob([new Uint8Array(reference.data)], { type: reference.mime }), reference.filename);
+    }
+    const response = await fetch(`${session.baseUrl}/images/${references.length ? 'edits' : 'generations'}`, {
       method: 'POST', redirect: 'manual', signal: AbortSignal.timeout(600_000),
-      headers: { Authorization: `Bearer ${session.apiKey}`, 'Content-Type': 'application/json', 'X-Client-Request-Id': requestId },
-      body: JSON.stringify({ model, prompt: input.prompt, n: 1, size, quality: 'medium', output_format: 'png' }),
+      headers: { Authorization: `Bearer ${session.apiKey}`, ...(references.length ? {} : { 'Content-Type': 'application/json' }), 'X-Client-Request-Id': requestId },
+      body: references.length ? form : JSON.stringify({ model, prompt: input.prompt, n: 1, size, quality: 'medium', output_format: 'png' }),
     });
     const body = await response.json();
-    if (!response.ok) throw new Error(`图片接口 HTTP ${response.status}：${String(body?.error?.message || '请求未完成').slice(0, 300)}`);
+    if (!response.ok) {
+      rejected = [400, 401, 403, 404, 422, 429].includes(response.status);
+      throw new Error(`图片接口 HTTP ${response.status}：${String(body?.error?.message || '请求未完成').slice(0, 300)}`);
+    }
     const encoded = body?.data?.[0]?.b64_json;
     if (typeof encoded !== 'string' || !encoded) throw new Error('图片接口未返回图片数据；任务结果待核对。');
     const bytes = Buffer.from(encoded, 'base64');
@@ -84,7 +100,7 @@ export async function generateImage(input: { idempotencyKey: string; prompt: str
     saveAttempt({ ...attempt, status: 'completed', result });
     return result;
   } catch (error) {
-    saveAttempt({ ...attempt, status: 'unknown', error: error instanceof Error ? error.message : String(error) });
+    saveAttempt({ ...attempt, status: rejected ? 'rejected' : 'unknown', error: error instanceof Error ? error.message : String(error) });
     throw error;
   }
 }

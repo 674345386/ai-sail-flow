@@ -87,6 +87,7 @@ export const rewriteShotSchema = shotSchema.extend({
   keyframe: z.object({
     status: z.enum(['running', 'completed', 'failed']), basis: z.string().max(80),
     prompt: z.string().max(100000), model: z.string().max(160),
+    attemptId: z.uuid().optional(),
     sourceAt: z.number(), sourceFrameUrl: z.string().max(500),
     filename: z.string().max(200).optional(), url: z.string().max(500).optional(),
     mime: z.enum(['image/png', 'image/jpeg', 'image/webp']).optional(),

@@ -10,8 +10,9 @@ import { composeVideo, composeUnitVideo, composeNativeVideo, TimingConfirmationR
 import { getProject, saveProject } from './store';
 import { shotReconstructionPrompt } from '../shared/shot-evidence';
 import { mergeFocusPoints, selectedFocus, selectedShotFocus } from '../shared/focus';
-import { keyframeCurrent } from '../shared/storyboard';
+import { keyframeBasis, keyframeCurrent } from '../shared/storyboard';
 import { keyframeStorageStatus, publishKeyframe } from './keyframe-storage';
+import { imageAttemptStatus, imageGenerationStatus } from './image-generation';
 
 export class TaskError extends Error { constructor(public status: number, message: string) { super(message); } }
 export type TaskSpec = { kind: 'analysis' } | { kind: 'analysis-refine' } | { kind: 'rewrite' } | { kind: 'keyframe'; shotId: string } | { kind: 'generation'; input: GenerationInput } |
@@ -42,7 +43,12 @@ function directAnalysisStoryboard(project: Project): Rewrite {
 async function renderKeyframe(id: string, shotId: string) {
   const project = getProject(id)!;
   const shot = project.rewrite!.shots.find(shot => shot.id === shotId)!;
-  const request = await keyframeRequest(project, shot);
+  const previous = shot.keyframe?.basis === keyframeBasis(project, shot) ? shot.keyframe : undefined;
+  const attemptStatus = previous?.attemptId ? imageAttemptStatus(previous.attemptId) : undefined;
+  if (attemptStatus === 'submitting' || attemptStatus === 'unknown') {
+    throw new TaskError(409, '该关键帧请求结果待核对；为避免重复生成和扣费，不会再次提交。');
+  }
+  const request = previous?.attemptId && attemptStatus === 'completed' ? { ...previous, status: 'running' as const, error: undefined } : await keyframeRequest(project, shot);
   const saveFrame = (keyframe: NonNullable<Rewrite['shots'][number]['keyframe']>) => update(id, current => ({ ...current,
     rewrite: { ...current.rewrite!, shots: current.rewrite!.shots.map(shot => shot.id === shotId ? { ...shot, keyframe } : shot) },
     generatedVideos: current.generatedVideos.map(video => video.sourceShotIds?.includes(shotId) ? { ...video, stale: true } : video),
@@ -78,7 +84,8 @@ export function launchTask(id: string, spec: TaskSpec): Promise<void> {
   if (!p) throw new TaskError(404, '找不到这个项目。');
   if (activeProjects.has(id) || p.job?.status === 'running') throw new TaskError(409, '当前任务正在处理，请等待完成。');
   const marketError = validateMarket(p.market); if (marketError) throw new TaskError(400, marketError);
-  if ((spec.kind === 'analysis' || spec.kind === 'analysis-refine' || spec.kind === 'keyframe' || spec.kind === 'rewrite' && (p.promptFlow || 'localized') === 'localized') && !configured()) throw new TaskError(503, '请先连接 Gemini。');
+  if ((spec.kind === 'analysis' || spec.kind === 'analysis-refine' || spec.kind === 'rewrite' && (p.promptFlow || 'localized') === 'localized') && !configured()) throw new TaskError(503, '请先连接 Gemini 分析服务。');
+  if ((spec.kind === 'keyframe' || spec.kind === 'rewrite' && (p.promptFlow || 'localized') === 'localized') && !imageGenerationStatus().configured) throw new TaskError(503, '请先连接图片生成服务。');
   if (spec.kind === 'analysis' && !p.assets.some(asset => asset.kind === 'video')) throw new TaskError(400, '请先上传参考视频。');
   if (spec.kind === 'analysis-refine' && (!p.analysis || !p.assets.some(asset => asset.kind === 'video') || !p.analysisReview?.pendingIds.length)) throw new TaskError(400, '没有待重新分析的镜头。');
   if (spec.kind === 'rewrite' && (!p.analysis || (p.promptFlow !== 'direct-analysis' && (!p.product.name.trim() || !p.product.facts.trim())))) throw new TaskError(400, '请先完成视频拆解，并填写产品名称与已确认卖点。');

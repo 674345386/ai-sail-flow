@@ -29,7 +29,7 @@ if (process.env.NODE_USE_ENV_PROXY === '1') {
 }
 // Load storage after .env so an optional data-directory override takes effect.
 const { createProject, getProject, listProjects, saveProject, uploadDir, defaultProjectId, createWorkspaceProject, getWorkspaceProject, listWorkspaceProjects, saveWorkspaceProject } = await import('./store');
-const { configured, configureConnection, keyframeModel, checkModelConnection } = await import('./gemini');
+const { configured, configureConnection, checkModelConnection } = await import('./gemini');
 const { imageGenerationStatus, configureImageGeneration, IMAGE_MODELS } = await import('./image-generation');
 const { VEO_MODELS, VEO_DURATION, configureGenerationKey, generationConfigured } = await import('./veo');
 const { listTtsVoices } = await import('./compose');
@@ -104,7 +104,7 @@ const uploadsInProgress = new Set<string>();
 function editable(project: Project) {
   if (project.job?.status === 'running' || workflowBusy(project) || uploadsInProgress.has(project.id)) throw new HttpError(409, '当前任务正在处理，请等待完成或接管制作。');
 }
-app.get('/api/status', (_req, res) => res.json({ model: MODEL, keyframeModel: keyframeModel(), configured: configured(), imageGeneration: imageGenerationStatus(), local: !publicAuthEnabled, maxVideoMB: 250, maxImageMB: 10, keyframeStorage: keyframeStorageStatus(), videoGeneration: { provider: 'veo-3.1', models: VEO_MODELS, configured: generationConfigured(), duration: VEO_DURATION } }));
+app.get('/api/status', (_req, res) => res.json({ model: MODEL, keyframeModel: imageGenerationStatus().model, configured: configured(), imageGeneration: imageGenerationStatus(), local: !publicAuthEnabled, maxVideoMB: 250, maxImageMB: 10, keyframeStorage: keyframeStorageStatus(), videoGeneration: { provider: 'veo-3.1', models: VEO_MODELS, configured: generationConfigured(), duration: VEO_DURATION } }));
 app.post('/api/auth/session', async (req, res) => {
   if (!publicAuthEnabled) return res.sendStatus(204);
   const token = bearerToken(req);

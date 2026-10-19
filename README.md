@@ -61,9 +61,7 @@ Veo 3.1 视频生成使用独立的 `SOP_VEO_API_KEY`（或模型设置中的 Ve
 
 以下私有图片存储供后续视频生成接入使用；当前关键帧生成无需配置。私有图片存储复用现有 Supabase 项目。可以在「模型连接」填写项目 URL、服务端 Secret Key（或旧版 service_role key）及私有桶名称；页面填写的密钥只留在服务器内存。也可在 `.env` 设置 `SUPABASE_SECRET_KEY` 和可选的 `SOP_KEYFRAME_BUCKET`（默认 `sop-keyframes`）；项目 URL 默认复用 `VITE_SUPABASE_URL`。此服务端密钥不能使用前端 publishable / anon key 代替，也不能放进 `VITE_*`。桶不存在时自动创建私有桶；已存在的公开桶会被拒绝。[Supabase 私有桶与临时链接](https://supabase.com/docs/guides/storage/buckets/fundamentals)。
 
-复刻关键帧默认使用 `gemini-3.1-flash-image`，可通过 `SOP_KEYFRAME_MODEL` 指定兼容的图像模型；模型渠道需要支持图片输出。文本改写与图片生成分别记录结果，图片失败时保留镜头描述并支持单张重试。
-
-新人物参考图使用独立的 OpenAI 兼容 Images API（`POST /images/generations`，非流式）。可在「模型连接」填写图片渠道 Key、Base URL 和模型，或通过服务端 `SOP_IMAGE_API_KEY`、`SOP_IMAGE_BASE_URL`、`SOP_IMAGE_MODEL` 配置。默认地址为 `https://api.qzftech.top/v1`，模型选择顺序为 `gpt-image-2.5-flare`、`gpt-image-2.5-sunburst`、`gpt-image-2`，默认选 Flare；请求失败不会自动切换模型。每个图片任务在调用前记录到 `data/image-attempts/`，只发一次 POST、禁用自动重试。超时、断线或网关错误视为结果未知，重复执行同一任务不会再次提交；`X-Client-Request-Id` 仅用于追踪，不能替代服务端任务去重。连接配置保存在服务端私有文件 `data/.image-generation.json`，不会返回 API Key。复刻关键帧仍走支持参考图输入的 Gemini 图像通道。
+新人物参考图使用独立的 OpenAI 兼容 Images API（`POST /images/generations`，非流式）；复刻关键帧将原片抽帧作为第一张参考图、商品图作为后续参考图，走同一渠道的 `POST /images/edits` 多图编辑接口。可在「模型连接」填写图片渠道 Key、Base URL 和模型，或通过服务端 `SOP_IMAGE_API_KEY`、`SOP_IMAGE_BASE_URL`、`SOP_IMAGE_MODEL` 配置。默认地址为 `https://api.qzftech.top/v1`，模型选择顺序为 `gpt-image-2.5-flare`、`gpt-image-2.5-sunburst`、`gpt-image-2`，默认选 Flare；请求失败不会自动切换模型。每个图片任务在调用前记录到 `data/image-attempts/`，只发一次 POST、禁用自动重试。超时、断线或网关错误视为结果未知，同一任务或同一镜头输入不会自动再次提交；`X-Client-Request-Id` 仅用于追踪，不能替代服务端任务去重。连接配置保存在服务端私有文件 `data/.image-generation.json`，不会返回 API Key。文本分析与改写继续使用 Gemini；关键帧图片不再调用 Gemini 图像模型。
 
 默认视频拆解使用 Gemini 3.8 Flash Agentic Video Understanding：沿用原来的 `.../v1beta/models/gemini-3.8-flash:generateContent` 中转地址，在视频 Part 上发送 `media_processing: "AGENTIC"`，由模型动态检查时间线、画面和音轨。无需切换到 Interactions API；中转需透传这个 Gemini 原生字段。视频仍通过 `inline_data` 发送，受现有中转请求体大小限制。可显式设置 `SOP_VIDEO_ANALYSIS_MODE=static` 使用旧版完整视频单次分析，或设置 `SOP_VIDEO_ANALYSIS_MODE=frames` 通过兼容图像接口使用无音轨抽帧模式。文字改写在兼容网关模式下继续使用 `/v1/chat/completions`。
 
@@ -119,4 +117,4 @@ Smoke 检查使用独立临时目录和临时端口，验证项目持久化、�
 
 原有 `ai-overseas-tool-functions.html` 与 `assets/ai-overseas-tool/` 作为原始功能资料保留。
 
-产品与创意改写承接视频拆解的每个镜头、证据关键帧和分析描述。改写保持原镜头数量、编号与顺序，目标时长按比例缩放；产品资料和必填产品图控制替换商品的事实与外观。生成每个镜头的中文描述、英文视频生成指令和单张复刻关键帧。图片使用同一 Gemini Key / 渠道的图像模型，默认 `gemini-3.1-flash-image`，可通过 `SOP_KEYFRAME_MODEL` 调整；兼容渠道需支持 Gemini 原生图像输出。图像失败保留描述，可逐镜头重试；修改描述或产品资料后提示更新图片。ZIP 包含复刻图片和原镜头对应清单。
+产品与创意改写承接视频拆解的每个镜头、证据关键帧和分析描述。改写保持原镜头数量、编号与顺序，目标时长按比例缩放；产品资料和必填产品图控制替换商品的事实与外观。生成每个镜头的中文描述、英文视频生成指令和单张复刻关键帧。图片调用配置好的 Images API 多图编辑接口；渠道需支持所选模型的 `/images/edits`。图像失败保留描述；结果未知时阻止同一输入重复提交，确定未提交的错误可在镜头卡重新生成。修改描述或产品资料后提示更新图片。ZIP 包含复刻图片和原镜头对应清单。

@@ -10,7 +10,7 @@ import { aiFocusPoints, selectedFocusBrief } from '../shared/focus';
 import { dataDir, uploadDir } from './store';
 import { extractKeyframes, prepareShotMedia } from './media';
 import { buildRemixPrompt, buildRemixAudio, getRemixSettings, characterBasis, remixPlanBasis, remixTimingSchema, remixCorrectionPatchSchema, applyRemixShotPatches, remixCorrectionBasis, type RemixCorrection, type RemixPromptPhase, type RemixSettings } from '../shared/remix';
-import { generateImage } from './image-generation';
+import { generateImage, imageGenerationStatus, type ImageModel, type ImageReference } from './image-generation';
 
 const connectionFile = path.join(dataDir, '.gemini-connection.json');
 function savedConnection(): { apiKey: string; baseUrl: string } | null {
@@ -481,7 +481,6 @@ export async function rewrite(project: Project, progress: (n: number, message: s
   } catch (error) { throw providerError(error); }
 }
 
-export const keyframeModel = () => process.env.SOP_KEYFRAME_MODEL || 'gemini-3.1-flash-image';
 export async function keyframeRequest(project: Project, shot: RewriteShot) {
   const source = sourceShotFor(project, shot);
   const video = project.assets.find(asset => asset.kind === 'video');
@@ -501,46 +500,17 @@ export async function keyframeRequest(project: Project, shot: RewriteShot) {
     `Rewritten scene: ${shot.visual}. Subject: ${shot.subject || ''}. Action: ${shot.action}. Camera: ${shot.camera}. Product: ${shot.productPresence}. Effects: ${shot.effects || ''}.`,
     `Avoid: ${project.rewrite!.negativePrompt}`,
   ].join('\n');
-  return { status: 'running' as const, basis: keyframeBasis(project, shot), prompt, model: keyframeModel(), sourceAt: frame.at, sourceFrameUrl: frame.url };
+  return { status: 'running' as const, basis: keyframeBasis(project, shot), prompt, model: imageGenerationStatus().model, attemptId: randomUUID(), sourceAt: frame.at, sourceFrameUrl: frame.url };
 }
 export async function generateKeyframe(project: Project, request: NonNullable<RewriteShot['keyframe']>) {
-  const parts: Part[] = [{ text: request.prompt },
-    { inlineData: { mimeType: 'image/jpeg', data: (await readFile(path.join(uploadDir, path.basename(request.sourceFrameUrl)))).toString('base64') } },
-    ...await imageParts(project)];
-  const result = await generateReferenceImage(parts, request.model, project.market.aspectRatio, 'recreation');
-  return { keyframe: { ...request, ...result.image, status: 'completed' as const, error: undefined }, usage: result.usage };
-}
-
-async function generateReferenceImage(parts: Part[], model: string, aspectRatio: string, prefix: string) {
-  try {
-    let responseParts: any[];
-    let usage: { input: number; output: number };
-    if (compatibleBaseUrl()) {
-      const key = sessionKey || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
-      const response = await fetch(nativeEndpoint(model), {
-        method: 'POST', redirect: 'manual', signal: AbortSignal.timeout(180000),
-        headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: [{ role: 'user', parts: parts.map(part => part.text ? { text: part.text } : { inline_data: { mime_type: part.inlineData!.mimeType, data: part.inlineData!.data } }) }],
-          generationConfig: { responseModalities: ['TEXT', 'IMAGE'], imageConfig: { aspectRatio, imageSize: '1K' } } }),
-      });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) throw Object.assign(new Error(payload?.error?.message || `关键帧接口请求失败 (${response.status})`), { status: response.status });
-      responseParts = payload.candidates?.[0]?.content?.parts || [];
-      const metadata = payload.usageMetadata || payload.usage_metadata || {};
-      usage = { input: metadata.promptTokenCount || metadata.prompt_token_count || 0, output: metadata.candidatesTokenCount || metadata.candidates_token_count || 0 };
-    } else {
-      const response = await client().models.generateContent({ model, contents: [{ role: 'user', parts }],
-        config: { responseModalities: ['TEXT', 'IMAGE'], imageConfig: { aspectRatio, imageSize: '1K' } } });
-      responseParts = response.candidates?.[0]?.content?.parts || [];
-      usage = { input: response.usageMetadata?.promptTokenCount || 0, output: response.usageMetadata?.candidatesTokenCount || 0 };
-    }
-    const image = responseParts.filter(part => !part.thought).map(part => part.inlineData || part.inline_data).find(data => data?.data && /^image\/(png|jpeg|webp)$/.test(data.mimeType || data.mime_type));
-    if (!image) throw new Error('关键帧模型未返回图片，请确认当前模型渠道支持图像生成后重试。');
-    const mime = (image.mimeType || image.mime_type) as 'image/png' | 'image/jpeg' | 'image/webp';
-    const filename = `${prefix}-${randomUUID()}.${mime === 'image/jpeg' ? 'jpg' : mime === 'image/webp' ? 'webp' : 'png'}`;
-    await writeFile(path.join(uploadDir, filename), Buffer.from(image.data, 'base64'), { mode: 0o600 });
-    return { image: { filename, url: `/media/${filename}`, mime, generatedAt: new Date().toISOString() }, usage };
-  } catch (error) { throw providerError(error); }
+  const source = await readFile(path.join(uploadDir, path.basename(request.sourceFrameUrl)));
+  const references: ImageReference[] = [{ data: source, mime: 'image/jpeg', filename: 'source.jpg' }];
+  for (const [index, asset] of project.assets.filter(asset => asset.kind === 'product').entries()) {
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(asset.mime)) throw new Error('商品参考图格式必须为 PNG、JPEG 或 WebP。');
+    references.push({ data: await readFile(path.join(uploadDir, path.basename(asset.filename))), mime: asset.mime as ImageReference['mime'], filename: `product-${index + 1}.${asset.mime === 'image/jpeg' ? 'jpg' : asset.mime === 'image/webp' ? 'webp' : 'png'}` });
+  }
+  const image = await generateImage({ idempotencyKey: request.attemptId || randomUUID(), prompt: request.prompt, aspectRatio: project.market.aspectRatio, prefix: 'recreation', model: request.model as ImageModel, references });
+  return { keyframe: { ...request, ...image, status: 'completed' as const, error: undefined }, usage: { input: 0, output: 0 } };
 }
 
 export async function generateRemixCharacter(project: Project, settings: RemixSettings, jobId: string) {
