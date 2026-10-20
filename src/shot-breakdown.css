@@ -115,3 +115,11 @@
   .shot-row-title strong { font-size: .75rem; }
   .shot-row-editor { padding: 0 14px 15px; }
 }
+
+/* Tick/untick shots: unticked ones stay listed (dimmed) but are left out of everything downstream. */
+.shot-row-heading > .shot-include { display: inline-flex; align-items: center; flex-shrink: 0; cursor: pointer; }
+.shot-row-heading > .shot-include input { width: 16px; height: 16px; margin: 0; accent-color: #111; cursor: pointer; }
+.shot-row-heading > .shot-include input:disabled { cursor: not-allowed; }
+.shot-breakdown-row.shot-excluded { opacity: .55; }
+.shot-breakdown-row.shot-excluded:hover { opacity: .8; }
+.shot-excluded-note { margin: 6px 0 0 30px; font-size: 12px; color: var(--muted, #666); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

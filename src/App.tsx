@@ -792,10 +792,31 @@ export default function App() {
     delete suggestions[source.id];
     return { ...p, analysis: { ...p.analysis!, shots }, analysisReview: { pendingIds: [...new Set([...(p.analysisReview?.pendingIds || []), source.id, newId])], suggestions } };
   });
-  const applyShotTimings = (updatedShots: Shot[], selectedIndex: number) => {
+  const setShotIncluded = (shotId: string, included: boolean) => {
+    const total = project.analysis?.shots.length || 0;
+    if (!project.analysis || (!included && total <= 1)) return;
     change(p => {
       if (!p.analysis) return p;
-      const previous = new Map(p.analysis.shots.map(shot => [shot.id, shot]));
+      const analysis = p.analysis;
+      const excluded = analysis.excludedShots || [];
+      if (!included) {
+        const shot = analysis.shots.find(item => item.id === shotId);
+        if (!shot || analysis.shots.length <= 1) return p;
+        const suggestions = { ...p.analysisReview?.suggestions };
+        delete suggestions[shotId];
+        const analysisReview = p.analysisReview ? { ...p.analysisReview, pendingIds: p.analysisReview.pendingIds.filter(id => id !== shotId), suggestions } : p.analysisReview;
+        return { ...p, analysis: { ...analysis, shots: analysis.shots.filter(item => item.id !== shotId), excludedShots: [...excluded, shot].sort((a, b) => a.start - b.start) }, analysisReview };
+      }
+      const shot = excluded.find(item => item.id === shotId);
+      if (!shot) return p;
+      return { ...p, analysis: { ...analysis, shots: [...analysis.shots, shot].sort((a, b) => a.start - b.start), excludedShots: excluded.filter(item => item.id !== shotId) } };
+    });
+    setSelectedShot(current => Math.max(0, Math.min(current, total + (included ? 0 : -2))));
+  };
+  const applyShotTimings = (updatedShots: Shot[], selectedIndex: number, excludedShots?: Shot[]) => {
+    change(p => {
+      if (!p.analysis) return p;
+      const previous = new Map([...p.analysis.shots, ...(p.analysis.excludedShots || [])].map(shot => [shot.id, shot]));
       const ids = new Set(updatedShots.map(shot => shot.id));
       const changedIds = new Set(updatedShots.filter(shot => {
         const old = previous.get(shot.id);
@@ -804,7 +825,7 @@ export default function App() {
       const pendingIds = [...new Set([...(p.analysisReview?.pendingIds || []).filter(id => ids.has(id)), ...changedIds])];
       const suggestions = { ...p.analysisReview?.suggestions };
       for (const id of Object.keys(suggestions)) if (!ids.has(id) || changedIds.has(id)) delete suggestions[id];
-      return { ...p, analysis: { ...p.analysis, shots: updatedShots }, analysisReview: { pendingIds, suggestions } };
+      return { ...p, analysis: { ...p.analysis, shots: updatedShots, excludedShots: excludedShots ?? p.analysis.excludedShots }, analysisReview: { pendingIds, suggestions } };
     });
     setSelectedShot(selectedIndex);
     setTimelineOpen(false);
@@ -855,10 +876,10 @@ export default function App() {
         <div className="sidebar-project-heading"><Clapperboard size={16} /><strong id="sidebar-current-project-title" title={project.title}>{project.title}</strong>{project.archivedAt && <Badge>已归档</Badge>}</div>
         <nav className="workflow-nav" aria-label="制作流程">{steps.map((s, i) => { const Icon = s.icon; return <button key={s.en} className={`nav-item ${!showMediaLibrary && step === i ? 'active' : ''}`} aria-label={s.name} title={s.name} disabled={!!busy || (!canvasView && !available[i])} onClick={() => { setShowMediaLibrary(false); if (canvasView) setStep(i); else void go(i); }}><Icon size={18} /><span>{s.name}</span><span className="nav-number">0{i + 1}</span></button>; })}</nav>
       </section>
-      <div className="sidebar-footer-row"><button className="sidebar-config" title="配置" aria-label="配置" onClick={() => setModal('config')}><Settings size={16} /><span>配置</span></button><LanguageSwitch /></div>
+      <div className="sidebar-footer-row"><button className="sidebar-config" title="配置" aria-label="配置" onClick={() => setModal('config')}><Settings size={16} /><span>配置</span></button></div>
     </aside>
     <div className="main-shell">
-      <header className="topbar"><div className="breadcrumbs"><button className="icon-btn sidebar-toggle desktop-sidebar-toggle" aria-label={sidebarIsCollapsed ? '展开侧边栏' : '收起侧边栏'} title={sidebarIsCollapsed ? '展开侧边栏' : '收起侧边栏'} aria-expanded={!sidebarIsCollapsed} aria-controls="workspace-sidebar" onClick={() => { setSidebarOpen(false); setSidebarCollapsed(!sidebarIsCollapsed); }}><SidebarToggleIcon expanded={!sidebarIsCollapsed} /></button><button className="icon-btn sidebar-toggle mobile-menu" aria-label={sidebarOpen ? '关闭导航' : '打开导航'} title={sidebarOpen ? '关闭导航' : '打开导航'} aria-expanded={sidebarOpen} aria-controls="workspace-sidebar" onClick={() => setSidebarOpen(!sidebarOpen)}><SidebarToggleIcon expanded={sidebarOpen} /></button><FolderOpen size={16} /><span>{defaultWorkspace.title}</span><ChevronRight size={14} /><button className="breadcrumb-project" onClick={() => parentProject && editParentProject(parentProject)} disabled={!!busy} title="重命名项目">{parentProject?.title || '默认项目'}</button><ChevronRight size={14} /><button className="breadcrumb-current breadcrumb-creative" onClick={editCreative} disabled={disabled} title="编辑创意名称与所属项目">{project.title}</button></div><div className="topbar-actions"><span className="save-status">{saving ? <LoaderCircle size={14} className="spin" /> : dirty ? <span className="unsaved-dot" /> : <CheckCheck size={14} />}{saving ? '保存中' : dirty ? '待保存' : '已保存'}</span><button className="icon-btn" title="保存创意 ⌘S" aria-label="保存创意" disabled={disabled || !dirty} onClick={() => perform('正在保存', async () => { await flush(); setNotice('已保存'); })}><Save size={17} /></button><span className="topbar-divider" /><button className="btn small" onClick={() => newProject()} disabled={!!busy}><Plus size={15} />新建创意</button><button className="account-chip" onClick={openAuth}><span>{auth.user ? <img src={accountAvatar} alt="" /> : <Mail size={14} />}</span>{auth.user ? authDisplayName(auth.user) : '登录'}</button></div></header>
+      <header className="topbar"><div className="breadcrumbs"><button className="icon-btn sidebar-toggle desktop-sidebar-toggle" aria-label={sidebarIsCollapsed ? '展开侧边栏' : '收起侧边栏'} title={sidebarIsCollapsed ? '展开侧边栏' : '收起侧边栏'} aria-expanded={!sidebarIsCollapsed} aria-controls="workspace-sidebar" onClick={() => { setSidebarOpen(false); setSidebarCollapsed(!sidebarIsCollapsed); }}><SidebarToggleIcon expanded={!sidebarIsCollapsed} /></button><button className="icon-btn sidebar-toggle mobile-menu" aria-label={sidebarOpen ? '关闭导航' : '打开导航'} title={sidebarOpen ? '关闭导航' : '打开导航'} aria-expanded={sidebarOpen} aria-controls="workspace-sidebar" onClick={() => setSidebarOpen(!sidebarOpen)}><SidebarToggleIcon expanded={sidebarOpen} /></button><FolderOpen size={16} /><span>{defaultWorkspace.title}</span><ChevronRight size={14} /><button className="breadcrumb-project" onClick={() => parentProject && editParentProject(parentProject)} disabled={!!busy} title="重命名项目">{parentProject?.title || '默认项目'}</button><ChevronRight size={14} /><button className="breadcrumb-current breadcrumb-creative" onClick={editCreative} disabled={disabled} title="编辑创意名称与所属项目">{project.title}</button></div><div className="topbar-actions"><span className="save-status">{saving ? <LoaderCircle size={14} className="spin" /> : dirty ? <span className="unsaved-dot" /> : <CheckCheck size={14} />}{saving ? '保存中' : dirty ? '待保存' : '已保存'}</span><button className="icon-btn" title="保存创意 ⌘S" aria-label="保存创意" disabled={disabled || !dirty} onClick={() => perform('正在保存', async () => { await flush(); setNotice('已保存'); })}><Save size={17} /></button><span className="topbar-divider" /><button className="btn small" onClick={() => newProject()} disabled={!!busy}><Plus size={15} />新建创意</button><LanguageSwitch /><button className="account-chip" onClick={openAuth}><span>{auth.user ? <img src={accountAvatar} alt="" /> : <Mail size={14} />}</span>{auth.user ? authDisplayName(auth.user) : '登录'}</button></div></header>
       <main className={showMediaLibrary ? 'media-workspace-main' : canvasView ? 'canvas-workspace-main' : step === 2 ? 'remix-workspace-main' : undefined}>
         {showMediaLibrary ? <MediaLibraryPage user={auth.user} onSelect={item => openAssetLibrary('all', item)} onUpload={() => openAssetLibrary('all')} onSignIn={openAuth} /> : <>
         {project.archivedAt && <div className="banner sample"><Archive size={16} /><span>此创意已归档，素材和制作结果仍保存在本机。</span><button disabled={!!busy || running} onClick={() => setProjectArchived(project.id, false)}>恢复到所属项目 <ArchiveRestore size={14} /></button></div>}
@@ -915,7 +936,7 @@ export default function App() {
             <div className="breakdown-source-body"><div>{previewVideo(true)}{project.analysis && <div className="video-timeline">{project.analysis.shots.map((s, i) => <button key={s.id} className={selectedShot === i ? 'selected' : ''} style={{ flex: s.end - s.start }} onClick={() => { setSelectedShot(i); seek(s.start); }} title={`${roles[s.role]} ${s.start.toFixed(3)}–${s.end.toFixed(3)} 秒`}>{i + 1}</button>)}</div>}</div><div className="breakdown-source-analysis">{project.analysis ? <><p className="breakdown-source-meta">{project.analysis.duration.toFixed(3)} 秒 · {project.isDemo ? '手写示例' : project.analysisMeta?.mode === 'sampled-frames' ? '抽帧分析' : 'Gemini 视频分析'}</p><h3>原片表达与产品观察</h3>{project.analysis.sellingPoints.map((text, i) => <p key={i}>{text}</p>)}<p>{project.analysis.productAppearance}</p>{!!project.analysis.uncertainties.length && <details><summary>需要核对 · {project.analysis.uncertainties.length} 项</summary>{project.analysis.uncertainties.map((text, i) => <p key={i}>{text}</p>)}</details>}</> : <p>上传参考视频后，Gemini 会按实际剪辑和动作段落整理镜头。每行片段和关键帧都从本机原片截取。</p>}</div></div></details>
           {project.analysis && <section className="panel global-focus-panel"><div className="global-focus-heading"><h2>全片关注重点</h2><small>{(project.analysis.focusPoints || []).filter(point => point.selected).length}/{project.analysis.focusPoints?.length || 0} 项已勾选</small></div><p>AI 给出复刻候选，你可以勾选、订正或补充。已勾选的内容会成为二创提示词的优先要求。</p>{!!project.analysisReview?.globalFocusSuggestion?.length && <div className="global-focus-suggestion"><strong>局部重新分析后，AI 建议更新全片重点</strong><ul>{project.analysisReview.globalFocusSuggestion.map(point => <li key={point.id}>{point.selected ? '☑' : '□'} {point.text}</li>)}</ul><div className="global-focus-actions"><button className="btn small" disabled={disabled} onClick={dismissGlobalFocusSuggestion}>保留当前</button><button className="btn small primary" disabled={disabled} onClick={acceptGlobalFocusSuggestion}>采用 AI 建议</button></div></div>}<FocusPointsEditor points={project.analysis.focusPoints} onChange={updateGlobalFocus} disabled={disabled} onSeek={seek} /></section>}
           <section className="panel scene-panel"><div className="panel-heading"><div><Clapperboard size={18} /><h2>镜头片段与证据</h2><Badge>{project.analysis?.shots.length || 0} 个镜头</Badge></div>{project.analysis && <div className="breakdown-heading-actions"><button className="btn small" disabled={disabled} onClick={() => { player.current?.pause(); setTimelineOpen(true); }}><Scissors size={14} />编辑镜头时间线</button>{!!project.analysisReview?.pendingIds.length && <button className="btn small" disabled={disabled || !video} onClick={() => void startJob('analysis-refine')}><Sparkles size={14} />重新分析变动镜头（{project.analysisReview.pendingIds.length}）</button>}</div>}</div>
-            {project.analysis ? <ShotBreakdown project={project} selectedIndex={selectedShot} onSelect={setSelectedShot} onSeek={seek} onCopy={text => void copy(text)} onSplit={splitAnalysisShot} onAcceptSuggestion={acceptShotSuggestion} onDismissSuggestion={dismissShotSuggestion} onFocusChange={updateShotFocus} disabled={disabled} renderEditor={(s, i) => sceneEditor(s, i)} /> : <div className="empty-state"><ScanLine size={38} strokeWidth={1.2} /><h3>{running ? '正在逐段理解视频' : '开始拆解你的参考片'}</h3><p>逐镜头整理片段、证据关键帧与可编辑的观察和 Prompt。</p><button className="btn primary" disabled={disabled || !video} onClick={() => startJob('analysis')}><Sparkles size={16} />{status.configured ? '开始视频拆解' : '连接 Gemini 并开始'}</button></div>}
+            {project.analysis ? <ShotBreakdown project={project} selectedIndex={selectedShot} onSelect={setSelectedShot} onSeek={seek} onCopy={text => void copy(text)} onSplit={splitAnalysisShot} onToggleInclude={setShotIncluded} onAcceptSuggestion={acceptShotSuggestion} onDismissSuggestion={dismissShotSuggestion} onFocusChange={updateShotFocus} disabled={disabled} renderEditor={(s, i) => sceneEditor(s, i)} /> : <div className="empty-state"><ScanLine size={38} strokeWidth={1.2} /><h3>{running ? '正在逐段理解视频' : '开始拆解你的参考片'}</h3><p>逐镜头整理片段、证据关键帧与可编辑的观察和 Prompt。</p><button className="btn primary" disabled={disabled || !video} onClick={() => startJob('analysis')}><Sparkles size={16} />{status.configured ? '开始视频拆解' : '连接 Gemini 并开始'}</button></div>}
             {project.analysis && <div className="panel-footnote"><Info size={14} /><span>重新拆解将丢弃当前所有镜头记录，重新执行完整的视频分析（第二阶段）。已编辑的镜头描述和时间调整将被覆盖。</span></div>}
           </section>
         </div>}
@@ -928,7 +949,7 @@ export default function App() {
       </main>
     </div>
     {showPipeline && <PipelineCanvas project={project} onClose={() => setShowPipeline(false)} />}
-    {timelineOpen && project.analysis && <ShotTimelineEditor key={project.id} shots={project.analysis.shots} duration={project.analysis.duration} video={video} initialIndex={selectedShot} disabled={disabled} onApply={applyShotTimings} onClose={() => setTimelineOpen(false)} />}
+    {timelineOpen && project.analysis && <ShotTimelineEditor key={project.id} shots={project.analysis.shots} excludedShots={project.analysis.excludedShots} duration={project.analysis.duration} video={video} initialIndex={selectedShot} disabled={disabled} onApply={applyShotTimings} onClose={() => setTimelineOpen(false)} />}
     {notice && <div className="toast" role="status"><Check size={17} />{notice}</div>}
     {busy && <div className="busy-indicator" role="status"><LoaderCircle className="spin" size={14} />{busy}</div>}
     {organizationDialog && <OrganizationForm key={`${organizationDialog.kind}:${organizationDialog.parentId}`} dialog={organizationDialog} groups={projectGroups} busy={!!busy} error={error} onSubmit={submitOrganization} onClose={() => { if (!busy) setOrganizationDialog(null); }} />}

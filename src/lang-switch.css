@@ -28,3 +28,11 @@ html[lang="en"] .landing-page .ls-tools-head h2 { font-size: clamp(28px, 3vw, 42
 .sidebar .lang-switch-menu button:hover { background: #f2f2f2; }
 .sidebar-collapsed .sidebar-footer-row { flex-direction: column; align-self: center; }
 .sidebar-collapsed .sidebar .lang-switch-menu, .sidebar-collapsed .lang-switch-menu { left: 0; right: auto; }
+
+/* Workspace topbar: language switch beside the account chip (same context/localStorage as landing + sidebar). */
+.topbar-actions .lang-switch-button { display: inline-flex; align-items: center; gap: 6px; min-height: 31px; padding: 0 11px; border: 1px solid var(--line, rgba(0,0,0,.1)); border-radius: 999px; background: #fff; color: #444; font-size: 12px; font-weight: 500; line-height: 1; cursor: pointer; white-space: nowrap; transition: background .2s, border-color .2s; }
+.topbar-actions .lang-switch-button:hover { background: #f7f7f7; border-color: #ccc; color: var(--text, #111); }
+.topbar-actions .lang-switch-menu { top: calc(100% + 8px); right: 0; left: auto; z-index: 90; border-color: rgba(0,0,0,.1); background: #fff; box-shadow: 0 12px 32px rgba(0,0,0,.14); -webkit-backdrop-filter: none; backdrop-filter: none; }
+.topbar-actions .lang-switch-menu button { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; padding: 8px 10px; border: 0; border-radius: 8px; background: none; color: var(--text, #111); font-size: 13px; line-height: 1.2; text-align: left; cursor: pointer; }
+.topbar-actions .lang-switch-menu button:hover { background: #f2f2f2; }
+@media (max-width: 780px) { .topbar-actions .lang-switch-button { padding: 0 8px; } }

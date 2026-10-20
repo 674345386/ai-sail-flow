@@ -72,9 +72,11 @@ export const analysisSchema = z.object({
   productAppearance: z.string().max(6000), shots: z.array(shotSchema).min(1).max(120),
   uncertainties: z.array(z.string().max(2000)).max(30),
   focusPoints: z.array(focusPointSchema).max(12).optional(),
+  // Shots the user unticked: kept for display/restore, but not part of `shots`, so nothing downstream uses them.
+  excludedShots: z.array(shotSchema).max(120).optional(),
 });
 // New model responses must supply the observation structure; old saved projects remain valid.
-export const analysisModelSchema = analysisSchema.extend({
+export const analysisModelSchema = analysisSchema.omit({ excludedShots: true }).extend({
   focusPoints: z.array(focusCandidateSchema).min(1).max(12),
   shots: z.array(shotSchema.extend({ focusPoints: z.array(focusCandidateSchema).min(1).max(8) }).required({
   subject: true, effects: true, transition: true, reconstructionPrompt: true, evidenceFrames: true,
