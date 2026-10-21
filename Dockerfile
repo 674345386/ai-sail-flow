@@ -14,7 +14,7 @@ ARG VITE_REQUIRE_AUTH=true
 ENV VITE_SUPABASE_URL=${VITE_SUPABASE_URL} \
   VITE_SUPABASE_PUBLISHABLE_KEY=${VITE_SUPABASE_PUBLISHABLE_KEY} \
   VITE_REQUIRE_AUTH=${VITE_REQUIRE_AUTH}
-RUN npm run build \
+RUN npx vite build \
   && mkdir -p /app/data \
   && chown -R node:node /app
 
