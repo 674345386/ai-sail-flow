@@ -125,3 +125,6 @@
 .shot-excluded-note { margin: 6px 0 0 30px; font-size: 12px; color: var(--muted, #666); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .shot-media-label-bare { justify-content: flex-end; }
 .shot-seek-time { margin-left: 4px; color: #8b9b90; font-size: .68rem; font-variant-numeric: tabular-nums; }
+.shot-breakdown-row { transition: var(--sel-transition); }
+.shot-breakdown-row.selected { position: relative; z-index: 1; box-shadow: var(--sel-ring); }
+.shot-breakdown-row.selected { transform: translateY(-2px); }

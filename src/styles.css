@@ -1404,3 +1404,14 @@ main { padding: 42px 42px 0; max-width: 1740px; }
   .gf-models .gf-centered-heading h2 { font-size: 1.9rem; }
   .gf-models .gf-omni-copy h3 { font-size: 2rem; }
 }
+
+/* Shared "selected" treatment (2026-10-21): brand-green 2px ring + 30% halo + soft 14px glow, 150ms fade-in. Use these everywhere a card/shot is selected. */
+:root { --sel-color: #4f9a66; --sel-ring: 0 0 0 2px #4f9a66, 0 0 0 5px #4f9a6638, 0 8px 24px #4f9a664d; --sel-transition: box-shadow .15s ease, transform .15s ease; }
+.is-selected-glow { position: relative; z-index: 3; box-shadow: var(--sel-ring); transition: var(--sel-transition); }
+:root { --sel-float: 0 0 0 2px #4f9a66, 0 0 0 5px #4f9a6638, 0 14px 28px -6px #0f1f1580, 0 8px 24px #4f9a664d; }
+:root {
+  --sel-lift: translateY(-4px);
+  --sel-ring: 0 0 0 2px #4f9a66, 0 0 0 5px #4f9a6640, 0 10px 22px -6px #00000073, 0 0 18px #4f9a6666;
+  --sel-float: var(--sel-ring);
+  --sel-transition: transform .18s cubic-bezier(.2, .8, .2, 1), box-shadow .18s ease;
+}
