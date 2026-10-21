@@ -123,3 +123,5 @@
 .shot-breakdown-row.shot-excluded { opacity: .55; }
 .shot-breakdown-row.shot-excluded:hover { opacity: .8; }
 .shot-excluded-note { margin: 6px 0 0 30px; font-size: 12px; color: var(--muted, #666); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.shot-media-label-bare { justify-content: flex-end; }
+.shot-seek-time { margin-left: 4px; color: #8b9b90; font-size: .68rem; font-variant-numeric: tabular-nums; }

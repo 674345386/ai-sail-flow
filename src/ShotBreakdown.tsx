@@ -71,7 +71,7 @@ function SourceClip({ project, shot, media, index, onSelect }: { project: Projec
   };
   const poster = media.frames[0]?.previewUrl || media.frames[0]?.url;
   return <>
-    <div className="shot-media-label"><Film size={13} /><span>原片切片{reference?.hasAudio ? ' · 保留原声' : reference?.hasAudio === false ? ' · 无音轨' : ''}</span>
+    <div className="shot-media-label shot-media-label-bare">
       <button className="text-button" disabled={preparing} onClick={() => void prepare('download')} aria-label={`下载镜头 ${index + 1}`}><Download size={14} /></button>
     </div>
     {clip ? <video key={clip.key} src={clip.clipUrl} poster={poster} controls playsInline preload="none" autoPlay={result?.key === key && result.intent === 'play'} aria-label={`原片镜头片段 ${index + 1}`} onPlay={event => { onSelect(); document.querySelectorAll<HTMLVideoElement>('.shot-row-media video').forEach(video => { if (video !== event.currentTarget) video.pause(); }); }} />
@@ -124,19 +124,18 @@ function ShotRow({ project, shot, index, number, selected, expanded, disabled, o
     ['镜头重建 Prompt', suggestion.reconstructionPrompt, shot.reconstructionPrompt],
   ] as [string, string | undefined, string | undefined][]).filter(([, proposed, current]) => (proposed || '') !== (current || '')) : [];
   return <article ref={row} className={`shot-breakdown-row ${selected ? 'selected' : ''}`}>
-    <header className="shot-row-heading"><label className="shot-include" title={onExclude ? '取消勾选，不使用此镜头' : '至少保留一个镜头'}><input type="checkbox" checked disabled={disabled || !onExclude} onChange={() => onExclude?.()} aria-label={`使用镜头片段 ${number}`} /></label><button onClick={onSelect} className="shot-row-title"><b>{String(number).padStart(2, '0')}</b><span><strong>镜头片段 {String(number).padStart(2, '0')}</strong><small>{shot.start.toFixed(3)}–{shot.end.toFixed(3)} 秒 · {(shot.end - shot.start).toFixed(3)} 秒</small></span></button><span className="badge">{roles[shot.role]}</span>{onSeek && <button className="text-button" onClick={() => { onSelect(); onSeek(shot.start); }}><Play size={13} />定位原片</button>}</header>
+    <header className="shot-row-heading"><label className="shot-include" title={onExclude ? '取消勾选，不使用此镜头' : '至少保留一个镜头'}><input type="checkbox" checked disabled={disabled || !onExclude} onChange={() => onExclude?.()} aria-label={`使用镜头片段 ${number}`} /></label><button onClick={onSelect} className="shot-row-title" title={`${shot.start.toFixed(3)}–${shot.end.toFixed(3)} 秒 · ${(shot.end - shot.start).toFixed(3)} 秒`}><b>{String(number).padStart(2, '0')}</b><span><strong>镜头片段 {String(number).padStart(2, '0')}</strong></span></button><span className="badge">{roles[shot.role]}</span>{onSeek && <button className="text-button" onClick={() => { onSelect(); onSeek(shot.start); }}><Play size={13} />定位原片 <small className="shot-seek-time">{shot.start.toFixed(1)}s</small></button>}</header>
     <div className="shot-row-content">
       <div className="shot-row-media">
         {media ? <SourceClip project={project} shot={shot} media={media} index={index} onSelect={onSelect} /> : <><div className="shot-media-label"><Film size={13} /><span>原片片段</span></div><div className="shot-media-placeholder"><Film size={27} /><span>{!reference ? '示例未关联原片' : error ? '画面暂不可用' : <><LoaderCircle size={14} className="spin" />准备证据画面…</>}</span></div></>}
         {error && <p className="shot-media-error" role="alert">{error}<button className="text-button" onClick={() => setAttempt(attempt + 1)}><RotateCcw size={12} />重新提取</button></p>}
       </div>
       <div className="shot-row-evidence">
-        <div className="shot-media-label"><Image size={13} /><span>证据关键帧 · 3 张</span><small>原片真实截帧</small></div>
+        <div className="shot-media-label"><Image size={13} /><span>证据关键帧 · 3 张</span></div>
         {media ? <div className="shot-frame-strip">{media.frames.map(item => <button key={item.url} onClick={() => setFrame(item)} title={`${frameLabels[item.position]}：${item.reason}`}>
           <img src={item.previewUrl || item.url} alt={`${frameLabels[item.position]} · ${item.at.toFixed(3)} 秒：${item.reason}`} decoding="async" />
           <b>{frameLabels[item.position]}</b><span>{item.at.toFixed(3)}s</span><small>{item.reason}</small>
         </button>)}</div> : <div className="shot-evidence-placeholder">{reference ? '从原片提取首帧、中间关键帧、尾帧' : '上传原片后可查看 3 张关键帧'}</div>}
-        <p className="shot-evidence-note">{media?.frames.some(frame => frame.selection === 'model') ? '首尾按镜头边界截取 · 中间采用 Gemini 建议 · 点击放大' : '首帧 / 中间关键帧 / 尾帧 · 点击放大'}</p>
       </div>
       <dl className={`shot-row-observations${renderEditor ? ' editable' : ''}`} onDoubleClick={renderEditor ? onExpand : undefined} title={renderEditor ? '双击编辑镜头信息' : undefined}><div className="shot-observation-wide"><dt>画面与场景</dt><dd>{shot.visual || '未记录'}</dd></div>{[
         ['主体与外观', shot.subject || '未单独记录；参见画面描述'], ['主体动作', shot.action], ['运镜 / 镜头语言', shot.camera],
@@ -154,7 +153,7 @@ function ShotRow({ project, shot, index, number, selected, expanded, disabled, o
 
 function ExcludedShotRow({ shot, number, disabled, onInclude, onSeek }: { shot: Shot; number: number; disabled: boolean; onInclude?: () => void; onSeek?: (seconds: number) => void }) {
   return <article className="shot-breakdown-row shot-excluded">
-    <header className="shot-row-heading"><label className="shot-include" title="勾选以重新使用此镜头"><input type="checkbox" checked={false} disabled={disabled || !onInclude} onChange={() => onInclude?.()} aria-label={`使用镜头片段 ${number}`} /></label><button className="shot-row-title" onClick={() => onSeek?.(shot.start)}><b>{String(number).padStart(2, '0')}</b><span><strong>镜头片段 {String(number).padStart(2, '0')}</strong><small>{shot.start.toFixed(3)}–{shot.end.toFixed(3)} 秒 · {(shot.end - shot.start).toFixed(3)} 秒</small></span></button><span className="badge">未使用</span>{onSeek && <button className="text-button" onClick={() => onSeek(shot.start)}><Play size={13} />定位原片</button>}</header>
+    <header className="shot-row-heading"><label className="shot-include" title="勾选以重新使用此镜头"><input type="checkbox" checked={false} disabled={disabled || !onInclude} onChange={() => onInclude?.()} aria-label={`使用镜头片段 ${number}`} /></label><button className="shot-row-title" onClick={() => onSeek?.(shot.start)} title={`${shot.start.toFixed(3)}–${shot.end.toFixed(3)} 秒 · ${(shot.end - shot.start).toFixed(3)} 秒`}><b>{String(number).padStart(2, '0')}</b><span><strong>镜头片段 {String(number).padStart(2, '0')}</strong></span></button><span className="badge">未使用</span>{onSeek && <button className="text-button" onClick={() => onSeek(shot.start)}><Play size={13} />定位原片 <small className="shot-seek-time">{shot.start.toFixed(1)}s</small></button>}</header>
     {shot.visual && <p className="shot-excluded-note">{shot.visual}</p>}
   </article>;
 }

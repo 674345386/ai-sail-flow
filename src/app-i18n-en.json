@@ -1650,5 +1650,17 @@
  "右键片段选择「去除此镜头」，它会移到这里，不再用于后续生成": "Right-click a clip and choose “Remove this shot” to move it here; it won't be used downstream",
  "镜头 {} · 已去除 · 右键恢复": "Shot {} · removed · right-click to restore",
  "{} 个镜头 · 使用 {} 个 · 共 {} 秒": "{} shots · {} used · {} s total",
- "相邻镜头已去除，请先恢复": "An adjacent shot is removed; restore it first"
+ "相邻镜头已去除，请先恢复": "An adjacent shot is removed; restore it first",
+ "已选镜头 · {} / {}": "Selected shot · {} / {}",
+ "镜头片段信息": "Shot details",
+ "{}–{} 秒 · {} 秒": "{}–{} s · {} s",
+ "{} · {} 秒": "{} · {} s",
+ "待重新分析": "Needs re-analysis",
+ "实时尾帧": "Live last frame",
+ "当前选中": "Selected",
+ "运镜": "Camera",
+ "使用": "Use",
+ "只播放此镜头": "Play this shot only",
+ "{} 处未应用的修改": "{} unapplied changes",
+ "{} s": "{} s"
 }
