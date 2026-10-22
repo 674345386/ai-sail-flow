@@ -23,6 +23,7 @@ export type GenerationInput = {
   aspectRatio: '16:9' | '9:16';
   images: string[];
   keyframeShotId?: string;
+  tierShotId?: string;
 };
 type Progress = (progress: number, message: string) => void;
 let sessionKey = '';

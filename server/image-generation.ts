@@ -7,7 +7,7 @@ export const IMAGE_MODELS = ['gpt-image-2.5-flare', 'gpt-image-2.5-sunburst', 'g
 export type ImageModel = typeof IMAGE_MODELS[number];
 type Connection = { apiKey: string; baseUrl: string; model: ImageModel };
 type ImageResult = { filename: string; url: string; mime: 'image/png' | 'image/jpeg' | 'image/webp'; generatedAt: string; model: ImageModel };
-type Attempt = { key: string; status: 'submitting' | 'completed' | 'rejected' | 'unknown'; model: ImageModel; prompt: string; fingerprint?: string; requestId: string; result?: ImageResult; error?: string };
+type Attempt = { key: string; status: 'submitting' | 'completed' | 'rejected' | 'unknown'; model: ImageModel; prompt: string; fingerprint?: string; requestId: string; result?: ImageResult; error?: string; references?: { filename: string; bytes: number }[] };
 export type ImageReference = { data: Buffer; mime: 'image/png' | 'image/jpeg' | 'image/webp'; filename: string };
 const connectionFile = path.join(dataDir, '.image-generation.json');
 const attemptDir = path.join(dataDir, 'image-attempts');
@@ -64,7 +64,7 @@ export async function generateImage(input: { idempotencyKey: string; prompt: str
     throw new Error('该图片任务已提交，结果待核对；为避免重复生成和扣费，不会自动重发。');
   }
   const requestId = randomUUID();
-  const attempt: Attempt = { key: input.idempotencyKey, status: 'submitting', model, prompt: input.prompt, fingerprint, requestId };
+  const attempt: Attempt = { key: input.idempotencyKey, status: 'submitting', model, prompt: input.prompt, fingerprint, requestId, references: references.map(ref => ({ filename: ref.filename, bytes: ref.data.length })) };
   // Reserve before submitting, including across multiple server processes.
   try { fs.writeFileSync(existing, JSON.stringify(attempt), { mode: 0o600, flag: 'wx' }); }
   catch (error) {
@@ -80,19 +80,34 @@ export async function generateImage(input: { idempotencyKey: string; prompt: str
       form.set('quality', 'medium'); form.set('output_format', 'png');
       for (const reference of references) form.append('image[]', new Blob([new Uint8Array(reference.data)], { type: reference.mime }), reference.filename);
     }
-    const response = await fetch(`${session.baseUrl}/images/${references.length ? 'edits' : 'generations'}`, {
-      method: 'POST', redirect: 'manual', signal: AbortSignal.timeout(600_000),
+    // 150 s per request. Never resend after a drop: the gateway may already be generating (and billing) it.
+    const send = () => fetch(`${session.baseUrl}/images/${references.length ? 'edits' : 'generations'}`, {
+      method: 'POST', redirect: 'manual', signal: AbortSignal.timeout(150_000),
       headers: { Authorization: `Bearer ${session.apiKey}`, ...(references.length ? {} : { 'Content-Type': 'application/json' }), 'X-Client-Request-Id': requestId },
       body: references.length ? form : JSON.stringify({ model, prompt: input.prompt, n: 1, size, quality: 'medium', output_format: 'png' }),
     });
+    type NetError = Error & { cause?: { code?: string; message?: string } };
+    const reason = (error: NetError) => error.name === 'TimeoutError' ? '超过 150 秒' : error.cause?.code || error.cause?.message || error.message;
+    const response = await send().catch((error: NetError) => { throw new Error(`图片接口连接失败（${reason(error)}）；任务结果待核对。`); });
     const body = await response.json();
     if (!response.ok) {
       rejected = [400, 401, 403, 404, 422, 429].includes(response.status);
       throw new Error(`图片接口 HTTP ${response.status}：${String(body?.error?.message || '请求未完成').slice(0, 300)}`);
     }
-    const encoded = body?.data?.[0]?.b64_json;
-    if (typeof encoded !== 'string' || !encoded) throw new Error('图片接口未返回图片数据；任务结果待核对。');
-    const bytes = Buffer.from(encoded, 'base64');
+    const encoded = body?.data?.[0]?.b64_json, link = body?.data?.[0]?.url;
+    let bytes: Buffer;
+    if (typeof encoded === 'string' && encoded) bytes = Buffer.from(encoded, 'base64');
+    else if (typeof link === 'string' && /^https:\/\//.test(link)) {
+      // Some relays return a hosted URL instead of base64.
+      const download = () => fetch(link, { signal: AbortSignal.timeout(120_000) });
+      const retry = async () => { await new Promise(resolve => setTimeout(resolve, 2000)); return download(); };
+      // Download drops lose an image already paid for, so retry it up to twice.
+      const file = await download().catch(retry).catch(retry).catch((error: Error & { cause?: { code?: string; message?: string } }) => {
+        throw new Error(`图片已生成但下载失败（${error.cause?.code || error.cause?.message || error.message}）；任务结果待核对。`);
+      });
+      if (!file.ok) throw new Error(`图片下载失败 HTTP ${file.status}；任务结果待核对。`);
+      bytes = Buffer.from(await file.arrayBuffer());
+    } else throw new Error('图片接口未返回图片数据；任务结果待核对。');
     if (bytes.length < 8 || !bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) throw new Error('图片接口未返回有效 PNG；任务结果待核对。');
     const filename = `${input.prefix}-${randomUUID()}.png`;
     fs.writeFileSync(path.join(uploadDir, filename), bytes, { mode: 0o600, flag: 'wx' });

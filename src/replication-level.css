@@ -1,0 +1,16 @@
+.replication-picker { display: grid; gap: 10px; }
+.replication-levels { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 3px; gap: 3px; border-radius: 11px; background: #f0f2f0; }
+.replication-level { display: grid; gap: 2px; justify-items: center; padding: 7px 6px; border: 0; border-radius: 8px; background: transparent; cursor: pointer; transition: background .15s ease, box-shadow .15s ease; }
+.replication-level:hover:not(:disabled) { background: #ffffff99; }
+.replication-level.selected { background: #fff; box-shadow: 0 1px 3px #0000001f, 0 0 0 1px #4f9a66; }
+.replication-level strong { font-size: .8rem; color: #1f2a22; }
+.replication-level small { font-size: .66rem; color: #6b746e; line-height: 1.25; text-align: center; }
+.replication-level:disabled { cursor: not-allowed; opacity: .6; }
+.replication-desc { margin: 0; font-size: .74rem; color: #555f58; line-height: 1.45; }
+.replication-dims { display: flex; flex-wrap: wrap; gap: 5px; }
+.replication-dim { display: inline-flex; align-items: center; gap: 4px; font-size: .7rem; padding: 3px 9px; border-radius: 999px; border: 1px solid transparent; transition: background .2s ease, color .2s ease; }
+.replication-dim.is-keep { background: #eef0ee; color: #6b746e; }
+.replication-dim.is-yours { background: #4f9a661a; border-color: #4f9a6655; color: #2f6e43; }
+.replication-dim.is-new { background: #7c5cd61a; border-color: #7c5cd655; color: #5a3fb0; }
+.replication-check { display: inline-flex; align-items: center; gap: 6px; font-size: .74rem; color: #3d4740; }
+@media (max-width: 720px) { .replication-levels { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

@@ -2,7 +2,7 @@ import { keyframesReady } from '../shared/storyboard';
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ReactFlow, Background, BackgroundVariant, Controls, MiniMap, Handle, Position, BaseEdge, useNodesState, type EdgeProps, type ReactFlowInstance, type Viewport } from '@xyflow/react';
 import { AlertCircle, ArrowRight, CheckCircle2, Clapperboard, Download, Eye, FileText, Film, GripVertical, ImagePlus, LoaderCircle, LocateFixed, Maximize2, Minimize2, Package, PanelLeft, Play, RotateCcw, Settings2, Sparkles, Upload, WandSparkles, X } from 'lucide-react';
-import { countries, defaultReplication, languages, platforms, roles, type Market, type Product, type Project, type Shot } from '../shared/domain';
+import { countries, languages, platforms, roles, type Market, type Product, type Project, type Shot } from '../shared/domain';
 import { estimatedClips, finalVideo, workflowRequirements } from '../shared/workflow';
 import { useImagePaste } from './useImagePaste';
 import { buildCreativeGraph, creativeStages, creativeStatusLabels, type CreativeNode, type CreativeNodeData } from './creativeGraph';
@@ -111,7 +111,7 @@ export default function CreativeWorkspace({ project, step, onStep, disabled, bus
         <Field label="产品类别"><select className="input" value={project.product.category} disabled={disabled} onChange={event => product({ category: event.target.value })}>{['家居生活', '美妆个护', '服饰配件', '数码配件', '户外运动', '宠物用品', '其他'].map(value => <option key={value}>{value}</option>)}</select></Field>
         <Field label="已确认的卖点与规格 · 必填" hint="填写真实事实，供后续创意方案使用。"><textarea id="product-facts" className="input textarea" rows={4} value={project.product.facts} maxLength={8000} disabled={disabled} onChange={event => product({ facts: event.target.value })} placeholder="材质、规格、用途与明确卖点" /></Field>
         <Field label="目标购买人群"><textarea className="input textarea" rows={2} value={project.product.audience} maxLength={2000} disabled={disabled} onChange={event => product({ audience: event.target.value })} placeholder="什么人，在什么情境下会需要它？" /></Field>
-        <details className="creative-details"><summary>复刻要求</summary><div><Field label="哪些保持原样"><textarea className="input textarea" rows={3} disabled={disabled} value={(project.replication || defaultReplication).preserve} onChange={event => onPatch({ replication: { ...(project.replication || defaultReplication), preserve: event.target.value } })} /></Field><Field label="哪些可以调整"><textarea className="input textarea" rows={3} disabled={disabled} value={(project.replication || defaultReplication).change} onChange={event => onPatch({ replication: { ...(project.replication || defaultReplication), change: event.target.value } })} /></Field></div></details>
+        
   </>;
   return <section className={`creative-workspace ${focused ? 'is-focused' : ''} ${showInspector ? '' : 'inspector-hidden'}`} aria-label="全局创意画布工作台">
     {project.isDemo && <div className="creative-callout">当前是手写示例创意，画布中的产物用于体验编辑与导出。</div>}

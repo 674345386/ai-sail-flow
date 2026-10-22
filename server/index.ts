@@ -8,7 +8,7 @@ import multer from 'multer';
 import JSZip from 'jszip';
 import { z } from 'zod';
 import { createClient } from '@supabase/supabase-js';
-import { MODEL, defaultWorkspace, projectPatchSchema, validateContinuousTimeline, validateMarket, validateTimeline, type Project, type Asset, type ProductionMode } from '../shared/domain';
+import { MODEL, defaultReplication, defaultWorkspace, projectPatchSchema, validateContinuousTimeline, validateMarket, validateTimeline, type Project, type Asset, type ProductionMode } from '../shared/domain';
 import { buildExportFiles, buildVeoUnitPrompt } from '../shared/export';
 import { buildVeoPlan } from '../shared/veo-plan';
 import { workflowBusy } from '../shared/workflow';
@@ -29,14 +29,15 @@ if (process.env.NODE_USE_ENV_PROXY === '1') {
 }
 // Load storage after .env so an optional data-directory override takes effect.
 const { createProject, getProject, listProjects, saveProject, uploadDir, defaultProjectId, createWorkspaceProject, getWorkspaceProject, listWorkspaceProjects, saveWorkspaceProject } = await import('./store');
-const { configured, configureConnection, checkModelConnection } = await import('./gemini');
+const { configured, configureConnection, checkModelConnection, correctTierShot, detectTierSubjects, generateTierSubjectImage } = await import('./gemini');
 const { imageGenerationStatus, configureImageGeneration, IMAGE_MODELS } = await import('./image-generation');
 const { VEO_MODELS, VEO_DURATION, configureGenerationKey, generationConfigured } = await import('./veo');
 const { listTtsVoices } = await import('./compose');
 const { launchTask, TaskError } = await import('./tasks');
 const { launchRemix, RemixError } = await import('./remix');
 const { startWorkflow, setWorkflowMode } = await import('./workflow');
-const { inspectMedia, prepareShotMedia } = await import('./media');
+const { inspectMedia, prepareShotMedia, cropToRatio } = await import('./media');
+const { generateTierFrame, projectRatio, undoNewFrame, withNewFrame } = await import('./tier-frames');
 const { collectUploadedAsset, listLibraryMedia, getLibraryMedia, libraryMime, initializeMediaLibrary } = await import('./media-library');
 await initializeMediaLibrary();
 const { configureKeyframeStorage, keyframeStorageStatus } = await import('./keyframe-storage');
@@ -248,6 +249,8 @@ app.put('/api/projects/:id', (req, res) => {
   const patch = projectPatchSchema.parse(req.body);
   if (patch.parentProjectId && !getWorkspaceProject(patch.parentProjectId)) throw new HttpError(404, '所属项目不存在。');
   if (patch.revision !== project.revision) throw new HttpError(409, '创意已更新，请重新打开创意后再编辑。');
+  const subjectsBefore = project.replication?.subjects?.length || 0, subjectsAfter = patch.replication?.subjects?.length || 0;
+  if (subjectsAfter < subjectsBefore) console.warn(`[tier] project ${project.id} subjects ${subjectsBefore} -> ${subjectsAfter} via PUT at revision ${project.revision}`);
   const marketError = validateMarket(patch.market);
   if (marketError) throw new HttpError(400, marketError);
   const promptFlowChanged = (patch.promptFlow || 'localized') !== (project.promptFlow || 'localized');
@@ -287,6 +290,162 @@ app.put('/api/projects/:id', (req, res) => {
 });
 const uploader = multer({ dest: uploadDir, limits: { fileSize: 250 * 1024 * 1024, files: 1, fields: 0 } });
 const characterUploader = multer({ dest: uploadDir, limits: { fileSize: 10 * 1024 * 1024, files: 1, fields: 0 } });
+// 复刻等级 step 1: keyframe correction, subject detection and subject reference images. No image generation here.
+const tierBusy = new Set<string>();
+const tierRevision = (req: Request, project: Project) => {
+  const revision = z.coerce.number().int().nonnegative().parse(req.query.revision ?? req.body?.revision);
+  if (revision !== project.revision) throw new HttpError(409, '创意已更新，请刷新后再试。');
+};
+app.post('/api/projects/:id/tier/shots/:shotId/correct', async (req, res, next) => {
+  const key = `${req.params.id}:${req.params.shotId}`;
+  try {
+    const project = record(req); editable(project); tierRevision(req, project);
+    if (tierBusy.has(key)) throw new HttpError(409, '这个镜头正在修正。');
+    tierBusy.add(key);
+    const { structured, frames, usage } = await correctTierShot(project, String(req.params.shotId));
+    const current = getProject(project.id)!;
+    const rules = current.replication || defaultReplication;
+    const shots = { ...(rules.shots || {}), [String(req.params.shotId)]: { ...(rules.shots?.[String(req.params.shotId)] || {}), structured, frames } };
+    res.json(saveProject({ ...current, replication: { ...rules, shots }, usage: { input: current.usage.input + usage.input, output: current.usage.output + usage.output } }));
+  } catch (error) { next(error); } finally { tierBusy.delete(key); }
+});
+app.post('/api/projects/:id/tier/subjects/detect', async (req, res, next) => {
+  try {
+    const project = record(req); editable(project); tierRevision(req, project);
+    const detected = await detectTierSubjects(project);
+    const current = getProject(project.id)!;
+    const rules = current.replication || defaultReplication;
+    const existing = rules.subjects || [];
+    // Keep subjects the user already bound images to; add newly detected ones by name.
+    const clean = ({ bestShotIds: _best, ...item }: typeof detected[number]) => item;
+    const merged = [...existing.map(old => { const match = detected.find(item => item.name === old.name); return match?.sources.length ? { ...old, sources: match.sources } : old; }),
+      ...detected.filter(item => !existing.some(old => old.name === item.name)).map(item => ({ ...clean(item), id: randomUUID(), images: [] }))].slice(0, 12);
+    res.json(saveProject({ ...current, replication: { ...rules, subjects: merged } }));
+  } catch (error) { next(error); }
+});
+app.post('/api/projects/:id/tier/subjects/:subjectId/generate', async (req, res, next) => {
+  try {
+    const project = record(req); editable(project); tierRevision(req, project);
+    const body = z.object({ instruction: z.string().max(500).default(''), jobId: z.string().uuid() }).parse(req.body || {});
+    const target = (project.replication?.subjects || []).find(item => item.id === req.params.subjectId);
+    if (!target) throw new HttpError(404, '主体不存在。');
+    if (target.images.length >= 3) throw new HttpError(400, '每个主体最多 3 张参考图，先删掉一张再生成。');
+    if (!imageGenerationStatus().configured) throw new HttpError(400, '请先连接图片生成服务。');
+    if (!target.sources?.length) throw new HttpError(400, '这个主体没有原片参考，不能生成。');
+    const image = await generateTierSubjectImage(project, req.params.subjectId, body.instruction, body.jobId);
+    const current = getProject(project.id)!;
+    const rules = current.replication || defaultReplication;
+    const subjects = (rules.subjects || []).map(item => item.id === target.id ? { ...item, images: [...item.images, image].slice(-3) } : item);
+    res.status(201).json(saveProject({ ...current, replication: { ...rules, subjects } }));
+  } catch (error) { next(error); }
+});
+const framePosition = z.enum(['first', 'middle', 'last']);
+const frameBusy = new Set<string>();
+app.post('/api/projects/:id/tier/shots/:shotId/frames/:position/generate', async (req, res, next) => {
+  const key = `${req.params.id}:${req.params.shotId}:${req.params.position}`;
+  try {
+    const project = record(req); editable(project); tierRevision(req, project);
+    const position = framePosition.parse(req.params.position);
+    const body = z.object({ prompt: z.string().max(12000), images: z.array(z.string().regex(/^\/media\/[\w.-]+$/)).max(16), jobId: z.string().uuid() }).parse(req.body || {});
+    if (!imageGenerationStatus().configured) throw new HttpError(400, '请先连接图片生成服务。');
+    if (frameBusy.has(key)) throw new HttpError(409, '这张新帧正在生成。');
+    frameBusy.add(key);
+    let frame;
+    try { frame = await generateTierFrame(project, String(req.params.shotId), position, body.jobId, body.prompt, body.images); }
+    catch (error) { throw error instanceof HttpError ? error : new HttpError(400, error instanceof Error ? error.message : '生成失败。'); }
+    res.status(201).json(saveProject(withNewFrame(getProject(project.id)!, String(req.params.shotId), position, frame)));
+  } catch (error) { next(error); } finally { frameBusy.delete(key); }
+});
+app.post('/api/projects/:id/tier/shots/:shotId/frames/:position/undo', (req, res, next) => {
+  try {
+    const project = record(req); editable(project); tierRevision(req, project);
+    const position = framePosition.parse(req.params.position);
+    try { res.json(saveProject(undoNewFrame(project, String(req.params.shotId), position))); }
+    catch (error) { throw new HttpError(400, error instanceof Error ? error.message : '撤回失败。'); }
+  } catch (error) { next(error); }
+});
+app.post('/api/projects/:id/tier/shots/:shotId/frames/:position/upload', (req, res, next) => {
+  try {
+    const project = record(req); editable(project); tierRevision(req, project);
+    const position = framePosition.parse(req.params.position);
+    if (!project.analysis?.shots.some(item => item.id === req.params.shotId)) throw new HttpError(404, '镜头不存在。');
+    uploadsInProgress.add(project.id);
+    characterUploader.single('file')(req, res, async error => {
+      try {
+        if (error instanceof multer.MulterError && error.code === 'LIMIT_FILE_SIZE') throw new HttpError(400, '单张图片不能超过 10 MB。');
+        if (error) throw error;
+        if (!req.file) throw new HttpError(400, '请选择一张图片。');
+        const metadata = await inspectMedia(req.file.filename, 'product');
+        z.enum(['image/png', 'image/jpeg', 'image/webp']).parse(metadata.mime);
+        const current = getProject(project.id)!;
+        const filename = `tier-frame-${randomUUID()}.png`;
+        await cropToRatio(req.file.path, projectRatio(current).ratio, path.join(uploadDir, filename));
+        res.status(201).json(saveProject(withNewFrame(current, String(req.params.shotId), position, { filename, url: `/media/${filename}`, kind: 'uploaded', createdAt: new Date().toISOString() })));
+      } catch (err) { next(err); }
+      finally { if (req.file) fs.unlink(req.file.path, () => {}); uploadsInProgress.delete(project.id); }
+    });
+  } catch (error) { next(error); }
+});
+app.post('/api/projects/:id/tier/subjects/:subjectId/image', (req, res, next) => {
+  try {
+    const project = record(req); editable(project); tierRevision(req, project);
+    if (!(project.replication?.subjects || []).some(item => item.id === req.params.subjectId)) throw new HttpError(404, '主体不存在。');
+    uploadsInProgress.add(project.id);
+    characterUploader.single('file')(req, res, async error => {
+      let renamed: string | undefined;
+      try {
+        if (error instanceof multer.MulterError && error.code === 'LIMIT_FILE_SIZE') throw new HttpError(400, '单张参考图不能超过 10 MB。');
+        if (error) throw error;
+        if (!req.file) throw new HttpError(400, '请选择一张参考图。');
+        const metadata = await inspectMedia(req.file.filename, 'product');
+        const mime = z.enum(['image/png', 'image/jpeg', 'image/webp']).parse(metadata.mime);
+        const current = getProject(project.id)!;
+        const rules = current.replication || defaultReplication;
+        const subject = (rules.subjects || []).find(item => item.id === req.params.subjectId);
+        if (!subject) throw new HttpError(404, '主体不存在。');
+        if (subject.images.length >= 3) throw new HttpError(400, '每个主体最多 3 张参考图。');
+        const filename = `tier-subject-${randomUUID()}.${mime === 'image/jpeg' ? 'jpg' : mime === 'image/webp' ? 'webp' : 'png'}`;
+        renamed = path.join(uploadDir, filename);
+        await fs.promises.rename(req.file.path, renamed);
+        const image = { filename, url: `/media/${filename}`, mime, name: Buffer.from(req.file.originalname, 'latin1').toString('utf8').slice(0, 200) };
+        const subjects = rules.subjects!.map(item => item.id === subject.id ? { ...item, images: [...item.images, image] } : item);
+        res.status(201).json(saveProject({ ...current, replication: { ...rules, subjects } }));
+      } catch (err) {
+        if (renamed) fs.unlink(renamed, () => {});
+        if (req.file) fs.unlink(req.file.path, () => {});
+        next(err);
+      } finally { uploadsInProgress.delete(project.id); }
+    });
+  } catch (err) { next(err); }
+});
+app.post('/api/projects/:id/tier/shots/:shotId/refs', (req, res, next) => {
+  try {
+    const project = record(req); editable(project);
+    const shotId = String(req.params.shotId);
+    if (!project.analysis?.shots.some(shot => shot.id === shotId)) throw new HttpError(404, '镜头不存在。');
+    uploadsInProgress.add(project.id);
+    characterUploader.single('file')(req, res, async error => {
+      let renamed: string | undefined;
+      try {
+        if (error instanceof multer.MulterError && error.code === 'LIMIT_FILE_SIZE') throw new HttpError(400, '单张参考图不能超过 10 MB。');
+        if (error) throw error;
+        if (!req.file) throw new HttpError(400, '请选择一张参考图。');
+        const metadata = await inspectMedia(req.file.filename, 'product');
+        const mime = z.enum(['image/png', 'image/jpeg', 'image/webp']).parse(metadata.mime);
+        const filename = `tier-ref-${randomUUID()}.${mime === 'image/jpeg' ? 'jpg' : mime === 'image/webp' ? 'webp' : 'png'}`;
+        renamed = path.join(uploadDir, filename);
+        await fs.promises.rename(req.file.path, renamed);
+        const image = { filename, url: `/media/${filename}`, mime, name: Buffer.from(req.file.originalname, 'latin1').toString('utf8').slice(0, 200) };
+        // Only stores the file; the client adds it to the frame's input box, which is saved with the project.
+        res.status(201).json(image);
+      } catch (err) {
+        if (renamed) fs.unlink(renamed, () => {});
+        if (req.file) fs.unlink(req.file.path, () => {});
+        next(err);
+      } finally { uploadsInProgress.delete(project.id); }
+    });
+  } catch (err) { next(err); }
+});
 app.post('/api/projects/:id/remix-character', (req, res, next) => {
   try {
     const project = record(req); editable(project);
@@ -412,6 +571,7 @@ app.post('/api/projects/:id/generations', (req, res) => {
     resolution: body.resolution === '1080p' || body.resolution === 'lite' ? body.resolution : '720p',
     aspectRatio: body.aspectRatio === '16:9' ? '16:9' : '9:16',
     images: Array.isArray(body.images) ? body.images.filter((value): value is string => typeof value === 'string') : [],
+    tierShotId: typeof body.tierShotId === 'string' ? body.tierShotId : undefined,
   };
   acceptedTask(req, res, { kind: 'generation', input });
 });

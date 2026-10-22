@@ -11,7 +11,8 @@ import { getProject, saveProject } from './store';
 import { shotReconstructionPrompt } from '../shared/shot-evidence';
 import { mergeFocusPoints, selectedFocus, selectedShotFocus } from '../shared/focus';
 import { keyframeBasis, keyframeCurrent } from '../shared/storyboard';
-import { keyframeStorageStatus, publishKeyframe } from './keyframe-storage';
+import { keyframeStorageStatus, publishKeyframe, publishReferenceImage } from './keyframe-storage';
+import { tierPlan } from '../shared/tier-prompt';
 import { imageAttemptStatus, imageGenerationStatus } from './image-generation';
 
 export class TaskError extends Error { constructor(public status: number, message: string) { super(message); } }
@@ -92,11 +93,25 @@ export function launchTask(id: string, spec: TaskSpec): Promise<void> {
   if (spec.kind === 'rewrite' && p.promptFlow !== 'direct-analysis' && !p.assets.some(asset => asset.kind === 'product')) throw new TaskError(400, '请上传产品参考图，作为复刻关键帧的外观依据。');
   if (spec.kind === 'keyframe' && (!p.rewrite || p.rewriteStale || p.promptFlow === 'direct-analysis' || !p.rewrite.shots.some(shot => shot.id === spec.shotId))) throw new TaskError(409, '请先生成与当前资料一致的逐镜头改写方案。');
   if (['generation', 'recover'].includes(spec.kind) && !generationConfigured()) throw new TaskError(503, '请先连接 Veo 3.1。');
-  if (['generation', 'compose'].includes(spec.kind) && (!p.rewrite || p.rewriteStale)) throw new TaskError(409, '请先生成与当前资料一致的分镜。');
+  const tierShotId = spec.kind === 'generation' ? spec.input.tierShotId : undefined;
+  if (['generation', 'compose'].includes(spec.kind) && !tierShotId && (!p.rewrite || p.rewriteStale)) throw new TaskError(409, '请先生成与当前资料一致的分镜。');
   const generationInput = spec.kind === 'generation' ? { ...spec.input } : undefined;
   let video: GeneratedVideo | undefined;
   const now = new Date().toISOString();
-  if (spec.kind === 'generation') {
+  if (spec.kind === 'generation' && tierShotId) {
+    const input = generationInput!;
+    const shot = p.analysis?.shots.find(item => item.id === tierShotId);
+    if (!shot) throw new TaskError(404, '镜头不存在。');
+    const plan = tierPlan(p, shot), frames = p.replication?.shots?.[shot.id]?.newFrames;
+    if (!plan.canVideo || !frames?.first || !frames.last) throw new TaskError(409, '先生成这个镜头的新首帧和新尾帧。');
+    if (!keyframeStorageStatus().configured) throw new TaskError(409, '请先在模型连接设置中连接 Supabase 私有图片存储。');
+    Object.assign(input, { mode: 'i2v', images: [], unitId: `tier-${shot.id}`, prompt: input.prompt.trim() || plan.prompt });
+    video = { id: randomUUID(), provider: 'veo-3.1', model: VEO_MODELS.i2v, mode: 'i2v', productionMode: p.productionMode || 'veo-native', imageUrls: [],
+      resolution: input.resolution, shotId: shot.id, unitId: input.unitId, sourceShotIds: [shot.id], targetStart: shot.start, targetEnd: shot.end,
+      targetDuration: shot.end - shot.start, status: 'running', prompt: input.prompt, defaultPrompt: plan.prompt, providerRequest: requestBody(input, input.prompt),
+      keyframeUrl: frames.middle?.url || frames.first.url, tierShotId: shot.id, tierFirst: frames.first.filename, tierLast: frames.last.filename,
+      duration: VEO_DURATION, aspectRatio: input.aspectRatio, startedAt: now };
+  } else if (spec.kind === 'generation') {
     const input = generationInput!;
     const unit = buildVeoPlan(p.rewrite!.shots).find(unit => unit.id === input.unitId);
     if (!unit) throw new TaskError(404, '找不到该视频生产单元。');
@@ -175,7 +190,14 @@ export function launchTask(id: string, spec: TaskSpec): Promise<void> {
           }
         }
       } else if (spec.kind === 'generation' || spec.kind === 'recover') {
-        if (spec.kind === 'generation' && generationInput?.keyframeShotId) {
+        if (spec.kind === 'generation' && generationInput?.tierShotId) {
+          progress(8, '正在上传新首帧和新尾帧并生成临时链接…');
+          const imageUrls: string[] = [];
+          for (const filename of [video!.tierFirst!, video!.tierLast!]) imageUrls.push(await publishReferenceImage(saved.id, filename, 'image/png', true));
+          generationInput.images = imageUrls;
+          update(id, current => ({ ...current, generatedVideos: current.generatedVideos.map(item => item.id === video!.id
+            ? { ...item, imageUrls, providerRequest: requestBody(generationInput!, generationInput!.prompt) } : item) }));
+        } else if (spec.kind === 'generation' && generationInput?.keyframeShotId) {
           progress(8, '正在上传此镜头关键帧并生成临时链接…');
           const shot = saved.rewrite!.shots.find(shot => shot.id === generationInput!.keyframeShotId)!;
           const imageUrl = await publishKeyframe(saved, shot);

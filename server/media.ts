@@ -111,3 +111,36 @@ export async function prepareShotMedia(video: Asset, shot: Pick<Shot, 'start' | 
       ...(inlineFrames ? { previewUrl: `data:image/jpeg;base64,${(await fs.readFile(path.join(uploadDir, `${prefix}-${index}.jpg`))).toString('base64')}` } : {}),
     }))) };
 }
+
+/** Crop a normalized box (0–1000, [ymin, xmin, ymax, xmax]) out of a saved frame, with a little padding. */
+export async function cropFrame(frameFile: string, box: [number, number, number, number], outFile: string, source?: { video: string; at: number }) {
+  const clamp = (value: number) => Math.min(1, Math.max(0, value / 1000));
+  let [y0, x0, y1, x1] = box.map(clamp);
+  if (y1 <= y0 || x1 <= x0) throw new Error('主体框无效。');
+  const padY = (y1 - y0) * .1, padX = (x1 - x0) * .1;
+  y0 = Math.max(0, y0 - padY); x0 = Math.max(0, x0 - padX); y1 = Math.min(1, y1 + padY); x1 = Math.min(1, x1 + padX);
+  const crop = `crop=trunc(iw*${(x1 - x0).toFixed(4)}/2)*2:trunc(ih*${(y1 - y0).toFixed(4)}/2)*2:iw*${x0.toFixed(4)}:ih*${y0.toFixed(4)}`;
+  // Crop from the original video at full resolution when we know the time; keyframe thumbnails are downscaled.
+  const input = source ? ['-ss', source.at.toFixed(3), '-protocol_whitelist', 'file,pipe', '-i', path.join(uploadDir, source.video), '-frames:v', '1'] : ['-i', frameFile];
+  await exec('ffmpeg', ['-y', '-loglevel', 'error', ...input, '-vf', crop, '-q:v', '2', outFile], { timeout: 30_000 });
+  const { stdout } = await exec('ffprobe', ['-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=width,height', '-of', 'csv=p=0', outFile]);
+  const [width, height] = stdout.trim().split(',').map(Number);
+  return { width, height };
+}
+
+/** Full-resolution still from the source video, used as the edit base for regenerated keyframes. */
+export async function extractFrame(video: string, at: number, outFile: string) {
+  await exec('ffmpeg', ['-y', '-loglevel', 'error', '-ss', Math.max(0, at).toFixed(3), '-protocol_whitelist', 'file,pipe', '-i', path.join(uploadDir, path.basename(video)), '-frames:v', '1', '-q:v', '2', outFile], { timeout: 30_000 });
+}
+/** Re-encode a reference as JPEG with the long side capped at 1536, so edit uploads stay small. */
+export async function shrinkImage(inFile: string, outFile: string) {
+  await exec('ffmpeg', ['-y', '-loglevel', 'error', '-i', inFile, '-vf', "scale='if(gte(iw,ih),min(1536,iw),-2)':'if(gte(iw,ih),-2,min(1536,ih))'", '-q:v', '3', outFile], { timeout: 30_000 });
+}
+/** Center-crop an image to width/height = ratio (image models return 2:3, Veo needs the project ratio). */
+export async function cropToRatio(inFile: string, ratio: number, outFile: string) {
+  const crop = `crop='trunc(min(iw,ih*${ratio.toFixed(6)})/2)*2':'trunc(min(ih,iw/${ratio.toFixed(6)})/2)*2'`;
+  await exec('ffmpeg', ['-y', '-loglevel', 'error', '-i', inFile, '-vf', crop, outFile], { timeout: 30_000 });
+  const { stdout } = await exec('ffprobe', ['-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=width,height', '-of', 'csv=p=0', outFile]);
+  const [width, height] = stdout.trim().split(',').map(Number);
+  return { width, height };
+}

@@ -1,4 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode, type InputHTMLAttributes, type TextareaHTMLAttributes } from 'react';
+import TierWorkbench from './TierWorkbench';
+import { applyFrameInput, framePositions, tierPlan, type FramePosition, type TierImage } from '../shared/tier-prompt';
+const frameRatioLabel = (project: Project) => { const video = project.assets.find(asset => asset.kind === 'video'); if (!video?.width || !video?.height) return project.market.aspectRatio; const gcd = (a: number, b: number): number => b ? gcd(b, a % b) : a; const g = gcd(video.width, video.height); return `${video.width / g}:${video.height / g}`; };
 import { Archive, ArchiveRestore, ArrowDownToLine, ArrowLeft, ArrowRight, ArrowUpRight, Check, CheckCheck, ChevronDown, ChevronRight, CircleHelp, CirclePlay, Clapperboard, Copy, Download, Eye, FileJson, FileText, Film, FolderOpen, Globe2, Grid2X2, ImagePlus, Info, LayoutList, LoaderCircle, LogOut, Mail, Package, Plus, Save, ScanLine, Scissors, Settings, Settings2, ShieldCheck, Sparkles, Subtitles, Upload, Video, WandSparkles, Workflow, X } from 'lucide-react';
 import { countries, defaultReplication, defaultWorkspace, languages, platforms, roles, timeLabel, validateContinuousTimeline, validateTimeline, type FocusPoint, type Project, type ProjectSummary, type WorkspaceProject, type Shot, type Product, type Market, type Replication, type ProductionMode, type WorkflowMode } from '../shared/domain';
 import { mergeFocusPoints } from '../shared/focus';
@@ -177,6 +180,9 @@ const routeStep = (p: Project, requested?: number, canvas = false) => {
 };
 const sizeLabel = (bytes: number) => bytes > 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.round(bytes / 1024)} KB`;
 
+
+/** One short reason for a failed keyframe cell. */
+const shortFailure = (message: string) => /待核对/.test(message) ? '状态未知' : /超过 150 秒|Timeout|超时/i.test(message) ? '超时' : /HTTP 413|太大|超过图片接口限制|超过接口上限/.test(message) ? '图片太大' : /下载失败/.test(message) ? '下载失败' : /ECONNRESET|连接失败|ETIMEDOUT|ENOTFOUND|socket/i.test(message) ? '网络断开' : /HTTP 4\d\d|拒绝/.test(message) ? '接口拒绝' : /找不到/.test(message) ? '图片缺失' : '生成失败';
 
 export default function App() {
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
@@ -566,6 +572,74 @@ export default function App() {
     if (action) adopt(await api<Project>(`/api/projects/${p.id}/remix/${action}`, { method: 'POST', body: JSON.stringify({ videoId }) }));
     else setNotice('二创要求与提示词已保存');
   });
+  const tierCall = async (url: string, init: RequestInit = {}) => {
+    const p = await flush(); if (!p) return;
+    const sep = url.includes('?') ? '&' : '?';
+    adopt(await api<Project>(`/api/projects/${p.id}${url}${sep}revision=${p.revision}`, { method: 'POST', ...init }));
+  };
+  const correctTierShot = (shotId: string) => perform('正在修正镜头', () => tierCall(`/tier/shots/${encodeURIComponent(shotId)}/correct`));
+  const correctAllTierShots = () => perform('正在修正全部镜头', async () => {
+    const shots = current.current?.analysis?.shots || [];
+    for (const [index, shot] of shots.entries()) { setBusy(`正在修正镜头 ${index + 1}/${shots.length}`); await tierCall(`/tier/shots/${encodeURIComponent(shot.id)}/correct`); }
+  });
+  const detectTierSubjects = () => perform('正在识别主体', () => tierCall('/tier/subjects/detect'));
+  const uploadTierSubjectImage = (subjectId: string, file: File) => perform('正在上传参考图', async () => {
+    if (file.size > 10 * 1024 * 1024) throw new Error('单张参考图不能超过 10 MB。');
+    const form = new FormData(); form.append('file', file);
+    await tierCall(`/tier/subjects/${encodeURIComponent(subjectId)}/image`, { body: form });
+  });
+  const generateTierSubjectImage = async (subjectId: string, instruction: string) => {
+    let ok = false;
+    await perform('正在生成参考图', async () => {
+      await tierCall(`/tier/subjects/${encodeURIComponent(subjectId)}/generate`, { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ instruction, jobId: crypto.randomUUID() }) });
+      ok = true;
+    });
+    return ok;
+  };
+  const [frameBusy, setFrameBusy] = useState<string[]>([]);
+  const [frameFailed, setFrameFailed] = useState<Record<string, string>>({});
+  /** Per frame: the last send's jobId, kept so a 状态未知 retry with unchanged input re-checks that job instead of paying again. */
+  const frameJobs = useRef<Record<string, { id: string; input: string; unknown: boolean }>>({});
+  const frameTask = async (shotId: string, position: FramePosition, run: () => Promise<void>) => {
+    const key = `${shotId}:${position}`;
+    setFrameBusy(list => [...list, key]); setFrameFailed(({ [key]: _, ...rest }) => rest); setError('');
+    try { await run(); } catch (e) { setFrameFailed(map => ({ ...map, [key]: shortFailure(e instanceof Error ? e.message : '') })); setError(e instanceof Error ? e.message : '新帧没有生成成功'); throw e; }
+    finally { setFrameBusy(list => list.filter(item => item !== key)); }
+  };
+  const framePath = (shotId: string, position: FramePosition, action: string) => `/tier/shots/${encodeURIComponent(shotId)}/frames/${position}/${action}`;
+  /** Sends exactly the frame's input box: read from the latest project, so 生成全部 picks up a just-made new first frame. */
+  const generateTierFrame = (shotId: string, position: FramePosition) => frameTask(shotId, position, async () => {
+    const p = current.current, shot = p?.analysis?.shots.find(item => item.id === shotId);
+    if (!p || !shot) return;
+    const frame = tierPlan(p, shot).frames.find(item => item.position === position)!;
+    const key = `${shotId}:${position}`, images = frame.images.map(image => image.url), input = JSON.stringify([frame.text, images]);
+    const prior = frameJobs.current[key];
+    const job = prior?.unknown && prior.input === input ? prior : { id: crypto.randomUUID(), input, unknown: false };
+    frameJobs.current[key] = job;
+    try { await tierCall(framePath(shotId, position, 'generate'), { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt: frame.text, images, jobId: job.id }) }); delete frameJobs.current[key]; }
+    catch (e) { job.unknown = shortFailure(e instanceof Error ? e.message : '') === '状态未知'; throw e; }
+  });
+  const setFrameInput = (shotId: string, position: FramePosition, patch: { text?: string; images?: TierImage[] } | null) => change(p => applyFrameInput(p, shotId, position, patch));
+  const undoTierFrame = (shotId: string, position: FramePosition) => void frameTask(shotId, position, () => tierCall(framePath(shotId, position, 'undo'))).catch(() => {});
+  const uploadTierFrame = (shotId: string, position: FramePosition, file: File) => void frameTask(shotId, position, async () => {
+    if (file.size > 10 * 1024 * 1024) throw new Error('单张图片不能超过 10 MB。');
+    const form = new FormData(); form.append('file', file);
+    await tierCall(framePath(shotId, position, 'upload'), { body: form });
+  }).catch(() => {});
+  /** 生成本镜/全部关键帧: 复刻/换角 run the three frames together; 改编/Remix need the new first frame before the other two. */
+  const generateTierShots = async (shotIds: string[]) => {
+    for (const shotId of shotIds) {
+      const p = current.current, shot = p?.analysis?.shots.find(item => item.id === shotId);
+      if (!p || !shot) continue;
+      const plan = tierPlan(p, shot);
+      try {
+        if (plan.chained) {
+          await generateTierFrame(shotId, 'first');
+          await Promise.all((['middle', 'last'] as const).map(position => generateTierFrame(shotId, position)));
+        } else await Promise.all(framePositions.map(position => generateTierFrame(shotId, position)));
+      } catch { return; }
+    }
+  };
   const uploadRemixCharacter = (file: File, settings: RemixSettings) => perform('正在上传人物参考图', async () => {
     if (file.size > 10 * 1024 * 1024) throw new Error('单张人物参考图不能超过 10 MB。');
     const p = await flush(); if (!p) return;
@@ -591,6 +665,28 @@ export default function App() {
     if (!status.videoGeneration.configured || p.promptFlow !== 'direct-analysis' && !status.keyframeStorage?.configured) { setModal('settings'); return; }
     adopt(await api<Project>(`/api/projects/${p.id}/generations`, { method: 'POST', body: JSON.stringify({ unitId, ...config }) }));
     setStep(2);
+  });
+  /** 上传图片 in the frame input box: store each file, then add it to that frame's images. */
+  const uploadFrameRefs = (shotId: string, position: FramePosition, files: File[]) => busy ? setError(`${busy}，完成后再上传图片。`) : perform('正在上传参考图', async () => {
+    const p = await flush(); if (!p) return;
+    const added: TierImage[] = [];
+    for (const file of files) {
+      if (file.size > 10 * 1024 * 1024) throw new Error('单张参考图不能超过 10 MB。');
+      const form = new FormData(); form.append('file', file);
+      const image = await api<{ url: string; name: string }>(`/api/projects/${p.id}/tier/shots/${encodeURIComponent(shotId)}/refs`, { method: 'POST', body: form });
+      added.push({ role: '参考', label: image.name || '上传的参考图', url: image.url });
+    }
+    change(next => {
+      const shot = next.analysis?.shots.find(item => item.id === shotId);
+      const frame = shot && tierPlan(next, shot).frames.find(item => item.position === position);
+      return frame ? applyFrameInput(next, shotId, position, { images: [...frame.images, ...added].slice(0, 16) }) : next;
+    });
+  });
+  const startTierVideo = (shotId: string) => perform('正在提交 Veo 3.1', async () => {
+    const p = await flush(); if (!p) return;
+    if (!status.videoGeneration.configured || !status.keyframeStorage?.configured) { setModal('settings'); return; }
+    const ratio = frameRatioLabel(p).split(':').map(Number);
+    adopt(await api<Project>(`/api/projects/${p.id}/generations`, { method: 'POST', body: JSON.stringify({ tierShotId: shotId, resolution: '720p', aspectRatio: ratio[0] > ratio[1] ? '16:9' : '9:16' }) }));
   });
   const startShotVideo = (shotId: string) => {
     const p = current.current; if (!p?.rewrite) return;
@@ -729,6 +825,11 @@ export default function App() {
   ];
   const rewriteBlocked = !project.analysis || ((project.promptFlow || 'localized') === 'localized' && missingProductFields.length > 0);
   const available = [true, !!video || !!project.analysis, !!project.analysis];
+  const tierPanel = project?.analysis ? <TierWorkbench project={project} disabled={disabled} busy={busy}
+    onChange={replication => change(p => ({ ...p, replication }))} onCorrect={correctTierShot} onCorrectAll={correctAllTierShots}
+    onDetectSubjects={detectTierSubjects} onUploadSubjectImage={uploadTierSubjectImage} onGenerateSubjectImage={generateTierSubjectImage}
+    frameBusy={frameBusy} frameFailed={frameFailed} ratioLabel={frameRatioLabel(project)} onFrame={(shotId, position) => void generateTierFrame(shotId, position).catch(() => {})}
+    onFrameUndo={undoTierFrame} onFrameUpload={uploadTierFrame} onGenerateShots={shotIds => void generateTierShots(shotIds)} onVideo={startTierVideo} onFrameRefs={uploadFrameRefs} onFrameInput={setFrameInput} /> : null;
   const remixPanel = <Suspense fallback={<div className="canvas-loading" role="status"><LoaderCircle className="spin" size={20} />正在打开二创画布…</div>}><RemixStage key={project.id} project={project} disabled={disabled} onAction={(action, settings, prompt, videoId) => void startRemix(action, settings, prompt, videoId)} onSave={(settings, prompt) => void startRemix(undefined, settings, prompt)} onUpload={(file, settings) => void uploadRemixCharacter(file, settings)} onCopy={text => void copy(text)} onSettings={() => setModal('settings')} /></Suspense>;
   const market = countries.find(c => c.code === project.market.country)!;
   const platform = platforms.find(p => p.id === project.market.platform)!;
@@ -888,7 +989,7 @@ export default function App() {
         {project.ttsTimingNotice && <SpeechTimingConfirmation notice={project.ttsTimingNotice} disabled={disabled} onConfirm={() => void composeFinal(project.ttsTimingNotice!.voice, project.ttsTimingNotice!.basis)} onManual={() => void selectWorkflowMode('manual')} />}
 
 
-        {canvasView && step === 2 && remixPanel}
+        {canvasView && step === 2 && <>{tierPanel}{remixPanel}</>}
         {canvasView && step !== 2 && <Suspense fallback={<div className="canvas-loading" role="status"><LoaderCircle className="spin" size={20} />正在打开全局画布…</div>}><CreativeWorkspace key={project.id} project={project} step={step} onStep={setStep} disabled={disabled || !!assetLibraryTarget} busyLabel={busy} automatic={autoView} voices={ttsVoices}
           onPatch={patch => change(p => ({ ...p, ...patch }))} onUpload={(files, kind) => void uploadFiles(files, kind)} onChooseMedia={kind => openAssetLibrary(kind === 'product' ? 'image' : 'video')} onRemove={id => void removeAsset(id)}
           onGenerateKeyframe={shotId => void startKeyframe(shotId)} onRun={kind => void startJob(kind)} onRetry={retryJob}
@@ -941,7 +1042,7 @@ export default function App() {
           </section>
         </div>}
 
-        {step === 2 && <><RemixPromptSteps /><RemixObservableResults project={project} onCopy={text => void copy(text)} />{remixPanel}</>}
+        {step === 2 && <>{tierPanel}<RemixPromptSteps /><RemixObservableResults project={project} onCopy={text => void copy(text)} />{remixPanel}</>}
 
         <footer className="action-bar"><div className={`action-context${step === 1 && project.analysis ? ' action-context--breakdown' : ''}`}><CheckCheck size={16} /><span>所有编辑自动保存到本机</span>{step === 1 && project.analysis && <button className="text-button" disabled={disabled || !video} onClick={() => startJob('analysis')}>重新拆解</button>}</div><div className="action-buttons">{step > 0 && <button className="btn" disabled={!!busy} onClick={() => go(step - 1)}>上一步</button>}{step === 0 && <button className="btn primary" disabled={disabled || !video} onClick={() => startJob('analysis')}><Sparkles size={16} />拆解参考视频<ArrowRight size={16} /></button>}{step === 1 && <button className="btn primary" disabled={disabled || !project.analysis} onClick={() => go(2)}>人物与视频二创<ArrowRight size={16} /></button>}</div></footer>
         </>}

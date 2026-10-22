@@ -1,3 +1,4 @@
+import { replicationLevelIds } from './replication-levels';
 import { z } from 'zod';
 import type { RemixPromptPhase, RemixWorkflow } from './remix';
 
@@ -35,9 +36,63 @@ export const marketSchema = z.object({
   duration: z.enum(['original', '15', '30', '45', '60']), people: z.enum(['preserve', 'localize', 'hands']),
   keepStructure: z.boolean(), subtitles: z.boolean(), aspectRatio: z.enum(['9:16', '16:9', '4:5', '1:1']),
 });
+const tierImageSchema = z.object({ filename: z.string().max(200), url: z.string().max(500), mime: z.enum(['image/png', 'image/jpeg', 'image/webp']), name: z.string().max(200), generated: z.boolean().optional() });
+const tierSourceSchema = z.object({ filename: z.string().max(200), url: z.string().max(500), shotId: z.string().max(80), at: z.number(), width: z.number().optional(), height: z.number().optional() });
+export const tierSubjectSchema = z.object({
+  id: z.string().max(80), name: z.string().trim().max(80), kind: z.enum(['person', 'product', 'object']),
+  note: z.string().max(1000), shotIds: z.array(z.string().max(80)).max(120), images: z.array(tierImageSchema).max(3),
+  /** Crops of this subject from the source video (first = the one used). Base for 生成新参考图 and identity hint for 复刻/换角/改编. */
+  sources: z.array(tierSourceSchema).max(3).optional(),
+  /** 用原片参考. Unset = follow the tier (on except Remix). */
+  useSource: z.boolean().optional(),
+});
+export const tierStructuredSchema = z.object({
+  subject: z.string().max(1500), product: z.string().max(1500), scene: z.string().max(1500), action: z.string().max(1500),
+  composition: z.string().max(1500), camera: z.string().max(1500), look: z.string().max(1500),
+  firstFrame: z.string().max(2000), middleFrame: z.string().max(2000).default(''), lastFrame: z.string().max(2000), motion: z.string().max(2000),
+});
+const mediaUrl = z.string().max(500).regex(/^\/media\/[\w.-]+$/);
+const tierNewFrameVersionSchema = z.object({
+  filename: z.string().max(200).regex(/^[\w.-]+$/), url: mediaUrl, kind: z.enum(['generated', 'edited', 'uploaded']), createdAt: z.string().max(40),
+  /** 改编/Remix middle and last frames: the new first frame (filename) they were derived from; a mismatch means 已过期. */
+  firstFrom: z.string().max(200).optional(),
+});
+export const tierNewFrameSchema = tierNewFrameVersionSchema.extend({ previous: tierNewFrameVersionSchema.optional() });
+const tierFrameKey = z.enum(['first', 'middle', 'last']);
+export const tierShotSchema = z.object({
+  level: z.enum(replicationLevelIds).optional(),
+  structured: tierStructuredSchema.extend({ correctedAt: z.string().max(40), model: z.string().max(160) }).optional(),
+  frames: z.array(z.object({ at: z.number(), url: z.string().max(500), position: z.string().max(20) })).max(3).optional(),
+  /** Hand-edited prompt per regenerated keyframe; basis = the assembly it was written against (a mismatch means inputs changed since). */
+  prompt: z.string().max(12000).optional(), promptBasis: z.string().max(200).optional(),
+  /** 分帧编辑: a hand-written per-frame addition that replaces the system's one for that frame. */
+  frameNotes: z.partialRecord(tierFrameKey, z.string().max(3000)).optional(),
+  /** Step 1 results: the regenerated keyframes, each with one undo step. */
+  newFrames: z.partialRecord(tierFrameKey, tierNewFrameSchema).optional(),
+  /** 「+ 参考图」: images uploaded on the shared prompt, sent with all three frames right after the base frame. */
+  refImages: z.array(z.object({ filename: z.string().regex(/^[\w.-]+$/), url: z.string().regex(/^\/media\/[\w.-]+$/), mime: z.enum(['image/png', 'image/jpeg', 'image/webp']), name: z.string().max(200) })).max(8).optional(),
+  /** The per-frame input box: the user's own prompt text and/or image list; absent = system default. */
+  frameInputs: z.partialRecord(tierFrameKey, z.object({
+    text: z.string().max(12000).optional(),
+    images: z.array(z.object({ role: z.string().max(40), label: z.string().max(200), url: z.string().regex(/^\/media\/[\w.-]+$/) })).max(16).optional(),
+  })).optional(),
+});
+export type TierNewFrame = z.infer<typeof tierNewFrameSchema>;
+export type TierSubject = z.infer<typeof tierSubjectSchema>;
+export type TierSource = z.infer<typeof tierSourceSchema>;
+export type TierShot = z.infer<typeof tierShotSchema>;
+export type TierStructured = z.infer<typeof tierStructuredSchema>;
 export const replicationSchema = z.object({
   preserve: z.string().trim().max(3000),
   change: z.string().trim().max(3000),
+  /** 复刻等级 preset; older projects without it behave as before (free-text contract only). */
+  level: z.enum(replicationLevelIds).optional(),
+  /** Remix only: keep the source look (light, color, style). Default true. */
+  keepStyle: z.boolean().optional(),
+  /** 主体设定卡: subjects found in the source and the user's reference images bound to each. */
+  subjects: z.array(tierSubjectSchema).max(12).optional(),
+  /** Per source shot: keyframe-corrected description, optional tier override and a hand-edited prompt. */
+  shots: z.record(z.string().max(80), tierShotSchema).optional(),
 });
 export const focusCategorySchema = z.enum(['scene', 'subject', 'action', 'camera', 'editing', 'audio', 'text', 'product', 'other']);
 export const focusCandidateSchema = z.object({
@@ -158,6 +213,8 @@ export type GeneratedVideo = {
   hasAudio?: boolean; thumbnail?: string; stale?: boolean; error?: string;
   defaultPrompt?: string; providerRequest?: { model: string; prompt: string; resolution: string; aspect_ratio: string; images?: string[] };
   keyframeShotId?: string; keyframeFilename?: string; keyframeBasis?: string; keyframeUrl?: string;
+  /** 档位工作台 step 2: the new first/last frame files this clip was made from. */
+  tierShotId?: string; tierFirst?: string; tierLast?: string;
 };
 export type ComposedVideo = {
   id: string; mode: ProductionMode; unitId?: string; sourceVideoIds: string[]; voice: string;
@@ -201,6 +258,7 @@ export const defaultMarket: Market = { country: 'US', language: 'en-US', platfor
 export const defaultReplication: Replication = {
   preserve: '参考视频的整体视觉形式、场景、主体角色与动作、构图、运镜、剪辑顺序与节奏、声音表达方式。',
   change: '按本项目的产品资料和参考图替换指定主体或物品；人物面孔与少量配色可按项目要求调整。',
+  level: 'exact',
 };
 export const projectPatchSchema = z.object({
   revision: z.number().int().nonnegative(), title: z.string().trim().min(1).max(120),

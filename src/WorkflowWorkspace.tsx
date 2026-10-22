@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { ArrowRight, Check, Clapperboard, Download, Eye, FileJson, Film, Globe2, ImagePlus, LoaderCircle, Pause, Play, Settings2, Sparkles, Subtitles, Upload } from 'lucide-react';
-import { countries, defaultReplication, languages, platforms, type Market, type Product, type Project, type TtsTimingNotice, type WorkflowMode } from '../shared/domain';
+import { countries, languages, platforms, type Market, type Product, type Project, type TtsTimingNotice, type WorkflowMode } from '../shared/domain';
 import { workflowBusy, workflowRequirements, keyframeWorkflowStages } from '../shared/workflow';
 import './workflow.css';
 import { useImagePaste } from './useImagePaste';
@@ -74,7 +74,7 @@ export default function AutomaticWorkspace({ project, busy, voices, connected, o
         <label className="field"><span className="field-label">行动引导（可选）</span><input className="input" disabled={locked} value={project.market.cta} placeholder="例如：前往主页了解更多" onChange={event => market({ cta: event.target.value })} /></label>
         <label className="field"><span className="field-label">视频画幅</span><select className="input" disabled={locked} value={project.market.aspectRatio} onChange={event => market({ aspectRatio: event.target.value as Market['aspectRatio'] })}><option value="" disabled>选择支持的画幅</option><option value="9:16">9:16 竖屏</option><option value="16:9">16:9 横屏</option><option value="4:5">4:5 竖图</option><option value="1:1">1:1 方图</option></select></label>
       </div>
-      <div className="automatic-form-grid"><label className="field automatic-wide"><span className="field-label">参考视频里哪些保持原样</span><textarea className="input textarea" rows={2} disabled={locked} value={(project.replication || defaultReplication).preserve} onChange={event => onPatch({ replication: { ...(project.replication || defaultReplication), preserve: event.target.value } })} /></label><label className="field automatic-wide"><span className="field-label">哪些可以替换或调整</span><textarea className="input textarea" rows={2} disabled={locked} value={(project.replication || defaultReplication).change} onChange={event => onPatch({ replication: { ...(project.replication || defaultReplication), change: event.target.value } })} /></label></div>
+      
 
 
     </div>}</section>
