@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode, type InputHTMLAttributes, type TextareaHTMLAttributes } from 'react';
-import TierWorkbench from './TierWorkbench';
+import TierWorkbench, { FrameDrawer, type FrameHandlers, type OpenFrame } from './TierWorkbench';
 import { applyFrameInput, framePositions, tierPlan, type FramePosition, type TierImage } from '../shared/tier-prompt';
 const frameRatioLabel = (project: Project) => { const video = project.assets.find(asset => asset.kind === 'video'); if (!video?.width || !video?.height) return project.market.aspectRatio; const gcd = (a: number, b: number): number => b ? gcd(b, a % b) : a; const g = gcd(video.width, video.height); return `${video.width / g}:${video.height / g}`; };
 import { Archive, ArchiveRestore, ArrowDownToLine, ArrowLeft, ArrowRight, ArrowUpRight, Check, CheckCheck, ChevronDown, ChevronRight, CircleHelp, CirclePlay, Clapperboard, Copy, Download, Eye, FileJson, FileText, Film, FolderOpen, Globe2, Grid2X2, ImagePlus, Info, LayoutList, LoaderCircle, LogOut, Mail, Package, Plus, Save, ScanLine, Scissors, Settings, Settings2, ShieldCheck, Sparkles, Subtitles, Upload, Video, WandSparkles, Workflow, X } from 'lucide-react';
@@ -598,6 +598,9 @@ export default function App() {
   };
   const [frameBusy, setFrameBusy] = useState<string[]>([]);
   const [frameFailed, setFrameFailed] = useState<Record<string, string>>({});
+  /** The one frame drawer, shared by the overview and the canvas. */
+  const [openFrame, setOpenFrame] = useState<OpenFrame | null>(null);
+  useEffect(() => setOpenFrame(null), [project?.id]);
   /** Per frame: the last send's jobId, kept so a 状态未知 retry with unchanged input re-checks that job instead of paying again. */
   const frameJobs = useRef<Record<string, { id: string; input: string; unknown: boolean }>>({});
   const frameTask = async (shotId: string, position: FramePosition, run: () => Promise<void>) => {
@@ -825,11 +828,14 @@ export default function App() {
   ];
   const rewriteBlocked = !project.analysis || ((project.promptFlow || 'localized') === 'localized' && missingProductFields.length > 0);
   const available = [true, !!video || !!project.analysis, !!project.analysis];
+  const frameHandlers: FrameHandlers = { project, disabled, busy, ratioLabel: frameRatioLabel(project), frameBusy, frameFailed,
+    onFrame: (shotId, position) => void generateTierFrame(shotId, position).catch(() => {}), onFrameUndo: undoTierFrame, onFrameUpload: uploadTierFrame, onFrameRefs: uploadFrameRefs, onFrameInput: setFrameInput };
   const tierPanel = project?.analysis ? <TierWorkbench project={project} disabled={disabled} busy={busy}
     onChange={replication => change(p => ({ ...p, replication }))} onCorrect={correctTierShot} onCorrectAll={correctAllTierShots}
     onDetectSubjects={detectTierSubjects} onUploadSubjectImage={uploadTierSubjectImage} onGenerateSubjectImage={generateTierSubjectImage}
-    frameBusy={frameBusy} frameFailed={frameFailed} ratioLabel={frameRatioLabel(project)} onFrame={(shotId, position) => void generateTierFrame(shotId, position).catch(() => {})}
-    onFrameUndo={undoTierFrame} onFrameUpload={uploadTierFrame} onGenerateShots={shotIds => void generateTierShots(shotIds)} onVideo={startTierVideo} onFrameRefs={uploadFrameRefs} onFrameInput={setFrameInput} /> : null;
+    frameBusy={frameBusy} frameFailed={frameFailed} ratioLabel={frameHandlers.ratioLabel} onFrame={frameHandlers.onFrame}
+    onGenerateShots={shotIds => void generateTierShots(shotIds)} onVideo={startTierVideo} openFrame={openFrame} onOpenFrame={setOpenFrame} /> : null;
+  const frameDrawer = openFrame && project.analysis && (canvasView || step === 2) ? <FrameDrawer {...frameHandlers} shotId={openFrame.shotId} position={openFrame.position} onClose={() => setOpenFrame(null)} /> : null;
   const remixPanel = <Suspense fallback={<div className="canvas-loading" role="status"><LoaderCircle className="spin" size={20} />正在打开二创画布…</div>}><RemixStage key={project.id} project={project} disabled={disabled} onAction={(action, settings, prompt, videoId) => void startRemix(action, settings, prompt, videoId)} onSave={(settings, prompt) => void startRemix(undefined, settings, prompt)} onUpload={(file, settings) => void uploadRemixCharacter(file, settings)} onCopy={text => void copy(text)} onSettings={() => setModal('settings')} /></Suspense>;
   const market = countries.find(c => c.code === project.market.country)!;
   const platform = platforms.find(p => p.id === project.market.platform)!;
@@ -995,7 +1001,9 @@ export default function App() {
           onGenerateKeyframe={shotId => void startKeyframe(shotId)} onRun={kind => void startJob(kind)} onRetry={retryJob}
           onExport={exportZip} onCopy={value => void copy(value)} onSettings={() => setModal('settings')} onPipeline={() => setShowPipeline(true)}
           onAutoStart={max => void startAutomatic(max)} onTakeOver={() => void selectWorkflowMode('manual')} renderShotEditor={sceneEditor} production={productionPanel} remix={remixPanel}
-          onSplitShot={splitAnalysisShot} onAcceptSuggestion={acceptShotSuggestion} onDismissSuggestion={dismissShotSuggestion} onAcceptGlobalSuggestion={acceptGlobalFocusSuggestion} onDismissGlobalSuggestion={dismissGlobalFocusSuggestion} onRefine={() => void startJob('analysis-refine')} selectedShot={selectedShot} selectedRewrite={selectedRewrite} onSelectShot={setSelectedShot} onSelectRewrite={setSelectedRewrite} /></Suspense>}
+          onSplitShot={splitAnalysisShot} onAcceptSuggestion={acceptShotSuggestion} onDismissSuggestion={dismissShotSuggestion} onAcceptGlobalSuggestion={acceptGlobalFocusSuggestion} onDismissGlobalSuggestion={dismissGlobalFocusSuggestion} onRefine={() => void startJob('analysis-refine')} selectedShot={selectedShot} selectedRewrite={selectedRewrite} onSelectShot={setSelectedShot} onSelectRewrite={setSelectedRewrite}
+          tierFrames={{ disabled: frameHandlers.disabled, ratioLabel: frameHandlers.ratioLabel, frameBusy, frameFailed, onFrame: frameHandlers.onFrame, open: openFrame, onOpen: setOpenFrame }} /></Suspense>}
+        {frameDrawer}
         {manualView && !canvasView && <>
         {project.workflow?.status === 'pausing' && <div className="banner sample" role="status"><LoaderCircle size={16} className="spin" /><span>正在等待当前任务结束。完成后会停止自动推进，并开放编辑。</span></div>}
         {observing && <div className="workflow-observing"><Eye size={18} /><p>正在只读查看制作过程。自动任务继续执行；接管后可以编辑已有结果。</p><button className="btn small" onClick={() => setObserving(false)}>返回自动制作</button><button className="btn small" disabled={!!busy || project.workflow?.status === 'pausing'} onClick={() => void selectWorkflowMode('manual')}>接管并编辑</button><button className="btn small" onClick={() => setShowPipeline(true)}>查看输入与输出</button></div>}

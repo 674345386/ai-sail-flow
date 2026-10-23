@@ -1821,5 +1821,9 @@
  "这张新帧还没生成，先点生成。": "This new frame isn't generated yet; click Generate first.",
  "镜头不存在。": "Shot not found.",
  "风格光影": "Style and lighting",
- "生成失败，重试": "Failed, retry"
+ "生成失败，重试": "Failed, retry",
+ "未生成": "Not generated",
+ "显示原帧": "Show source frame",
+ "档位": "Level",
+ "已生成关键帧": "Keyframes generated"
 }
