@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { memo, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { Background, BackgroundVariant, BaseEdge, Handle, MarkerType, Position, getBezierPath, getSmoothStepPath, ReactFlow, useNodesState, type Edge, type EdgeProps, type Node, type ReactFlowInstance, type Viewport } from '@xyflow/react';
 import { Check, ChevronDown, Copy, Download, FileText, Film, GripVertical, Hand, ImagePlus, LoaderCircle, LocateFixed, Maximize2, Minimize2, MousePointer2, Play, RotateCcw, Save, Settings2, Sparkles, Upload, WandSparkles, ZoomIn, ZoomOut } from 'lucide-react';
 import type { Project } from '../shared/domain';
@@ -6,10 +6,20 @@ import { getRemixSettings, remixBgmOptions, remixCharacterCurrent, remixCorrecti
 import { RemixShotClip, RemixShotFrames } from './RemixShotMedia';
 import { analysisModeLabel, RemixAnalysisResult, RemixCorrectionResult } from './RemixObservability';
 import { shotEvidenceFrames } from '../shared/shot-evidence';
+import { tierPlan, type FramePosition, type TierFramePlan, type TierPlan } from '../shared/tier-prompt';
+import { levelInfo } from '../shared/replication-levels';
+import { aspectOf, type OpenFrame } from './TierWorkbench';
 import '@xyflow/react/dist/style.css';
 import './remix-stage.css';
 
-type CanvasData = { id: string; position: { x: number; y: number }; title: string; kind: 'source' | 'character' | 'prompt' | 'video' | 'shot' | 'frames' | 'analysis' | 'correction' | 'frameInfo' | 'action'; status: string; ready: boolean; content: ReactNode };
+type CanvasData = { id: string; position: { x: number; y: number }; title: string; kind: 'source' | 'character' | 'prompt' | 'video' | 'shot' | 'frames' | 'newFrames' | 'analysis' | 'correction' | 'frameInfo' | 'action'; status: string; ready: boolean; content: ReactNode; label?: ReactNode; open?: boolean };
+/** The stage-3 canvas's new-keyframe column: the same frame data, generator and drawer as the storyboard overview. */
+export type RemixTierFrames = {
+  disabled: boolean; ratioLabel: string; frameBusy: string[]; frameFailed: Record<string, string>;
+  onFrame: (shotId: string, position: FramePosition) => void; onGenerateShots: (shotIds: string[]) => void;
+  open: OpenFrame | null; onOpen: (frame: OpenFrame) => void;
+};
+const NEW_FRAMES_X = 1610;
 type CanvasNode = Node<CanvasData, 'remix'>;
 type Layout = { positions?: Record<string, { x: number; y: number }>; viewport?: Viewport };
 const positions = {
@@ -25,7 +35,7 @@ function readLayout(id: string): Layout {
     const raw = JSON.parse(localStorage.getItem(`sop-remix-canvas-v4:${id}`) || '{}');
     const saved: Layout = { positions: {} };
     for (const key of Object.keys(raw.positions || {})) {
-      if (!Object.hasOwn(positions, key) && !key.startsWith('shot:') && !key.startsWith('frames:')) continue;
+      if (!Object.hasOwn(positions, key) && !key.startsWith('shot:') && !key.startsWith('frames:') && !key.startsWith('newFrames:')) continue;
       const point = raw.positions?.[key];
       if (Number.isFinite(point?.x) && Number.isFinite(point?.y) && Math.abs(point.x) < 100000 && Math.abs(point.y) < 100000) saved.positions![key] = point;
     }
@@ -35,17 +45,17 @@ function readLayout(id: string): Layout {
   } catch { return {}; }
 }
 const RemixNode = memo(function RemixNode({ data }: { data: CanvasData }) {
-  const Icon = data.kind === 'action' ? WandSparkles : data.kind === 'source' || data.kind === 'shot' ? Film : ['frames', 'frameInfo', 'character'].includes(data.kind) ? ImagePlus : data.kind === 'video' ? Play : FileText;
-  const role = data.kind === 'action' ? '动作' : ['analysis', 'correction', 'prompt', 'video', 'frameInfo'].includes(data.kind) ? '结果' : '素材';
-  return <article className={`remix-node remix-node--${data.kind}`}>
-    <header className="remix-node-drag"><span><Icon size={14} />{data.title}</span><span className={`remix-node-status ${data.ready ? 'ready' : ''}`}>{data.ready && <Check size={11} />}{data.status}<GripVertical size={13} /></span></header>
-    <div className="remix-node-role"><span>{role}</span>{data.kind === 'action' ? '处理输入 → 输出结果' : data.kind === 'frameInfo' ? '关键帧证据 · 汇总入口' : role === '结果' ? '查看 / 复制产物' : '参考输入'}</div>
+  const Icon = data.kind === 'action' ? WandSparkles : data.kind === 'newFrames' ? Sparkles : data.kind === 'source' || data.kind === 'shot' ? Film : ['frames', 'frameInfo', 'character'].includes(data.kind) ? ImagePlus : data.kind === 'video' ? Play : FileText;
+  const role = data.kind === 'action' ? '动作' : ['analysis', 'correction', 'prompt', 'video', 'frameInfo', 'newFrames'].includes(data.kind) ? '结果' : '素材';
+  return <article className={`remix-node remix-node--${data.kind}${data.open ? ' is-open' : ''}`}>
+    <header className="remix-node-drag"><span><Icon size={14} />{data.label ?? data.title}</span><span className={`remix-node-status ${data.ready ? 'ready' : ''}`}>{data.ready && <Check size={11} />}{data.status}<GripVertical size={13} /></span></header>
+    <div className="remix-node-role"><span>{role}</span>{data.kind === 'action' ? '处理输入 → 输出结果' : data.kind === 'frameInfo' ? '关键帧证据 · 汇总入口' : data.kind === 'newFrames' ? '参照证据关键帧生成 · 点击帧编辑' : role === '结果' ? '查看 / 复制产物' : '参考输入'}</div>
     {data.id === 'correctionAction' ? <><Handle type="target" id="analysis" position={Position.Left} style={{ top: 95 }} /><Handle type="target" id="frames" position={Position.Left} style={{ top: 180 }} className="image-port" /></>
       : data.id === 'videoAction' ? <><Handle type="target" id="prompt" position={Position.Left} style={{ top: 145 }} className="text-port" /><Handle type="target" id="character" position={Position.Bottom} className="image-port" /></>
-      : data.kind !== 'source' && data.kind !== 'character' && data.kind !== 'shot' && <Handle type="target" id="input" position={Position.Left} style={{ top: data.kind === 'frames' ? 135 : 95 }} />}
+      : data.kind !== 'source' && data.kind !== 'character' && data.kind !== 'shot' && <Handle type="target" id="input" position={Position.Left} style={{ top: data.kind === 'frames' || data.kind === 'newFrames' ? 135 : 95 }} />}
     {data.id === 'promptAction' && <Handle type="target" id="character" position={Position.Bottom} className="image-port" />}
     <div className="remix-node-content nodrag nowheel nopan">{data.content}</div>
-    {data.kind !== 'video' && data.kind !== 'frames' && <Handle type="source" id="output" position={Position.Right} style={{ top: data.kind === 'shot' ? 135 : 95 }} className={['character', 'frameInfo'].includes(data.kind) ? 'image-port' : 'text-port'} />}
+    {data.kind !== 'video' && data.kind !== 'newFrames' && <Handle type="source" id="output" position={Position.Right} style={{ top: data.kind === 'shot' || data.kind === 'frames' ? 135 : 95 }} className={['character', 'frameInfo'].includes(data.kind) ? 'image-port' : 'text-port'} />}
     {data.kind === 'source' && <Handle type="source" id="media" position={Position.Bottom} />}
     {data.kind === 'character' && <Handle type="source" id="authoring" position={Position.Top} className="image-port" />}
   </article>;
@@ -61,8 +71,29 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   return <label className="remix-field"><span>{label}</span>{children}</label>;
 }
 
-export default function RemixStage({ project, disabled, onAction, onSave, onUpload, onCopy, onSettings }: {
-  project: Project; disabled: boolean;
+const shotNo = (index: number) => String(index + 1).padStart(2, '0');
+/** One new frame: uncropped, with the overview's states (未生成 dashed / 生成中 / 已过期 / 失败 + 重试). */
+function NewFrameTile({ plan, frame, tier, onOpen }: { plan: TierPlan; frame: TierFramePlan; tier: RemixTierFrames; onOpen: (generate: boolean) => void }) {
+  const key = `${plan.shotId}:${frame.position}`, running = tier.frameBusy.includes(key), failure = running ? '' : tier.frameFailed[key] || '';
+  const waiting = !frame.result && frame.dependsOnFirst && !plan.frames[0].result;
+  const selected = tier.open?.shotId === plan.shotId && tier.open.position === frame.position;
+  const empty = !frame.result && !running && !failure;
+  return <figure className="remix-newframe">
+    <div role="button" tabIndex={0} aria-label={`新${frame.label}`} aria-pressed={selected}
+      className={`tier-tile${frame.result ? '' : ' is-empty'}${running ? ' is-loading' : ''}${frame.outdated ? ' is-outdated' : ''}${selected ? ' is-selected' : ''}`}
+      onClick={() => onOpen(empty && !waiting && !tier.disabled)} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onOpen(false); } }}>
+      {frame.result ? <img src={frame.result.url} alt={`新${frame.label}`} draggable={false} /> : null}
+      {running ? <span className="tier-tile-running"><LoaderCircle size={16} className="spin" /><span>生成中</span></span>
+        : failure ? <span className="tier-frame-fail tier-tile-fail"><span>{failure}</span><button type="button" disabled={tier.disabled || waiting} onClick={event => { event.stopPropagation(); tier.onFrame(plan.shotId, frame.position); }}>重试</button></span>
+        : !frame.result ? <span className="remix-newframe-empty">{waiting ? <><LoaderCircle size={14} />等首帧</> : <><Sparkles size={14} />点击生成</>}</span>
+        : frame.outdated ? <em className="tier-tile-tag is-outdated">已过期</em> : null}
+    </div>
+    <figcaption>{frame.label}</figcaption>
+  </figure>;
+}
+
+export default function RemixStage({ project, disabled, tierFrames, onAction, onSave, onUpload, onCopy, onSettings }: {
+  project: Project; disabled: boolean; tierFrames?: RemixTierFrames;
   onAction: (action: RemixAction, settings: RemixSettings, prompt?: string, videoId?: string) => void;
   onSave: (settings: RemixSettings, prompt?: string) => void;
   onUpload: (file: File, settings: RemixSettings) => void;
@@ -111,7 +142,7 @@ export default function RemixStage({ project, disabled, onAction, onSave, onUplo
   const fit = () => { void flow.current?.fitView({ padding: .12, maxZoom: 1, duration: 180 }); };
   const focusMedia = (shotId: string) => {
     setFocusedShot(shotId);
-    const ids = shotId ? [`shot:${shotId}`, `frames:${shotId}`] : ['source', 'mediaAction', 'frameInfo', ...shots.flatMap(shot => [`shot:${shot.id}`, `frames:${shot.id}`])];
+    const ids = shotId ? [`shot:${shotId}`, `frames:${shotId}`, ...(tierFrames ? [`newFrames:${shotId}`] : [])] : ['source', 'mediaAction', 'frameInfo', ...shots.flatMap(shot => [`shot:${shot.id}`, `frames:${shot.id}`, ...(tierFrames ? [`newFrames:${shot.id}`] : [])])];
     void flow.current?.fitView({ nodes: ids.map(id => ({ id })), padding: .15, minZoom: .08, maxZoom: .9, duration: 200 });
   };
   const focusCorrection = () => { void flow.current?.fitView({ nodes: correctionFlowIds.map(id => ({ id })), padding: .12, maxZoom: .9, duration: 200 }); };
@@ -213,13 +244,27 @@ export default function RemixStage({ project, disabled, onAction, onSave, onUplo
     { id: `shot:${shot.id}`, position: { x: 430, y: 1580 + index * 420 }, kind: 'shot', title: `镜头片段 ${String(index + 1).padStart(2, '0')}`, status: `${(shot.end - shot.start).toFixed(2)}s`, ready: false, content: <RemixShotClip key={shot.id} project={project} shot={shot} index={index} /> },
     { id: `frames:${shot.id}`, position: { x: 850, y: 1580 + index * 420 }, kind: 'frames', title: `镜头 ${String(index + 1).padStart(2, '0')} · 证据关键帧`, status: '3 张 · 原片截取', ready: false, content: <RemixShotFrames key={shot.id} project={project} shot={shot} /> },
   ]);
+  const plans = useMemo(() => shots.map(shot => tierPlan(project, shot)), [project, shots]);
+  const aspect = aspectOf(tierFrames?.ratioLabel || '9:16');
+  const tierDefinitions: CanvasData[] = tierFrames ? shots.map((shot, index) => {
+    const plan = plans[index], done = plan.frames.filter(frame => frame.result).length;
+    const running = plan.frames.some(frame => tierFrames.frameBusy.includes(`${shot.id}:${frame.position}`));
+    const open = (position: FramePosition, generate: boolean) => { tierFrames.onOpen({ shotId: shot.id, position }); if (generate) tierFrames.onFrame(shot.id, position); };
+    return { id: `newFrames:${shot.id}`, position: { x: NEW_FRAMES_X, y: 1580 + index * 420 }, kind: 'newFrames', title: `镜头 ${shotNo(index)} · 新关键帧`,
+      label: <>镜头 {shotNo(index)}<code className="remix-timecode">{shot.start.toFixed(1)}–{shot.end.toFixed(1)}s</code></>,
+      status: `${levelInfo(plan.level).label} · ${done}/${plan.frames.length}`, ready: done === plan.frames.length, open: tierFrames.open?.shotId === shot.id,
+      content: <div className="remix-newframes" style={{ '--tier-aspect': aspect } as CSSProperties}>
+        <div className="remix-newframes-grid">{plan.frames.map(frame => <NewFrameTile key={frame.position} plan={plan} frame={frame} tier={tierFrames} onOpen={generate => open(frame.position, generate)} />)}</div>
+        <div className="remix-node-actions remix-newframes-foot"><button className="remix-button remix-run" disabled={tierFrames.disabled || running} onClick={() => tierFrames.onGenerateShots([shot.id])}>{running ? <LoaderCircle size={14} className="spin" /> : <Sparkles size={14} />}{done ? '重新生成本镜' : '生成本镜'}</button></div>
+      </div> };
+  }) : [];
   // Only content changes with job polling; preserve node positions, selection and input DOM.
   useEffect(() => {
     setNodes(previous => {
       const byId = new Map(previous.map(node => [node.id, node]));
-      return [...definitions, ...mediaDefinitions].map(data => ({ ...byId.get(data.id), id: data.id, type: 'remix', dragHandle: '.remix-node-drag', position: byId.get(data.id)?.position || layout.positions?.[data.id] || data.position, data }));
+      return [...definitions, ...mediaDefinitions, ...tierDefinitions].map(data => ({ ...byId.get(data.id), id: data.id, type: 'remix', dragHandle: '.remix-node-drag', position: byId.get(data.id)?.position || layout.positions?.[data.id] || data.position, data }));
     });
-  }, [project, settings, prompt, disabled, videoId, briefOpen]);
+  }, [project, settings, prompt, disabled, videoId, briefOpen, tierFrames?.open, tierFrames?.frameBusy, tierFrames?.frameFailed, tierFrames?.disabled, tierFrames?.ratioLabel]);
   const edges = useMemo<Edge[]>(() => {
     const link = (source: string, target: string, targetHandle = 'input', sourceHandle = 'output'): Edge => ({
       id: `${source}-${target}`, source, sourceHandle, target, targetHandle,
@@ -239,11 +284,28 @@ export default function RemixStage({ project, disabled, onAction, onSave, onUplo
       link('videoAction', 'video'),
       // Gallery rows belong to the single frameInfo collection; no long per-shot edges enter the workflow.
       ...shots.map(shot => link(`shot:${shot.id}`, `frames:${shot.id}`)),
+      ...(tierFrames ? shots.map(shot => ({ ...link(`frames:${shot.id}`, `newFrames:${shot.id}`), style: { stroke: '#c2cbd6', strokeWidth: 1.2 }, markerEnd: { type: MarkerType.ArrowClosed, color: '#c2cbd6', width: 13, height: 13 } })) : []),
     ];
-  }, [shots, correctionRunning, promptRunning, job?.status, job?.kind]);
+  }, [shots, correctionRunning, promptRunning, job?.status, job?.kind, !!tierFrames]);
+  // Opening a frame pans that shot's evidence frames + new frames to the canvas area left of the drawer.
+  const viewportBox = useRef<HTMLDivElement>(null);
+  const openShot = tierFrames?.open?.shotId;
+  useEffect(() => {
+    const instance = flow.current, box = viewportBox.current?.getBoundingClientRect();
+    if (!openShot || !instance || !box) return;
+    const ids = [`frames:${openShot}`, `newFrames:${openShot}`].map(id => instance.getNode(id)).filter(node => !!node);
+    if (ids.length < 2) return;
+    const left = Math.min(...ids.map(n => n.position.x)), top = Math.min(...ids.map(n => n.position.y));
+    const right = Math.max(...ids.map(n => n.position.x + (n.measured?.width || 0))), bottom = Math.max(...ids.map(n => n.position.y + (n.measured?.height || 0)));
+    const drawer = parseFloat(getComputedStyle(document.querySelector('.tier-drawer') || document.body).width) || 460;
+    const visible = Math.max(240, Math.min(box.right, window.innerWidth - drawer) - box.left);
+    const zoom = Math.min(.9, (visible - 64) / (right - left), (box.height - 120) / (bottom - top));
+    void instance.setViewport({ x: (visible - (right - left) * zoom) / 2 - left * zoom, y: (box.height - (bottom - top) * zoom) / 2 - top * zoom + 20, zoom }, { duration: 300 });
+  }, [openShot]);
+  const tierDone = plans.reduce((sum, plan) => sum + plan.frames.filter(frame => frame.result).length, 0), tierTotal = plans.reduce((sum, plan) => sum + plan.frames.length, 0);
   return <section className={`remix-stage${expanded ? ' is-expanded' : ''}`} aria-label="人物与视频二创画布">
     <header className="remix-canvas-header"><div><span className="remix-canvas-mark"><WandSparkles size={17} /></span><div><h2>人物与视频二创</h2><p>素材 / 结果 → 动作 → 结果 · 连线表示数据流</p></div></div><div className="remix-canvas-navigation"><button className="remix-button" onClick={() => focusMedia('')}><Film size={13} />镜头素材</button>{!!shots.length && <select aria-label="定位镜头及关键帧" value={shots.some(shot => shot.id === focusedShot) ? focusedShot : ''} onChange={event => focusMedia(event.target.value)}><option value="">全部镜头</option>{shots.map((shot, index) => <option key={shot.id} value={shot.id}>镜头 {String(index + 1).padStart(2, '0')} · {shot.start.toFixed(1)}–{shot.end.toFixed(1)}s</option>)}</select>}<button className="remix-button" onClick={focusCorrection}><FileText size={13} />校正流程</button><button className="remix-button" onClick={focusRemix}><WandSparkles size={13} />二创流程</button><span className="remix-model-label">Omni Flash · 10s</span><button className="remix-icon-button" title="模型连接" aria-label="模型连接" onClick={onSettings}><Settings2 size={16} /></button><button className="remix-icon-button" title={expanded ? '退出全屏画布' : '全屏画布'} aria-label={expanded ? '退出全屏画布' : '全屏画布'} onClick={() => setExpanded(!expanded)}>{expanded ? <Minimize2 size={16} /> : <Maximize2 size={16} />}</button></div></header>
-    <div className="remix-canvas-viewport"><ReactFlow<CanvasNode> nodes={nodes} edges={edges} nodeTypes={nodeTypes} edgeTypes={edgeTypes} onNodesChange={onNodesChange} onNodeDragStop={() => persist()} onInit={instance => { flow.current = instance; }} onMoveEnd={(_event, viewport) => { setZoom(Math.round(viewport.zoom * 100)); persist(viewport); }} defaultViewport={layout.viewport} fitView={!layout.viewport} fitViewOptions={{ nodes: correctionFlowIds.map(id => ({ id })), padding: .12, minZoom: .08, maxZoom: .9 }} minZoom={.08} maxZoom={1.8} nodesConnectable={false} edgesReconnectable={false} edgesFocusable={false} deleteKeyCode={null} nodesDraggable={tool === 'select'} panOnDrag={tool === 'hand' ? true : [1, 2]} selectionOnDrag={tool === 'select'} panOnScroll zoomOnScroll={false} zoomOnPinch preventScrolling ariaLabelConfig={{ 'node.a11yDescription.default': '使用方向键移动节点，按 Enter 选中。' }}><Background variant={BackgroundVariant.Dots} gap={22} size={1} color="#d4d9df" /></ReactFlow>
+    <div className="remix-canvas-viewport" ref={viewportBox}>{tierFrames && !!shots.length && <div className="remix-tier-bar" role="toolbar" aria-label="新关键帧"><span>档位 <b>{levelInfo(project.replication?.level).label}</b></span><span className="remix-tier-progress" aria-label="已生成关键帧"><i><b style={{ width: `${tierTotal ? tierDone / tierTotal * 100 : 0}%` }} /></i>{tierDone} / {tierTotal}</span><button className="remix-button remix-run" disabled={tierFrames.disabled || tierFrames.frameBusy.length > 0} onClick={() => tierFrames.onGenerateShots(shots.map(shot => shot.id))}>{tierFrames.frameBusy.length ? <LoaderCircle size={14} className="spin" /> : <Sparkles size={14} />}生成全部关键帧</button></div>}<ReactFlow<CanvasNode> nodes={nodes} edges={edges} nodeTypes={nodeTypes} edgeTypes={edgeTypes} onNodesChange={onNodesChange} onNodeDragStop={() => persist()} onInit={instance => { flow.current = instance; }} onMoveEnd={(_event, viewport) => { setZoom(Math.round(viewport.zoom * 100)); persist(viewport); }} defaultViewport={layout.viewport} fitView={!layout.viewport} fitViewOptions={{ nodes: correctionFlowIds.map(id => ({ id })), padding: .12, minZoom: .08, maxZoom: .9 }} minZoom={.08} maxZoom={1.8} nodesConnectable={false} edgesReconnectable={false} edgesFocusable={false} deleteKeyCode={null} nodesDraggable={tool === 'select'} panOnDrag={tool === 'hand' ? true : [1, 2]} selectionOnDrag={tool === 'select'} panOnScroll zoomOnScroll={false} zoomOnPinch preventScrolling ariaLabelConfig={{ 'node.a11yDescription.default': '使用方向键移动节点，按 Enter 选中。' }}><Background variant={BackgroundVariant.Dots} gap={22} size={1} color="#d4d9df" /></ReactFlow>
       <div className="remix-canvas-tools" role="toolbar" aria-label="画布工具"><button className={`remix-icon-button ${tool === 'select' ? 'active' : ''}`} title="选择和拖动节点" aria-label="选择工具" aria-pressed={tool === 'select'} onClick={() => setTool('select')}><MousePointer2 size={17} /></button><button className={`remix-icon-button ${tool === 'hand' ? 'active' : ''}`} title="拖动画布" aria-label="平移工具" aria-pressed={tool === 'hand'} onClick={() => setTool('hand')}><Hand size={17} /></button><i /><button className="remix-icon-button" title="缩小画布" aria-label="缩小画布" onClick={() => void flow.current?.zoomOut({ duration: 150 })}><ZoomOut size={16} /></button><button className="remix-zoom" title="重置到 100%" aria-label="重置到百分之百缩放" onClick={() => void flow.current?.zoomTo(1, { duration: 150 })}>{zoom}%</button><button className="remix-icon-button" title="放大画布" aria-label="放大画布" onClick={() => void flow.current?.zoomIn({ duration: 150 })}><ZoomIn size={16} /></button><i /><button className="remix-icon-button" title="适应全部节点" aria-label="适应全部节点" onClick={fit}><LocateFixed size={17} /></button><button className="remix-icon-button" title="整理节点布局" aria-label="整理节点布局" onClick={reset}><RotateCcw size={15} /></button></div>
       <div className="remix-canvas-help">拖动节点标题移动 · 滚动平移 · 双指缩放</div>
     </div>

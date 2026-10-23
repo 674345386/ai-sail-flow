@@ -220,3 +220,30 @@ main.canvas-workspace-main > .remix-stage { height: auto; min-height: 0; }
 .remix-observation-panels summary { color: #74849a; cursor: pointer; font-size: 11px; }
 .remix-observation-panels .remix-button { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border: 1px solid #e2e6eb; border-radius: 7px; background: #fff; color: #75849a; font-size: 11px; }
 @media (max-width: 850px) { .remix-observation-panels { grid-template-columns: minmax(0, 1fr); } }
+
+/* Stage-3 new keyframes column (2026-10-23): same node chrome, uncropped 9:16 frames, overview states. */
+.remix-node--newFrames { width: 440px; }
+.remix-node.is-open { border-color: #a9c8ef; box-shadow: 0 0 0 3px #91bdf219, 0 6px 24px #2434490a; }
+.remix-timecode { margin-left: 8px; padding: 1px 6px; border-radius: 5px; background: #f2f4f7; color: #6b7684; font: 500 10.5px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.remix-newframes { padding: 12px 14px 0; }
+.remix-newframes-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.remix-newframe { margin: 0; min-width: 0; }
+.remix-newframe .tier-tile { background: #f6f7f9; border-color: #e3e7ec; }
+.remix-newframe .tier-tile.is-empty { border-color: #cfd6de; }
+.remix-newframe .tier-tile:hover { border-color: #b9c4d0; }
+.remix-newframe .tier-tile img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+.remix-newframe .tier-tile-tag { left: 5px; top: 5px; font-size: 10px; padding: 1px 5px; }
+.remix-newframe .tier-tile-running { font-size: 11px; }
+.remix-newframe .tier-tile-fail { display: grid; gap: 6px; padding: 6px; }
+.remix-newframe .tier-tile-fail span { font-size: 10.5px; color: #a24b3f; }
+.remix-newframe .tier-tile-fail button { height: 24px; padding: 0 10px; border: 1px solid #e2e6eb; border-radius: 6px; background: #fff; font-size: 11px; }
+.remix-newframe-empty { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 6px; color: #8a95a3; font-size: 11px; }
+.remix-newframe figcaption { margin-top: 6px; color: #8793a2; font-size: 11px; text-align: center; }
+.remix-newframes-foot { justify-content: flex-end; padding: 12px 0 14px; }
+.remix-tier-bar { position: absolute; left: 50%; top: 14px; z-index: 5; display: flex; align-items: center; gap: 14px; padding: 6px 6px 6px 14px; border: 1px solid #e3e7ec; border-radius: 12px; background: #fffffff5; box-shadow: 0 4px 17px #1a2b4310; transform: translateX(-50%); color: #75808d; font-size: 12px; white-space: nowrap; }
+.remix-tier-bar b { color: #282e38; font-weight: 600; }
+.remix-tier-progress { display: inline-flex; align-items: center; gap: 8px; font-variant-numeric: tabular-nums; color: #282e38; }
+.remix-tier-progress > i { display: block; width: 90px; height: 4px; border-radius: 4px; background: #e8ecf0; overflow: hidden; }
+.remix-tier-progress > i > b { display: block; height: 100%; background: #282e38; }
+body:has(.remix-stage.is-expanded) .tier-drawer { z-index: 95; }
+.remix-newframe .tier-tile.is-selected { border-color: #7fa9dd; box-shadow: 0 0 0 3px #91bdf233; }

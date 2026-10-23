@@ -181,14 +181,4 @@ main.canvas-workspace-main:has(> .tier-workbench) > .remix-stage { flex-shrink: 
 @media (max-width: 1100px) { .tier-workbench.has-drawer .tier-board { padding-right: 0; } }
 
 /* Canvas trial: frame groups on the creative canvas. */
-.tier-canvas-group { position: relative; width: 100%; height: 100%; border: 1px solid #dce4de; border-radius: 10px; background: rgba(255,255,255,.7); }
-.tier-canvas-group-head { position: absolute; left: 2px; right: 2px; top: -26px; height: 22px; display: flex; align-items: center; justify-content: space-between; cursor: grab; font-size: 12px; color: #8a918c; }
-.tier-canvas-group-head strong { font-size: 13px; color: #1f2a22; font-variant-numeric: tabular-nums; }
-.tier-canvas-frame { cursor: pointer; }
-.tier-canvas-frame:hover { border-color: #b9c4bc; }
-.tier-canvas-frame .tier-tile-tag { left: 4px; top: 4px; font-size: 10px; padding: 1px 4px; }
-.tier-canvas-frame .tier-tile-fail { padding: 4px; gap: 4px; }
-.tier-canvas-frame .tier-tile-fail span { font-size: 10px; }
-.tier-canvas-frame .tier-tile-fail button { height: 22px; padding: 0 8px; font-size: 11px; }
-.tier-canvas-frame .tier-tile-running { font-size: 10px; }
 .react-flow__node-tierGroup, .react-flow__node-tierFrame { padding: 0; border: 0; background: none; box-shadow: none; }

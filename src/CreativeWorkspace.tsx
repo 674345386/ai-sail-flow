@@ -11,7 +11,6 @@ import ShotBreakdown from './ShotBreakdown';
 import ShotRewriteBoard, { RewriteProductInputs } from './ShotRewriteBoard';
 import FocusPointsEditor from './FocusPointsEditor';
 import ShaderBackdrop from './ShaderBackdrop';
-import { buildTierCanvasNodes, tierNodeTypes, type TierCanvasNode, type TierCanvasOptions } from './tierCanvas';
 import '@xyflow/react/dist/style.css';
 
 const stageIcons = [Upload, Clapperboard, WandSparkles, Package];
@@ -29,8 +28,8 @@ function BridgeEdge({ sourceX, sourceY, targetX, targetY, markerEnd, style, id }
   const path = `M ${sourceX},${sourceY} H ${right - radius} Q ${right},${sourceY} ${right},${sourceY + radius} V ${middle - radius} Q ${right},${middle} ${right - radius},${middle} H ${left + radius} Q ${left},${middle} ${left},${middle + radius} V ${targetY - radius} Q ${left},${targetY} ${left + radius},${targetY} H ${targetX}`;
   return <BaseEdge id={id} path={path} markerEnd={markerEnd} style={style} />;
 }
-const nodeTypes = { creative: CreativeNodeView, ...tierNodeTypes };
-type CanvasNode = CreativeNode | TierCanvasNode;
+const nodeTypes = { creative: CreativeNodeView };
+type CanvasNode = CreativeNode;
 const edgeTypes = { bridge: BridgeEdge };
 type CanvasPatch = Partial<Pick<Project, 'title' | 'product' | 'market' | 'replication' | 'promptFlow' | 'ttsVoice' | 'automaticSettings' | 'productionMode' | 'rewrite' | 'analysis'>>;
 type Layout = { positions?: Record<string, { x: number; y: number }>; viewport?: Viewport };
@@ -50,7 +49,7 @@ function readLayout(id: string): Layout {
 function Field({ label, children, hint }: { label: string; children: ReactNode; hint?: string }) {
   return <label className="creative-field"><span>{label}</span>{children}{hint && <small>{hint}</small>}</label>;
 }
-export default function CreativeWorkspace({ project, step, onStep, disabled, busyLabel, automatic, voices, onPatch, onUpload, onChooseMedia, onRemove, onRun, onRetry, onGenerateKeyframe, onExport, onCopy, onSettings, onPipeline, onAutoStart, onTakeOver, renderShotEditor, production, remix, selectedShot, selectedRewrite, onSelectShot, onSelectRewrite, onSplitShot, onAcceptSuggestion, onDismissSuggestion, onAcceptGlobalSuggestion, onDismissGlobalSuggestion, onRefine, tierFrames }: {
+export default function CreativeWorkspace({ project, step, onStep, disabled, busyLabel, automatic, voices, onPatch, onUpload, onChooseMedia, onRemove, onRun, onRetry, onGenerateKeyframe, onExport, onCopy, onSettings, onPipeline, onAutoStart, onTakeOver, renderShotEditor, production, remix, selectedShot, selectedRewrite, onSelectShot, onSelectRewrite, onSplitShot, onAcceptSuggestion, onDismissSuggestion, onAcceptGlobalSuggestion, onDismissGlobalSuggestion, onRefine }: {
   project: Project; step: number; onStep: (step: number) => void; disabled: boolean; busyLabel: string; automatic: boolean;
   voices: { name: string; language: string }[];
   onPatch: (patch: CanvasPatch) => void; onUpload: (files: File[], kind: 'video' | 'product') => void; onChooseMedia: (kind: 'video' | 'product') => void; onRemove: (id: string) => void;
@@ -62,14 +61,11 @@ export default function CreativeWorkspace({ project, step, onStep, disabled, bus
   onSplitShot: (index: number) => void;
   onAcceptSuggestion: (shotId: string) => void; onDismissSuggestion: (shotId: string) => void;
   onAcceptGlobalSuggestion: () => void; onDismissGlobalSuggestion: () => void; onRefine: () => void;
-  /** Trial: the tier shots' frame groups, opening App's shared frame drawer. */
-  tierFrames?: TierCanvasOptions;
 }) {
   const graph = useMemo(() => buildCreativeGraph(project), [project]);
-  const tierNodes = useMemo(() => tierFrames ? buildTierCanvasNodes(project, tierFrames) : [], [project, tierFrames]);
-  const baseNodes = useMemo((): CanvasNode[] => [...graph.nodes, ...tierNodes], [graph, tierNodes]);
+  const baseNodes = useMemo((): CanvasNode[] => graph.nodes, [graph]);
   const [layout] = useState(() => readLayout(project.id));
-  const [nodes, setNodes, onNodesChange] = useNodesState<CanvasNode>(baseNodes.map(node => ({ ...node, position: node.parentId ? node.position : layout.positions?.[node.id] || node.position })));
+  const [nodes, setNodes, onNodesChange] = useNodesState<CanvasNode>(baseNodes.map(node => ({ ...node, position: layout.positions?.[node.id] || node.position })));
   const flow = useRef<ReactFlowInstance<CanvasNode>>(null);
   const [preview, setPreview] = useState<ArtifactSelection | null>(null);
   const [focused, setFocused] = useState(false);
@@ -89,21 +85,9 @@ export default function CreativeWorkspace({ project, step, onStep, disabled, bus
   useEffect(() => {
     setNodes(previous => [
       ...graph.nodes.map((node): CanvasNode => ({ ...node, position: previous.find(item => item.id === node.id)?.position || layout.positions?.[node.id] || node.position, selected: node.data.kind === 'stage' && node.data.step === step, data: { ...node.data, onSelect: selectStage, onPreview: (key: string) => setPreview({ key }) } })),
-      ...tierNodes.map((node): CanvasNode => node.parentId ? node : { ...node, position: previous.find(item => item.id === node.id)?.position || layout.positions?.[node.id] || node.position }),
     ]);
-  }, [graph, tierNodes, step, selectStage, layout, setNodes]);
-  // Opening the frame drawer (or switching to another shot's frame) pans that shot's group to the middle of the canvas area left of the drawer; closing it leaves the view alone.
-  const openShot = tierFrames?.open?.shotId;
+  }, [graph, step, selectStage, layout, setNodes]);
   const flowBox = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const instance = flow.current, box = flowBox.current?.getBoundingClientRect(), group = openShot && instance?.getNode(`tier-${openShot}`);
-    if (!instance || !box || !group) return;
-    const width = group.measured?.width ?? Number(group.style?.width) ?? 0, height = group.measured?.height ?? Number(group.style?.height) ?? 0;
-    const drawerWidth = parseFloat(getComputedStyle(document.querySelector('.tier-drawer') || document.body).width) || 460;
-    const visibleRight = Math.max(box.left + 160, Math.min(box.right, window.innerWidth - drawerWidth));
-    const { zoom } = instance.getViewport(), screenX = (box.left + visibleRight) / 2 - box.left, screenY = box.height / 2;
-    void instance.setViewport({ x: screenX - (group.position.x + width / 2) * zoom, y: screenY - (group.position.y + height / 2) * zoom, zoom }, { duration: 300 });
-  }, [openShot]);
   const persist = (viewport?: Viewport) => {
     try { localStorage.setItem(`sop-creative-layout-v2:${project.id}`, JSON.stringify({ positions: Object.fromEntries((flow.current?.getNodes() || nodes).map(node => [node.id, node.position])), viewport: viewport || flow.current?.getViewport() })); } catch {}
   };
@@ -138,7 +122,7 @@ export default function CreativeWorkspace({ project, step, onStep, disabled, bus
     {project.isDemo && <div className="creative-callout">当前是手写示例创意，画布中的产物用于体验编辑与导出。</div>}
     <div className="creative-workbench">
       <div className="creative-canvas-center"><div className="creative-canvas-toolbar sail-shader-surface"><ShaderBackdrop variant="canvas" /><div><button className={`creative-icon-button ${showInspector && !focused ? 'active' : ''}`} title="显示或收起节点表单" aria-label="显示或收起节点表单" aria-pressed={showInspector && !focused} onClick={() => { setFocused(false); setShowInspector(!showInspector || focused); }}><PanelLeft size={16} /></button><span>全局流程</span><small>点击节点打开对应表单</small></div><div><button className="creative-icon-button" title="适应全部节点" aria-label="适应全部节点" onClick={fit}><LocateFixed size={16} /></button><button className="creative-icon-button" title="恢复节点布局" aria-label="恢复节点布局" onClick={reset}><RotateCcw size={15} /></button><button className="creative-icon-button" title={focused ? '退出专注画布' : '专注画布'} aria-label={focused ? '退出专注画布' : '专注画布'} onClick={() => setFocused(!focused)}>{focused ? <Minimize2 size={16} /> : <Maximize2 size={16} />}</button><button className="creative-icon-button" title="连接与模型" aria-label="连接与模型" onClick={onSettings}><Sparkles size={16} /></button></div></div>
-        <div className="creative-flow-viewport" ref={flowBox}><ReactFlow<CanvasNode> nodes={nodes} edges={graph.edges} nodeTypes={nodeTypes} edgeTypes={edgeTypes} onNodesChange={onNodesChange} onNodeClick={(_event, node) => { if (node.type === 'creative') selectStage(node.data.step); }} onPaneClick={() => setShowInspector(false)} onNodeDragStop={() => persist()} onInit={instance => { flow.current = instance; }} onMoveEnd={(_event, viewport) => { setZoom(Math.round(viewport.zoom * 100)); persist(viewport); }} defaultViewport={layout.viewport} fitView={!layout.viewport} fitViewOptions={{ padding: .07, maxZoom: 1 }} minZoom={.35} maxZoom={1.6} nodesConnectable={false} edgesReconnectable={false} deleteKeyCode={null} selectionKeyCode={null} multiSelectionKeyCode={null} panOnScroll zoomOnScroll={false} zoomOnPinch snapToGrid snapGrid={[10, 10]} ariaLabelConfig={{ 'controls.zoomIn.ariaLabel': '放大画布', 'controls.zoomOut.ariaLabel': '缩小画布', 'controls.fitView.ariaLabel': '适应全部节点' }}><Background variant={BackgroundVariant.Dots} gap={20} size={1} color="#d4d9d6" /><Controls position="bottom-left" showInteractive={false} /><MiniMap position="bottom-right" pannable zoomable nodeColor={node => node.type === 'tierFrame' ? '#cfd8d1' : node.type === 'tierGroup' ? '#f1f4f1' : node.data.kind === 'stage' ? node.data.status === 'done' ? '#99b9ab' : '#808986' : '#e1e5e2'} maskColor="rgba(246,248,246,.72)" /></ReactFlow><div className="creative-canvas-hint"><span>拖动画布 / 滚动平移 · 点击节点编辑 · 点击产物预览</span><b>{zoom}%</b></div></div>
+        <div className="creative-flow-viewport" ref={flowBox}><ReactFlow<CanvasNode> nodes={nodes} edges={graph.edges} nodeTypes={nodeTypes} edgeTypes={edgeTypes} onNodesChange={onNodesChange} onNodeClick={(_event, node) => { if (node.type === 'creative') selectStage(node.data.step); }} onPaneClick={() => setShowInspector(false)} onNodeDragStop={() => persist()} onInit={instance => { flow.current = instance; }} onMoveEnd={(_event, viewport) => { setZoom(Math.round(viewport.zoom * 100)); persist(viewport); }} defaultViewport={layout.viewport} fitView={!layout.viewport} fitViewOptions={{ padding: .07, maxZoom: 1 }} minZoom={.35} maxZoom={1.6} nodesConnectable={false} edgesReconnectable={false} deleteKeyCode={null} selectionKeyCode={null} multiSelectionKeyCode={null} panOnScroll zoomOnScroll={false} zoomOnPinch snapToGrid snapGrid={[10, 10]} ariaLabelConfig={{ 'controls.zoomIn.ariaLabel': '放大画布', 'controls.zoomOut.ariaLabel': '缩小画布', 'controls.fitView.ariaLabel': '适应全部节点' }}><Background variant={BackgroundVariant.Dots} gap={20} size={1} color="#d4d9d6" /><Controls position="bottom-left" showInteractive={false} /><MiniMap position="bottom-right" pannable zoomable nodeColor={node => node.data.kind === 'stage' ? node.data.status === 'done' ? '#99b9ab' : '#808986' : '#e1e5e2'} maskColor="rgba(246,248,246,.72)" /></ReactFlow><div className="creative-canvas-hint"><span>拖动画布 / 滚动平移 · 点击节点编辑 · 点击产物预览</span><b>{zoom}%</b></div></div>
       </div>
       <aside className="creative-inspector" aria-label="选中节点的表单与执行操作"><div className="creative-panel-heading"><div><Settings2 size={15} /><strong>0{step + 1} · {creativeStages[step].title}</strong></div><button className="creative-icon-button" aria-label="收起节点表单" onClick={() => setShowInspector(false)}><X size={14} /></button></div><div className="creative-panel-scroll">
         <div className="creative-inspector-title"><span className={`creative-status ${graph.statuses[step]}`}><i />{creativeStatusLabels[graph.statuses[step]]}</span><h2>{creativeStages[step].title}</h2><p>{creativeStages[step].subtitle}</p></div>
