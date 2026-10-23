@@ -19,7 +19,6 @@
 .shot-breakdown-intro { padding: 14px 20px; margin: 0; border-bottom: 1px solid var(--line); color: var(--muted); font-size: .72rem; line-height: 1.8; background: #fafbfa; }
 .shot-breakdown-row { border-bottom: 1px solid var(--line); background: #fff; }
 .shot-breakdown-row:last-child { border-bottom: 0; }
-.shot-breakdown-row.selected { box-shadow: inset 3px 0 0 #639179; }
 .shot-row-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 16px 20px 12px; }
 .shot-row-title { display: flex; align-items: center; gap: 11px; padding: 0; border: 0; background: transparent; text-align: left; }
 .shot-row-title > b { display: grid; place-items: center; width: 31px; height: 31px; border: 1px solid #e2e7e3; border-radius: 7px; color: #678474; background: #f5f8f6; font-size: .73rem; font-weight: 500; }
@@ -126,5 +125,3 @@
 .shot-media-label-bare { justify-content: flex-end; }
 .shot-seek-time { margin-left: 4px; color: #8b9b90; font-size: .68rem; font-variant-numeric: tabular-nums; }
 .shot-breakdown-row { transition: var(--sel-transition); }
-.shot-breakdown-row.selected { position: relative; z-index: 1; box-shadow: var(--sel-ring); }
-.shot-breakdown-row.selected { transform: translateY(-2px); }

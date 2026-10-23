@@ -237,6 +237,8 @@ export default function App() {
   const [authResendSeconds, setAuthResendSeconds] = useState(0);
   const authRequest = useRef(false);
   const [assetLibraryTarget, setAssetLibraryTarget] = useState<'all' | 'image' | 'video' | null>(null);
+  /** Set while the asset library was opened from a keyframe composer's + tile. */
+  const [frameRefTarget, setFrameRefTarget] = useState<{ shotId: string; position: FramePosition } | null>(null);
   const [initialMedia, setInitialMedia] = useState<LibraryMedia | null>(null);
   const [showMediaLibrary, setShowMediaLibrary] = useState(false);
   const [routeReady, setRouteReady] = useState(false);
@@ -529,6 +531,14 @@ export default function App() {
     setInitialMedia(item); setAssetLibraryTarget(target);
   };
   const referenceMedia = async (item: LibraryMedia) => {
+    if (frameRefTarget) {
+      if (busy) throw new Error(`${busy}，完成后再添加图片。`);
+      if (item.kind !== 'image') throw new Error('请选择图片素材。');
+      setBusy('正在上传参考图'); setError('');
+      try { const p = await flush(); if (!p) throw new Error('请先打开一个创意。'); await addFrameRefs(p, frameRefTarget.shotId, frameRefTarget.position, [await libraryFile(item)]); }
+      finally { setBusy(''); }
+      return;
+    }
     if (busy || running || observing) throw new Error('当前创意正在处理，请等待完成或接管制作后引用素材。');
     const kind = item.kind === 'video' ? 'video' : 'product';
     if (assetLibraryTarget !== 'all' && assetLibraryTarget !== item.kind) throw new Error('请选择与当前入口匹配的素材。');
@@ -672,6 +682,10 @@ export default function App() {
   /** 上传图片 in the frame input box: store each file, then add it to that frame's images. */
   const uploadFrameRefs = (shotId: string, position: FramePosition, files: File[]) => busy ? setError(`${busy}，完成后再上传图片。`) : perform('正在上传参考图', async () => {
     const p = await flush(); if (!p) return;
+    await addFrameRefs(p, shotId, position, files);
+  });
+  const openFrameLibrary = (shotId: string, position: FramePosition) => { setFrameRefTarget({ shotId, position }); openAssetLibrary('image'); };
+  const addFrameRefs = async (p: Project, shotId: string, position: FramePosition, files: File[]) => {
     const added: TierImage[] = [];
     for (const file of files) {
       if (file.size > 10 * 1024 * 1024) throw new Error('单张参考图不能超过 10 MB。');
@@ -684,7 +698,7 @@ export default function App() {
       const frame = shot && tierPlan(next, shot).frames.find(item => item.position === position);
       return frame ? applyFrameInput(next, shotId, position, { images: [...frame.images, ...added].slice(0, 16) }) : next;
     });
-  });
+  };
   const startTierVideo = (shotId: string) => perform('正在提交 Veo 3.1', async () => {
     const p = await flush(); if (!p) return;
     if (!status.videoGeneration.configured || !status.keyframeStorage?.configured) { setModal('settings'); return; }
@@ -829,7 +843,7 @@ export default function App() {
   const rewriteBlocked = !project.analysis || ((project.promptFlow || 'localized') === 'localized' && missingProductFields.length > 0);
   const available = [true, !!video || !!project.analysis, !!project.analysis];
   const frameHandlers: FrameHandlers = { project, disabled, busy, ratioLabel: frameRatioLabel(project), frameBusy, frameFailed,
-    onFrame: (shotId, position) => void generateTierFrame(shotId, position).catch(() => {}), onFrameUndo: undoTierFrame, onFrameUpload: uploadTierFrame, onFrameRefs: uploadFrameRefs, onFrameInput: setFrameInput };
+    onFrame: (shotId, position) => void generateTierFrame(shotId, position).catch(() => {}), onFrameUndo: undoTierFrame, onFrameUpload: uploadTierFrame, onFrameRefs: uploadFrameRefs, onFrameLibrary: openFrameLibrary, onFrameInput: setFrameInput };
   const tierPanel = project?.analysis ? <TierWorkbench project={project} disabled={disabled} busy={busy}
     onChange={replication => change(p => ({ ...p, replication }))} onCorrect={correctTierShot} onCorrectAll={correctAllTierShots}
     onDetectSubjects={detectTierSubjects} onUploadSubjectImage={uploadTierSubjectImage} onGenerateSubjectImage={generateTierSubjectImage}
@@ -1091,7 +1105,7 @@ export default function App() {
       <div className="modal-actions"><a href="https://gaoruitech.apifox.cn/doc-8842676" target="_blank" rel="noreferrer">Omni 接口文档 <ArrowUpRight size={14} /></a><button className="btn primary" disabled={!!busy || (apiKey.trim().length < 16 && imageApiKey.trim().length < 16 && !imageModel && veoApiKey.trim().length < 16 && storageKey.trim().length < 16)} onClick={() => perform('正在配置', async () => { if (apiKey.trim()) await api('/api/settings', { method: 'POST', body: JSON.stringify({ apiKey, baseUrl }) }); if (imageApiKey.trim() || imageModel || imageBaseUrl.trim()) await api('/api/settings/image-generation', { method: 'POST', body: JSON.stringify({ ...(imageApiKey.trim() ? { apiKey: imageApiKey } : {}), ...(imageBaseUrl.trim() ? { baseUrl: imageBaseUrl } : {}), model: imageModel || status.imageGeneration?.model || 'gpt-image-2.5-flare' }) }); if (veoApiKey.trim()) await api('/api/settings/veo', { method: 'POST', body: JSON.stringify({ apiKey: veoApiKey }) }); if (storageKey.trim()) await api('/api/settings/keyframe-storage', { method: 'POST', body: JSON.stringify({ url: storageUrl || status.keyframeStorage?.url, apiKey: storageKey, bucket: storageBucket || status.keyframeStorage?.bucket || 'sop-keyframes' }) }); setStatus(await api<Status>('/api/status')); setApiKey(''); setImageApiKey(''); setImageModel(''); setImageBaseUrl(''); setVeoApiKey(''); setBaseUrl(''); setStorageKey(''); setModal(null); setNotice('模型连接已配置'); })}>保存连接</button></div>
     </Modal>}
     {modal === 'guide' && <Modal title="跨境视频创意指南" wide onClose={() => setModal(null)}><p className="modal-description">把平台的创作原则落实到每个镜头。以下是创意建议，不是流量或转化承诺。</p><div className="guide-grid"><article><span className="guide-number">01</span><h3>用情境吸引注意</h3><p>先让观众识别自己的问题，再用具体动作展示产品价值。采用清晰的开头、主体和行动引导。</p><a href="https://ads.tiktok.com/resources/help/article/creative-best-practices?lang=en" target="_blank" rel="noreferrer">TikTok 创意建议 <ArrowUpRight size={13} /></a></article><article><span className="guide-number">02</span><h3>为竖屏观看设计</h3><p>Reels 优先竖屏、有声音的内容。字幕、商品和关键信息避开界面遮挡，生成后按实际版位检查。</p><a href="https://www.facebook.com/business/ads/facebook-instagram-reels-ads" target="_blank" rel="noreferrer">Meta Reels 创意指南 <ArrowUpRight size={13} /></a></article><article><span className="guide-number">03</span><h3>卖点与产品页一致</h3><p>用目标顾客的语言解释用途与收益，填写真实规格、售价和优惠，让视频承诺与落地页保持一致。</p><a href="https://help.shopify.com/en/manual/products/details/product-descriptions/write" target="_blank" rel="noreferrer">Shopify 产品描述指南 <ArrowUpRight size={13} /></a></article><article><span className="guide-number">04</span><h3>让内容可交接</h3><p>原片拆解与新方案分开保存。修改前提会将旧方案标记为待更新，导出时使用最新的镜头与口播。</p><span className="secondary-label">AI-SAIL FLOW 工作方式</span></article></div><div className="guide-footer"><Info size={15} /><span>当前流程生成逐镜头复刻关键帧与描述，作为后续图生视频的输入。可检查、调整单张图片并导出制作包。</span></div></Modal>}
-    <AssetLibrary open={!!assetLibraryTarget} user={auth.user} target={assetLibraryTarget || 'all'} initialSelection={initialMedia} onClose={() => setAssetLibraryTarget(null)} onReference={referenceMedia} onSignIn={() => { setAssetLibraryTarget(null); openAuth(); }} />
+    <AssetLibrary open={!!assetLibraryTarget} user={auth.user} target={assetLibraryTarget || 'all'} initialSelection={initialMedia} onClose={() => { setAssetLibraryTarget(null); setFrameRefTarget(null); }} onReference={referenceMedia} onSignIn={() => { setAssetLibraryTarget(null); setFrameRefTarget(null); openAuth(); }} />
     {profileDialog}
     <AuthDialog availability={authAvailability} resendSeconds={authResendSeconds} avatarUrl={accountAvatar} onEditProfile={() => { setAuthOpen(false); setProfileEditing(true); }} open={authOpen && !profileWelcomeOpen} onClose={() => setAuthOpen(false)} auth={auth} email={authEmailValue} code={authCode} stage={authStage} onEmailChange={setAuthEmailValue} onCodeChange={setAuthCode} onSendCode={() => { void sendAuthCode(); }} onVerifyCode={() => { void verifyAuthCode(); }} onBack={() => { setAuthStage('email'); setAuthCode(''); setAuth(current => ({ ...current, error: '', status: '' })); }} onSignOut={() => { void signOut(); }} />
   </div>;

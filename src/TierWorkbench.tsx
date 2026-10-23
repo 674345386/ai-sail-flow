@@ -22,6 +22,8 @@ export type FrameHandlers = {
   onFrameUndo: (shotId: string, position: FramePosition) => void;
   onFrameUpload: (shotId: string, position: FramePosition, file: File) => void;
   onFrameRefs: (shotId: string, position: FramePosition, files: File[]) => void;
+  /** Open the 快捷素材库 to pick (or upload) an image for this frame, same as the product reference slots. */
+  onFrameLibrary: (shotId: string, position: FramePosition) => void;
   onFrameInput: (shotId: string, position: FramePosition, patch: FrameInputPatch) => void;
 };
 
@@ -50,10 +52,22 @@ export function FrameVisual({ plan, frame, frameBusy, frameFailed, disabled, sho
 }
 
 /** The frame input box: what you see is what is sent. Unchanged from the single-shot panel, now owned by the drawer. */
-function FrameComposer({ project, shot, plan, active, disabled, busy, frameBusy, onFrame, onFrameRefs, onFrameInput }: Pick<FrameHandlers, 'project' | 'disabled' | 'busy' | 'frameBusy' | 'onFrame' | 'onFrameRefs' | 'onFrameInput'> & { shot: Shot; plan: TierPlan; active: TierFramePlan }) {
+function FrameComposer({ project, shot, plan, active, disabled, busy, frameBusy, onFrame, onFrameRefs, onFrameLibrary, onFrameInput }: Pick<FrameHandlers, 'project' | 'disabled' | 'busy' | 'frameBusy' | 'onFrame' | 'onFrameRefs' | 'onFrameLibrary' | 'onFrameInput'> & { shot: Shot; plan: TierPlan; active: TierFramePlan }) {
   const rules = project.replication || defaultReplication, subjects = rules.subjects || [];
   const position = active.position;
-  const refInput = useRef<HTMLInputElement>(null);
+  const composerRef = useRef<HTMLDivElement>(null);
+  // ⌘V / Ctrl+V while hovering (or typing in) the composer: images go to the chip row, text pastes as usual.
+  useEffect(() => {
+    if (disabled) return;
+    const paste = (event: ClipboardEvent) => {
+      if (event.defaultPrevented || !composerRef.current?.matches(':hover, :focus-within')) return;
+      const files = Array.from(event.clipboardData?.items || []).filter(item => item.kind === 'file' && item.type.startsWith('image/')).map(item => item.getAsFile()).filter((file): file is File => !!file);
+      if (!files.length) return;
+      event.preventDefault(); onFrameRefs(shot.id, position, files);
+    };
+    window.addEventListener('paste', paste);
+    return () => window.removeEventListener('paste', paste);
+  }, [disabled, onFrameRefs, shot.id, position]);
   /** One picker for 「+ 参考图」 and typing @: subjects' primary images, then uploaded product images, then 上传图片. */
   const [picker, setPicker] = useState<{ at: number } | null>(null), [pick, setPick] = useState(0);
   type RefImage = NonNullable<NonNullable<NonNullable<Replication['shots']>[string]>['refImages']>[number];
@@ -71,14 +85,14 @@ function FrameComposer({ project, shot, plan, active, disabled, busy, frameBusy,
   const activeWaiting = !active.result && active.dependsOnFirst && !plan.frames[0].result;
   const choose = (index: number) => {
     const at = picker?.at ?? -1; setPicker(null);
-    if (index >= candidates.length) { refInput.current?.click(); return; }
+    if (index >= candidates.length) { onFrameLibrary(shot.id, position); return; }
     const item = candidates[index];
     const images = active.images.some(image => image.url === item.url) ? undefined : [...active.images, { role: '参考', label: item.name, url: item.url }].slice(0, 16);
     if (at < 0) { if (images) onFrameInput(shot.id, position, { images }); return; }
     onFrameInput(shot.id, position, { text: active.text.slice(0, at) + `@${item.name} ` + active.text.slice(at + 1), ...(images ? { images } : {}) });
   };
   return <>
-          <div className="tier-composer">
+          <div className="tier-composer" ref={composerRef}>
             <div className="tier-composer-head"><strong>{active.label}</strong>
               {active.edited && <button type="button" className="tier-composer-reset" disabled={disabled} onClick={() => onFrameInput(shot.id, position, null)}>恢复默认</button>}</div>
             <div className="tier-composer-chips">{active.images.map((image, i) => <span className="tier-chip" key={`${image.url}-${i}`}>
@@ -86,8 +100,7 @@ function FrameComposer({ project, shot, plan, active, disabled, busy, frameBusy,
                   <button type="button" aria-label="移除这张图" disabled={disabled} onClick={() => onFrameInput(shot.id, position, { images: active.images.filter((_, j) => j !== i) })}><X size={14} /></button></span>
                 <span className="tier-chip-preview" aria-hidden="true"><img src={image.url} alt="" /></span>
               </span>)}
-              {active.images.length < 16 && <label className={`tier-chip-add${disabled ? ' is-disabled' : ''}`} aria-label="上传图片">{busy === '正在上传参考图' ? <LoaderCircle size={18} className="spin" /> : <Plus size={18} />}
-                <input type="file" accept="image/png,image/jpeg,image/webp" multiple hidden disabled={disabled} onChange={event => { const files = [...(event.target.files || [])]; event.target.value = ''; if (files.length) onFrameRefs(shot.id, position, files); }} /></label>}</div>
+              {active.images.length < 16 && <button type="button" className={`tier-chip-add${disabled ? ' is-disabled' : ''}`} aria-label="选择素材或上传图片" disabled={disabled} onClick={() => onFrameLibrary(shot.id, position)}>{busy === '正在上传参考图' ? <LoaderCircle size={18} className="spin" /> : <Plus size={18} />}</button>}</div>
             <textarea className="tier-composer-text" rows={9} disabled={disabled} value={active.text} aria-label={`${active.label} prompt`}
               onKeyDown={event => {
                 if (!picker) return;
@@ -117,7 +130,6 @@ function FrameComposer({ project, shot, plan, active, disabled, busy, frameBusy,
               </div>}
             </div>
           </div>
-    <input ref={refInput} type="file" accept="image/png,image/jpeg,image/webp" multiple hidden onChange={event => { const files = [...(event.target.files || [])]; event.target.value = ''; if (files.length) onFrameRefs(shot.id, position, files); }} />
   </>;
 }
 

@@ -394,13 +394,13 @@
 .shot-timeline-dialog .shot-timeline-track .shot-timeline-clip:not(.selected):hover { transform: translateY(-1px); box-shadow: 0 0 0 1px #4f9a6699; }
 .shot-timeline-dialog .stl-list-row.selected { transform: translateY(-1px); box-shadow: 0 0 0 2px #4f9a66, 0 6px 14px -6px #00000059, 0 0 12px #4f9a6640; }
 .shot-timeline-dialog .stl-list { padding: 2px 6px 6px 0; }
-.shot-timeline-clip.selected.sel-sweep::after, .stl-list-row.selected.sel-sweep::after, .shot-breakdown-row.selected::after {
+.shot-timeline-clip.selected.sel-sweep::after, .stl-list-row.selected.sel-sweep::after {
   position: absolute; inset: -3px; z-index: 3; padding: 3px; border-radius: 9px; pointer-events: none; content: '';
   background: conic-gradient(from var(--sel-sweep), transparent 0deg, #b8f5d2 30deg, #4f9a66 70deg, transparent 110deg, transparent 360deg);
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude;
   opacity: 0; animation: sel-sweep .6s cubic-bezier(.4, 0, .2, 1) 1 forwards;
 }
-.stl-list-row.selected, .shot-breakdown-row.selected { position: relative; }
+.stl-list-row.selected { position: relative; }
 .shot-timeline-dialog .shot-timeline-track .shot-timeline-clip, .shot-timeline-dialog .stl-list-row { transition: var(--sel-transition); }
 
 /* Shot switch motion: preview flashes and badges/inspector slide in from the scroll direction. */
@@ -412,7 +412,7 @@
 .stl-stage[data-swap=prev] .stl-stage-badges, .stl-inspector[data-swap=prev] .stl-item { animation: stl-swap-prev .2s cubic-bezier(.2, .8, .2, 1) 1; }
 .stl-stage-badges { z-index: 2; }
 @media (prefers-reduced-motion: reduce) {
-  .shot-timeline-clip.sel-sweep::after, .stl-list-row.sel-sweep::after, .shot-breakdown-row.selected::after { display: none; }
+  .shot-timeline-clip.sel-sweep::after, .stl-list-row.sel-sweep::after { display: none; }
   .stl-swap-flash { display: none; }
   .stl-stage .stl-stage-badges, .stl-inspector .stl-item { animation: none !important; }
   .shot-timeline-dialog .shot-timeline-clip, .shot-timeline-dialog .stl-list-row { transition: none; }
@@ -440,3 +440,7 @@
 .stl-scrub-line { top: 50%; bottom: auto; margin-top: -1.5px; filter: drop-shadow(0 0 2px #00000080); }
 .stl-scrub-line::before { position: absolute; inset: -3px -4px; z-index: -1; border-radius: 5px; background: #00000047; content: ''; }
 .stl-scrub-knob em { bottom: 16px; }
+
+/* Fit the stage video and inspector keyframes inside their boxes instead of cropping (2026-10-23). */
+.stl-stage-video video { position: absolute; inset: 0; }
+.stl-inspector .stl-frames img { object-fit: contain; }
