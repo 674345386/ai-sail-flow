@@ -2,6 +2,7 @@
 import type { Project, Shot, TierNewFrame, TierShot, TierStructured, TierSubject } from './domain';
 import { defaultReplication } from './domain';
 import { dimensionStates, levelInfo, type ReplicationLevel } from './replication-levels';
+import { shotEvidenceFrames } from './shot-evidence';
 
 export type TierInput = { role: string; label: string; url?: string; missing?: boolean };
 export const framePositions = ['first', 'middle', 'last'] as const;
@@ -33,6 +34,8 @@ export type TierFramePlan = {
   /** The input box: text and images actually sent; edited = the user changed either. */
   text: string; images: TierImage[]; edited: boolean;
   position: FramePosition; label: string; extra: string; autoExtra: string; noteEdited: boolean; final: string;
+  /** Hash of the inputs this frame was planned against; stamped onto generated results for 已过期. */
+  basis: string;
   source?: { url: string; at: number }; inputs: TierInput[]; order: string;
   /** Step 1 result for this frame, and whether it is 已过期 (derived from an older new first frame). */
   result?: TierNewFrame; outdated: boolean; dependsOnFirst: boolean;
@@ -55,6 +58,11 @@ function hash(value: string) {
   return `tier-v3:${(first >>> 0).toString(16)}:${(second >>> 0).toString(16)}`;
 }
 
+/** Version of the source analysis and evidence frames used by stage-3 results. */
+export function tierSourceBasis(shot: Shot) {
+  return hash(JSON.stringify(shot));
+}
+
 export function shotLevel(project: Project, shotId: string): ReplicationLevel {
   return project.replication?.shots?.[shotId]?.level || project.replication?.level || 'exact';
 }
@@ -74,7 +82,10 @@ export function tierPlan(project: Project, shot: Shot): TierPlan {
   const things = subjects.filter(subject => subject.kind !== 'person');
   const hasRefs = productAssets.length > 0 || subjects.some(subject => subject.images.length > 0);
   const states = dimensionStates({ ...rules, level }, hasRefs);
-  const data = entry?.structured || fallbackStructured(shot);
+  const sourceBasis = tierSourceBasis(shot);
+  const structuredCurrent = !!entry?.structured && entry.structured.sourceBasis === sourceBasis;
+  const structuredStale = !!entry?.structured && !structuredCurrent;
+  const data = structuredCurrent ? entry!.structured! : fallbackStructured(shot);
   const brief = rules.change.trim();
   const missingRefs: string[] = [];
   const bind = (list: TierSubject[], fallback: string) => {
@@ -127,7 +138,13 @@ export function tierPlan(project: Project, shot: Shot): TierPlan {
       : [...productInputs, ...subjects.flatMap(subject => [...origin(subject, '要替换', '把它换掉'), ...yoursFor(subject)])];
   const shotRefs: TierInput[] = (entry?.refImages || []).map(image => ({ role: '参考图', label: image.name || '上传的参考图', url: image.url }));
   refInputs.unshift(...shotRefs);
-  const sourceFrame = (position: FramePosition) => entry?.frames?.find(item => item.position === position);
+  const sourceFrame = (position: FramePosition) => {
+    const saved = structuredCurrent ? entry?.frames?.find(item => item.position === position) : undefined;
+    if (saved) return saved;
+    const current = shotEvidenceFrames(shot).find(item => item.position === position)!;
+    const legacy = entry?.frames?.find(item => item.position === position);
+    return legacy ? { ...legacy, at: current.at } : undefined;
+  };
   const original = (position: FramePosition, role: string): TierInput => {
     const found = sourceFrame(position);
     return { role, label: `原片${frameLabel[position]}${found ? ` ${found.at.toFixed(2)}s` : '（修正后才有）'}`, url: found?.url };
@@ -148,13 +165,15 @@ export function tierPlan(project: Project, shot: Shot): TierPlan {
     const final = `${prompt}\n${extra}`, custom = entry?.frameInputs?.[position];
     const defaults = inputsFor(position).flatMap((item): TierImage[] => item.url && !item.missing && item.role !== '文生图' ? [{ role: item.role, label: item.label, url: item.url }] : []);
     const images = custom?.images ?? defaults;
-    return { position, label: frameLabel[position], extra, autoExtra, noteEdited: note !== undefined, final,
-      text: custom?.text ?? frameRequestText(final, images), images, edited: !!custom,
+    const text = custom?.text ?? frameRequestText(final, images);
+    const basis = hash(JSON.stringify([sourceBasis, level, final, text, images.map(image => image.url), found?.at]));
+    return { position, label: frameLabel[position], extra, autoExtra, noteEdited: note !== undefined, final, basis,
+      text, images, edited: !!custom,
       source: found ? { url: found.url, at: found.at } : undefined, inputs: inputsFor(position),
       order: chained ? (position === 'first' ? '第 1 步生成' : '第 2 步，带上新首帧生成') : '三张各自从原片同位置的帧编辑',
-      result, dependsOnFirst, outdated: !!result && dependsOnFirst && result.kind !== 'uploaded' && result.firstFrom !== newFirst?.filename };
+      result, dependsOnFirst, outdated: !!result && result.kind !== 'uploaded' && (structuredStale || !result.basis || result.basis !== basis || dependsOnFirst && result.firstFrom !== newFirst?.filename) };
   });
-  return { shotId: shot.id, level, overridden: !!entry?.level, corrected: !!entry?.structured,
+  return { shotId: shot.id, level, overridden: !!entry?.level, corrected: structuredCurrent,
     prompt, assembled, basis, manual, stale: manual && entry?.promptBasis !== basis, frames,
     canVideo: !!entry?.newFrames?.first && !!entry?.newFrames?.last, chained,
     video: 'veo_3_1-fl：新首帧 + 新尾帧 + 运动 prompt；新中间帧用来检查效果和当镜头封面', missingRefs: [...new Set(missingRefs)] };
@@ -174,4 +193,9 @@ export function applyFrameInput(project: Project, shotId: string, position: Fram
   const shot: TierShot = { ...entry, frameInputs: Object.keys(inputs).length ? inputs : undefined };
   if (!shot.frameInputs) delete shot.frameInputs;
   return { ...project, replication: { ...rules, shots: { ...(rules.shots || {}), [shotId]: shot } } };
+}
+
+/** 视频片段 default prompt: what is shown is what is sent to Veo with the new first + last frame. */
+export function tierVideoPrompt(shot: Pick<Shot, 'camera' | 'action'>) {
+  return [shot.camera.trim() && `运镜：${shot.camera.trim()}`, shot.action.trim() && `动作：${shot.action.trim()}`].filter(Boolean).join('\n');
 }

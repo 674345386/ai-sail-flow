@@ -12,7 +12,7 @@ import { shotReconstructionPrompt } from '../shared/shot-evidence';
 import { mergeFocusPoints, selectedFocus, selectedShotFocus } from '../shared/focus';
 import { keyframeBasis, keyframeCurrent } from '../shared/storyboard';
 import { keyframeStorageStatus, publishKeyframe, publishReferenceImage } from './keyframe-storage';
-import { tierPlan } from '../shared/tier-prompt';
+import { tierPlan, tierVideoPrompt } from '../shared/tier-prompt';
 import { imageAttemptStatus, imageGenerationStatus } from './image-generation';
 
 export class TaskError extends Error { constructor(public status: number, message: string) { super(message); } }
@@ -66,7 +66,7 @@ async function renderKeyframe(id: string, shotId: string) {
   }
 }
 
-async function saveSource(id: string, videoId: string, local: Awaited<ReturnType<typeof saveGeneratedVideo>>, progress: (n: number, message: string) => void) {
+async function saveSource(id: string, videoId: string, local: Partial<GeneratedVideo>, progress: (n: number, message: string) => void) {
   let project = update(id, p => ({ ...p, generatedVideos: p.generatedVideos.map(video => video.id === videoId ? { ...video, status: 'completed', finishedAt: new Date().toISOString(), stale: false, ...local } : video) }));
   if (project.productionMode !== 'tts-subtitles') return;
   const source = project.generatedVideos.find(video => video.id === videoId)!;
@@ -105,10 +105,10 @@ export function launchTask(id: string, spec: TaskSpec): Promise<void> {
     const plan = tierPlan(p, shot), frames = p.replication?.shots?.[shot.id]?.newFrames;
     if (!plan.canVideo || !frames?.first || !frames.last) throw new TaskError(409, '先生成这个镜头的新首帧和新尾帧。');
     if (!keyframeStorageStatus().configured) throw new TaskError(409, '请先在模型连接设置中连接 Supabase 私有图片存储。');
-    Object.assign(input, { mode: 'i2v', images: [], unitId: `tier-${shot.id}`, prompt: input.prompt.trim() || plan.prompt });
+    Object.assign(input, { mode: 'i2v', images: [], unitId: `tier-${shot.id}`, prompt: input.prompt.trim() || tierVideoPrompt(shot) });
     video = { id: randomUUID(), provider: 'veo-3.1', model: VEO_MODELS.i2v, mode: 'i2v', productionMode: p.productionMode || 'veo-native', imageUrls: [],
       resolution: input.resolution, shotId: shot.id, unitId: input.unitId, sourceShotIds: [shot.id], targetStart: shot.start, targetEnd: shot.end,
-      targetDuration: shot.end - shot.start, status: 'running', prompt: input.prompt, defaultPrompt: plan.prompt, providerRequest: requestBody(input, input.prompt),
+      targetDuration: shot.end - shot.start, status: 'running', prompt: input.prompt, defaultPrompt: tierVideoPrompt(shot), providerRequest: requestBody(input, input.prompt),
       keyframeUrl: frames.middle?.url || frames.first.url, tierShotId: shot.id, tierFirst: frames.first.filename, tierLast: frames.last.filename,
       duration: VEO_DURATION, aspectRatio: input.aspectRatio, startedAt: now };
   } else if (spec.kind === 'generation') {

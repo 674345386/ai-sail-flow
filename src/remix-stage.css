@@ -247,3 +247,15 @@ main.canvas-workspace-main > .remix-stage { height: auto; min-height: 0; }
 .remix-tier-progress > i > b { display: block; height: 100%; background: #282e38; }
 body:has(.remix-stage.is-expanded) .tier-drawer { z-index: 95; }
 .remix-newframe .tier-tile.is-selected { border-color: #7fa9dd; box-shadow: 0 0 0 3px #91bdf233; }
+
+/* 视频片段: one per shot, right of the new keyframes. */
+.remix-node--clip { width: 340px; }
+.remix-clip { display: grid; gap: 10px; justify-items: center; }
+.remix-clip-player { position: relative; width: 150px; aspect-ratio: var(--tier-aspect, 9 / 16); border-radius: 10px; overflow: hidden; background: #eef1f5; cursor: pointer; display: grid; place-items: center; }
+.remix-clip-player video { width: 100%; height: 100%; object-fit: contain; background: #111; display: block; }
+.remix-clip-player.is-empty { border: 1.5px dashed #c3ccd8; background: #f7f9fb; }
+.remix-clip-player .tier-tile-state { position: absolute; inset: auto 6px 50% 6px; transform: translateY(50%); display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 12px; color: #6b7685; text-align: center; }
+.remix-clip-player .tier-tile-state.is-failed { color: #b4483c; }
+.remix-clip-player.is-selected { border-color: #7fa9dd; box-shadow: 0 0 0 3px #91bdf233; }
+.remix-clip-foot { width: 100%; display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: #6b7685; }
+.tier-video-tag { position: absolute; top: 6px; left: 6px; padding: 1px 6px; border-radius: 6px; background: #fff3df; color: #a2671b; font-size: 11px; }

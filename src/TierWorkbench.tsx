@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import { AlertTriangle, ArrowUp, Clapperboard, ImagePlus, LoaderCircle, Plus, RefreshCw, ScanSearch, Sparkles, Trash2, Undo2, Upload, Users, X } from 'lucide-react';
-import { defaultReplication, type Project, type Replication, type Shot, type TierSubject } from '../shared/domain';
+import { AlertTriangle, ArrowUp, Clapperboard, Download, ImagePlus, LoaderCircle, Plus, RefreshCw, ScanSearch, Sparkles, Trash2, Undo2, Upload, Users, X } from 'lucide-react';
+import { defaultReplication, type GeneratedVideo, type Project, type Replication, type Shot, type TierSubject } from '../shared/domain';
 import { replicationLevels, type ReplicationLevel } from '../shared/replication-levels';
-import { framePositions, tierPlan, usesSource, type FramePosition, type TierFramePlan, type TierImage, type TierPlan } from '../shared/tier-prompt';
+import { framePositions, tierPlan, tierVideoPrompt, usesSource, type FramePosition, type TierFramePlan, type TierImage, type TierPlan } from '../shared/tier-prompt';
 import { ReplicationLevelPicker } from './ReplicationLevelPicker';
 import './tier-workbench.css';
 
@@ -134,6 +134,78 @@ function FrameComposer({ project, shot, plan, active, disabled, busy, frameBusy,
 }
 
 /** Right-side drawer for one frame: source vs new side by side, that frame's actions, and its input box. Takes only (shotId, position) plus the shared handlers, so the canvas can open it too. */
+/** 视频片段 state for one shot: every number here comes from the project record, nothing is guessed. */
+export function tierVideoState(project: Project, shot: Shot) {
+  const entry = project.replication?.shots?.[shot.id], frames = entry?.newFrames;
+  const plan = tierPlan(project, shot);
+  const versions = project.generatedVideos.filter(video => video.tierShotId === shot.id);
+  const latest = versions.at(-1);
+  const missing = [!frames?.first && '新首帧', !frames?.last && '新尾帧'].filter(Boolean) as string[];
+  const fallback = tierVideoPrompt(shot), prompt = entry?.videoPrompt ?? fallback;
+  const running = latest?.status === 'running' && project.job?.kind === 'generation' && project.job.status === 'running';
+  const failed = latest?.status === 'failed' || latest?.status === 'running' && !running;
+  const expired = (video?: GeneratedVideo) => !!video && video.status === 'completed' && (!!video.stale || video.tierFirst !== frames?.first?.filename || video.tierLast !== frames?.last?.filename || plan.frames.some(frame => (frame.position === 'first' || frame.position === 'last') && frame.outdated));
+  return { versions, latest, completed: versions.filter(video => video.status === 'completed' && video.url), missing, prompt, defaultPrompt: fallback,
+    edited: entry?.videoPrompt !== undefined && entry.videoPrompt !== fallback, running, failed, error: failed ? latest?.error || '上次生成没有完成' : '',
+    progress: running ? project.job?.progress : undefined, expired, ready: missing.length === 0 };
+}
+
+export type VideoHandlers = { project: Project; disabled: boolean; ratioLabel: string; onVideo: (shotId: string) => void; onVideoPrompt: (shotId: string, text: string | null) => void };
+
+export function VideoDrawer({ shotId, onClose, project, disabled, ratioLabel, onVideo, onVideoPrompt }: VideoHandlers & { shotId: string; onClose: () => void }) {
+  const shots = project.analysis?.shots || [];
+  const index = shots.findIndex(item => item.id === shotId), shot = shots[index];
+  const [picked, setPicked] = useState<string | null>(null);
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [onClose]);
+  if (!shot) return null;
+  const state = tierVideoState(project, shot), frames = project.replication?.shots?.[shot.id]?.newFrames;
+  const level = tierPlan(project, shot).level;
+  const shown = state.completed.find(video => video.id === picked) || state.completed.at(-1);
+  const versionNo = shown ? state.completed.indexOf(shown) + 1 : 0;
+  const aspectRatio = aspectOf(ratioLabel);
+  const slot = (label: string, frame?: { url: string }) => <figure className="tier-video-slot"><span className={`tier-tile${frame ? '' : ' is-empty'}`} style={{ aspectRatio }}>
+    {frame ? <img src={frame.url} alt={label} /> : <span className="tier-tile-state">还没有{label}</span>}</span><figcaption>{label}</figcaption></figure>;
+  return <aside className="tier-drawer tier-video-drawer" role="dialog" aria-label={`镜头 ${shotNo(index)} · 视频片段`}>
+    <header className="tier-drawer-head">
+      <div><strong>镜头 {shotNo(index)} · 视频片段</strong><small>{shot.start.toFixed(1)}–{shot.end.toFixed(1)}s · {levelLabel(level)}</small></div>
+      <button type="button" className="icon-btn" aria-label="关闭" title="关闭" onClick={onClose}><X size={16} /></button>
+    </header>
+    <div className="tier-drawer-body">
+      <div className={`tier-video-player${state.running ? ' is-loading' : ''}`} style={{ aspectRatio }}>
+        {shown ? <video key={shown.id} src={shown.url} poster={shown.thumbnail} controls playsInline preload="metadata" />
+          : <span className="tier-tile-state">{state.running ? <><LoaderCircle size={18} className="spin" />生成中{state.progress ? ` ${state.progress}%` : ''}</> : state.failed ? <><AlertTriangle size={16} />{state.error}</> : '还没有视频片段'}</span>}
+        {shown && state.expired(shown) && <span className="tier-video-tag">已过期</span>}
+      </div>
+      {shown && <div className="tier-video-meta">
+        {state.completed.length > 1 ? <select className="input" value={shown.id} aria-label="视频版本" onChange={event => setPicked(event.target.value)}>
+          {state.completed.map((video, i) => <option key={video.id} value={video.id}>版本 {i + 1}</option>)}</select> : <span>版本 {versionNo}</span>}
+        <span>{(shown.duration || 0).toFixed(1)}s</span>
+        <a className="btn small" href={shown.url} download><Download size={13} />下载</a>
+      </div>}
+      {state.running && shown && <p className="tier-video-note"><LoaderCircle size={13} className="spin" />新版本生成中{state.progress ? ` ${state.progress}%` : ''}…</p>}
+      {state.failed && shown && <p className="tier-missing">{state.error}</p>}
+      <div className="tier-composer">
+        <div className="tier-composer-head"><strong>视频 prompt</strong>
+          {state.edited && <button type="button" className="tier-composer-reset" disabled={disabled} onClick={() => onVideoPrompt(shot.id, null)}>恢复默认</button>}</div>
+        <div className="tier-video-slots">{slot('首帧', frames?.first)}{slot('尾帧', frames?.last)}</div>
+        <textarea className="tier-composer-text" rows={6} disabled={disabled} value={state.prompt} aria-label="视频 prompt"
+          onChange={event => onVideoPrompt(shot.id, event.target.value)} />
+        <div className="tier-composer-foot">
+          <span className="tier-composer-level">{shown?.duration ? `${shown.duration.toFixed(1)}s · ` : ''}{ratioLabel}</span>
+          <span className="tier-composer-spacer" />
+          <button type="button" className="btn small primary" disabled={disabled || state.running || !state.ready || !state.prompt.trim()} onClick={() => onVideo(shot.id)}>
+            {state.running ? <LoaderCircle size={13} className="spin" /> : state.completed.length ? <RefreshCw size={13} /> : <Clapperboard size={13} />}{state.completed.length ? '重新生成' : '生成视频'}</button>
+        </div>
+      </div>
+      {!state.ready && <p className="tier-missing">还缺{state.missing.join('和')}，先在关键帧那一栏生成。</p>}
+    </div>
+  </aside>;
+}
+
 export function FrameDrawer({ shotId, position, onClose, ...props }: FrameHandlers & { shotId: string; position: FramePosition; onClose: () => void }) {
   const { project, disabled, ratioLabel, frameBusy, frameFailed, onFrame, onFrameUndo, onFrameUpload } = props;
   const shots = project.analysis?.shots || [];
@@ -297,7 +369,8 @@ export default function TierWorkbench({ project, disabled, busy, onChange, onCor
               </select>
               <button type="button" className="btn small" disabled={disabled || working} onClick={() => { setCorrecting(shot.id); onCorrect(shot.id); }}>{correctingRow(shot.id, i) ? <LoaderCircle size={14} className="spin" /> : <ScanSearch size={14} />}{plan.corrected ? '重新修正' : '用关键帧修正'}</button>
               <button type="button" className="btn small" disabled={disabled || shotRunning} onClick={() => onGenerateShots([shot.id])}><Sparkles size={14} />生成本镜关键帧</button>
-              <button type="button" className="btn small" disabled onClick={() => onVideo(shot.id)}><Clapperboard size={13} />生成视频片段</button>
+              {(() => { const video = tierVideoState(project, shot); return <button type="button" className="btn small" disabled={disabled || !video.ready || video.running}
+                title={video.ready ? undefined : `还缺${video.missing.join('和')}`} onClick={() => onVideo(shot.id)}>{video.running ? <LoaderCircle size={13} className="spin" /> : <Clapperboard size={13} />}{video.completed.length ? '重新生成视频片段' : '生成视频片段'}</button>; })()}
               {plan.missingRefs.length > 0 && <p className="tier-missing">待上传参考图：{plan.missingRefs.join('、')}</p>}
             </div>
           </li>; })}</ol>

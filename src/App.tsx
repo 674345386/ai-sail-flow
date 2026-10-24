@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode, type InputHTMLAttributes, type TextareaHTMLAttributes } from 'react';
-import TierWorkbench, { FrameDrawer, type FrameHandlers, type OpenFrame } from './TierWorkbench';
+import TierWorkbench, { FrameDrawer, VideoDrawer, tierVideoState, type FrameHandlers, type OpenFrame } from './TierWorkbench';
 import { applyFrameInput, framePositions, tierPlan, type FramePosition, type TierImage } from '../shared/tier-prompt';
 const frameRatioLabel = (project: Project) => { const video = project.assets.find(asset => asset.kind === 'video'); if (!video?.width || !video?.height) return project.market.aspectRatio; const gcd = (a: number, b: number): number => b ? gcd(b, a % b) : a; const g = gcd(video.width, video.height); return `${video.width / g}:${video.height / g}`; };
 import { Archive, ArchiveRestore, ArrowDownToLine, ArrowLeft, ArrowRight, ArrowUpRight, Check, CheckCheck, ChevronDown, ChevronRight, CircleHelp, CirclePlay, Clapperboard, Copy, Download, Eye, FileJson, FileText, Film, FolderOpen, Globe2, Grid2X2, ImagePlus, Info, LayoutList, LoaderCircle, LogOut, Mail, Package, Plus, Save, ScanLine, Scissors, Settings, Settings2, ShieldCheck, Sparkles, Subtitles, Upload, Video, WandSparkles, Workflow, X } from 'lucide-react';
@@ -610,7 +610,17 @@ export default function App() {
   const [frameFailed, setFrameFailed] = useState<Record<string, string>>({});
   /** The one frame drawer, shared by the overview and the canvas. */
   const [openFrame, setOpenFrame] = useState<OpenFrame | null>(null);
-  useEffect(() => setOpenFrame(null), [project?.id]);
+  const [openVideo, setOpenVideo] = useState<string | null>(null);
+  useEffect(() => { setOpenFrame(null); setOpenVideo(null); }, [project?.id]);
+  const openFrameOnly = (frame: OpenFrame | null) => { if (frame) setOpenVideo(null); setOpenFrame(frame); };
+  const openVideoOnly = (shotId: string | null) => { if (shotId) setOpenFrame(null); setOpenVideo(shotId); };
+  /** 视频片段 prompt: null = back to the default (运镜 + 动作). */
+  const setVideoPrompt = (shotId: string, text: string | null) => change(p => {
+    const rules = p.replication || defaultReplication, shots = { ...(rules.shots || {}) };
+    const { videoPrompt: _old, ...entry } = shots[shotId] || {};
+    shots[shotId] = text === null ? entry : { ...entry, videoPrompt: text };
+    return { ...p, replication: { ...rules, shots } };
+  });
   /** Per frame: the last send's jobId, kept so a 状态未知 retry with unchanged input re-checks that job instead of paying again. */
   const frameJobs = useRef<Record<string, { id: string; input: string; unknown: boolean }>>({});
   const frameTask = async (shotId: string, position: FramePosition, run: () => Promise<void>) => {
@@ -703,7 +713,9 @@ export default function App() {
     const p = await flush(); if (!p) return;
     if (!status.videoGeneration.configured || !status.keyframeStorage?.configured) { setModal('settings'); return; }
     const ratio = frameRatioLabel(p).split(':').map(Number);
-    adopt(await api<Project>(`/api/projects/${p.id}/generations`, { method: 'POST', body: JSON.stringify({ tierShotId: shotId, resolution: '720p', aspectRatio: ratio[0] > ratio[1] ? '16:9' : '9:16' }) }));
+    const shot = p.analysis?.shots.find(item => item.id === shotId); if (!shot) return;
+    const prompt = tierVideoState(p, shot).prompt.trim();
+    adopt(await api<Project>(`/api/projects/${p.id}/generations`, { method: 'POST', body: JSON.stringify({ tierShotId: shotId, prompt, resolution: '720p', aspectRatio: ratio[0] > ratio[1] ? '16:9' : '9:16' }) }));
   });
   const startShotVideo = (shotId: string) => {
     const p = current.current; if (!p?.rewrite) return;
@@ -848,9 +860,10 @@ export default function App() {
     onChange={replication => change(p => ({ ...p, replication }))} onCorrect={correctTierShot} onCorrectAll={correctAllTierShots}
     onDetectSubjects={detectTierSubjects} onUploadSubjectImage={uploadTierSubjectImage} onGenerateSubjectImage={generateTierSubjectImage}
     frameBusy={frameBusy} frameFailed={frameFailed} ratioLabel={frameHandlers.ratioLabel} onFrame={frameHandlers.onFrame}
-    onGenerateShots={shotIds => void generateTierShots(shotIds)} onVideo={startTierVideo} openFrame={openFrame} onOpenFrame={setOpenFrame} /> : null;
-  const frameDrawer = openFrame && project.analysis && (canvasView || step === 2) ? <FrameDrawer {...frameHandlers} shotId={openFrame.shotId} position={openFrame.position} onClose={() => setOpenFrame(null)} /> : null;
-  const remixPanel = <Suspense fallback={<div className="canvas-loading" role="status"><LoaderCircle className="spin" size={20} />正在打开二创画布…</div>}><RemixStage key={project.id} project={project} disabled={disabled} tierFrames={project.analysis ? { disabled: frameHandlers.disabled, ratioLabel: frameHandlers.ratioLabel, frameBusy, frameFailed, onFrame: frameHandlers.onFrame, onGenerateShots: shotIds => void generateTierShots(shotIds), open: openFrame, onOpen: setOpenFrame } : undefined} onAction={(action, settings, prompt, videoId) => void startRemix(action, settings, prompt, videoId)} onSave={(settings, prompt) => void startRemix(undefined, settings, prompt)} onUpload={(file, settings) => void uploadRemixCharacter(file, settings)} onCopy={text => void copy(text)} onSettings={() => setModal('settings')} /></Suspense>;
+    onGenerateShots={shotIds => void generateTierShots(shotIds)} onVideo={startTierVideo} openFrame={openFrame} onOpenFrame={openFrameOnly} /> : null;
+  const frameDrawer = openFrame && project.analysis && (canvasView || step === 2) ? <FrameDrawer {...frameHandlers} shotId={openFrame.shotId} position={openFrame.position} onClose={() => setOpenFrame(null)} />
+    : openVideo && project.analysis && (canvasView || step === 2) ? <VideoDrawer project={project} disabled={disabled} ratioLabel={frameHandlers.ratioLabel} onVideo={startTierVideo} onVideoPrompt={setVideoPrompt} shotId={openVideo} onClose={() => setOpenVideo(null)} /> : null;
+  const remixPanel = <Suspense fallback={<div className="canvas-loading" role="status"><LoaderCircle className="spin" size={20} />正在打开二创画布…</div>}><RemixStage key={project.id} project={project} disabled={disabled} tierFrames={project.analysis ? { disabled: frameHandlers.disabled, ratioLabel: frameHandlers.ratioLabel, frameBusy, frameFailed, onFrame: frameHandlers.onFrame, onGenerateShots: shotIds => void generateTierShots(shotIds), open: openFrame, onOpen: openFrameOnly, openVideo, onOpenVideo: openVideoOnly, onVideo: startTierVideo } : undefined} onAction={(action, settings, prompt, videoId) => void startRemix(action, settings, prompt, videoId)} onSave={(settings, prompt) => void startRemix(undefined, settings, prompt)} onUpload={(file, settings) => void uploadRemixCharacter(file, settings)} onCopy={text => void copy(text)} onSettings={() => setModal('settings')} /></Suspense>;
   const market = countries.find(c => c.code === project.market.country)!;
   const platform = platforms.find(p => p.id === project.market.platform)!;
   const shot = project.analysis?.shots[Math.min(selectedShot, project.analysis.shots.length - 1)];
@@ -1104,7 +1117,7 @@ export default function App() {
       <div className="modal-actions"><a href="https://gaoruitech.apifox.cn/doc-8842676" target="_blank" rel="noreferrer">Omni 接口文档 <ArrowUpRight size={14} /></a><button className="btn primary" disabled={!!busy || (apiKey.trim().length < 16 && imageApiKey.trim().length < 16 && !imageModel && veoApiKey.trim().length < 16 && storageKey.trim().length < 16)} onClick={() => perform('正在配置', async () => { if (apiKey.trim()) await api('/api/settings', { method: 'POST', body: JSON.stringify({ apiKey, baseUrl }) }); if (imageApiKey.trim() || imageModel || imageBaseUrl.trim()) await api('/api/settings/image-generation', { method: 'POST', body: JSON.stringify({ ...(imageApiKey.trim() ? { apiKey: imageApiKey } : {}), ...(imageBaseUrl.trim() ? { baseUrl: imageBaseUrl } : {}), model: imageModel || status.imageGeneration?.model || 'gpt-image-2.5-flare' }) }); if (veoApiKey.trim()) await api('/api/settings/veo', { method: 'POST', body: JSON.stringify({ apiKey: veoApiKey }) }); if (storageKey.trim()) await api('/api/settings/keyframe-storage', { method: 'POST', body: JSON.stringify({ url: storageUrl || status.keyframeStorage?.url, apiKey: storageKey, bucket: storageBucket || status.keyframeStorage?.bucket || 'sop-keyframes' }) }); setStatus(await api<Status>('/api/status')); setApiKey(''); setImageApiKey(''); setImageModel(''); setImageBaseUrl(''); setVeoApiKey(''); setBaseUrl(''); setStorageKey(''); setModal(null); setNotice('模型连接已配置'); })}>保存连接</button></div>
     </Modal>}
     {modal === 'guide' && <Modal title="跨境视频创意指南" wide onClose={() => setModal(null)}><p className="modal-description">把平台的创作原则落实到每个镜头。以下是创意建议，不是流量或转化承诺。</p><div className="guide-grid"><article><span className="guide-number">01</span><h3>用情境吸引注意</h3><p>先让观众识别自己的问题，再用具体动作展示产品价值。采用清晰的开头、主体和行动引导。</p><a href="https://ads.tiktok.com/resources/help/article/creative-best-practices?lang=en" target="_blank" rel="noreferrer">TikTok 创意建议 <ArrowUpRight size={13} /></a></article><article><span className="guide-number">02</span><h3>为竖屏观看设计</h3><p>Reels 优先竖屏、有声音的内容。字幕、商品和关键信息避开界面遮挡，生成后按实际版位检查。</p><a href="https://www.facebook.com/business/ads/facebook-instagram-reels-ads" target="_blank" rel="noreferrer">Meta Reels 创意指南 <ArrowUpRight size={13} /></a></article><article><span className="guide-number">03</span><h3>卖点与产品页一致</h3><p>用目标顾客的语言解释用途与收益，填写真实规格、售价和优惠，让视频承诺与落地页保持一致。</p><a href="https://help.shopify.com/en/manual/products/details/product-descriptions/write" target="_blank" rel="noreferrer">Shopify 产品描述指南 <ArrowUpRight size={13} /></a></article><article><span className="guide-number">04</span><h3>让内容可交接</h3><p>原片拆解与新方案分开保存。修改前提会将旧方案标记为待更新，导出时使用最新的镜头与口播。</p><span className="secondary-label">AI-SAIL FLOW 工作方式</span></article></div><div className="guide-footer"><Info size={15} /><span>当前流程生成逐镜头复刻关键帧与描述，作为后续图生视频的输入。可检查、调整单张图片并导出制作包。</span></div></Modal>}
-    <AssetLibrary open={!!assetLibraryTarget} user={auth.user} target={assetLibraryTarget || 'all'} initialSelection={initialMedia} onClose={() => { setAssetLibraryTarget(null); setFrameRefTarget(null); }} onReference={referenceMedia} onSignIn={() => { setAssetLibraryTarget(null); setFrameRefTarget(null); openAuth(); }} />
+    <AssetLibrary open={!!assetLibraryTarget} user={auth.user} project={project} frameBusy={frameBusy} target={assetLibraryTarget || 'all'} initialSelection={initialMedia} onClose={() => { setAssetLibraryTarget(null); setFrameRefTarget(null); }} onReference={referenceMedia} onSignIn={() => { setAssetLibraryTarget(null); setFrameRefTarget(null); openAuth(); }} />
     {profileDialog}
     <AuthDialog availability={authAvailability} resendSeconds={authResendSeconds} avatarUrl={accountAvatar} onEditProfile={() => { setAuthOpen(false); setProfileEditing(true); }} open={authOpen && !profileWelcomeOpen} onClose={() => setAuthOpen(false)} auth={auth} email={authEmailValue} code={authCode} stage={authStage} onEmailChange={setAuthEmailValue} onCodeChange={setAuthCode} onSendCode={() => { void sendAuthCode(); }} onVerifyCode={() => { void verifyAuthCode(); }} onBack={() => { setAuthStage('email'); setAuthCode(''); setAuth(current => ({ ...current, error: '', status: '' })); }} onSignOut={() => { void signOut(); }} />
   </div>;

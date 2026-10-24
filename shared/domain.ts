@@ -54,6 +54,7 @@ export const tierStructuredSchema = z.object({
 const mediaUrl = z.string().max(500).regex(/^\/media\/[\w.-]+$/);
 const tierNewFrameVersionSchema = z.object({
   filename: z.string().max(200).regex(/^[\w.-]+$/), url: mediaUrl, kind: z.enum(['generated', 'edited', 'uploaded']), createdAt: z.string().max(40),
+  basis: z.string().max(200).optional(),
   /** 改编/Remix middle and last frames: the new first frame (filename) they were derived from; a mismatch means 已过期. */
   firstFrom: z.string().max(200).optional(),
 });
@@ -61,7 +62,7 @@ export const tierNewFrameSchema = tierNewFrameVersionSchema.extend({ previous: t
 const tierFrameKey = z.enum(['first', 'middle', 'last']);
 export const tierShotSchema = z.object({
   level: z.enum(replicationLevelIds).optional(),
-  structured: tierStructuredSchema.extend({ correctedAt: z.string().max(40), model: z.string().max(160) }).optional(),
+  structured: tierStructuredSchema.extend({ correctedAt: z.string().max(40), model: z.string().max(160), sourceBasis: z.string().max(200).optional() }).optional(),
   frames: z.array(z.object({ at: z.number(), url: z.string().max(500), position: z.string().max(20) })).max(3).optional(),
   /** Hand-edited prompt per regenerated keyframe; basis = the assembly it was written against (a mismatch means inputs changed since). */
   prompt: z.string().max(12000).optional(), promptBasis: z.string().max(200).optional(),
@@ -69,6 +70,8 @@ export const tierShotSchema = z.object({
   frameNotes: z.partialRecord(tierFrameKey, z.string().max(3000)).optional(),
   /** Step 1 results: the regenerated keyframes, each with one undo step. */
   newFrames: z.partialRecord(tierFrameKey, tierNewFrameSchema).optional(),
+  /** 视频片段: the hand-edited Veo prompt for this shot; absent = 运镜 + 动作 */
+  videoPrompt: z.string().max(12000).optional(),
   /** 「+ 参考图」: images uploaded on the shared prompt, sent with all three frames right after the base frame. */
   refImages: z.array(z.object({ filename: z.string().regex(/^[\w.-]+$/), url: z.string().regex(/^\/media\/[\w.-]+$/), mime: z.enum(['image/png', 'image/jpeg', 'image/webp']), name: z.string().max(200) })).max(8).optional(),
   /** The per-frame input box: the user's own prompt text and/or image list; absent = system default. */

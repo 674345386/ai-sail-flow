@@ -51,7 +51,7 @@ export async function generateTierFrame(project: Project, shotId: string, positi
     await fs.unlink(path.join(uploadDir, raw.filename)).catch(() => {});
     const firstFrom = frame.dependsOnFirst ? entry?.newFrames?.first?.filename : undefined;
     const kind: TierNewFrame['kind'] = 'generated';
-    return { filename, url: `/media/${filename}`, kind, createdAt: new Date().toISOString(), ...(firstFrom ? { firstFrom } : {}) };
+    return { filename, url: `/media/${filename}`, kind, createdAt: new Date().toISOString(), basis: frame.basis, ...(firstFrom ? { firstFrom } : {}) };
   } finally {
     for (const file of temps) await fs.unlink(file).catch(() => {});
   }
