@@ -246,7 +246,7 @@ export function FrameDrawer({ shotId, position, onClose, ...props }: FrameHandle
   </aside>;
 }
 
-export default function TierWorkbench({ project, disabled, busy, onChange, onCorrect, onCorrectAll, onDetectSubjects, onUploadSubjectImage, onGenerateSubjectImage, frameBusy, frameFailed, ratioLabel, onFrame, onGenerateShots, onVideo, openFrame, onOpenFrame }: {
+export default function TierWorkbench({ project, disabled, busy, onChange, onCorrect, onCorrectAll, onDetectSubjects, onUploadSubjectImage, onGenerateSubjectImage, frameBusy, frameFailed, ratioLabel, onFrame, onGenerateShots, onVideo, onGroupVideo, openFrame, onOpenFrame }: {
   project: Project; disabled: boolean; busy: string;
   /** The frame whose drawer is open; App owns it so the canvas opens the same drawer. */
   openFrame: OpenFrame | null; onOpenFrame: (frame: OpenFrame) => void;
@@ -255,7 +255,7 @@ export default function TierWorkbench({ project, disabled, busy, onChange, onCor
   onGenerateSubjectImage: (subjectId: string, instruction: string) => Promise<boolean>;
   frameBusy: string[]; frameFailed: Record<string, string>; ratioLabel: string;
   onFrame: (shotId: string, position: FramePosition) => void;
-  onGenerateShots: (shotIds: string[]) => void; onVideo: (shotId: string) => void;
+  onGenerateShots: (shotIds: string[]) => void; onVideo: (shotId: string) => void; onGroupVideo: (shotIds: string[]) => void;
 }) {
   const rules = project.replication || defaultReplication;
   const shots = project.analysis?.shots || [];
@@ -264,6 +264,7 @@ export default function TierWorkbench({ project, disabled, busy, onChange, onCor
   const [generating, setGenerating] = useState<{ id: string; text: string } | null>(null);
   const open = openFrame;
   const [showSource, setShowSource] = useState(true);
+  const [groupSelection, setGroupSelection] = useState<string[]>([]);
   const [correcting, setCorrecting] = useState('');
   const plans = useMemo(() => shots.map(shot => tierPlan(project, shot)), [project, shots]);
   if (!project.analysis) return null;
@@ -279,6 +280,10 @@ export default function TierWorkbench({ project, disabled, busy, onChange, onCor
   const working = !!busy;
   const done = plans.reduce((sum, plan) => sum + plan.frames.filter(frame => frame.result).length, 0), total = plans.length * framePositions.length;
   const aspectRatio = aspectOf(ratioLabel);
+  const selectedForGroup = shots.filter(shot => groupSelection.includes(shot.id));
+  const groupDuration = selectedForGroup.reduce((sum, shot) => sum + shot.end - shot.start, 0);
+  const groupReady = selectedForGroup.length >= 2 && selectedForGroup.length <= 3 && groupDuration <= 8 && selectedForGroup.every(shot => tierVideoState(project, shot).ready);
+  const toggleGroupShot = (shotId: string) => setGroupSelection(current => current.includes(shotId) ? current.filter(id => id !== shotId) : current.length >= 3 ? current : [...current, shotId]);
   const correctingRow = (shotId: string, index: number) => busy === '正在修正镜头' ? correcting === shotId : busy.startsWith(`正在修正镜头 ${index + 1}/`);
   return <section className={`panel tier-workbench${open ? ' has-drawer' : ''}`} aria-label="复刻程度">
     <div className="panel-heading"><div><h2>复刻程度</h2></div><span className="secondary-label">{correctedCount}/{shots.length} 个镜头已用关键帧修正</span></div>
@@ -337,6 +342,9 @@ export default function TierWorkbench({ project, disabled, busy, onChange, onCor
           <span className="tier-board-level">档位 <b>{levelLabel(rules.level || 'exact')}</b></span>
           <span className="tier-board-progress" aria-label="已生成关键帧"><span className="tier-board-meter"><i style={{ width: `${total ? done / total * 100 : 0}%` }} /></span><b>{done} / {total}</b></span>
           <span className="tier-composer-spacer" />
+          {groupSelection.length > 0 && <span className="tier-group-summary">{groupSelection.length} 镜头 · {groupDuration.toFixed(1)} / 8.0 秒</span>}
+          <button type="button" className="btn small primary" disabled={disabled || !groupReady} title={groupSelection.length < 2 ? '至少选择两个已生成首尾帧的镜头' : groupDuration > 8 ? '所选镜头总时长不能超过 8 秒' : undefined}
+            onClick={() => { const ids = [...groupSelection]; onGroupVideo(ids); }}><Clapperboard size={14} />生成所选 {groupSelection.length || ''} 镜头</button>
           <label className="tier-board-toggle"><input type="checkbox" checked={showSource} onChange={event => setShowSource(event.target.checked)} /><span aria-hidden="true" />显示原帧</label>
           <button type="button" className="btn small" disabled={disabled || working} onClick={onCorrectAll}>{busy.startsWith('正在修正镜头 ') ? <LoaderCircle size={14} className="spin" /> : <ScanSearch size={14} />}全部镜头修正</button>
           <button type="button" className="btn small primary" disabled={disabled || frameBusy.length > 0} onClick={() => onGenerateShots(shots.map(item => item.id))}>{frameBusy.length ? <LoaderCircle size={14} className="spin" /> : <Sparkles size={14} />}生成全部关键帧</button>
@@ -347,6 +355,7 @@ export default function TierWorkbench({ project, disabled, busy, onChange, onCor
           return <li key={plan.shotId} className={`tier-row${open?.shotId === shot.id ? ' is-open' : ''}`}>
             <div className="tier-row-meta">
               <strong>{shotNo(i)}</strong>
+              <label className="tier-group-select" title="选择加入一次多镜头生成"><input type="checkbox" disabled={disabled || !tierVideoState(project, shot).ready || (!groupSelection.includes(shot.id) && groupSelection.length >= 3)} checked={groupSelection.includes(shot.id)} onChange={() => toggleGroupShot(shot.id)} />合并生成</label>
               <span>{(shot.end - shot.start).toFixed(1)} 秒</span>
               <small>{shot.start.toFixed(1)}–{shot.end.toFixed(1)}s</small>
               <span className="tier-row-flags">

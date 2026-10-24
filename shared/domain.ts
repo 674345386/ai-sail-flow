@@ -70,8 +70,8 @@ export const tierShotSchema = z.object({
   frameNotes: z.partialRecord(tierFrameKey, z.string().max(3000)).optional(),
   /** Step 1 results: the regenerated keyframes, each with one undo step. */
   newFrames: z.partialRecord(tierFrameKey, tierNewFrameSchema).optional(),
-  /** 视频片段: the hand-edited Veo prompt for this shot; absent = 运镜 + 动作 */
-  videoPrompt: z.string().max(12000).optional(),
+  /** 视频片段: the hand-edited Veo prompt; absent = complete current shot analysis. */
+  videoPrompt: z.string().max(100000).optional(),
   /** 「+ 参考图」: images uploaded on the shared prompt, sent with all three frames right after the base frame. */
   refImages: z.array(z.object({ filename: z.string().regex(/^[\w.-]+$/), url: z.string().regex(/^\/media\/[\w.-]+$/), mime: z.enum(['image/png', 'image/jpeg', 'image/webp']), name: z.string().max(200) })).max(8).optional(),
   /** The per-frame input box: the user's own prompt text and/or image list; absent = system default. */
@@ -114,6 +114,12 @@ export const shotSchema = z.object({
   subject: z.string().max(3000).optional(), effects: z.string().max(3000).optional(),
   transition: z.string().max(2000).optional(), reconstructionPrompt: z.string().max(8000).optional(),
   evidenceFrames: z.array(z.object({ at: z.number().min(0).max(2700), reason: z.string().max(1000) })).max(3).optional(),
+  /** Absolute source-video times; optional for saved records from older analyzers. */
+  motionBeats: z.array(z.object({
+    start: z.number().min(0).max(2700), end: z.number().min(0).max(2700),
+    kind: z.enum(['subject', 'object', 'camera', 'effect', 'transition', 'static', 'uncertain']),
+    description: z.string().min(1).max(1500),
+  })).max(24).optional().describe('Time-ordered observed motion, animation and transition events in absolute source-video seconds. Describe what changes, direction, starting and ending states. Static requires temporal verification; never infer stillness from a single frame.'),
   focusPoints: z.array(focusPointSchema).max(12).optional(),
 });
 export const shotSuggestionSchema = shotSchema.omit({ id: true, start: true, end: true, evidenceFrames: true }).extend({
@@ -137,7 +143,7 @@ export const analysisSchema = z.object({
 export const analysisModelSchema = analysisSchema.omit({ excludedShots: true }).extend({
   focusPoints: z.array(focusCandidateSchema).min(1).max(12),
   shots: z.array(shotSchema.extend({ focusPoints: z.array(focusCandidateSchema).min(1).max(8) }).required({
-  subject: true, effects: true, transition: true, reconstructionPrompt: true, evidenceFrames: true,
+  subject: true, effects: true, transition: true, reconstructionPrompt: true, evidenceFrames: true, motionBeats: true,
   })).min(1).max(120),
 });
 export const rewriteShotSchema = shotSchema.extend({
@@ -202,7 +208,7 @@ export const automaticSettingsSchema = z.object({
 export type AutomaticSettings = z.infer<typeof automaticSettingsSchema>;
 export type ModelRequestSnapshot = {
   model: string; transport: string; systemInstruction: string; prompt: string;
-  responseSchema: unknown; media: { kind: string; mimeType?: string; size?: number; mediaProcessing?: string }[];
+  responseSchema: unknown; media: { kind: string; mimeType?: string; size?: number; mediaProcessing?: string; videoFps?: number }[];
   parameters: Record<string, string | number | boolean>;
   recordedAt: string;
 };
@@ -218,6 +224,8 @@ export type GeneratedVideo = {
   keyframeShotId?: string; keyframeFilename?: string; keyframeBasis?: string; keyframeUrl?: string;
   /** 档位工作台 step 2: the new first/last frame files this clip was made from. */
   tierShotId?: string; tierFirst?: string; tierLast?: string;
+  /** Shared id for clips sliced from one multi-shot model generation. */
+  tierGroupId?: string; tierGroupShotIds?: string[];
 };
 export type ComposedVideo = {
   id: string; mode: ProductionMode; unitId?: string; sourceVideoIds: string[]; voice: string;
@@ -235,6 +243,7 @@ export type AnalysisMeta = {
   mode: 'agentic-video' | 'native-video' | 'sampled-frames';
   transport: 'gemini-inline' | 'gemini-files' | 'openai-images';
   audioSubmitted: boolean; requestedModel: string; providerModel?: string; agenticTrace?: boolean; analyzedAt: string;
+  requestedVideoFps?: number;
 };
 export const defaultWorkspace = { id: 'default', title: '我的工作空间' } as const;
 export type WorkspaceProject = { id: string; workspaceId: string; title: string; createdAt: string; updatedAt: string; revision: number };

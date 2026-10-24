@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { ChevronDown, Copy, Download, Film, Image, LoaderCircle, Play, RotateCcw, Scissors, X } from 'lucide-react';
-import { roles, type FocusPoint, type Project, type Shot } from '../shared/domain';
+import { ChevronDown, Copy, Download, Film, Image, LoaderCircle, Play, RotateCcw, Scissors, Sparkles, X } from 'lucide-react';
+import { roles, type FocusPoint, type Project, type Shot, type ShotSuggestion } from '../shared/domain';
 import FocusPointsEditor from './FocusPointsEditor';
-import { shotReconstructionPrompt, type ShotMedia } from '../shared/shot-evidence';
+import { shotMotionPrompt, shotReconstructionPrompt, type ShotMedia } from '../shared/shot-evidence';
 import { api } from './api';
 import './shot-breakdown.css';
 
@@ -82,10 +82,41 @@ function SourceClip({ project, shot, media, index, onSelect }: { project: Projec
   </>;
 }
 
-function ShotRow({ project, shot, index, number, selected, expanded, disabled, onSelect, onExpand, onSeek, onCopy, onSplit, onExclude, onAcceptSuggestion, onDismissSuggestion, onFocusChange, renderEditor }: {
+function suggestionFields(shot: Shot, suggestion: ShotSuggestion) {
+  return ([
+    ['镜头作用', roles[suggestion.role], roles[shot.role]], ['画面与场景', suggestion.visual, shot.visual], ['主体与外观', suggestion.subject, shot.subject],
+    ['主体动作', suggestion.action, shot.action], ['运镜 / 镜头语言', suggestion.camera, shot.camera], ['动效 / 合成', suggestion.effects, shot.effects],
+    ['转场 / 分段依据', suggestion.transition, shot.transition], ['声音', suggestion.sound, shot.sound], ['口播', suggestion.narration, shot.narration],
+    ['画面文字', suggestion.onScreenText, shot.onScreenText], ['产品呈现', suggestion.productPresence, shot.productPresence], ['待确认内容', suggestion.uncertainty, shot.uncertainty],
+    ['镜头重建 Prompt', suggestion.reconstructionPrompt, shot.reconstructionPrompt],
+    ['动态时间线', shotMotionPrompt(suggestion), shotMotionPrompt(shot)],
+    ['关注重点建议', (suggestion.focusPoints || []).map(point => `${point.selected ? '☑' : '□'} ${point.text}`).join('；'), (shot.focusPoints || []).map(point => `${point.selected ? '☑' : '□'} ${point.text}`).join('；')],
+  ] as [string, string | undefined, string | undefined][]).filter(([, proposed, current]) => (proposed || '') !== (current || ''));
+}
+
+function ShotReviewDialog({ items, disabled, onClose, onAccept, onDismiss }: {
+  items: { shot: Shot; number: number; suggestion: ShotSuggestion }[]; disabled: boolean; onClose: () => void;
+  onAccept: (shotId: string) => void; onDismiss: (shotId: string) => void;
+}) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => { const element = dialog.current; element?.showModal(); return () => element?.close(); }, []);
+  return <dialog ref={dialog} className="shot-review-dialog" aria-labelledby="shot-review-title" onCancel={event => { event.preventDefault(); onClose(); }} onClick={event => { if (event.target === event.currentTarget) onClose(); }}>
+    <header><div><h2 id="shot-review-title">各镜头 AI 分析建议</h2><p>{items.length} 个镜头有待处理建议。请对照原片核验后逐条采纳，或保留当前记录。</p></div><button className="icon-btn" aria-label="关闭 AI 分析建议" onClick={onClose}><X size={18} /></button></header>
+    <div className="shot-review-list">{items.map(({ shot, number, suggestion }) => <article className="shot-review-card" key={shot.id}>
+      <h3>镜头片段 {String(number).padStart(2, '0')} <small>{shot.start.toFixed(3)}–{shot.end.toFixed(3)}s · {suggestion.source === 'frames' ? '基于抽帧分析' : '基于原片片段分析'}</small></h3>
+      <div className="shot-review-suggestion-body">{suggestion.source === 'frames' && <p>本次只分析了抽帧，未分析音频和帧间动作。采用前请对照原片。</p>}
+        {suggestionFields(shot, suggestion).map(([label, proposed, current]) => <div className="shot-review-field" key={label}><strong>{label}</strong><span><b>当前</b>{current || '未记录'}</span><span><b>建议</b>{proposed || '未记录'}</span></div>)}
+        <div className="shot-review-actions"><button className="btn small" disabled={disabled} onClick={() => onDismiss(shot.id)}>保留当前记录</button><button className="btn small primary" disabled={disabled} onClick={() => onAccept(shot.id)}>采用此镜头建议</button></div>
+      </div>
+    </article>)}</div>
+    <footer><button className="btn" onClick={onClose}>稍后处理</button></footer>
+  </dialog>;
+}
+
+function ShotRow({ project, shot, index, number, selected, expanded, disabled, onSelect, onExpand, onSeek, onCopy, onSplit, onExclude, onFocusChange, renderEditor }: {
   project: Project; shot: Shot; index: number; number: number; selected: boolean; expanded: boolean; disabled: boolean;
   onSelect: () => void; onExpand: () => void; onSeek?: (seconds: number) => void; onCopy: (text: string) => void;
-  onSplit?: () => void; onExclude?: () => void; onAcceptSuggestion?: () => void; onDismissSuggestion?: () => void; onFocusChange?: (points: FocusPoint[]) => void; renderEditor?: (shot: Shot, index: number) => ReactNode;
+  onSplit?: () => void; onExclude?: () => void; onFocusChange?: (points: FocusPoint[]) => void; renderEditor?: (shot: Shot, index: number) => ReactNode;
 }) {
   const row = useRef<HTMLElement>(null);
   const reference = project.assets.find(asset => asset.kind === 'video');
@@ -115,14 +146,6 @@ function ShotRow({ project, shot, index, number, selected, expanded, disabled, o
   }, [requestKey, visible, attempt]);
   const prompt = shotReconstructionPrompt(shot);
   const pendingReview = project.analysisReview?.pendingIds.includes(shot.id);
-  const suggestion = project.analysisReview?.suggestions[shot.id];
-  const suggestedFields = suggestion ? ([
-    ['镜头作用', roles[suggestion.role], roles[shot.role]], ['画面与场景', suggestion.visual, shot.visual], ['主体与外观', suggestion.subject, shot.subject],
-    ['主体动作', suggestion.action, shot.action], ['运镜 / 镜头语言', suggestion.camera, shot.camera], ['动效 / 合成', suggestion.effects, shot.effects],
-    ['转场 / 分段依据', suggestion.transition, shot.transition], ['声音', suggestion.sound, shot.sound], ['口播', suggestion.narration, shot.narration],
-    ['画面文字', suggestion.onScreenText, shot.onScreenText], ['产品呈现', suggestion.productPresence, shot.productPresence], ['待确认内容', suggestion.uncertainty, shot.uncertainty],
-    ['镜头重建 Prompt', suggestion.reconstructionPrompt, shot.reconstructionPrompt],
-  ] as [string, string | undefined, string | undefined][]).filter(([, proposed, current]) => (proposed || '') !== (current || '')) : [];
   return <article ref={row} className={`shot-breakdown-row ${selected ? 'selected' : ''}`}>
     <header className="shot-row-heading"><label className="shot-include" title={onExclude ? '取消勾选，不使用此镜头' : '至少保留一个镜头'}><input type="checkbox" checked disabled={disabled || !onExclude} onChange={() => onExclude?.()} aria-label={`使用镜头片段 ${number}`} /></label><button onClick={onSelect} className="shot-row-title" title={`${shot.start.toFixed(3)}–${shot.end.toFixed(3)} 秒 · ${(shot.end - shot.start).toFixed(3)} 秒`}><b>{String(number).padStart(2, '0')}</b><span><strong>镜头片段 {String(number).padStart(2, '0')}</strong></span></button><span className="badge">{roles[shot.role]}</span>{onSeek && <button className="text-button" onClick={() => { onSelect(); onSeek(shot.start); }}><Play size={13} />定位原片 <small className="shot-seek-time">{shot.start.toFixed(1)}s</small></button>}</header>
     <div className="shot-row-content">
@@ -140,10 +163,9 @@ function ShotRow({ project, shot, index, number, selected, expanded, disabled, o
       <dl className={`shot-row-observations${renderEditor ? ' editable' : ''}`} onDoubleClick={renderEditor ? onExpand : undefined} title={renderEditor ? '双击编辑镜头信息' : undefined}><div className="shot-observation-wide"><dt>画面与场景</dt><dd>{shot.visual || '未记录'}</dd></div>{[
         ['主体与外观', shot.subject || '未单独记录；参见画面描述'], ['主体动作', shot.action], ['运镜 / 镜头语言', shot.camera],
         ['动效 / 合成', shot.effects || '未单独记录'], ['转场 / 分段依据', shot.transition || '未单独记录'], ['声音 / 口播', [shot.sound, shot.narration].filter(Boolean).join(' · ') || '未记录'],
-      ].map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value || '未记录'}</dd></div>)}{shot.uncertainty && <div className="shot-observation-wide shot-uncertainty"><dt>待核对</dt><dd>{shot.uncertainty}</dd></div>}</dl>
+      ].map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value || '未记录'}</dd></div>)}<div className="shot-observation-wide"><dt>动态时间线</dt><dd style={{ whiteSpace: 'pre-line' }}>{shot.motionBeats?.length ? shotMotionPrompt(shot) : '尚无逐时段动态记录；重新分析视频后生成。'}</dd></div>{shot.uncertainty && <div className="shot-observation-wide shot-uncertainty"><dt>待核对</dt><dd>{shot.uncertainty}</dd></div>}</dl>
     </div>
     {pendingReview && <div className="shot-review-pending">此镜头的时间范围已改变，等待局部重新分析；当前描述仍为原记录。</div>}
-    {suggestion && <details className="shot-review-suggestion"><summary>AI 对新区间的分析建议 · {suggestedFields.length} 项与当前记录不同 <ChevronDown size={14} /></summary><div className="shot-review-suggestion-body"><p>{suggestion.source === 'frames' ? '本次只分析了抽帧，未分析音频和帧间动作。' : '新分析只使用此镜头片段；采用前请对照原片。'}</p>{suggestedFields.map(([label, proposed, current]) => <div className="shot-review-field" key={label}><strong>{label}</strong><span>当前：{current || '未记录'}</span><span>建议：{proposed || '未记录'}</span></div>)}{!!suggestion.focusPoints?.length && <div className="shot-review-field"><strong>关注重点建议</strong><span>{suggestion.focusPoints.map(point => `${point.selected ? '☑' : '□'} ${point.text}`).join('；')}</span></div>}{!suggestedFields.length && <p>其他观察记录与当前一致。</p>}<div className="shot-review-actions"><button className="btn small" disabled={disabled} onClick={onDismissSuggestion}>保留当前记录</button><button className="btn small primary" disabled={disabled} onClick={onAcceptSuggestion}>采用 AI 建议</button></div></div></details>}
     {onFocusChange && <details className="shot-focus"><summary>镜头关注重点 · {(shot.focusPoints || []).filter(point => point.selected).length}/{shot.focusPoints?.length || 0} 项已勾选</summary><FocusPointsEditor points={shot.focusPoints} onChange={onFocusChange} disabled={disabled} max={12} onSeek={onSeek} /></details>}
     <details className="shot-row-prompt"><summary><span>镜头重建 Prompt<small>{shot.reconstructionPrompt ? 'Gemini 分析 / 当前编辑' : '由现有镜头描述整理'}</small></span><ChevronDown size={13} /></summary><div><p>用于描述如何重建这个镜头，可在编辑中调整。</p><pre>{prompt}</pre><button className="btn small" onClick={() => onCopy(prompt)}><Copy size={13} />复制 Prompt</button></div></details>
     {expanded && renderEditor && <div className="shot-row-editor">{renderEditor(shot, index)}{onSplit && <div className="scene-actions"><button className="text-button" disabled={disabled || shot.end - shot.start < .4 || (project.analysis?.shots.length || 0) >= 120} onClick={onSplit}><Scissors size={14} />拆分此镜头</button><span>修改自动保存；调整边界后重新提取片段</span></div>}</div>}
@@ -163,7 +185,17 @@ export default function ShotBreakdown({ project, selectedIndex = -1, onSelect, o
   onCopy: (text: string) => void; onSplit?: (index: number) => void; onToggleInclude?: (shotId: string, included: boolean) => void; onAcceptSuggestion?: (shotId: string) => void; onDismissSuggestion?: (shotId: string) => void; onFocusChange?: (shotId: string, points: FocusPoint[]) => void; renderEditor?: (shot: Shot, index: number) => ReactNode; disabled?: boolean; compact?: boolean;
 }) {
   const [expanded, setExpanded] = useState<string>();
+  const [reviewOpen, setReviewOpen] = useState(false);
   // Original order (by start time) across used and unticked shots, so numbering stays tied to the source timeline.
   const rows = [...(project.analysis?.shots || []).map((shot, index) => ({ shot, index, excluded: false })), ...(project.analysis?.excludedShots || []).map(shot => ({ shot, index: -1, excluded: true }))].sort((a, b) => a.shot.start - b.shot.start);
-  return <div className={`shot-breakdown ${compact ? 'compact' : ''}`}><p className="shot-breakdown-intro">一行一个镜头：原片片段 → 证据关键帧 → 观察记录 → 关注重点 → 重建 Prompt。文字为分析与编辑结果，请对照原片核验。</p>{rows.map(({ shot, index, excluded }, position) => excluded ? <ExcludedShotRow key={shot.id} shot={shot} number={position + 1} disabled={disabled} onInclude={onToggleInclude ? () => onToggleInclude(shot.id, true) : undefined} onSeek={onSeek} /> : <ShotRow key={shot.id} project={project} shot={shot} index={index} number={position + 1} selected={selectedIndex === index} expanded={expanded === shot.id} disabled={disabled} onSelect={() => onSelect?.(index)} onExpand={() => { onSelect?.(index); setExpanded(expanded === shot.id ? undefined : shot.id); }} onSeek={onSeek} onCopy={onCopy} onSplit={onSplit ? () => onSplit(index) : undefined} onExclude={onToggleInclude && (project.analysis?.shots.length || 0) > 1 ? () => onToggleInclude(shot.id, false) : undefined} onAcceptSuggestion={onAcceptSuggestion ? () => onAcceptSuggestion(shot.id) : undefined} onDismissSuggestion={onDismissSuggestion ? () => onDismissSuggestion(shot.id) : undefined} onFocusChange={onFocusChange ? points => onFocusChange(shot.id, points) : undefined} renderEditor={renderEditor} />)}</div>;
+  const reviewItems = rows.flatMap(({ shot, excluded }, position) => {
+    const suggestion = project.analysisReview?.suggestions[shot.id];
+    return !excluded && suggestion ? [{ shot, suggestion, number: position + 1 }] : [];
+  });
+  useEffect(() => { if (!reviewItems.length) setReviewOpen(false); }, [reviewItems.length]);
+  return <div className={`shot-breakdown ${compact ? 'compact' : ''}`}>
+    <div className="shot-breakdown-intro"><p>一行一个镜头：原片片段 → 证据关键帧 → 观察记录 → 关注重点 → 重建 Prompt。文字为分析与编辑结果，请对照原片核验。</p>{reviewItems.length > 0 && <button className="btn small shot-review-open" disabled={disabled} onClick={() => setReviewOpen(true)}><Sparkles size={14} />AI 分析建议 · {reviewItems.length} 个镜头</button>}</div>
+    {rows.map(({ shot, index, excluded }, position) => excluded ? <ExcludedShotRow key={shot.id} shot={shot} number={position + 1} disabled={disabled} onInclude={onToggleInclude ? () => onToggleInclude(shot.id, true) : undefined} onSeek={onSeek} /> : <ShotRow key={shot.id} project={project} shot={shot} index={index} number={position + 1} selected={selectedIndex === index} expanded={expanded === shot.id} disabled={disabled} onSelect={() => onSelect?.(index)} onExpand={() => { onSelect?.(index); setExpanded(expanded === shot.id ? undefined : shot.id); }} onSeek={onSeek} onCopy={onCopy} onSplit={onSplit ? () => onSplit(index) : undefined} onExclude={onToggleInclude && (project.analysis?.shots.length || 0) > 1 ? () => onToggleInclude(shot.id, false) : undefined} onFocusChange={onFocusChange ? points => onFocusChange(shot.id, points) : undefined} renderEditor={renderEditor} />)}
+    {reviewOpen && reviewItems.length > 0 && <ShotReviewDialog items={reviewItems} disabled={disabled} onClose={() => setReviewOpen(false)} onAccept={shotId => onAcceptSuggestion?.(shotId)} onDismiss={shotId => onDismissSuggestion?.(shotId)} />}
+  </div>;
 }

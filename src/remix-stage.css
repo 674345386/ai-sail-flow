@@ -240,6 +240,9 @@ main.canvas-workspace-main > .remix-stage { height: auto; min-height: 0; }
 .remix-newframe-empty { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 6px; color: #8a95a3; font-size: 11px; }
 .remix-newframe figcaption { margin-top: 6px; color: #8793a2; font-size: 11px; text-align: center; }
 .remix-newframes-foot { justify-content: flex-end; padding: 12px 0 14px; }
+.remix-group-select { display: flex; align-items: center; gap: 5px; margin-right: auto; color: #788391; font-size: 10px; white-space: nowrap; cursor: pointer; }
+.remix-group-select input { margin: 0; accent-color: #4f9a66; }
+.remix-group-summary { color: #2f6e43; font-size: 11px; font-variant-numeric: tabular-nums; }
 .remix-tier-bar { position: absolute; left: 50%; top: 14px; z-index: 5; display: flex; align-items: center; gap: 14px; padding: 6px 6px 6px 14px; border: 1px solid #e3e7ec; border-radius: 12px; background: #fffffff5; box-shadow: 0 4px 17px #1a2b4310; transform: translateX(-50%); color: #75808d; font-size: 12px; white-space: nowrap; }
 .remix-tier-bar b { color: #282e38; font-weight: 600; }
 .remix-tier-progress { display: inline-flex; align-items: center; gap: 8px; font-variant-numeric: tabular-nums; color: #282e38; }

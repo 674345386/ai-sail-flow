@@ -28,6 +28,26 @@ export async function inspectMedia(filename: string, kind: 'video' | 'product') 
   return { mime: detected.mime, duration, width: video.width as number, height: video.height as number, hasAudio: metadata.streams.some((s: { codec_type: string }) => s.codec_type === 'audio'), thumbnail: `/media/${thumbnail}` };
 }
 
+/** Slice a generated sequence into one local clip per planned shot boundary. */
+export async function sliceGeneratedVideo(filename: string, segments: { start: number; duration: number }[]) {
+  const source = path.join(uploadDir, filename);
+  const outputs: { filename: string; url: string; duration: number; size: number; width: number; height: number; hasAudio: boolean; thumbnail?: string; mime: string }[] = [];
+  for (const [index, segment] of segments.entries()) {
+    if (!Number.isFinite(segment.start) || !Number.isFinite(segment.duration) || segment.start < 0 || segment.duration <= 0) throw new Error('多镜头切分时间无效。');
+    const target = `tier-group-${randomUUID()}.mp4`, absolute = path.join(uploadDir, target);
+    try {
+      await exec('ffmpeg', ['-y', '-v', 'error', '-ss', segment.start.toFixed(3), '-i', source, '-t', segment.duration.toFixed(3), '-map', '0:v:0', '-map', '0:a:0?', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', '-pix_fmt', 'yuv420p', '-threads', '2', '-c:a', 'aac', '-movflags', '+faststart', absolute], { timeout: 120000, maxBuffer: 1024 * 1024 });
+      const metadata = await inspectMedia(target, 'video');
+      outputs.push({ filename: target, url: `/media/${target}`, duration: metadata.duration!, size: (await fs.stat(absolute)).size, width: metadata.width!, height: metadata.height!, hasAudio: !!metadata.hasAudio, thumbnail: metadata.thumbnail, mime: 'video/mp4' });
+    } catch (error) {
+      await fs.unlink(absolute).catch(() => {});
+      await Promise.all(outputs.map(output => fs.unlink(path.join(uploadDir, output.filename)).catch(() => {})));
+      throw new Error(`第 ${index + 1} 个镜头切分失败：${error instanceof Error ? error.message : '视频处理失败'}`);
+    }
+  }
+  return outputs;
+}
+
 // Some OpenAI-compatible relays forward images but silently drop the video part. Sampling stills
 // locally keeps those channels usable, at known timestamps and without inventing an audio track.
 export async function extractKeyframes(filename: string, duration: number, max = 16) {
@@ -144,3 +164,4 @@ export async function cropToRatio(inFile: string, ratio: number, outFile: string
   const [width, height] = stdout.trim().split(',').map(Number);
   return { width, height };
 }
+

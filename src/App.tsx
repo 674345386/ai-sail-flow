@@ -1,5 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode, type InputHTMLAttributes, type TextareaHTMLAttributes } from 'react';
 import TierWorkbench, { FrameDrawer, VideoDrawer, tierVideoState, type FrameHandlers, type OpenFrame } from './TierWorkbench';
+import VideoPromptImages, { type VideoPromptImage } from './VideoPromptImages';
+import { tierGroupPrompt, withVideoReferences } from '../shared/tier-video-group';
 import { applyFrameInput, framePositions, tierPlan, type FramePosition, type TierImage } from '../shared/tier-prompt';
 const frameRatioLabel = (project: Project) => { const video = project.assets.find(asset => asset.kind === 'video'); if (!video?.width || !video?.height) return project.market.aspectRatio; const gcd = (a: number, b: number): number => b ? gcd(b, a % b) : a; const g = gcd(video.width, video.height); return `${video.width / g}:${video.height / g}`; };
 import { Archive, ArchiveRestore, ArrowDownToLine, ArrowLeft, ArrowRight, ArrowUpRight, Check, CheckCheck, ChevronDown, ChevronRight, CircleHelp, CirclePlay, Clapperboard, Copy, Download, Eye, FileJson, FileText, Film, FolderOpen, Globe2, Grid2X2, ImagePlus, Info, LayoutList, LoaderCircle, LogOut, Mail, Package, Plus, Save, ScanLine, Scissors, Settings, Settings2, ShieldCheck, Sparkles, Subtitles, Upload, Video, WandSparkles, Workflow, X } from 'lucide-react';
@@ -238,6 +240,7 @@ export default function App() {
   const authRequest = useRef(false);
   const [assetLibraryTarget, setAssetLibraryTarget] = useState<'all' | 'image' | 'video' | null>(null);
   /** Set while the asset library was opened from a keyframe composer's + tile. */
+  const [videoRefTarget, setVideoRefTarget] = useState<{ replaceAt: number | null } | null>(null);
   const [frameRefTarget, setFrameRefTarget] = useState<{ shotId: string; position: FramePosition } | null>(null);
   const [initialMedia, setInitialMedia] = useState<LibraryMedia | null>(null);
   const [showMediaLibrary, setShowMediaLibrary] = useState(false);
@@ -531,6 +534,14 @@ export default function App() {
     setInitialMedia(item); setAssetLibraryTarget(target);
   };
   const referenceMedia = async (item: LibraryMedia) => {
+    if (videoRefTarget) {
+      if (busy) throw new Error(`${busy}，完成后再添加图片。`);
+      if (item.kind !== 'image') throw new Error('请选择图片素材。');
+      setBusy('正在上传参考图'); setError('');
+      try { await addVideoPreviewRefs([await libraryFile(item)], videoRefTarget.replaceAt); }
+      finally { setBusy(''); }
+      return;
+    }
     if (frameRefTarget) {
       if (busy) throw new Error(`${busy}，完成后再添加图片。`);
       if (item.kind !== 'image') throw new Error('请选择图片素材。');
@@ -611,10 +622,11 @@ export default function App() {
   /** The one frame drawer, shared by the overview and the canvas. */
   const [openFrame, setOpenFrame] = useState<OpenFrame | null>(null);
   const [openVideo, setOpenVideo] = useState<string | null>(null);
-  useEffect(() => { setOpenFrame(null); setOpenVideo(null); }, [project?.id]);
+  const [videoPreview, setVideoPreview] = useState<{ projectId: string; revision: number; shotIds: string[]; prompt: string; aspectRatio: '16:9' | '9:16'; images: VideoPromptImage[] } | null>(null);
+  useEffect(() => { setOpenFrame(null); setOpenVideo(null); setVideoPreview(null); setVideoRefTarget(null); }, [project?.id]);
   const openFrameOnly = (frame: OpenFrame | null) => { if (frame) setOpenVideo(null); setOpenFrame(frame); };
   const openVideoOnly = (shotId: string | null) => { if (shotId) setOpenFrame(null); setOpenVideo(shotId); };
-  /** 视频片段 prompt: null = back to the default (运镜 + 动作). */
+  /** 视频片段 prompt: null restores the complete current shot analysis. */
   const setVideoPrompt = (shotId: string, text: string | null) => change(p => {
     const rules = p.replication || defaultReplication, shots = { ...(rules.shots || {}) };
     const { videoPrompt: _old, ...entry } = shots[shotId] || {};
@@ -709,13 +721,57 @@ export default function App() {
       return frame ? applyFrameInput(next, shotId, position, { images: [...frame.images, ...added].slice(0, 16) }) : next;
     });
   };
-  const startTierVideo = (shotId: string) => perform('正在提交 Veo 3.1', async () => {
+  const prepareTierVideo = (shotIds: string[]) => perform('正在准备生成预览', async () => {
     const p = await flush(); if (!p) return;
-    if (!status.videoGeneration.configured || !status.keyframeStorage?.configured) { setModal('settings'); return; }
+    const shots = p.analysis?.shots.filter(shot => shotIds.includes(shot.id)) || [];
+    if (shots.length !== new Set(shotIds).size || !shots.length) throw new Error('镜头不存在，请重新选择。');
+    if (shots.some(shot => !tierVideoState(p, shot).ready)) throw new Error('请先生成所选镜头的新首帧和新尾帧。');
+    const grouped = shots.length > 1;
+    const prompt = grouped ? tierGroupPrompt(p, shotIds) : tierVideoState(p, shots[0]).prompt;
     const ratio = frameRatioLabel(p).split(':').map(Number);
-    const shot = p.analysis?.shots.find(item => item.id === shotId); if (!shot) return;
-    const prompt = tierVideoState(p, shot).prompt.trim();
-    adopt(await api<Project>(`/api/projects/${p.id}/generations`, { method: 'POST', body: JSON.stringify({ tierShotId: shotId, prompt, resolution: '720p', aspectRatio: ratio[0] > ratio[1] ? '16:9' : '9:16' }) }));
+    const images = shots.flatMap(shot => {
+      const frames = p.replication!.shots![shot.id].newFrames!;
+      const number = (p.analysis!.shots.indexOf(shot) + 1).toString().padStart(2, '0');
+      return [{ url: frames.first!.url, label: pick({ en: `Shot ${number} (${shot.id}) · First frame`, 'zh-CN': `镜头 ${number} (${shot.id}) · 首帧` }) }, ...(!grouped ? [{ url: frames.last!.url, label: pick({ en: `Shot ${number} (${shot.id}) · Last frame`, 'zh-CN': `镜头 ${number} (${shot.id}) · 尾帧` }) }] : [])];
+    });
+    setVideoPreview({ projectId: p.id, revision: p.revision, shotIds: shots.map(shot => shot.id), prompt: withVideoReferences(prompt, images), images, aspectRatio: ratio[0] > ratio[1] ? '16:9' : '9:16' });
+  });
+  const changeVideoPreviewImages = (images: VideoPromptImage[]) => setVideoPreview(preview => preview ? { ...preview, images, prompt: withVideoReferences(preview.prompt, images) } : null);
+  const addVideoPreviewRefs = async (files: File[], replaceAt: number | null) => {
+    const preview = videoPreview; if (!preview || !files.length) return;
+    const limit = preview.shotIds.length > 1 ? 3 : 2;
+    if (replaceAt !== null && (files.length !== 1 || !preview.images[replaceAt])) throw new Error('请选择一张图片进行替换。');
+    if (replaceAt === null && preview.images.length + files.length > limit) throw new Error(`当前视频模式最多支持 ${limit} 张参考图，请先移除或替换图片。`);
+    for (const file of files) {
+      if (file.size > 10 * 1024 * 1024) throw new Error('单张参考图不能超过 10 MB。');
+      if (file.type && !['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) throw new Error('参考图支持 JPG、PNG、WebP。');
+    }
+    const added: VideoPromptImage[] = [];
+    for (const file of files) {
+      const form = new FormData(); form.append('file', file);
+      const image = await api<{ url: string; name: string }>(`/api/projects/${preview.projectId}/tier/shots/${encodeURIComponent(preview.shotIds[0])}/refs`, { method: 'POST', body: form });
+      added.push({ url: image.url, label: replaceAt !== null ? preview.images[replaceAt].label : image.name || '上传的参考图' });
+    }
+    const images = [...preview.images];
+    if (replaceAt === null) images.push(...added); else images[replaceAt] = added[0];
+    changeVideoPreviewImages(images);
+  };
+  const uploadVideoPreviewRefs = (files: File[], replaceAt: number | null) => perform('正在上传参考图', () => addVideoPreviewRefs(files, replaceAt));
+  const openVideoPreviewLibrary = (replaceAt: number | null) => { setFrameRefTarget(null); setVideoRefTarget({ replaceAt }); openAssetLibrary('image'); };
+  const startTierVideo = (shotId: string) => prepareTierVideo([shotId]);
+  const startTierVideoGroup = (shotIds: string[]) => prepareTierVideo(shotIds);
+  const confirmTierVideo = () => perform('正在提交 Veo 3.1', async () => {
+    const preview = videoPreview; if (!preview) return;
+    const p = await flush(); if (!p || p.id !== preview.projectId) return;
+    const limit = preview.shotIds.length > 1 ? 3 : 2;
+    if (!preview.images.length || preview.images.length > limit) throw new Error('请检查参考图数量。');
+    if (p.revision !== preview.revision) throw new Error('镜头资料已更新，请重新打开生成预览。');
+    if (!status.videoGeneration.configured || !status.keyframeStorage?.configured) { setVideoPreview(null); setModal('settings'); return; }
+    adopt(await api<Project>(`/api/projects/${p.id}/generations`, { method: 'POST', body: JSON.stringify({
+      ...(preview.shotIds.length > 1 ? { tierShotIds: preview.shotIds } : { tierShotId: preview.shotIds[0] }),
+      prompt: preview.prompt, referenceImages: preview.images.map(image => image.url), previewRevision: preview.revision, resolution: '720p', aspectRatio: preview.aspectRatio,
+    }) }));
+    setVideoPreview(null);
   });
   const startShotVideo = (shotId: string) => {
     const p = current.current; if (!p?.rewrite) return;
@@ -860,10 +916,10 @@ export default function App() {
     onChange={replication => change(p => ({ ...p, replication }))} onCorrect={correctTierShot} onCorrectAll={correctAllTierShots}
     onDetectSubjects={detectTierSubjects} onUploadSubjectImage={uploadTierSubjectImage} onGenerateSubjectImage={generateTierSubjectImage}
     frameBusy={frameBusy} frameFailed={frameFailed} ratioLabel={frameHandlers.ratioLabel} onFrame={frameHandlers.onFrame}
-    onGenerateShots={shotIds => void generateTierShots(shotIds)} onVideo={startTierVideo} openFrame={openFrame} onOpenFrame={openFrameOnly} /> : null;
+    onGenerateShots={shotIds => void generateTierShots(shotIds)} onVideo={startTierVideo} onGroupVideo={startTierVideoGroup} openFrame={openFrame} onOpenFrame={openFrameOnly} /> : null;
   const frameDrawer = openFrame && project.analysis && (canvasView || step === 2) ? <FrameDrawer {...frameHandlers} shotId={openFrame.shotId} position={openFrame.position} onClose={() => setOpenFrame(null)} />
     : openVideo && project.analysis && (canvasView || step === 2) ? <VideoDrawer project={project} disabled={disabled} ratioLabel={frameHandlers.ratioLabel} onVideo={startTierVideo} onVideoPrompt={setVideoPrompt} shotId={openVideo} onClose={() => setOpenVideo(null)} /> : null;
-  const remixPanel = <Suspense fallback={<div className="canvas-loading" role="status"><LoaderCircle className="spin" size={20} />正在打开二创画布…</div>}><RemixStage key={project.id} project={project} disabled={disabled} tierFrames={project.analysis ? { disabled: frameHandlers.disabled, ratioLabel: frameHandlers.ratioLabel, frameBusy, frameFailed, onFrame: frameHandlers.onFrame, onGenerateShots: shotIds => void generateTierShots(shotIds), open: openFrame, onOpen: openFrameOnly, openVideo, onOpenVideo: openVideoOnly, onVideo: startTierVideo } : undefined} onAction={(action, settings, prompt, videoId) => void startRemix(action, settings, prompt, videoId)} onSave={(settings, prompt) => void startRemix(undefined, settings, prompt)} onUpload={(file, settings) => void uploadRemixCharacter(file, settings)} onCopy={text => void copy(text)} onSettings={() => setModal('settings')} /></Suspense>;
+  const remixPanel = <Suspense fallback={<div className="canvas-loading" role="status"><LoaderCircle className="spin" size={20} />正在打开二创画布…</div>}><RemixStage key={project.id} project={project} disabled={disabled} tierFrames={project.analysis ? { disabled: frameHandlers.disabled, ratioLabel: frameHandlers.ratioLabel, frameBusy, frameFailed, onFrame: frameHandlers.onFrame, onGenerateShots: shotIds => void generateTierShots(shotIds), open: openFrame, onOpen: openFrameOnly, openVideo, onOpenVideo: openVideoOnly, onVideo: startTierVideo, onGroupVideo: startTierVideoGroup } : undefined} onAction={(action, settings, prompt, videoId) => void startRemix(action, settings, prompt, videoId)} onSave={(settings, prompt) => void startRemix(undefined, settings, prompt)} onUpload={(file, settings) => void uploadRemixCharacter(file, settings)} onCopy={text => void copy(text)} onSettings={() => setModal('settings')} /></Suspense>;
   const market = countries.find(c => c.code === project.market.country)!;
   const platform = platforms.find(p => p.id === project.market.platform)!;
   const shot = project.analysis?.shots[Math.min(selectedShot, project.analysis.shots.length - 1)];
@@ -1088,6 +1144,14 @@ export default function App() {
     {notice && <div className="toast" role="status"><Check size={17} />{notice}</div>}
     {busy && <div className="busy-indicator" role="status"><LoaderCircle className="spin" size={14} />{busy}</div>}
     {organizationDialog && <OrganizationForm key={`${organizationDialog.kind}:${organizationDialog.parentId}`} dialog={organizationDialog} groups={projectGroups} busy={!!busy} error={error} onSubmit={submitOrganization} onClose={() => { if (!busy) setOrganizationDialog(null); }} />}
+    {videoPreview && !videoRefTarget && <Modal title="确认视频生成 Prompt" wide onClose={() => { if (!busy) setVideoPreview(null); }}>
+      <p className="modal-description">检查参考图顺序和最终 Prompt，可直接修改。点击确认生成后提交当前内容。</p>
+      <p className="secondary-label">{videoPreview.shotIds.length > 1 ? 'Veo 3.1 · r2v' : 'Veo 3.1 · i2v'} · 8s · 720p · {videoPreview.aspectRatio}</p>
+      <VideoPromptImages images={videoPreview.images} limit={videoPreview.shotIds.length > 1 ? 3 : 2} disabled={!!busy} onChange={changeVideoPreviewImages} onUpload={uploadVideoPreviewRefs} onLibrary={openVideoPreviewLibrary} />
+      <Field label="最终 Prompt"><Textarea rows={14} value={videoPreview.prompt} maxLength={100000} disabled={!!busy} onChange={event => setVideoPreview({ ...videoPreview, prompt: event.target.value })} /></Field>
+      {error && <p className="error-text" role="alert">{error}</p>}
+      <div className="modal-actions"><button className="btn" disabled={!!busy} onClick={() => setVideoPreview(null)}>取消</button><button className="btn primary" disabled={!!busy || !videoPreview.prompt.trim() || !videoPreview.images.length} onClick={() => void confirmTierVideo()}>{busy ? <LoaderCircle size={15} className="spin" /> : <Clapperboard size={15} />}确认生成</button></div>
+    </Modal>}
     {modal === 'config' && <Modal title="配置" onClose={() => setModal(null)}>
       <div className="configuration-options">
         <button className="configuration-option" onClick={() => setModal('settings')}><Sparkles size={18} /><span><strong>模型与图片生成</strong><small>{status.configured && status.imageGeneration?.configured ? '模型已配置' : '配置模型连接'}</small></span><ChevronRight size={16} /></button>
@@ -1117,7 +1181,7 @@ export default function App() {
       <div className="modal-actions"><a href="https://gaoruitech.apifox.cn/doc-8842676" target="_blank" rel="noreferrer">Omni 接口文档 <ArrowUpRight size={14} /></a><button className="btn primary" disabled={!!busy || (apiKey.trim().length < 16 && imageApiKey.trim().length < 16 && !imageModel && veoApiKey.trim().length < 16 && storageKey.trim().length < 16)} onClick={() => perform('正在配置', async () => { if (apiKey.trim()) await api('/api/settings', { method: 'POST', body: JSON.stringify({ apiKey, baseUrl }) }); if (imageApiKey.trim() || imageModel || imageBaseUrl.trim()) await api('/api/settings/image-generation', { method: 'POST', body: JSON.stringify({ ...(imageApiKey.trim() ? { apiKey: imageApiKey } : {}), ...(imageBaseUrl.trim() ? { baseUrl: imageBaseUrl } : {}), model: imageModel || status.imageGeneration?.model || 'gpt-image-2.5-flare' }) }); if (veoApiKey.trim()) await api('/api/settings/veo', { method: 'POST', body: JSON.stringify({ apiKey: veoApiKey }) }); if (storageKey.trim()) await api('/api/settings/keyframe-storage', { method: 'POST', body: JSON.stringify({ url: storageUrl || status.keyframeStorage?.url, apiKey: storageKey, bucket: storageBucket || status.keyframeStorage?.bucket || 'sop-keyframes' }) }); setStatus(await api<Status>('/api/status')); setApiKey(''); setImageApiKey(''); setImageModel(''); setImageBaseUrl(''); setVeoApiKey(''); setBaseUrl(''); setStorageKey(''); setModal(null); setNotice('模型连接已配置'); })}>保存连接</button></div>
     </Modal>}
     {modal === 'guide' && <Modal title="跨境视频创意指南" wide onClose={() => setModal(null)}><p className="modal-description">把平台的创作原则落实到每个镜头。以下是创意建议，不是流量或转化承诺。</p><div className="guide-grid"><article><span className="guide-number">01</span><h3>用情境吸引注意</h3><p>先让观众识别自己的问题，再用具体动作展示产品价值。采用清晰的开头、主体和行动引导。</p><a href="https://ads.tiktok.com/resources/help/article/creative-best-practices?lang=en" target="_blank" rel="noreferrer">TikTok 创意建议 <ArrowUpRight size={13} /></a></article><article><span className="guide-number">02</span><h3>为竖屏观看设计</h3><p>Reels 优先竖屏、有声音的内容。字幕、商品和关键信息避开界面遮挡，生成后按实际版位检查。</p><a href="https://www.facebook.com/business/ads/facebook-instagram-reels-ads" target="_blank" rel="noreferrer">Meta Reels 创意指南 <ArrowUpRight size={13} /></a></article><article><span className="guide-number">03</span><h3>卖点与产品页一致</h3><p>用目标顾客的语言解释用途与收益，填写真实规格、售价和优惠，让视频承诺与落地页保持一致。</p><a href="https://help.shopify.com/en/manual/products/details/product-descriptions/write" target="_blank" rel="noreferrer">Shopify 产品描述指南 <ArrowUpRight size={13} /></a></article><article><span className="guide-number">04</span><h3>让内容可交接</h3><p>原片拆解与新方案分开保存。修改前提会将旧方案标记为待更新，导出时使用最新的镜头与口播。</p><span className="secondary-label">AI-SAIL FLOW 工作方式</span></article></div><div className="guide-footer"><Info size={15} /><span>当前流程生成逐镜头复刻关键帧与描述，作为后续图生视频的输入。可检查、调整单张图片并导出制作包。</span></div></Modal>}
-    <AssetLibrary open={!!assetLibraryTarget} user={auth.user} project={project} frameBusy={frameBusy} target={assetLibraryTarget || 'all'} initialSelection={initialMedia} onClose={() => { setAssetLibraryTarget(null); setFrameRefTarget(null); }} onReference={referenceMedia} onSignIn={() => { setAssetLibraryTarget(null); setFrameRefTarget(null); openAuth(); }} />
+    <AssetLibrary open={!!assetLibraryTarget} user={auth.user} project={project} frameBusy={frameBusy} target={assetLibraryTarget || 'all'} initialSelection={initialMedia} onClose={() => { setAssetLibraryTarget(null); setFrameRefTarget(null); setVideoRefTarget(null); }} onReference={referenceMedia} onSignIn={() => { setAssetLibraryTarget(null); setFrameRefTarget(null); setVideoRefTarget(null); openAuth(); }} />
     {profileDialog}
     <AuthDialog availability={authAvailability} resendSeconds={authResendSeconds} avatarUrl={accountAvatar} onEditProfile={() => { setAuthOpen(false); setProfileEditing(true); }} open={authOpen && !profileWelcomeOpen} onClose={() => setAuthOpen(false)} auth={auth} email={authEmailValue} code={authCode} stage={authStage} onEmailChange={setAuthEmailValue} onCodeChange={setAuthCode} onSendCode={() => { void sendAuthCode(); }} onVerifyCode={() => { void verifyAuthCode(); }} onBack={() => { setAuthStage('email'); setAuthCode(''); setAuth(current => ({ ...current, error: '', status: '' })); }} onSignOut={() => { void signOut(); }} />
   </div>;

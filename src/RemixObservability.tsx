@@ -3,6 +3,7 @@ import { Copy, FileText, GitCompareArrows } from 'lucide-react';
 import type { Project, Shot } from '../shared/domain';
 import { buildRemixCorrectionPrompt, remixCorrectionCurrent, remixSourceFields, type RemixCorrection } from '../shared/remix';
 import PromptDiffDialog, { type PromptDiffEntry, type PromptDiffSelection } from './PromptDiffDialog';
+import { shotMotionPrompt } from '../shared/shot-evidence';
 
 const frameLabels = { first: '首帧', middle: '中间关键帧', last: '尾帧' };
 export function analysisModeLabel(project: Project) {
@@ -16,6 +17,7 @@ function sourceFields(shot: Shot) {
     { id: 'narration', label: '原片口播', original: shot.narration },
     { id: 'sound', label: '原片声音', original: shot.sound },
     { id: 'uncertainty', label: '待确认', original: shot.uncertainty },
+    { id: 'motionBeats', label: '动态时间线', original: shotMotionPrompt(shot) },
   ];
 }
 function sourcePrompt(shot: Shot) {

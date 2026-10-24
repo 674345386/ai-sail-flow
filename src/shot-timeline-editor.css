@@ -40,6 +40,8 @@
 .shot-timeline-playhead { position: absolute; top: -9px; bottom: -6px; z-index: 4; width: 1px; background: #1f2922; pointer-events: none; }
 .shot-timeline-playhead::before { position: absolute; top: -5px; left: -5px; width: 11px; height: 11px; border-radius: 3px; background: #1f2922; content: ''; }
 .shot-timeline-handle { position: absolute; top: 1px; bottom: 1px; z-index: 5; width: 18px; padding: 0; transform: translateX(-50%); border: 0; background: transparent; cursor: ew-resize; touch-action: none; }
+.shot-timeline-handle.start-edge { transform: translateX(calc(-50% - 10px)); }
+.shot-timeline-handle.end-edge { transform: translateX(calc(-50% + 10px)); }
 .shot-timeline-handle::before { position: absolute; top: 3px; bottom: 3px; left: 8px; width: 3px; border-radius: 3px; background: #457e55; box-shadow: 0 0 0 1px #fff; content: ''; }
 .shot-timeline-handle::after { position: absolute; top: 26px; left: 3px; width: 12px; height: 22px; border: 1px solid #437b52; border-radius: 4px; background: #fff; box-shadow: inset 4px 0 #edf4ee, inset -4px 0 #edf4ee; content: ''; }
 .shot-timeline-handle:hover::after, .shot-timeline-handle:focus-visible::after { background: #c4e1cb; }

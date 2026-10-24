@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } from 'react';
+import { Fragment, useEffect, useRef, useState, type CSSProperties, type PointerEvent } from 'react';
 import { Check, ChevronLeft, Mouse, ChevronRight, EyeOff, Maximize, Pause, Play, Repeat, RotateCcw, Scissors, SkipBack, SkipForward, Undo2, Volume2, VolumeX, X } from 'lucide-react';
 import { roles, type Asset, type Shot } from '../shared/domain';
 import { ClipThumbs, MANUAL_KEYFRAME, ShotDetailItem, useFrameGrabber } from './ShotTimelineDetails';
@@ -26,6 +26,7 @@ const dialogWidth = () => Math.min(1640, window.innerWidth - 32);
 const defaultLayout = (): PaneLayout => ({ list: Math.round(clamp(dialogWidth() * .2, 180, 320)), insp: Math.round(clamp(dialogWidth() * .36, 320, 620)), top: Math.round(clamp(window.innerHeight * .46, 280, 560)) });
 function loadLayout(): PaneLayout { try { const saved = JSON.parse(localStorage.getItem(LAYOUT_KEY) || 'null'); if (saved && [saved.list, saved.insp, saved.top].every(Number.isFinite)) return saved; } catch { /* ignore */ } return defaultLayout(); }
 type TimelineMenu = { kind: 'clip'; index: number; at: number; x: number; y: number } | { kind: 'boundary'; rightIndex: number; x: number; y: number };
+type DragTarget = { index: number; edge: 'start' | 'end' };
 
 function combineText(label: string, before = '', after = '', limit: number) {
   const first = before.trim();
@@ -96,11 +97,11 @@ export default function ShotTimelineEditor({ shots: usedShots, excludedShots = [
   };
   const resetResize = (kind: keyof PaneLayout) => setLayout(current => ({ ...current, [kind]: defaultLayout()[kind] }));
   loopRef.current = loop;
-  const [dragEdge, setDragEdge] = useState<number | null>(null);
+  const [dragEdge, setDragEdge] = useState<DragTarget | null>(null);
   const endHandleDrag = () => { dragging.current = null; setDragEdge(null); };
   const player = useRef<HTMLVideoElement>(null);
   const track = useRef<HTMLDivElement>(null);
-  const dragging = useRef<number | null>(null);
+  const dragging = useRef<DragTarget | null>(null);
   const playbackFrame = useRef<number | null>(null);
   const minimum = Math.min(.05, duration / (shots.length * 2));
   const middleOf = (item: Shot) => item.evidenceFrames?.[1]?.at ?? -1;
@@ -160,22 +161,28 @@ export default function ShotTimelineEditor({ shots: usedShots, excludedShots = [
     elements.forEach(element => element.addEventListener('wheel', onWheel, { passive: false }));
     return () => elements.forEach(element => element.removeEventListener('wheel', onWheel));
   }, []);
-  // Inspector frames (wheel or scrub-knob drag): first/last move this shot's start/end exactly like dragging a boundary;
-  // middle picks the keyframe inside the shot. All are draft changes, saved by 应用时间点 and undone by 重置.
+  // Inspector frame edits change only this shot's own range; timeline boundary handles still trim both neighbors.
+  // The middle frame picks a keyframe inside the shot. All are draft changes, saved by 应用时间点 and undone by 重置.
   const setMiddle = (index: number, at: number) => setDraft(current => current.map((item, i) => i !== index ? item : { ...item, evidenceFrames: [item.evidenceFrames?.[0] ?? { at: item.start, reason: '首帧' }, { at, reason: MANUAL_KEYFRAME }, item.evidenceFrames?.[2] ?? { at: Math.max(item.start, item.end - .04), reason: '尾帧' }] }));
+  const setShotStart = (index: number, value: number) => {
+    if (disabled || !Number.isFinite(value)) return;
+    setDraft(current => current.map((item, i) => {
+      if (i !== index) return item;
+      const lower = index ? current[index - 1].start + minimum : 0;
+      return { ...item, start: round(clamp(value, lower, item.end - minimum)) };
+    }));
+  };
   const onFrameChange = (index: number, value: number) => {
     if (disabled || !Number.isFinite(value)) return;
     player.current?.pause();
-    const shot = selectedShot, last = selected === draft.length - 1;
+    const shot = selectedShot;
     if (removed.has(shot.id)) return;
     if (index === 0) {
-      if (selected > 0 && removed.has(draft[selected - 1].id)) return;
       const lower = selected ? draft[selected - 1].start + minimum : 0, at = round(clamp(value, lower, shot.end - minimum));
-      moveStart(selected, at); seek(at);
+      setShotStart(selected, at); seek(at);
     } else if (index === 2) {
-      if (!last && removed.has(draft[selected + 1].id)) return;
-      const upper = last ? duration : draft[selected + 1].end - minimum, at = round(clamp(value, shot.start + minimum, upper));
-      if (last) moveLastEnd(at); else moveStart(selected + 1, at);
+      const at = round(clamp(value, shot.start + minimum, duration));
+      moveShotEnd(selected, at);
       seek(Math.max(shot.start, at - .04));
     } else {
       const at = round(clamp(value, shot.start + .02, shot.end - .02));
@@ -230,21 +237,15 @@ export default function ShotTimelineEditor({ shots: usedShots, excludedShots = [
     if (disabled || !Number.isFinite(value)) return;
     setDraft(current => {
       const next = current.map(item => ({ ...item }));
-      const lower = index ? next[index - 1].start + minimum : 0;
       const upper = next[index].end - minimum;
-      const at = round(clamp(value, lower, upper));
+      const at = round(clamp(value, 0, upper));
       next[index].start = at;
-      if (index) next[index - 1].end = at;
       return next;
     });
   };
-  const moveLastEnd = (value: number) => {
+  const moveShotEnd = (index: number, value: number) => {
     if (disabled || !Number.isFinite(value)) return;
-    setDraft(current => {
-      const next = current.map(item => ({ ...item }));
-      next[next.length - 1].end = round(clamp(value, next[next.length - 1].start + minimum, duration));
-      return next;
-    });
+    setDraft(current => current.map((item, i) => i === index ? { ...item, end: round(clamp(value, item.start + minimum, duration)) } : item));
   };
   const seek = (seconds: number) => {
     const at = clamp(seconds, 0, duration);
@@ -261,20 +262,20 @@ export default function ShotTimelineEditor({ shots: usedShots, excludedShots = [
     const bounds = track.current!.getBoundingClientRect();
     return (event.clientX - bounds.left) / bounds.width * duration;
   };
-  const onHandleDown = (event: PointerEvent<HTMLButtonElement>, index: number) => {
+  const onHandleDown = (event: PointerEvent<HTMLButtonElement>, index: number, edge: DragTarget['edge']) => {
     if (disabled || event.button !== 0) return;
     event.preventDefault();
     player.current?.pause();
     event.currentTarget.setPointerCapture(event.pointerId);
-    dragging.current = index;
-    setDragEdge(index);
-    setSelected(Math.min(index, draft.length - 1));
+    dragging.current = { index, edge };
+    setDragEdge({ index, edge });
+    setSelected(index);
   };
   const onHandleMove = (event: PointerEvent<HTMLButtonElement>) => {
     if (dragging.current === null) return;
     const at = positionFromPointer(event);
-    if (dragging.current === draft.length) moveLastEnd(at);
-    else moveStart(dragging.current, at);
+    if (dragging.current.edge === 'start') moveStart(dragging.current.index, at);
+    else moveShotEnd(dragging.current.index, at);
     seek(at);
   };
   const splitAt = (index: number, at: number) => {
@@ -343,7 +344,7 @@ export default function ShotTimelineEditor({ shots: usedShots, excludedShots = [
       <div className="stl-split-v" role="separator" aria-orientation="vertical" title="拖动调整宽度，双击恢复" onPointerDown={event => startResize(event, 'insp')} onDoubleClick={() => resetResize('insp')} />
       <div className="stl-inspector" data-swap={swapDir.current} aria-label="镜头片段信息">
         <div className="stl-inspector-nav"><span>已选镜头 <b>{pad2(selected + 1)} / {pad2(draft.length)}</b></span><span><button type="button" className="stl-icon" title="上一个镜头" aria-label="上一个镜头" disabled={selected === 0} onClick={() => select(selected - 1)}><ChevronLeft size={15} /></button><button type="button" className="stl-icon" title="下一个镜头" aria-label="下一个镜头" disabled={selected >= draft.length - 1} onClick={() => select(selected + 1)}><ChevronRight size={15} /></button></span></div>
-        <ShotDetailItem key={selectedShot.id} shot={selectedShot} number={selected + 1} total={draft.length} expanded selected removed={removed.has(selectedShot.id)} original={originalTimes.get(selectedShot.id)} grab={grabFrame} onSelect={() => undefined} onToggle={() => toggleRemoved(selected)} toggleDisabled={disabled || (!removed.has(selectedShot.id) && usedCount <= 1)} onFrameChange={disabled || removed.has(selectedShot.id) ? undefined : onFrameChange} frameRanges={[[selected ? draft[selected - 1].start + minimum : 0, selectedShot.end - minimum], [selectedShot.start, selectedShot.end], [selectedShot.start + minimum, selected === draft.length - 1 ? duration : draft[selected + 1].end - minimum]]}><div className="shot-timeline-fields stl-fields3"><label>起始点 <input type="number" min="0" max={duration} step="0.001" value={selectedShot.start} disabled={disabled || removed.has(selectedShot.id) || (selected > 0 && removed.has(draft[selected - 1].id))} onChange={event => moveStart(selected, Number(event.target.value))} /></label><label>结束点 <input type="number" min="0" max={duration} step="0.001" value={selectedShot.end} disabled={disabled || removed.has(selectedShot.id) || (selected < draft.length - 1 && removed.has(draft[selected + 1].id))} onChange={event => selected < draft.length - 1 ? moveStart(selected + 1, Number(event.target.value)) : moveLastEnd(Number(event.target.value))} /></label><label>片段时长 <input type="text" readOnly tabIndex={-1} value={(selectedShot.end - selectedShot.start).toFixed(3)} /></label></div><div className="stl-actions"><button className="btn small" disabled={!video} onClick={() => { seek(selectedShot.start); void player.current?.play(); }}><Play size={13} />播放此镜头</button><button className="btn small stl-ghost" disabled={disabled || removed.has(selectedShot.id) || draft.length >= 120 || !(playhead > selectedShot.start + .1 && playhead < selectedShot.end - .1)} title="在当前播放头位置把这个镜头拆成两段" onClick={() => splitAt(selected, playhead)}><Scissors size={13} />在播放头拆分</button></div></ShotDetailItem>
+        <ShotDetailItem key={selectedShot.id} shot={selectedShot} number={selected + 1} total={draft.length} expanded selected removed={removed.has(selectedShot.id)} original={originalTimes.get(selectedShot.id)} grab={grabFrame} onSelect={() => undefined} onToggle={() => toggleRemoved(selected)} toggleDisabled={disabled || (!removed.has(selectedShot.id) && usedCount <= 1)} onFrameChange={disabled || removed.has(selectedShot.id) ? undefined : onFrameChange} frameRanges={[[selected ? draft[selected - 1].start + minimum : 0, selectedShot.end - minimum], [selectedShot.start, selectedShot.end], [selectedShot.start + minimum, duration]]}><div className="shot-timeline-fields stl-fields3"><label>起始点 <input type="number" min="0" max={duration} step="0.001" value={selectedShot.start} disabled={disabled || removed.has(selectedShot.id)} onChange={event => setShotStart(selected, Number(event.target.value))} /></label><label>结束点 <input type="number" min="0" max={duration} step="0.001" value={selectedShot.end} disabled={disabled || removed.has(selectedShot.id)} onChange={event => moveShotEnd(selected, Number(event.target.value))} /></label><label>片段时长 <input type="text" readOnly tabIndex={-1} value={(selectedShot.end - selectedShot.start).toFixed(3)} /></label></div><div className="stl-actions"><button className="btn small" disabled={!video} onClick={() => { seek(selectedShot.start); void player.current?.play(); }}><Play size={13} />播放此镜头</button><button className="btn small stl-ghost" disabled={disabled || removed.has(selectedShot.id) || draft.length >= 120 || !(playhead > selectedShot.start + .1 && playhead < selectedShot.end - .1)} title="在当前播放头位置把这个镜头拆成两段" onClick={() => splitAt(selected, playhead)}><Scissors size={13} />在播放头拆分</button></div></ShotDetailItem>
       </div>
     </div>
     <div className="stl-split-h" role="separator" aria-orientation="horizontal" title="拖动调整高度，双击恢复" onPointerDown={event => startResize(event, 'top')} onDoubleClick={() => resetResize('top')} />
@@ -351,10 +352,12 @@ export default function ShotTimelineEditor({ shots: usedShots, excludedShots = [
       <div className="shot-timeline-ruler" onPointerDown={event => { if (event.button !== 0) return; player.current?.pause(); scrubbing.current = true; event.currentTarget.setPointerCapture(event.pointerId); seekAndSelect(positionFromPointer(event)); }} onPointerMove={event => { if (scrubbing.current) seekAndSelect(positionFromPointer(event)); }} onPointerUp={() => { scrubbing.current = false; }} onPointerCancel={() => { scrubbing.current = false; }}>{ticks.map(time => <span key={time} style={{ left: `${time / duration * 100}%` }}>{time.toFixed(duration < 1 ? 2 : time < 10 ? 1 : 0)}s</span>)}</div>
       <div ref={track} className="shot-timeline-track">
         {draft.map((item, index) => removed.has(item.id) ? null : <button key={item.id} type="button" className={`shot-timeline-clip ${selected === index ? 'selected' : ''}${selected === index && sweepId === item.id && dragEdge === null ? ' sel-sweep' : ''}`} style={{ left: `${item.start / duration * 100}%`, width: `${(item.end - item.start) / duration * 100}%` }} onClick={() => select(index)} onContextMenu={event => { event.preventDefault(); if (disabled) return; player.current?.pause(); const at = round(clamp(positionFromPointer(event), item.start, item.end)); setSelected(index); seek(at); setMergeError(''); setContextMenu({ kind: 'clip', index, at, x: Math.max(8, Math.min(event.clientX, window.innerWidth - 240)), y: Math.max(8, Math.min(event.clientY, window.innerHeight - 185)) }); }} title={`镜头 ${index + 1} · ${item.start.toFixed(3)}–${item.end.toFixed(3)} 秒 · 右键编辑`}><ClipThumbs start={item.start} end={item.end} grab={grabFrame} /><span className="stl-clip-label"><b>{String(index + 1).padStart(2, '0')}</b><small><i className={`role-dot role-${item.role}`} />{roles[item.role]}</small></span><em className="stl-clip-dur">{(item.end - item.start).toFixed(2)}s</em></button>)}
-        {dragEdge !== null && (() => { const at = dragEdge >= draft.length ? draft[draft.length - 1].end : draft[dragEdge].start; const prev = draft[dragEdge - 1], next = draft[dragEdge]; const label = (item: Shot | undefined, index: number) => item ? `${String(index + 1).padStart(2, '0')} ${(item.end - item.start).toFixed(3)}s` : ''; return <div className="stl-drag-guide" style={{ left: `${at / duration * 100}%` }} aria-hidden="true"><span className="stl-drag-bubble"><b>{at.toFixed(3)} s</b>{[label(prev, dragEdge - 1), label(next, dragEdge)].filter(Boolean).join(' ⟷ ')}</span></div>; })()}
+        {dragEdge && (() => { const item = draft[dragEdge.index]; const at = dragEdge.edge === 'start' ? item.start : item.end; return <div className="stl-drag-guide" style={{ left: `${at / duration * 100}%` }} aria-hidden="true"><span className="stl-drag-bubble"><b>{at.toFixed(3)} s</b>镜头 {pad2(dragEdge.index + 1)} {dragEdge.edge === 'start' ? '首帧' : '尾帧'}</span></div>; })()}
         <div className="shot-timeline-playhead" style={{ left: `${playhead / duration * 100}%` }} aria-hidden="true" />
-        {draft.map((item, index) => <button key={`edge-${item.id}`} type="button" className={`shot-timeline-handle${selected === index || selected === index - 1 ? ' sel' : ''}`} style={{ left: `${item.start / duration * 100}%` }} disabled={disabled || removed.has(item.id) || (index > 0 && removed.has(draft[index - 1].id))} aria-label={`镜头 ${index + 1} 起始点 ${item.start.toFixed(3)} 秒${index ? '；右键可合并相邻镜头' : ''}`} title={index ? '拖动调整；右键合并相邻镜头' : '拖动镜头起始点'} onPointerDown={event => onHandleDown(event, index)} onPointerMove={onHandleMove} onPointerUp={endHandleDrag} onPointerCancel={endHandleDrag} onContextMenu={event => { event.preventDefault(); if (disabled || !index) return; setMergeError(''); setContextMenu({ kind: 'boundary', rightIndex: index, x: Math.max(8, Math.min(event.clientX, window.innerWidth - 240)), y: Math.max(8, Math.min(event.clientY, window.innerHeight - 115)) }); }} onKeyDown={event => { if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') { event.preventDefault(); moveStart(index, item.start + (event.key === 'ArrowRight' ? 1 : -1) * (event.shiftKey ? .1 : .01)); } }} />)}
-        <button type="button" className={`shot-timeline-handle last${selected === draft.length - 1 ? ' sel' : ''}`} style={{ left: `${draft[draft.length - 1].end / duration * 100}%` }} disabled={disabled || removed.has(draft[draft.length - 1].id)} aria-label={`最后镜头结束点 ${draft[draft.length - 1].end.toFixed(3)} 秒`} title="拖动最后镜头结束点" onPointerDown={event => onHandleDown(event, draft.length)} onPointerMove={onHandleMove} onPointerUp={endHandleDrag} onPointerCancel={endHandleDrag} onKeyDown={event => { if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') { event.preventDefault(); moveLastEnd(draft[draft.length - 1].end + (event.key === 'ArrowRight' ? 1 : -1) * (event.shiftKey ? .1 : .01)); } }} />
+        {draft.map((item, index) => <Fragment key={`edges-${item.id}`}>
+          <button type="button" className={`shot-timeline-handle start-edge${selected === index ? ' sel' : ''}`} style={{ left: `${item.start / duration * 100}%` }} disabled={disabled || removed.has(item.id)} aria-label={`镜头 ${index + 1} 左边界 / 首帧 ${item.start.toFixed(3)} 秒`} title={`镜头 ${index + 1} 首帧`} onPointerDown={event => onHandleDown(event, index, 'start')} onPointerMove={onHandleMove} onPointerUp={endHandleDrag} onPointerCancel={endHandleDrag} onContextMenu={event => { if (!index) return; event.preventDefault(); if (disabled) return; setMergeError(''); setContextMenu({ kind: 'boundary', rightIndex: index, x: Math.max(8, Math.min(event.clientX, window.innerWidth - 240)), y: Math.max(8, Math.min(event.clientY, window.innerHeight - 115)) }); }} onKeyDown={event => { if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') { event.preventDefault(); moveStart(index, item.start + (event.key === 'ArrowRight' ? 1 : -1) * (event.shiftKey ? .1 : .01)); } }} />
+          <button type="button" className={`shot-timeline-handle end-edge${selected === index ? ' sel' : ''}`} style={{ left: `${item.end / duration * 100}%` }} disabled={disabled || removed.has(item.id)} aria-label={`镜头 ${index + 1} 右边界 / 尾帧 ${item.end.toFixed(3)} 秒`} title={`镜头 ${index + 1} 尾帧`} onPointerDown={event => onHandleDown(event, index, 'end')} onPointerMove={onHandleMove} onPointerUp={endHandleDrag} onPointerCancel={endHandleDrag} onKeyDown={event => { if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') { event.preventDefault(); moveShotEnd(index, item.end + (event.key === 'ArrowRight' ? 1 : -1) * (event.shiftKey ? .1 : .01)); } }} />
+        </Fragment>)}
       </div>
       <div className="shot-timeline-removed-track" aria-label="已去除的镜头">{removed.size ? draft.map((item, index) => removed.has(item.id) ? <button key={`removed-${item.id}`} type="button" className={`shot-timeline-clip removed ${selected === index ? 'selected' : ''}`} style={{ left: `${item.start / duration * 100}%`, width: `${(item.end - item.start) / duration * 100}%` }} onClick={() => select(index)} onContextMenu={event => { event.preventDefault(); if (disabled) return; player.current?.pause(); const at = round(clamp(positionFromPointer(event), item.start, item.end)); setSelected(index); seek(at); setMergeError(''); setContextMenu({ kind: 'clip', index, at, x: Math.max(8, Math.min(event.clientX, window.innerWidth - 240)), y: Math.max(8, Math.min(event.clientY, window.innerHeight - 185)) }); }} title={`镜头 ${index + 1} · 已去除 · 右键恢复`}><ClipThumbs start={item.start} end={item.end} grab={grabFrame} /><span className="stl-clip-label"><b>{String(index + 1).padStart(2, '0')}</b><small>已去除</small></span><span role="button" tabIndex={0} className="stl-restore" onClick={event => { event.stopPropagation(); toggleRemoved(index); }} onKeyDown={event => { if (event.key === 'Enter') { event.stopPropagation(); toggleRemoved(index); } }}>恢复</span></button> : null) : <span className="shot-timeline-removed-empty">右键片段选择「去除此镜头」，它会移到这里，不再用于后续生成</span>}</div><div className="shot-timeline-scale"><span>00:00</span><span>{duration.toFixed(3)}s</span></div>
     </div></div></section>

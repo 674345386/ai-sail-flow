@@ -31,7 +31,7 @@ export async function publishKeyframe(project: Project, shot: RewriteShot) {
 }
 
 export async function publishReferenceImage(projectId: string, filename: string, mime: string, privateOnly = false) {
-  if (!/^(?:recreation|remix-character|tier-frame)-[a-f\d-]+\.(png|jpg|webp)$/.test(filename)) throw new Error('参考图文件无效。');
+  if (!/^(?:recreation|remix-character|tier-frame|tier-ref)-[a-f\d-]+\.(png|jpg|webp)$/.test(filename)) throw new Error('参考图文件无效。');
   const config = connection();
   if (!config.url || !config.key) throw new Error('请在模型连接设置中连接 Supabase 私有图片存储，再生成镜头视频。');
   const cacheKey = `${config.url}:${config.bucket}:${privateOnly}:${projectId}:${filename}`;

@@ -2,7 +2,7 @@
 import type { Project, Shot, TierNewFrame, TierShot, TierStructured, TierSubject } from './domain';
 import { defaultReplication } from './domain';
 import { dimensionStates, levelInfo, type ReplicationLevel } from './replication-levels';
-import { shotEvidenceFrames } from './shot-evidence';
+import { shotAnalysisPrompt, shotEvidenceFrames } from './shot-evidence';
 
 export type TierInput = { role: string; label: string; url?: string; missing?: boolean };
 export const framePositions = ['first', 'middle', 'last'] as const;
@@ -195,7 +195,10 @@ export function applyFrameInput(project: Project, shotId: string, position: Fram
   return { ...project, replication: { ...rules, shots: { ...(rules.shots || {}), [shotId]: shot } } };
 }
 
-/** 视频片段 default prompt: what is shown is what is sent to Veo with the new first + last frame. */
-export function tierVideoPrompt(shot: Pick<Shot, 'camera' | 'action'>) {
-  return [shot.camera.trim() && `运镜：${shot.camera.trim()}`, shot.action.trim() && `动作：${shot.action.trim()}`].filter(Boolean).join('\n');
+/** Build video instructions from the complete current shot analysis. */
+export function tierVideoPrompt(shot: Shot) {
+  return [
+    'Generate this shot using the full video breakdown below. Preserve its scene, action, camera movement, pacing, speech, sound, visible text and transitions. Use the supplied new keyframes for the target subject identity and appearance when they differ from the source. Treat uncertain observations as unknown; do not invent missing details.',
+    shotAnalysisPrompt(shot),
+  ].join('\n\n');
 }

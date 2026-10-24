@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { Project, Shot } from './domain';
+import { shotMotionPrompt } from './shot-evidence';
 
 export const REMIX_MODEL = 'omni_flash_10s';
 export const REMIX_SECONDS = 10;
@@ -47,7 +48,7 @@ export function buildRemixAudio(shots: Pick<Shot, 'sound' | 'narration'>[], sett
 export const remixDetailVersion = 'source-detail-patches-v2';
 export const remixSourceFields = {
   subject: '主体 / 服装', visual: '画面 / 场景 / 道具', productPresence: '商品外观',
-  action: '动作', camera: '机位 / 运镜', onScreenText: '画面文字', effects: '光影 / 画面效果',
+  action: '动作', camera: '机位 / 运镜', onScreenText: '画面文字', effects: '动效 / 合成 / 光影',
   transition: '转场', reconstructionPrompt: '复刻描述',
 } as const;
 const sourceFieldSchema = z.enum(['subject', 'visual', 'productPresence', 'action', 'camera', 'onScreenText', 'effects', 'transition', 'reconstructionPrompt']);
@@ -96,6 +97,7 @@ export function applyRemixShotPatches(source: Shot, patch: z.infer<typeof remixC
   const description = [
     ...Object.entries(remixSourceFields).map(([field, label]) => correctedSource[field] && `${label}：${correctedSource[field]}`),
     source.narration && `原片口播：${source.narration}`, source.sound && `原片声音：${source.sound}`,
+    source.motionBeats?.length ? `动态时间线（原片绝对时间）：\n${shotMotionPrompt(source)}` : '',
     uncertainties.length && `待确认：${uncertainties.join('；')}`,
   ].filter(Boolean).join('\n');
   return { ...patch, correctedSource, description, uncertainties };

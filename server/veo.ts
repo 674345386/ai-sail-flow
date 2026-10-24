@@ -24,6 +24,9 @@ export type GenerationInput = {
   images: string[];
   keyframeShotId?: string;
   tierShotId?: string;
+  tierShotIds?: string[];
+  previewRevision?: number;
+  referenceImages?: string[];
 };
 type Progress = (progress: number, message: string) => void;
 let sessionKey = '';

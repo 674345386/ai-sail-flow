@@ -16,7 +16,9 @@
 .breakdown-source-analysis details { padding-top: 12px; border-top: 1px solid var(--line); }
 .breakdown-source-analysis summary { cursor: pointer; margin-bottom: 9px; color: var(--text); }
 .shot-breakdown { color: var(--text); }
-.shot-breakdown-intro { padding: 14px 20px; margin: 0; border-bottom: 1px solid var(--line); color: var(--muted); font-size: .72rem; line-height: 1.8; background: #fafbfa; }
+.shot-breakdown-intro { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 20px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: .72rem; line-height: 1.8; background: #fafbfa; }
+.shot-breakdown-intro p { margin: 0; }
+.shot-review-open { flex: 0 0 auto; }
 .shot-breakdown-row { border-bottom: 1px solid var(--line); background: #fff; }
 .shot-breakdown-row:last-child { border-bottom: 0; }
 .shot-row-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 16px 20px 12px; }
@@ -69,16 +71,25 @@
 .shot-row-editor .scene-editor { padding: 18px 0 0; }
 .shot-row-editor .scene-actions { padding: 12px 0 0; }
 .shot-review-pending { margin: 0 20px 14px; padding: 10px 12px; border: 1px solid #e8dfc8; border-radius: 6px; background: #fffaf0; color: #8c7142; font-size: .69rem; }
-.shot-review-suggestion { margin: 0 20px 14px; border: 1px solid #cbded0; border-radius: 7px; background: #f8fcf9; }
-.shot-review-suggestion > summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 13px; color: #3e694b; font-size: .72rem; cursor: pointer; list-style: none; }
-.shot-review-suggestion > summary::-webkit-details-marker { display: none; }
-.shot-review-suggestion[open] > summary svg { transform: rotate(180deg); }
 .shot-review-suggestion-body { display: grid; gap: 9px; padding: 0 13px 13px; }
 .shot-review-suggestion-body > p { margin: 0; color: #7f9584; font-size: .67rem; }
 .shot-review-field { display: grid; grid-template-columns: 115px 1fr 1fr; gap: 12px; padding: 9px 0; border-top: 1px solid #e4eee6; color: #627c68; font-size: .69rem; line-height: 1.5; }
 .shot-review-field strong { color: #456b50; font-weight: 600; }
 .shot-review-field span { overflow-wrap: anywhere; }
+.shot-review-field span b { display: block; margin-bottom: 3px; color: #83958a; font-size: .62rem; font-weight: 600; }
 .shot-review-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.shot-review-dialog { display: flex; flex-direction: column; width: min(980px, calc(100vw - 30px)); max-height: min(88dvh, 900px); margin: auto; padding: 0; overflow: hidden; border: 1px solid #dce6df; border-radius: 12px; color: var(--text); background: #fff; box-shadow: 0 20px 70px #172f2333; }
+.shot-review-dialog::backdrop { background: #172f2366; backdrop-filter: blur(3px); }
+.shot-review-dialog > header, .shot-review-dialog > footer { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 16px 20px; }
+.shot-review-dialog > header { border-bottom: 1px solid #e8eee9; }
+.shot-review-dialog > header h2 { margin: 0; color: #345f40; font-size: 1rem; }
+.shot-review-dialog > header p { margin: 5px 0 0; color: #819287; font-size: .7rem; }
+.shot-review-dialog > footer { justify-content: flex-end; border-top: 1px solid #e8eee9; }
+.shot-review-list { display: grid; gap: 12px; padding: 16px 20px; overflow: auto; }
+.shot-review-card { border: 1px solid #dce9df; border-radius: 9px; background: #f9fcf9; }
+.shot-review-card h3 { display: flex; align-items: baseline; gap: 10px; margin: 0; padding: 12px 14px 8px; color: #345f40; font-size: .82rem; }
+.shot-review-card h3 small { color: #87998d; font-size: .65rem; font-weight: 400; }
+.shot-review-dialog .shot-review-suggestion-body { padding: 0 14px 14px; }
 .shot-frame-dialog { width: min(860px, calc(100vw - 30px)); max-height: calc(100dvh - 30px); margin: auto; padding: 0; border: 1px solid #dce6df; border-radius: 12px; color: #5d7d69; background: #fff; }
 .shot-frame-dialog::backdrop { background: #172f2366; backdrop-filter: blur(3px); }
 .shot-frame-dialog header, .shot-frame-dialog footer { display: flex; align-items: center; justify-content: space-between; gap: 15px; padding: 14px 18px; font-size: .7rem; }
@@ -103,6 +114,9 @@
 }
 @media (max-width: 780px) {
   .shot-review-field { grid-template-columns: 1fr; gap: 4px; }
+  .shot-breakdown-intro { align-items: flex-start; flex-direction: column; padding: 12px; }
+  .shot-review-dialog > header, .shot-review-dialog > footer { padding: 13px; }
+  .shot-review-list { padding: 12px; }
   .breakdown-source-body { grid-template-columns: 1fr; }
   .breakdown-source > summary { flex-direction: column; align-items: flex-start; gap: 10px; }
   .shot-row-heading { gap: 8px; padding: 14px; }

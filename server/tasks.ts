@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import path from 'node:path';
 import type { GeneratedVideo, Job, Project, Rewrite } from '../shared/domain';
 import { validateMarket } from '../shared/domain';
 import { buildVeoUnitPrompt } from '../shared/export';
@@ -13,6 +14,8 @@ import { mergeFocusPoints, selectedFocus, selectedShotFocus } from '../shared/fo
 import { keyframeBasis, keyframeCurrent } from '../shared/storyboard';
 import { keyframeStorageStatus, publishKeyframe, publishReferenceImage } from './keyframe-storage';
 import { tierPlan, tierVideoPrompt } from '../shared/tier-prompt';
+import { tierGroupPrompt } from '../shared/tier-video-group';
+import { sliceGeneratedVideo } from './media';
 import { imageAttemptStatus, imageGenerationStatus } from './image-generation';
 
 export class TaskError extends Error { constructor(public status: number, message: string) { super(message); } }
@@ -94,9 +97,12 @@ export function launchTask(id: string, spec: TaskSpec): Promise<void> {
   if (spec.kind === 'keyframe' && (!p.rewrite || p.rewriteStale || p.promptFlow === 'direct-analysis' || !p.rewrite.shots.some(shot => shot.id === spec.shotId))) throw new TaskError(409, '请先生成与当前资料一致的逐镜头改写方案。');
   if (['generation', 'recover'].includes(spec.kind) && !generationConfigured()) throw new TaskError(503, '请先连接 Veo 3.1。');
   const tierShotId = spec.kind === 'generation' ? spec.input.tierShotId : undefined;
-  if (['generation', 'compose'].includes(spec.kind) && !tierShotId && (!p.rewrite || p.rewriteStale)) throw new TaskError(409, '请先生成与当前资料一致的分镜。');
+  if (['generation', 'compose'].includes(spec.kind) && !tierShotId && !(spec.kind === 'generation' && spec.input.tierShotIds?.length) && (!p.rewrite || p.rewriteStale)) throw new TaskError(409, '请先生成与当前资料一致的分镜。');
   const generationInput = spec.kind === 'generation' ? { ...spec.input } : undefined;
+  if (generationInput?.previewRevision !== undefined && generationInput.previewRevision !== p.revision) throw new TaskError(409, '镜头资料已更新，请重新打开生成预览。');
+  if (generationInput?.referenceImages && (generationInput.referenceImages.length < 1 || generationInput.referenceImages.length > (generationInput.tierShotIds?.length ? 3 : 2))) throw new TaskError(400, '参考图数量超过当前模型限制，请移除多余图片。');
   let video: GeneratedVideo | undefined;
+  let groupVideos: GeneratedVideo[] = [];
   const now = new Date().toISOString();
   if (spec.kind === 'generation' && tierShotId) {
     const input = generationInput!;
@@ -105,12 +111,39 @@ export function launchTask(id: string, spec: TaskSpec): Promise<void> {
     const plan = tierPlan(p, shot), frames = p.replication?.shots?.[shot.id]?.newFrames;
     if (!plan.canVideo || !frames?.first || !frames.last) throw new TaskError(409, '先生成这个镜头的新首帧和新尾帧。');
     if (!keyframeStorageStatus().configured) throw new TaskError(409, '请先在模型连接设置中连接 Supabase 私有图片存储。');
-    Object.assign(input, { mode: 'i2v', images: [], unitId: `tier-${shot.id}`, prompt: input.prompt.trim() || tierVideoPrompt(shot) });
+    Object.assign(input, { mode: 'i2v', images: [], unitId: `tier-${shot.id}`, prompt: input.prompt.trim() ? input.prompt : tierVideoPrompt(shot) });
     video = { id: randomUUID(), provider: 'veo-3.1', model: VEO_MODELS.i2v, mode: 'i2v', productionMode: p.productionMode || 'veo-native', imageUrls: [],
       resolution: input.resolution, shotId: shot.id, unitId: input.unitId, sourceShotIds: [shot.id], targetStart: shot.start, targetEnd: shot.end,
       targetDuration: shot.end - shot.start, status: 'running', prompt: input.prompt, defaultPrompt: tierVideoPrompt(shot), providerRequest: requestBody(input, input.prompt),
       keyframeUrl: frames.middle?.url || frames.first.url, tierShotId: shot.id, tierFirst: frames.first.filename, tierLast: frames.last.filename,
       duration: VEO_DURATION, aspectRatio: input.aspectRatio, startedAt: now };
+  } else if (spec.kind === 'generation' && generationInput?.tierShotIds?.length) {
+    const input = generationInput, ids = [...new Set(input.tierShotIds)];
+    if (ids.length < 2 || ids.length > 3) throw new TaskError(400, '多镜头生成需选择 2–3 个镜头。');
+    const ordered = p.analysis?.shots.filter(shot => ids.includes(shot.id)) || [];
+    if (ordered.length !== ids.length) throw new TaskError(404, '部分镜头已不存在，请刷新后重试。');
+    const duration = ordered.reduce((sum, shot) => sum + shot.end - shot.start, 0);
+    if (duration > VEO_DURATION) throw new TaskError(400, `所选镜头总时长为 ${duration.toFixed(1)} 秒，超过 Veo 单次 8 秒限制。`);
+    if (!keyframeStorageStatus().configured) throw new TaskError(409, '请先在模型连接设置中连接 Supabase 私有图片存储。');
+    const frameRows = ordered.map(shot => {
+      const frames = p.replication?.shots?.[shot.id]?.newFrames;
+      const plan = tierPlan(p, shot);
+      if (!plan.canVideo || !frames?.first || !frames.last) throw new TaskError(409, `镜头 ${shot.id} 缺少新首帧或新尾帧。`);
+      return { shot, frames };
+    });
+    const groupId = randomUUID();
+    const defaultPrompt = tierGroupPrompt(p, ids);
+    if (input.previewRevision !== p.revision) throw new TaskError(409, '镜头资料已更新，请重新打开生成预览。');
+    if (!input.prompt.trim() || input.prompt.length > 100000) throw new TaskError(400, '请先预览并确认完整 Prompt。');
+    const prompt = input.prompt;
+    Object.assign(input, { mode: 'r2v', tierShotId: undefined, unitId: `tier-group-${groupId}`, prompt, images: [] });
+    groupVideos = frameRows.map(({ shot, frames }) => ({ id: randomUUID(), provider: 'veo-3.1', model: VEO_MODELS.r2v, mode: 'r2v', productionMode: p.productionMode || 'veo-native', imageUrls: [],
+      resolution: input.resolution, shotId: shot.id, unitId: `tier-group-${groupId}`, sourceShotIds: [shot.id], tierGroupId: groupId, tierGroupShotIds: ids,
+      targetStart: shot.start, targetEnd: shot.end, targetDuration: shot.end - shot.start, status: 'running', prompt, defaultPrompt,
+      providerRequest: requestBody(input, prompt), keyframeUrl: frames.middle?.url || frames.first!.url, tierShotId: shot.id,
+      tierFirst: frames.first!.filename, tierLast: frames.last!.filename, duration: VEO_DURATION * (shot.end - shot.start) / duration,
+      aspectRatio: input.aspectRatio, startedAt: now }));
+    video = groupVideos[0];
   } else if (spec.kind === 'generation') {
     const input = generationInput!;
     const unit = buildVeoPlan(p.rewrite!.shots).find(unit => unit.id === input.unitId);
@@ -138,7 +171,7 @@ export function launchTask(id: string, spec: TaskSpec): Promise<void> {
   } else if (spec.kind === 'compose') sources(p);
   const job: Job = { id: randomUUID(), kind: spec.kind === 'recover' ? 'generation' : spec.kind === 'compose' ? 'composition' : spec.kind,
     status: 'running', progress: 2, message: '正在准备任务…', startedAt: now, videoId: video?.id, unitId: video?.unitId, shotId: spec.kind === 'keyframe' ? spec.shotId : undefined };
-  const saved = saveProject({ ...p, job, generatedVideos: spec.kind === 'generation' ? [...p.generatedVideos, video!] : spec.kind === 'recover' ? p.generatedVideos.map(item => item.id === video!.id ? { ...item, status: 'running', error: undefined } : item) : p.generatedVideos });
+  const saved = saveProject({ ...p, job, generatedVideos: spec.kind === 'generation' ? [...p.generatedVideos, ...(groupVideos.length ? groupVideos : [video!])] : spec.kind === 'recover' ? p.generatedVideos.map(item => item.id === video!.id ? { ...item, status: 'running', error: undefined } : item) : p.generatedVideos });
   activeProjects.add(id);
   const progress = (n: number, message: string) => update(id, current => ({ ...current, job: { ...current.job!, progress: n, message } }));
   return (async () => {
@@ -190,7 +223,28 @@ export function launchTask(id: string, spec: TaskSpec): Promise<void> {
           }
         }
       } else if (spec.kind === 'generation' || spec.kind === 'recover') {
-        if (spec.kind === 'generation' && generationInput?.tierShotId) {
+        if (spec.kind === 'generation' && generationInput?.referenceImages && (generationInput.tierShotId || generationInput.tierShotIds?.length)) {
+          progress(8, '正在发布已确认的参考图…');
+          const imageUrls: string[] = [];
+          for (const url of generationInput.referenceImages) {
+            const filename = path.basename(url);
+            const mime = filename.endsWith('.jpg') ? 'image/jpeg' : filename.endsWith('.webp') ? 'image/webp' : 'image/png';
+            imageUrls.push(await publishReferenceImage(saved.id, filename, mime, true));
+          }
+          generationInput.images = imageUrls;
+          update(id, current => ({ ...current, generatedVideos: current.generatedVideos.map(item => item.id === video!.id || (!!video!.tierGroupId && item.tierGroupId === video!.tierGroupId)
+            ? { ...item, imageUrls, providerRequest: requestBody(generationInput!, generationInput!.prompt) } : item) }));
+        } else if (spec.kind === 'generation' && generationInput?.tierShotIds?.length) {
+          progress(8, '正在发布多镜头关键帧并准备分镜…');
+          const imageUrls: string[] = [];
+          for (const shot of saved.analysis!.shots.filter(item => generationInput!.tierShotIds!.includes(item.id))) {
+            const frames = saved.replication?.shots?.[shot.id]?.newFrames!;
+            imageUrls.push(await publishReferenceImage(saved.id, frames.first!.filename, 'image/png', true));
+          }
+          generationInput.images = imageUrls;
+          update(id, current => ({ ...current, generatedVideos: current.generatedVideos.map(item => item.tierGroupId === video!.tierGroupId
+            ? { ...item, imageUrls, providerRequest: requestBody(generationInput!, generationInput!.prompt) } : item) }));
+        } else if (spec.kind === 'generation' && generationInput?.tierShotId) {
           progress(8, '正在上传新首帧和新尾帧并生成临时链接…');
           const imageUrls: string[] = [];
           for (const filename of [video!.tierFirst!, video!.tierLast!]) imageUrls.push(await publishReferenceImage(saved.id, filename, 'image/png', true));
@@ -207,10 +261,22 @@ export function launchTask(id: string, spec: TaskSpec): Promise<void> {
         }
         if (spec.kind === 'generation') update(id, current => ({ ...current, workflow: current.workflow && ['running', 'pausing'].includes(current.workflow.status) ? { ...current.workflow, newClipCount: current.workflow.newClipCount + 1 } : current.workflow }));
         const remote = spec.kind === 'recover' ? await resumeVideo(video!.requestId!, progress) : await generateVideo(generationInput!, generationInput!.prompt, progress, requestId => {
-          update(id, current => ({ ...current, generatedVideos: current.generatedVideos.map(item => item.id === video!.id ? { ...item, requestId } : item) }));
+          update(id, current => ({ ...current, generatedVideos: current.generatedVideos.map(item => item.id === video!.id || (!!video!.tierGroupId && item.tierGroupId === video!.tierGroupId) ? { ...item, requestId } : item) }));
         });
-        const local = await saveGeneratedVideo(remote.url, video!.id, progress);
-        await saveSource(id, video!.id, local, progress);
+        const local = await saveGeneratedVideo(remote.url, video!.id, progress, { prefix: generationInput?.tierShotIds?.length ? 'tier-group-source' : 'veo' });
+        if (spec.kind === 'generation' && generationInput?.tierShotIds?.length) {
+          progress(84, '正在按镜头顺序切分生成结果…');
+          const rows = saved.analysis!.shots.filter(shot => generationInput!.tierShotIds!.includes(shot.id));
+          const total = rows.reduce((sum, shot) => sum + shot.end - shot.start, 0);
+          const clips = await sliceGeneratedVideo(local.filename!, rows.map((shot, index) => ({
+            start: VEO_DURATION * rows.slice(0, index).reduce((sum, row) => sum + row.end - row.start, 0) / total,
+            duration: VEO_DURATION * (shot.end - shot.start) / total,
+          })));
+          update(id, current => ({ ...current, generatedVideos: current.generatedVideos.map(item => {
+            const index = groupVideos.findIndex(group => group.id === item.id);
+            return index >= 0 ? { ...item, ...clips[index], requestId: remote.id, status: 'completed', finishedAt: new Date().toISOString(), stale: false } : item;
+          }) }));
+        } else await saveSource(id, video!.id, local, progress);
         message = saved.productionMode === 'tts-subtitles' ? '画面、配音与字幕已完成' : 'Veo 视频片段已保存到本机';
       } else {
         let current = getProject(id)!;
@@ -242,7 +308,7 @@ export function launchTask(id: string, spec: TaskSpec): Promise<void> {
           status: error instanceof TimingConfirmationRequired ? 'needs-input' : 'failed', message, finishedAt: new Date().toISOString() };
         return { ...current, job: failed, ttsTimingNotice: error instanceof TimingConfirmationRequired ? error.notice : current.ttsTimingNotice,
           jobHistory: [...(current.jobHistory || []), failed].slice(-200),
-          generatedVideos: current.generatedVideos.map(item => item.id === video?.id && item.status !== 'completed' ? { ...item, status: 'failed', error: message, finishedAt: failed.finishedAt } : item) };
+          generatedVideos: current.generatedVideos.map(item => (item.id === video?.id || (!!video?.tierGroupId && item.tierGroupId === video.tierGroupId)) && item.status !== 'completed' ? { ...item, status: 'failed', error: message, finishedAt: failed.finishedAt } : item) };
       });
       throw error;
     } finally { activeProjects.delete(id); release(); }
