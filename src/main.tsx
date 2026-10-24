@@ -7,6 +7,7 @@ import './lang-switch.css';
 import './styles.css';
 import './elevenlabs.css';
 import './creative-workspace.css';
+import './storyboard-grid.css';
 import './shader-surfaces.css';
 import './workspace-shell.css';
 import './landing-hero.css';

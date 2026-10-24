@@ -53,6 +53,9 @@ for (const filename of fs.readdirSync(recordsDir)) {
     project.replication ||= { ...defaultReplication };
     project.productionMode ||= 'veo-native';
     project.promptFlow ||= 'localized';
+    project.breakdownType ||= 'shot';
+    project.storyboardGridSize ||= 3;
+    project.storyboardGrids ||= [];
     project.workflowMode ||= 'manual';
     project.jobHistory ||= [];
     if (project.workflow?.status === 'running' || project.workflow?.status === 'pausing') {
@@ -105,5 +108,6 @@ export function createProject(demo = false, parentProjectId = defaultProjectId, 
     id, parentProjectId, title: title || '未命名创意', createdAt: now, updatedAt: now, revision: 0, isDemo: false,
     product: { ...emptyProduct }, market: { ...defaultMarket }, replication: { ...defaultReplication }, assets: [], analysis: null, rewrite: null,
     rewriteStale: false, generatedVideos: [], composedVideos: [], productionMode: 'veo-native', promptFlow: 'localized', ttsVoice: '', job: null, model: MODEL, usage: { input: 0, output: 0 },
+    breakdownType: 'shot', storyboardGridSize: 3, storyboardGrids: [],
   });
 }

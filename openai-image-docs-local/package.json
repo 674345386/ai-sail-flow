@@ -1,0 +1,10 @@
+{
+  "name": "openai-image-docs-local",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Local reproduction of the OpenAI image generation documentation",
+  "scripts": {
+    "build": "python3 scripts/build.py",
+    "start": "node server.mjs"
+  }
+}

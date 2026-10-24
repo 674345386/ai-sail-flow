@@ -165,6 +165,15 @@ export function buildExportFiles(project: Project) {
     }, null, 2),
     'manifest.json': JSON.stringify({ app: 'AI-Sail Flow', version: 2, model: project.model, productionMode: project.productionMode || 'veo-native', workspaceId: defaultWorkspace.id, projectId: project.parentProjectId || null, creativeId: project.id, title: project.title, demo: project.isDemo, sourceAnalysis: project.analysisMeta || null, selectedFocus: selectedFocusBrief(project.analysis), exportedAt: new Date().toISOString(), product: project.product, market: project.market, replication: project.replication || defaultReplication, productReferences: project.assets.filter(a => a.kind === 'product').map(a => a.name), subtitles: 'Draft timing; align against the final rendered audio.' }, null, 2),
   };
+  if (project.storyboardGrids?.length) {
+    files['08-storyboard-grids/manifest.json'] = JSON.stringify(project.storyboardGrids.map((grid, index) => ({
+      index: index + 1, start: grid.start, end: grid.end, duration: grid.end - grid.start,
+      gridSize: grid.gridSize, frameTimes: grid.frameTimes,
+      image: `grid-${String(index + 1).padStart(2, '0')}.jpg`,
+      prompt: `grid-${String(index + 1).padStart(2, '0')}-prompt.txt`,
+    })), null, 2);
+    for (const [index, grid] of project.storyboardGrids.entries()) files[`08-storyboard-grids/grid-${String(index + 1).padStart(2, '0')}-prompt.txt`] = grid.prompt;
+  }
   if (project.market.subtitles || project.productionMode === 'tts-subtitles') files['05-subtitles-draft.srt'] = subtitles(project.rewrite.shots, project.productionMode);
   return files;
 }

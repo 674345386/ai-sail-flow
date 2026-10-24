@@ -17,6 +17,7 @@ import { tierPlan, tierVideoPrompt } from '../shared/tier-prompt';
 import { tierGroupPrompt } from '../shared/tier-video-group';
 import { sliceGeneratedVideo } from './media';
 import { imageAttemptStatus, imageGenerationStatus } from './image-generation';
+import { generateStoryboardGrids } from './storyboard-grid';
 
 export class TaskError extends Error { constructor(public status: number, message: string) { super(message); } }
 export type TaskSpec = { kind: 'analysis' } | { kind: 'analysis-refine' } | { kind: 'rewrite' } | { kind: 'keyframe'; shotId: string } | { kind: 'generation'; input: GenerationInput } |
@@ -196,6 +197,10 @@ export function launchTask(id: string, spec: TaskSpec): Promise<void> {
         const result = spec.kind === 'analysis' ? await analyze(saved, progress, snapshot) : direct
           ? { result: directAnalysisStoryboard(saved), usage: { input: 0, output: 0 } }
           : await rewrite(saved, progress, snapshot);
+        const storyboardGrids = spec.kind === 'analysis' && saved.breakdownType === 'storyboard-grid'
+          ? await generateStoryboardGrids(saved.assets.find(asset => asset.kind === 'video')!, result.result as NonNullable<Project['analysis']>, saved.storyboardGridSize || 3, saved.market.aspectRatio,
+            (done, total) => progress(78 + Math.round(done / total * 18), `正在生成分镜网格 ${done}/${total}…`))
+          : [];
         update(id, current => ({ ...current, isDemo: false, ttsTimingNotice: undefined,
           ...(spec.kind === 'analysis' ? { analysis: (() => {
             const next = result.result as NonNullable<Project['analysis']>;
@@ -209,10 +214,10 @@ export function launchTask(id: string, spec: TaskSpec): Promise<void> {
                 const sameSegment = old && overlap / Math.max(old.end - old.start, shot.end - shot.start) > 0.5;
                 return { ...shot, focusPoints: mergeFocusPoints(sameSegment ? old.focusPoints : [], shot.focusPoints) };
               }) };
-          })(), analysisReview: { pendingIds: [], suggestions: {} }, analysisMeta: 'meta' in result ? result.meta : null, rewriteStale: !!current.rewrite } : { rewrite: result.result as Project['rewrite'], rewriteStale: false }),
+          })(), analysisReview: { pendingIds: [], suggestions: {} }, analysisMeta: 'meta' in result ? result.meta : null, storyboardGrids, rewriteStale: !!current.rewrite } : { rewrite: result.result as Project['rewrite'], rewriteStale: false }),
           generatedVideos: current.generatedVideos.map(video => ({ ...video, stale: true })), composedVideos: current.composedVideos?.map(video => ({ ...video, stale: true })),
           usage: { input: current.usage.input + result.usage.input, output: current.usage.output + result.usage.output } }));
-        message = spec.kind === 'analysis' ? '参考视频拆解完成' : direct ? '原片分析已整理为可编辑 Veo Prompt' : '逐镜头描述与复刻关键帧已完成';
+        message = spec.kind === 'analysis' ? saved.breakdownType === 'storyboard-grid' ? '分镜网格与生成 Prompt 已完成' : '参考视频拆解完成' : direct ? '原片分析已整理为可编辑 Veo Prompt' : '逐镜头描述与复刻关键帧已完成';
         if (spec.kind === 'rewrite' && !direct) {
           update(id, current => ({ ...current, workflow: current.workflow && current.workflow.status === 'running' ? { ...current.workflow, stage: 'keyframe' } : current.workflow }));
           const shots = getProject(id)!.rewrite!.shots;

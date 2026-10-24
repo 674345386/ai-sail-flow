@@ -245,6 +245,19 @@ export type AnalysisMeta = {
   audioSubmitted: boolean; requestedModel: string; providerModel?: string; agenticTrace?: boolean; analyzedAt: string;
   requestedVideoFps?: number;
 };
+export type BreakdownType = 'shot' | 'storyboard-grid';
+export type StoryboardGridSize = 3 | 4;
+export type StoryboardGrid = {
+  id: string;
+  start: number;
+  end: number;
+  gridSize: StoryboardGridSize;
+  frameTimes: number[];
+  filename: string;
+  url: string;
+  prompt: string;
+  generatedAt: string;
+};
 export const defaultWorkspace = { id: 'default', title: '我的工作空间' } as const;
 export type WorkspaceProject = { id: string; workspaceId: string; title: string; createdAt: string; updatedAt: string; revision: number };
 // The existing production record and its API retain the Project name for compatibility; each record represents one creative.
@@ -255,6 +268,9 @@ export type Project = {
   product: Product; market: Market; replication?: Replication; assets: Asset[]; analysis: Analysis | null; rewrite: Rewrite | null;
   analysisReview?: AnalysisReview;
   analysisMeta?: AnalysisMeta | null;
+  breakdownType?: BreakdownType;
+  storyboardGridSize?: StoryboardGridSize;
+  storyboardGrids?: StoryboardGrid[];
   analysisRequest?: ModelRequestSnapshot | null; rewriteRequest?: ModelRequestSnapshot | null;
   rewriteStale: boolean; generatedVideos: GeneratedVideo[]; composedVideos?: ComposedVideo[];
   productionMode?: ProductionMode; ttsVoice?: string; job: Job | null; model: string; usage: { input: number; output: number };
@@ -280,6 +296,14 @@ export const projectPatchSchema = z.object({
   ttsVoice: z.string().max(120).default(''),
   automaticSettings: automaticSettingsSchema.optional(),
   promptFlow: z.enum(['direct-analysis', 'localized']).default('localized'),
+  breakdownType: z.enum(['shot', 'storyboard-grid']).default('shot'),
+  storyboardGridSize: z.union([z.literal(3), z.literal(4)]).default(3),
+  storyboardGrids: z.array(z.object({
+    id: z.string().max(80), start: z.number().min(0).max(2700), end: z.number().min(0).max(2700),
+    gridSize: z.union([z.literal(3), z.literal(4)]), frameTimes: z.array(z.number().min(0).max(2700)).min(9).max(16),
+    filename: z.string().max(200).regex(/^[\w.-]+$/), url: mediaUrl,
+    prompt: z.string().max(100000), generatedAt: z.string().max(40),
+  })).max(338).default([]),
   veoPromptDrafts: z.record(z.string(), z.object({ prompt: z.string(), basis: z.string() })).default({}),
 });
 export function stageOf(project: Pick<Project, 'assets' | 'analysis' | 'rewrite' | 'rewriteStale'>) {

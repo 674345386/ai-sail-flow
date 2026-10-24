@@ -1,0 +1,188 @@
+{
+  "homepage": {
+    "pageTitle": "Runway | Building Real-World Intelligence",
+    "pageDescription": "Runway is building foundational Real-World Intelligence that can understand, simulate and act in the world. We offer products and services built on-top of this intelligence to empower individuals and organizations to do more in the world.",
+    "heroTitle": "Building AI to <br class='hidden lg:block'/> Simulate the World",
+    "heroVideoMediaEntertainment": "Media and Entertainment",
+    "heroVideoRobotics": "Robotics and Autonomy",
+    "heroVideoGwm": "General World Models",
+    "heroVideoAgents": "Conversational Real-time Video Agents",
+    "heroSocialProof": "Used by 60M+ users globally - try today and cancel anytime",
+    "partnersLabel": "We partner with the world's leading organizations to advance their industries:",
+    "runwayResearch": "Runway Research",
+    "researchDescription": "We are building foundational General World Models that will be capable of simulating all possible worlds and experiences. The next frontier of intelligence will come from models that can understand, perceive, generate and act in the world.",
+    "gwm1ResearchDesc": "A state-of-the-art General World Model built to interact with the real world. And a major step towards universal simulation.",
+    "gen45ResearchDesc": "The world's best video model, featuring state-of-the-art motion quality, prompt adherence and visual fidelity.",
+    "gwmResearchDesc": "Our long-term research effort to build AI systems that understand the visual world and its dynamics.",
+    "latestResearchHeading": "Our latest Research and Products",
+    "introducingGwm1": "Introducing GWM-1",
+    "gwm1Paragraph1": "GWM-1: our state-of-the-art General World Model, built to simulate reality in real time. Interactive, controllable and general-purpose.",
+    "gwm1Paragraph2": "GWM-1 comes in three variants: GWM Worlds for explorable environments, GWM Avatars for conversational characters, and GWM Robotics for robotic manipulation.",
+    "gen45Headline": "Gen-4.5: A new frontier for video generation.",
+    "gen45Description": "Runway Gen-4.5 is the world's top-rated video model, offering unprecedented visual fidelity and creative control. It produces cinematic and highly realistic outputs while providing limitless creative freedom and precise control over every aspect of generation.",
+    "industriesHeading": "Runway is being used by the world's leading organizations across industries",
+    "nvidiaTitle": "Runway and NVIDIA Partner to Advance Video Generation and World Models",
+    "nvidiaDesc": "Runway and NVIDIA collaborated to accelerate Runway's video and world models with NVIDIA's Vera Rubin architecture.",
+    "lionsgateTitle": "Runway Announces Partnership with Lionsgate",
+    "lionsgateDesc": "Runway and Lionsgate are partnering to explore the use of AI in film production.",
+    "uclaTitle": "UCLA's Department of Film, Television and Digital Media",
+    "uclaDesc": "How UCLA's Film, Television and Digital Media program empowers students to experiment with AI in filmmaking.",
+    "kpfTitle": "How KPF is incorporating AI into Architectural workflows",
+    "kpfDesc": "How KPF is using Runway to streamline rendering workflows and empower creatives to animate architectural projects in-house.",
+    "ctaBuildingAi": "We are building AI to simulate the world through merging art and science.",
+    "ctaJoinTeam": "Join our global team of researchers, engineers, artists and designers.",
+    "seeCareers": "See careers",
+    "aiChangingHeading": "AI is changing how stories are told, how scientific progress is made and how the next frontiers of humanity are reached.",
+    "gen45CardSubtitle": "A New Frontier for Video Generation",
+    "gen45CardTitle": "Gen-4.5: A New Frontier for Generative Video",
+    "gen45CardDesc": "Gen-4.5 is the world's best video model, featuring state-of-the-art motion quality, prompt adherence and visual fidelity.",
+    "roboticsCardSubtitle": "Runway Robotics World Model SDK",
+    "roboticsCardTitle": "GWM Robotics: General World Models for Robotics",
+    "roboticsCardDesc": "Simulate physical interactions and robotic behaviors through learned world models. Learn and predict how actions unfold.",
+    "worldsCardSubtitle": "Interactive World Simulation",
+    "worldsCardTitle": "GWM Worlds: Interactive and Explorable World Models",
+    "worldsCardDesc": "A new frontier for open-ended interactive world simulation. A way of building infinite explorable realities in real-time.",
+    "avatarsCardSubtitle": "Autonomous Virtual Characters",
+    "avatarsCardTitle": "GWM Avatars: Real-time Video Agents",
+    "avatarsCardDesc": "Fully autonomous and real-time virtual video agents capable of natural conversation and contextual awareness.",
+    "tryNow": "Try now",
+    "exploreResearch": "Explore the Research",
+    "thirdPartyTitle": "Every model you need to make anything you want.",
+    "comingSoon": "Coming soon",
+    "charactersTitle": "Runway Characters",
+    "charactersParagraph1": "A real-time video agent API that lets you build fully custom conversational characters. These video agents can have any appearance and any visual style, with full control over voice, personality, knowledge and actions.",
+    "charactersParagraph2": "Built on our recently launched world model, GWM-1, Characters lets you generate expressive digital personas from a single image, with zero fine-tuning required.",
+    "rwiHeroTitle": "Building Real-World Intelligence",
+    "rwiHeroDescription": "Runway is building foundational Real-World Intelligence that can understand, simulate and act in the world. We offer products and services built on-top of this intelligence to empower individuals and organizations to do more in the world.",
+    "rwiHeroTitleB": "Intelligent tools for scaling <break></break>content and teams.",
+    "rwiHeroDescriptionB": "Runway is building foundational Real-World Intelligence that is changing how the world’s top brands, companies, agencies and studios are able to tell their stories.",
+    "platformsHeading": "Three platforms built on-top of the same Real-World Intelligence models",
+    "platformCreativeTagline": "Your complete Creative Suite with everything you need, to make anything you want.",
+    "platformCreativeBody": "An all-in-one cloud-based creative platform that offers endless ways to generate and edit video, images and audio in one workspace. Built for individuals and teams of all sizes.",
+    "platformCreativeFootnote": "Used by 60m+ creatives around the world. Try free, cancel anytime.",
+    "platformDevTagline": "The AI media platform for developers to build with the best models from Runway and other labs.",
+    "platformDevBody": "The API platform with Runway's expertise built in. Access the best models and the creative tooling to easily get production-ready output from them, at scale.",
+    "platformRoboticsTagline": "A complete toolkit to run policy inference through photorealistic simulation.",
+    "platformRoboticsBody": "From policy inference and evaluation to synthetic data generation, every component is powered by GWM-1, our state-of-the-art General World Model. Pick the surface you need — we'll work with you to fit it to your hardware.",
+    "getApiKey": "Get API Key",
+    "forEnterprise": "For Enterprise",
+    "contactSales": "Contact Sales",
+    "devTabWorkflows": "Workflows",
+    "devTabRecipes": "Recipes",
+    "devTabCharacters": "Characters",
+    "devSectionDescription": "Create your own pipelines combining multiple models, modalities and tasks. Trigger Workflows via custom endpoints.",
+    "devBullet1": "Automate repetitive tasks at scale",
+    "devBullet2": "Get dedicated support from Runway's Technical Artists for Workflow builds",
+    "enterpriseBadge": "Enterprise",
+    "devSectionEyebrow": "Other ways to build",
+    "devTabRecipesDesc": "Pre-built endpoints for specific use cases. Get professional-quality assets with one request.",
+    "devTabCharactersDesc": "Build expressive characters with custom voices, knowledge and tools, ready for live interaction directly from your product.",
+    "viewDocumentation": "View documentation",
+    "badgeVideo": "Video",
+    "badgeImage": "Image",
+    "recipeProductAdDesc": "Generate ad videos from a product photo. Ready for social, ecommerce or paid placements.",
+    "recipeProductUgcDesc": "Generate vertical user-generated content ads from a character photo, product photo, and creative brief.",
+    "recipeProductSwapDesc": "Replace the product in an existing ad video with a new product while preserving camera motion and scene composition.",
+    "recipeMultiShotVideoDesc": "Generate a multi-cut video from a story prompt or custom shot list with cohesive cinematic pacing.",
+    "recipeMarketingStockImageDesc": "Generate polished, on-brand marketing stock imagery from a text brief and an optional reference image of brand assets.",
+    "recipeProductCampaignImageDesc": "Generate four fashion campaign images from a product photo and creative brief.",
+    "creativePanelItemHowUsed": "How Runway is Used",
+    "creativePanelItemAgent": "Create with Agent",
+    "creativePanelItemWorkflows": "Build your own Workflows",
+    "creativePanelItemEnterprise": "Enterprise-grade",
+    "creativePanelItemModels": "The World's Best Models",
+    "latestFromRunwayHeading": "See the latest from Runway",
+    "runwayAdsTitle": "Introducing Runway Ads",
+    "runwayAdsDesc": "An autonomous engine for performance marketing that generates, localizes, publishes and iterates on ad creative, with human approval built in.",
+    "praxis1Title": "Introducing Praxis-1",
+    "praxis1Desc": "An open-weight world action model that turns Runway's video pretraining into control for real robots.",
+    "openaiMarketplaceTitle": "Runway Joins the OpenAI Marketplace",
+    "openaiMarketplaceDesc": "Runway is a launch partner in the OpenAI Marketplace, so enterprise teams can bring Runway and models from other labs into one workspace.",
+    "claudeMotionTitle": "Runway is in Claude Motion",
+    "claudeMotionDesc": "Export animated explainers from Claude Motion to Runway. Generate footage, add voiceover and music, edit scene by scene and reformat for every channel.",
+    "gwmWorlds2Title": "Introducing GWM Worlds 2",
+    "gwmWorlds2Desc": "GWM Worlds 2 generates interactive worlds in real time: continuous 720p video at 24 fps and audio at 48,000 Hz, responding to your inputs as you explore.",
+    "tryRunwayFree": "Try Runway for free"
+  },
+  "robotics": {
+    "platformEyebrow": "Platform",
+    "toolkitHeading": "A complete toolkit for robot learning.",
+    "toolkitIntro": "From policy inference and evaluation to synthetic data generation, every component is powered by GWM-1, our state-of-the-art General World Model. Pick the surface you need — we'll work with you to fit it to your hardware.",
+    "policyModelTitle": "Policy Model",
+    "policyModelDesc": "Control your robot with Runway's General World Model. GWM-1 predicts actions from live observations — custom fine-tuned for your specific hardware, environment, and tasks.",
+    "videoLicensingTitle": "Video Model Licensing",
+    "videoLicensingDesc": "License GWM-1 as the diffusion backbone for training custom policy models. Deploy on your own infrastructure with full control over fine-tuning.",
+    "policyEvalTitle": "Offline Policy Evaluation",
+    "policyEvalDesc": "Submit action sequences and camera observations to simulate policy rollouts in GWM-1. Surface failure modes before deploying to hardware.",
+    "dataAugTitle": "Data Augmentation",
+    "dataAugDesc": "Transform existing trajectories into new environments, lighting conditions, and object configurations. Expand your training distribution without collecting more data.",
+    "contact": {
+      "pageTitle": "Contact Runway Robotics | Get in touch",
+      "pageDescription": "Get in touch with the Runway Robotics team about bringing Runway's models to your robot learning pipeline — policy inference, evaluation, data augmentation, and video model licensing.",
+      "heading": "Bring Runway to your <br></br> robotics pipeline."
+    }
+  },
+  "creative": [
+    {
+      "id": "how-used",
+      "label": "How Runway is Used",
+      "poster": "https://image.mux.com/Bd17Bgkw00lq6QqwOAAxkXKYs7hy3RnHj1JQjUwYmdZA/thumbnail.webp?time=0&width=1280"
+    },
+    {
+      "id": "agent",
+      "label": "Create with Agent",
+      "poster": "https://image.mux.com/fge4i7900DHIgUpB5rnoDMguUjeW6Mf775NtFnafD69I/thumbnail.webp?time=0&width=1280"
+    },
+    {
+      "id": "workflows",
+      "label": "Build your own Workflows",
+      "poster": "https://image.mux.com/irfCRYcaqVUDBktKHI21XHi019Sy4JulAMtZiX7xSbYM/thumbnail.webp?time=0&width=1280"
+    },
+    {
+      "id": "enterprise",
+      "label": "Enterprise-grade",
+      "poster": "https://image.mux.com/RLVvmVFKaTw3fBoZ8UV2zX74Dz500BSd7dUPQchkczEY/thumbnail.webp?time=0&width=1280"
+    },
+    {
+      "id": "models",
+      "label": "The World's Best Models",
+      "poster": "https://image.mux.com/el3CLGnZ9Qow0219NeHLt8SyDpnLSjcPjy6TJlP5Ubzo/thumbnail.webp?time=0&width=1280"
+    }
+  ],
+  "devVideos": {
+    "workflows": "https://d3phaj0sisr2ct.cloudfront.net/devportal/landing/workflows-flow.mp4",
+    "characters": "https://d3phaj0sisr2ct.cloudfront.net/devportal/landing/characters-flow.mp4"
+  },
+  "recipes": [
+    {
+      "title": "Product Ad",
+      "poster": "https://d3phaj0sisr2ct.cloudfront.net/devportal/playground-examples/product-ad/product-ad-poster.webp",
+      "descriptionKey": "recipeProductAdDesc"
+    },
+    {
+      "title": "Product UGC",
+      "poster": "https://d3phaj0sisr2ct.cloudfront.net/devportal/playground-examples/product-ugc/ugc-poster.webp",
+      "descriptionKey": "recipeProductUgcDesc"
+    },
+    {
+      "title": "Product Swap",
+      "poster": "https://d3phaj0sisr2ct.cloudfront.net/devportal/playground-examples/product-swap/product-swap-poster-v2.webp",
+      "descriptionKey": "recipeProductSwapDesc"
+    },
+    {
+      "title": "Multi-Shot Video",
+      "poster": "https://d3phaj0sisr2ct.cloudfront.net/devportal/recipes/multi-shot-video-poster.jpg",
+      "descriptionKey": "recipeMultiShotVideoDesc"
+    },
+    {
+      "title": "Marketing Stock Image",
+      "poster": "https://d3phaj0sisr2ct.cloudfront.net/devportal/playground-examples/marketing-stock-image/marketing-poster-2.webp",
+      "descriptionKey": "recipeMarketingStockImageDesc"
+    },
+    {
+      "title": "Product Campaign Image",
+      "poster": "https://d3phaj0sisr2ct.cloudfront.net/devportal/playground-examples/product-campaign-image/product-campaign-poster.webp",
+      "descriptionKey": "recipeProductCampaignImageDesc"
+    }
+  ]
+}

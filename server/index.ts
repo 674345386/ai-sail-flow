@@ -493,6 +493,7 @@ function attachAsset(current: Project, asset: Asset) {
   return saveProject({ ...current, assets: video ? [...current.assets.filter(item => item.kind !== 'video'), asset] : [...current.assets, asset],
     ttsTimingNotice: undefined, isDemo: video ? false : current.isDemo, analysis: video ? null : current.analysis,
     analysisReview: video ? { pendingIds: [], suggestions: {} } : current.analysisReview, analysisMeta: video ? null : current.analysisMeta,
+    storyboardGrids: video ? [] : current.storyboardGrids,
     rewrite: video ? null : current.rewrite, rewriteStale: !video && !!current.rewrite,
     generatedVideos: (current.generatedVideos || []).map(item => ({ ...item, stale: true })),
     composedVideos: (current.composedVideos || []).map(item => ({ ...item, stale: true })), job: null });
@@ -555,7 +556,7 @@ app.delete('/api/projects/:id/assets/:assetId', (req, res) => {
   const asset = p.assets.find(a => a.id === req.params.assetId);
   if (!asset) throw new HttpError(404, '素材不存在。');
   // Remove the association; retain local source files so replacement is recoverable.
-  res.json(saveProject({ ...p, assets: p.assets.filter(a => a.id !== asset.id), ttsTimingNotice: undefined, analysis: asset.kind === 'video' ? null : p.analysis, analysisReview: asset.kind === 'video' ? { pendingIds: [], suggestions: {} } : p.analysisReview, analysisMeta: asset.kind === 'video' ? null : p.analysisMeta, rewrite: asset.kind === 'video' ? null : p.rewrite, rewriteStale: asset.kind === 'product' && !!p.rewrite, generatedVideos: (p.generatedVideos || []).map(video => ({ ...video, stale: true })), composedVideos: (p.composedVideos || []).map(video => ({ ...video, stale: true })), job: null }));
+  res.json(saveProject({ ...p, assets: p.assets.filter(a => a.id !== asset.id), ttsTimingNotice: undefined, analysis: asset.kind === 'video' ? null : p.analysis, analysisReview: asset.kind === 'video' ? { pendingIds: [], suggestions: {} } : p.analysisReview, analysisMeta: asset.kind === 'video' ? null : p.analysisMeta, storyboardGrids: asset.kind === 'video' ? [] : p.storyboardGrids, rewrite: asset.kind === 'video' ? null : p.rewrite, rewriteStale: asset.kind === 'product' && !!p.rewrite, generatedVideos: (p.generatedVideos || []).map(video => ({ ...video, stale: true })), composedVideos: (p.composedVideos || []).map(video => ({ ...video, stale: true })), job: null }));
 });
 function acceptedTask(req: Request, res: Response, spec: Parameters<typeof launchTask>[1]) {
   const p = record(req); editable(p);
@@ -606,6 +607,10 @@ app.get('/api/projects/:id/export', async (req, res) => {
   for (const [i, asset] of project.assets.filter(a => a.kind === 'product').entries()) {
     const ext = asset.mime === 'image/png' ? 'png' : asset.mime === 'image/webp' ? 'webp' : 'jpg';
     zip.file(`product-references/reference-${i + 1}.${ext}`, fs.readFileSync(path.join(uploadDir, asset.filename)));
+  }
+  for (const [index, grid] of (project.storyboardGrids || []).entries()) {
+    const source = path.join(uploadDir, grid.filename);
+    if (fs.existsSync(source)) zip.file(`08-storyboard-grids/grid-${String(index + 1).padStart(2, '0')}.jpg`, fs.readFileSync(source));
   }
   const manifest = project.rewrite.shots.map((shot, index) => {
     const keyframe = shot.keyframe;
