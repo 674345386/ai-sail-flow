@@ -21,3 +21,4 @@ __pycache__/
 *.py[cod]
 
 tmp-backup-*/
+openai-image-docs-local/

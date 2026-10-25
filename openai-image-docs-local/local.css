@@ -1,7 +1,0 @@
-/* Keep the reference design intact; only local search receives additional styles. */
-.local-search-results { display: grid; gap: 4px; max-height: 55vh; overflow: auto; padding-top: 20px; }
-.local-search-results a { display: block; padding: 12px 14px; border-radius: 10px; color: var(--text-primary, inherit); text-decoration: none; }
-.local-search-results a:hover, .local-search-results a:focus-visible { background: rgba(128,128,128,.12); }
-.local-search-results small { display: block; margin-top: 4px; opacity: .6; font-size: 13px; }
-.local-search-empty { padding: 16px 0; opacity: .6; }
-[data-docs-agent-root], [data-docs-agent-launcher], [data-docs-agent-trigger] { display: none !important; }
