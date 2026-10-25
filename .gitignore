@@ -22,3 +22,20 @@ __pycache__/
 
 tmp-backup-*/
 openai-image-docs-local/
+
+
+# Generated / demo media — keep on disk, stop tracking (product source + landing public/ stay)
+output/
+hypit_projects/
+person-turntable-remotion/public/model-matte/
+person-turntable-remotion/public/turntable-source.mp4
+color-card-assets/
+productions/
+video_representative_frames/
+# Root-level demo media (not landing/public assets)
+TikTok_7620666205006777614.mp4
+color-card-motion-from-html.mp4
+ocean03us_7626956618244115725.mp4
+color-card-motion-capture.png
+video_representative_shots.jpg
+video_summary_4x4.jpg
