@@ -158,6 +158,7 @@ main.canvas-workspace-main:has(> .tier-workbench) > .remix-stage { flex-shrink: 
 .tier-row-side .input { height: 30px; width: 150px; max-width: 100%; font-size: 12px; }
 .tier-row-side .btn { white-space: nowrap; }
 .tier-workbench.has-drawer .tier-row-side { visibility: hidden; }
+.tier-board.is-canvas .tier-board-head, .tier-board.is-canvas .tier-row { grid-template-columns: 76px repeat(3, var(--tier-thumb)); }
 
 /* A frame tile: new frame, or the source frame marked 未生成; states are drawn on top. */
 .tier-tile { position: relative; display: block; width: 100%; aspect-ratio: var(--tier-aspect, 9 / 16); border: 1px solid #E5E8E3; border-radius: 8px; overflow: hidden; background: #f6f8f6; cursor: pointer; outline: none; }

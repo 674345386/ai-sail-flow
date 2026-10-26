@@ -246,8 +246,10 @@ export function FrameDrawer({ shotId, position, onClose, ...props }: FrameHandle
   </aside>;
 }
 
-export default function TierWorkbench({ project, disabled, busy, onChange, onCorrect, onCorrectAll, onDetectSubjects, onUploadSubjectImage, onGenerateSubjectImage, frameBusy, frameFailed, ratioLabel, onFrame, onGenerateShots, onVideo, onGroupVideo, openFrame, onOpenFrame }: {
+export default function TierWorkbench({ project, disabled, busy, onChange, onCorrect, onCorrectAll, onDetectSubjects, onUploadSubjectImage, onGenerateSubjectImage, frameBusy, frameFailed, ratioLabel, onFrame, onGenerateShots, onVideo, onGroupVideo, openFrame, onOpenFrame, canvas }: {
   project: Project; disabled: boolean; busy: string;
+  /** Canvas view: the per-shot action column is left out; the canvas nodes own those actions. */
+  canvas?: boolean;
   /** The frame whose drawer is open; App owns it so the canvas opens the same drawer. */
   openFrame: OpenFrame | null; onOpenFrame: (frame: OpenFrame) => void;
   onChange: (next: Replication) => void; onCorrect: (shotId: string) => void; onCorrectAll: () => void;
@@ -337,7 +339,7 @@ export default function TierWorkbench({ project, disabled, busy, onChange, onCor
         <input ref={fileInput} type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; if (file && uploadFor.current) onUploadSubjectImage(uploadFor.current, file); }} />
       </div>}
 
-      <div className="tier-board" style={{ '--tier-aspect': aspectRatio } as CSSProperties}>
+      <div className={`tier-board${canvas ? ' is-canvas' : ''}`} style={{ '--tier-aspect': aspectRatio } as CSSProperties}>
         <div className="tier-board-bar">
           <span className="tier-board-level">档位 <b>{levelLabel(rules.level || 'exact')}</b></span>
           <span className="tier-board-progress" aria-label="已生成关键帧"><span className="tier-board-meter"><i style={{ width: `${total ? done / total * 100 : 0}%` }} /></span><b>{done} / {total}</b></span>
@@ -349,7 +351,7 @@ export default function TierWorkbench({ project, disabled, busy, onChange, onCor
           <button type="button" className="btn small" disabled={disabled || working} onClick={onCorrectAll}>{busy.startsWith('正在修正镜头 ') ? <LoaderCircle size={14} className="spin" /> : <ScanSearch size={14} />}全部镜头修正</button>
           <button type="button" className="btn small primary" disabled={disabled || frameBusy.length > 0} onClick={() => onGenerateShots(shots.map(item => item.id))}>{frameBusy.length ? <LoaderCircle size={14} className="spin" /> : <Sparkles size={14} />}生成全部关键帧</button>
         </div>
-        <div className="tier-board-head" aria-hidden="true"><span>镜头</span>{framePositions.map(position => <span key={position}>{plans[0]?.frames.find(frame => frame.position === position)?.label}</span>)}<span /></div>
+        <div className="tier-board-head" aria-hidden="true"><span>镜头</span>{framePositions.map(position => <span key={position}>{plans[0]?.frames.find(frame => frame.position === position)?.label}</span>)}{!canvas && <span />}</div>
         <ol className="tier-board-rows">{plans.map((plan, i) => { const shot = shots[i], entry = rules.shots?.[shot.id] || {};
           const shotRunning = plan.frames.some(frame => frameBusy.includes(`${shot.id}:${frame.position}`));
           return <li key={plan.shotId} className={`tier-row${open?.shotId === shot.id ? ' is-open' : ''}`}>
@@ -371,7 +373,7 @@ export default function TierWorkbench({ project, disabled, busy, onChange, onCor
                 onClick={openIt} onKeyDown={event => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); openIt(); } }}>
                 <FrameVisual plan={plan} frame={frame} frameBusy={frameBusy} frameFailed={frameFailed} disabled={disabled} showSource={showSource} onFrame={onFrame} />
               </div>; })}
-            <div className="tier-row-side">
+            {!canvas && <div className="tier-row-side">
               <select className="input" value={entry.level || ''} disabled={disabled} aria-label="这个镜头单独设置档位" title="这个镜头单独设置档位" onChange={event => setShotLevel(shot.id, (event.target.value || undefined) as ReplicationLevel | undefined)}>
                 <option value="">跟随全局</option>
                 {replicationLevels.map(level => <option key={level.id} value={level.id}>{level.label}</option>)}
@@ -381,7 +383,7 @@ export default function TierWorkbench({ project, disabled, busy, onChange, onCor
               {(() => { const video = tierVideoState(project, shot); return <button type="button" className="btn small" disabled={disabled || !video.ready || video.running}
                 title={video.ready ? undefined : `还缺${video.missing.join('和')}`} onClick={() => onVideo(shot.id)}>{video.running ? <LoaderCircle size={13} className="spin" /> : <Clapperboard size={13} />}{video.completed.length ? '重新生成视频片段' : '生成视频片段'}</button>; })()}
               {plan.missingRefs.length > 0 && <p className="tier-missing">待上传参考图：{plan.missingRefs.join('、')}</p>}
-            </div>
+            </div>}
           </li>; })}</ol>
       </div>
     </div>
