@@ -144,21 +144,19 @@ main.canvas-workspace-main:has(> .tier-workbench) > .remix-stage { flex-shrink: 
 .tier-board-toggle input:checked + span { background: #4f9a66; }
 .tier-board-toggle input:checked + span::after { transform: translateX(12px); }
 .tier-board-toggle input:focus-visible + span { box-shadow: 0 0 0 3px #4f9a6633; }
-.tier-board-head, .tier-row { display: grid; grid-template-columns: 76px repeat(3, var(--tier-thumb)) minmax(0, 1fr); column-gap: 14px; }
-.tier-board-head { padding: 0 12px; font-size: 11px; color: #8a918c; }
 .tier-board-rows { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
-.tier-row { align-items: start; padding: 10px 12px; border: 1px solid #E5E8E3; border-radius: 12px; background: #fff; transition: border-color .15s; }
+.tier-row { display: flex; align-items: flex-start; gap: 28px; padding: 10px 12px; border: 1px solid #E5E8E3; border-radius: 12px; background: #fff; transition: border-color .15s; }
 .tier-row.is-open { border-color: #b9c4bc; }
-.tier-row-meta { display: grid; gap: 2px; align-content: start; padding-top: 2px; }
+.tier-row-meta { display: grid; gap: 2px; align-content: start; padding-top: 2px; flex: 0 0 auto; min-width: 88px; }
 .tier-row-meta strong { font-size: 18px; line-height: 1.2; color: #1f2a22; font-variant-numeric: tabular-nums; }
 .tier-row-meta > span { font-size: 12px; color: #2f3a33; }
 .tier-row-meta small { font-size: 11px; color: #8a918c; font-variant-numeric: tabular-nums; }
 .tier-row-flags { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
-.tier-row-side { display: grid; gap: 6px; justify-items: start; align-content: start; min-width: 0; }
+.tier-row-side { display: grid; gap: 6px; justify-items: start; align-content: start; flex: 0 0 auto; min-width: 0; }
 .tier-row-side .input { height: 30px; width: 150px; max-width: 100%; font-size: 12px; }
 .tier-row-side .btn { white-space: nowrap; }
 .tier-workbench.has-drawer .tier-row-side { visibility: hidden; }
-.tier-board.is-canvas .tier-board-head, .tier-board.is-canvas .tier-row { grid-template-columns: 76px repeat(3, var(--tier-thumb)); }
+.tier-board.is-canvas .tier-row { display: block; }
 
 /* A frame tile: new frame, or the source frame marked 未生成; states are drawn on top. */
 .tier-tile { position: relative; display: block; width: 100%; aspect-ratio: var(--tier-aspect, 9 / 16); border: 1px solid #E5E8E3; border-radius: 8px; overflow: hidden; background: #f6f8f6; cursor: pointer; outline: none; }

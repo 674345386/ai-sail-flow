@@ -41,8 +41,6 @@ import { shotReconstructionPrompt } from '../shared/shot-evidence';
 import AutomaticWorkspace, { SpeechTimingConfirmation, WorkflowEntry } from './WorkflowWorkspace';
 const CreativeWorkspace = lazy(() => import('./CreativeWorkspace'));
 const RemixStage = lazy(() => import('./RemixStage'));
-import RemixPromptSteps from './RemixPromptSteps';
-import { RemixObservableResults } from './RemixObservability';
 import { defaultRemixSettings, remixPlanCurrent, type RemixAction, type RemixSettings } from '../shared/remix';
 import { editableUnitPrompt, finalVideo, nextWorkflowAction, productionSources, videoCurrent, workflowBusy } from '../shared/workflow';
 import { appTitle, parseRoute, replaceNextUrl, routePath, stepTitles, useUrlSync, type AppRoute } from './useUrlSync';
@@ -917,7 +915,7 @@ export default function App() {
   const tierPanel = project?.analysis ? <TierWorkbench project={project} disabled={disabled} busy={busy}
     onChange={replication => change(p => ({ ...p, replication }))} onCorrect={correctTierShot} onCorrectAll={correctAllTierShots}
     onDetectSubjects={detectTierSubjects} onUploadSubjectImage={uploadTierSubjectImage} onGenerateSubjectImage={generateTierSubjectImage}
-    frameBusy={frameBusy} frameFailed={frameFailed} ratioLabel={frameHandlers.ratioLabel} onFrame={frameHandlers.onFrame}
+    frameBusy={frameBusy}
     onGenerateShots={shotIds => void generateTierShots(shotIds)} onVideo={startTierVideo} onGroupVideo={startTierVideoGroup} openFrame={openFrame} onOpenFrame={openFrameOnly} canvas={canvasView} /> : null;
   const frameDrawer = openFrame && project.analysis && (canvasView || step === 2) ? <FrameDrawer {...frameHandlers} shotId={openFrame.shotId} position={openFrame.position} onClose={() => setOpenFrame(null)} />
     : openVideo && project.analysis && (canvasView || step === 2) ? <VideoDrawer project={project} disabled={disabled} ratioLabel={frameHandlers.ratioLabel} onVideo={startTierVideo} onVideoPrompt={setVideoPrompt} shotId={openVideo} onClose={() => setOpenVideo(null)} /> : null;
@@ -1080,7 +1078,7 @@ export default function App() {
         {project.ttsTimingNotice && <SpeechTimingConfirmation notice={project.ttsTimingNotice} disabled={disabled} onConfirm={() => void composeFinal(project.ttsTimingNotice!.voice, project.ttsTimingNotice!.basis)} onManual={() => void selectWorkflowMode('manual')} />}
 
 
-        {canvasView && step === 2 && <>{tierPanel}{remixPanel}</>}
+        {canvasView && step === 2 && remixPanel}
         {canvasView && step !== 2 && <Suspense fallback={<div className="canvas-loading" role="status"><LoaderCircle className="spin" size={20} />正在打开全局画布…</div>}><CreativeWorkspace key={project.id} project={project} step={step} onStep={setStep} disabled={disabled || !!assetLibraryTarget} busyLabel={busy} automatic={autoView} voices={ttsVoices}
           onPatch={patch => change(p => ({ ...p, ...patch }))} onUpload={(files, kind) => void uploadFiles(files, kind)} onChooseMedia={kind => openAssetLibrary(kind === 'product' ? 'image' : 'video')} onRemove={id => void removeAsset(id)}
           onGenerateKeyframe={shotId => void startKeyframe(shotId)} onRun={kind => void startJob(kind)} onRetry={retryJob}
@@ -1138,7 +1136,7 @@ export default function App() {
           </section>
         </div>}
 
-        {step === 2 && <>{tierPanel}<RemixPromptSteps /><RemixObservableResults project={project} onCopy={text => void copy(text)} />{remixPanel}</>}
+        {step === 2 && tierPanel}
 
         <footer className="action-bar"><div className={`action-context${step === 1 && project.analysis ? ' action-context--breakdown' : ''}`}><CheckCheck size={16} /><span>所有编辑自动保存到本机</span>{step === 1 && project.analysis && <button className="text-button" disabled={disabled || !video} onClick={() => startJob('analysis')}>重新拆解</button>}</div><div className="action-buttons">{step > 0 && <button className="btn" disabled={!!busy} onClick={() => go(step - 1)}>上一步</button>}{step === 0 && <button className="btn primary" disabled={disabled || !video} onClick={() => startJob('analysis')}><Sparkles size={16} />{project.breakdownType === 'storyboard-grid' ? '生成分镜网格' : '拆解参考视频'}<ArrowRight size={16} /></button>}{step === 1 && <button className="btn primary" disabled={disabled || !project.analysis} onClick={() => go(2)}>人物与视频二创<ArrowRight size={16} /></button>}</div></footer>
         </>}
