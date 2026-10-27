@@ -11,7 +11,12 @@ export default function LandingAnnouncement({ onEnter }: { onEnter: () => void }
 
   return <aside className="landing-announcement" aria-label={t.aria}>
     <div className="landing-announcement-inner">
-      <p className="landing-announcement-message">{t.message}</p>
+      <div className="landing-announcement-marquee">
+        <div className="landing-announcement-track">
+          <p className="landing-announcement-message">{t.message}</p>
+          <p className="landing-announcement-message" aria-hidden="true">{t.message}</p>
+        </div>
+      </div>
       <div className="landing-announcement-actions">
         <a className="landing-announcement-link" href="#tools">{t.details}</a>
         <button className="landing-announcement-button" type="button" onClick={onEnter}>

@@ -21,6 +21,17 @@ const PRESETS: Record<string, { name: string; en: string; base: string; colors: 
 
 const DEFAULT: Config = { preset: 'flow', base: '#070708', colors: [...PRESETS.flow.colors], count: 5, blur: 90, size: 42, speed: 1, amp: 1, breathe: .15, opacity: 1, bright: 1, sat: 1.15, blend: 'normal', vig: .9, grain: .07, paused: false };
 
+function mixHex(a: string, b: string, amount: number) {
+  const channel = (hex: string, offset: number) => parseInt(hex.slice(offset, offset + 2), 16);
+  const mixed = [1, 3, 5].map(offset => Math.round(channel(a, offset) * (1 - amount) + channel(b, offset) * amount));
+  return `#${mixed.map(value => value.toString(16).padStart(2, '0')).join('')}`;
+}
+
+function luminance(hex: string) {
+  const channels = [1, 3, 5].map(offset => parseInt(hex.slice(offset, offset + 2), 16) / 255).map(value => value <= .04045 ? value / 12.92 : ((value + .055) / 1.055) ** 2.4);
+  return channels[0] * .2126 + channels[1] * .7152 + channels[2] * .0722;
+}
+
 type NumKey = 'count' | 'size' | 'blur' | 'speed' | 'amp' | 'breathe' | 'opacity' | 'bright' | 'sat' | 'vig' | 'grain';
 const SLIDERS: { group: string; key: NumKey; zh: string; en: string; min: number; max: number; step: number; fmt: (v: number) => string }[] = [
   { group: '形态 · Shape', key: 'count', zh: '色块数量', en: 'Blob count', min: 3, max: 8, step: 1, fmt: v => String(v) },
@@ -76,6 +87,22 @@ export default function LandingBackground() {
   }, []);
 
   useEffect(() => { cfgRef.current = cfg; try { localStorage.setItem(KEY, JSON.stringify(cfg)); } catch { /* storage unavailable */ } }, [cfg]);
+  useEffect(() => {
+    const page = document.querySelector<HTMLElement>('.landing-page');
+    if (!page) return;
+    const [start, middle, end] = [0, 1, 2].map(i => mixHex(cfg.base, cfg.colors[i] || cfg.base, .52));
+    const ink = (luminance(start) + luminance(middle) + luminance(end)) / 3 > .42 ? '#171717' : '#f7f6f2';
+    page.style.setProperty('--lbg-promo-start', start);
+    page.style.setProperty('--lbg-promo-middle', middle);
+    page.style.setProperty('--lbg-promo-end', end);
+    page.style.setProperty('--lbg-promo-ink', ink);
+    return () => {
+      page.style.removeProperty('--lbg-promo-start');
+      page.style.removeProperty('--lbg-promo-middle');
+      page.style.removeProperty('--lbg-promo-end');
+      page.style.removeProperty('--lbg-promo-ink');
+    };
+  }, [cfg.base, cfg.colors]);
   useEffect(() => { try { localStorage.setItem(UI_KEY, open ? 'open' : 'closed'); } catch { /* storage unavailable */ } }, [open]);
   useEffect(() => { if (!toast) return; const id = window.setTimeout(() => setToast(''), 1800); return () => window.clearTimeout(id); }, [toast]);
 

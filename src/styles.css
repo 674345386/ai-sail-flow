@@ -660,9 +660,6 @@ main { padding: 42px 42px 0; max-width: 1740px; }
 .landing-links a { color: #858581; font-size: .85rem; transition: color .2s; }
 .landing-links a:first-child, .landing-links a:hover { color: #f4f4f0; }
 .landing-social { display: flex; align-items: center; justify-content: flex-end; gap: 21px; color: #f2f2ed; font-size: 1.35rem; }
-.landing-social span { line-height: 1; }
-.landing-social > span:nth-child(2) { font-size: 1.75rem; font-weight: 300; }
-.landing-social > span:nth-child(3) { font-size: 1.08rem; }
 .landing-social button { padding: 0 3px; border: 0; background: transparent; color: inherit; font-size: 1.6rem; line-height: 1; }
 .landing-hero { position: relative; min-height: 100dvh; width: 100%; max-width: none; margin: 0; padding: 0; display: block; overflow: hidden; isolation: isolate; }
 .landing-mosaic { position: absolute; inset: 96px 31px 0; z-index: 0; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); grid-template-rows: .83fr 1.18fr .91fr; gap: 19px; -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 73%, rgba(0, 0, 0, .86) 84%, transparent 100%); mask-image: linear-gradient(180deg, #000 0%, #000 73%, rgba(0, 0, 0, .86) 84%, transparent 100%); }

@@ -4,14 +4,20 @@
 .app-shell .main-shell > main.canvas-workspace-main > .workspace-controls { margin-bottom: 8px; }
 .app-shell .topbar { padding-left: 16px; }
 .app-shell > .main-shell > .topbar { position: sticky; top: 0; z-index: 45; }
+.topbar-leading { display: flex; align-items: center; flex: 1; gap: 12px; min-width: 0; }
+.topbar-leading-divider { display: none; width: 1px; height: 24px; flex: 0 0 1px; background: var(--line); }
+.sidebar-brand-row { display: flex; align-items: flex-start; order: 0; width: 100%; min-width: 0; gap: 4px; }
+.sidebar-brand-row .brand { flex: 1; min-width: 0; }
 .sidebar-toggle { flex-shrink: 0; }
-.desktop-sidebar-toggle { display: grid; }
+.sidebar-collapse-toggle { display: grid; margin-right: 4px; }
 .sidebar .brand-compact { display: none; }
 
 @media (min-width: 781px) {
   .app-shell.sidebar-collapsed > .sidebar { width: 56px; padding: 16px 8px 8px; }
   .app-shell.sidebar-collapsed > .main-shell { margin-left: 56px; }
-  .sidebar-collapsed .brand { justify-content: center; padding: 0 0 16px; }
+  .sidebar-collapsed .sidebar-brand-row { flex-direction: column; align-items: center; gap: 2px; }
+  .sidebar-collapsed .brand { justify-content: center; padding: 0 0 2px; }
+  .sidebar-collapsed .sidebar-collapse-toggle { margin: 0; }
   .sidebar-collapsed .brand > :not(.brand-compact) { display: none; }
   .sidebar-collapsed .brand .brand-compact { display: block; font-size: 17px; line-height: 24px; font-weight: 700; letter-spacing: -1px; }
   .sidebar-projects-compact { gap: 4px; }
@@ -29,6 +35,8 @@
 }
 
 @media (max-width: 780px) {
-  .desktop-sidebar-toggle { display: none; }
+  .sidebar-collapse-toggle { display: none; }
+  .topbar-leading { gap: 8px; }
+  .topbar-leading-divider { display: block; height: 20px; }
   .app-shell .main-shell > main { padding-top: 10px; }
 }

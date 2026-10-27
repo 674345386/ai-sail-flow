@@ -17,7 +17,6 @@
 .landing-nav .landing-links a { color: #747570; font-size: 13px; }
 .landing-nav .landing-links a:first-child, .landing-nav .landing-links a:hover { color: #191b1d; }
 .landing-nav .landing-social { gap: 18px; color: #191b1d; font-size: 18px; }
-.landing-nav .landing-social > span:nth-child(2) { font-size: 24px; }
 .landing-nav .landing-social button { font-size: 21px; }
 .landing-nav .landing-social .landing-account { display: inline-flex; align-items: center; gap: 7px; max-width: 160px; min-width: 0; min-height: 32px; white-space: nowrap; font-size: 15px; font-weight: 500; line-height: 1.4; }
 .landing-nav .landing-account > img { display: block; flex: 0 0 20px; width: 20px; height: 20px; border-radius: 50%; object-fit: cover; }

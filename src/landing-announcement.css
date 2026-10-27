@@ -2,8 +2,8 @@
   position: relative;
   isolation: isolate;
   width: 100%;
-  color: #fff;
-  background: linear-gradient(105deg, #2346ab 0%, #5544a1 54%, #1357b3 100%);
+  color: var(--lbg-promo-ink, #fff);
+  background: linear-gradient(105deg, var(--lbg-promo-start, #2346ab) 0%, var(--lbg-promo-middle, #5544a1) 54%, var(--lbg-promo-end, #1357b3) 100%);
 }
 
 .landing-announcement::before {
@@ -31,7 +31,11 @@
   text-align: center;
 }
 
-.landing-announcement-message { margin: 0; }
+.landing-announcement-marquee { flex: 0 1 clamp(260px, 38vw, 530px); min-width: 0; overflow: hidden; }
+.landing-announcement-track { display: flex; width: max-content; gap: 56px; animation: landing-announcement-scroll 14s linear infinite; }
+.landing-announcement-marquee:hover .landing-announcement-track { animation-play-state: paused; }
+.landing-announcement-message { flex: none; margin: 0; white-space: nowrap; }
+@keyframes landing-announcement-scroll { to { transform: translateX(-50%); } }
 .landing-announcement-actions { display: inline-flex; flex-shrink: 0; align-items: center; gap: 12px; }
 .landing-announcement-link { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
 .landing-announcement-link:hover { text-decoration-thickness: 2px; }
@@ -42,16 +46,16 @@
   gap: 8px;
   min-height: 28px;
   padding: 3px 10px;
-  border: 1px solid #ffffff70;
+  border: 1px solid color-mix(in srgb, currentColor 44%, transparent);
   border-radius: 4px;
-  background: #ffffff08;
+  background: color-mix(in srgb, currentColor 4%, transparent);
   color: inherit;
   font: inherit;
   font-size: 13px;
   white-space: nowrap;
   cursor: pointer;
 }
-.landing-announcement-button:hover { border-color: #ffffffb3; background: #ffffff18; }
+.landing-announcement-button:hover { border-color: color-mix(in srgb, currentColor 70%, transparent); background: color-mix(in srgb, currentColor 10%, transparent); }
 .landing-announcement-close {
   position: absolute;
   top: 50%;
@@ -69,10 +73,16 @@
   cursor: pointer;
 }
 .landing-announcement-close:hover { background: #ffffff18; }
-.landing-announcement-link:focus-visible, .landing-announcement-button:focus-visible, .landing-announcement-close:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+.landing-announcement-link:focus-visible, .landing-announcement-button:focus-visible, .landing-announcement-close:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-announcement-track { width: 100%; justify-content: center; animation: none; }
+  .landing-announcement-message[aria-hidden="true"] { display: none; }
+}
 
 @media (max-width: 680px) {
   .landing-announcement-inner { flex-direction: column; gap: 6px; padding: 10px 48px; font-size: 13px; }
+  .landing-announcement-marquee { flex: none; width: 100%; }
   .landing-announcement-actions { gap: 14px; }
   .landing-announcement-button { min-height: 32px; }
   .landing-announcement-close { top: 4px; right: 4px; width: 40px; height: 40px; transform: none; }

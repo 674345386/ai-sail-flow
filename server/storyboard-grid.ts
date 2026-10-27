@@ -133,9 +133,9 @@ export async function generateStoryboardGrids(video: Asset, analysis: Analysis, 
     const times = representativeFrameTimes(analysis, start, end, count);
     const filename = `storyboard-grid-${randomUUID()}.jpg`;
     const inputs = times.flatMap(at => ['-ss', at.toFixed(3), '-i', source]);
-    const cells = times.map((_, cell) => `[${cell}:v]scale=${cellWidth}:${cellHeight}:force_original_aspect_ratio=decrease,pad=${cellWidth}:${cellHeight}:(ow-iw)/2:(oh-ih)/2:black[c${cell}]`).join(';');
+    const cells = times.map((_, cell) => `[${cell}:v]scale=${cellWidth}:${cellHeight}:force_original_aspect_ratio=decrease,pad=${cellWidth}:${cellHeight}:(ow-iw)/2:(oh-ih)/2:0x000000[c${cell}]`).join(';');
     const layout = times.map((_, cell) => `${cell % size * (cellWidth + 8)}_${Math.floor(cell / size) * (cellHeight + 8)}`).join('|');
-    const filter = `${cells};${times.map((_, cell) => `[c${cell}]`).join('')}xstack=inputs=${count}:layout=${layout}:fill=white[stack];[stack]pad=iw+24:ih+24:12:12:white[out]`;
+    const filter = `${cells};${times.map((_, cell) => `[c${cell}]`).join('')};xstack=inputs=${count}:layout=${layout}:fill=white[stack];[stack]pad=iw+24:ih+24:12:12:white[out]`;
     await exec('ffmpeg', ['-nostdin', '-y', '-v', 'error', '-protocol_whitelist', 'file,pipe', ...inputs, '-filter_complex', filter, '-map', '[out]', '-frames:v', '1', '-q:v', '2', path.join(uploadDir, filename)], { timeout: 120000, maxBuffer: 1024 * 1024 });
     const shots = overlappingShots(analysis, start, end);
     grids.push({ id: randomUUID(), start, end, gridSize: size, frameTimes: times, filename, url: `/media/${filename}`,
