@@ -121,6 +121,12 @@ export async function generateStoryboardGrids(video: Asset, analysis: Analysis, 
   if (!video.duration || !video.width || !video.height) throw new Error('缺少参考视频的时长或尺寸信息。');
   const total = Math.ceil(video.duration / MAX_GRID_DURATION);
   const source = path.join(uploadDir, video.filename);
+  const probe = await exec('ffprobe', ['-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=duration,r_frame_rate', '-of', 'json', source], { timeout: 20000 });
+  const stream = JSON.parse(probe.stdout).streams?.[0];
+  const [rateNumerator, rateDenominator] = String(stream?.r_frame_rate || '0/1').split('/').map(Number);
+  const frameDuration = rateNumerator > 0 && rateDenominator > 0 ? rateDenominator / rateNumerator : 0.1;
+  const streamDuration = Number(stream?.duration);
+  const lastFrameTime = Math.max(0, (Number.isFinite(streamDuration) && streamDuration > 0 ? Math.min(streamDuration, video.duration) : video.duration) - frameDuration * 2);
   const portrait = video.height > video.width;
   const cellWidth = portrait ? 270 : 480;
   const cellHeight = portrait ? 480 : 270;
@@ -130,13 +136,13 @@ export async function generateStoryboardGrids(video: Asset, analysis: Analysis, 
     const end = fixed(Math.min(video.duration, start + MAX_GRID_DURATION));
     const duration = end - start;
     const count = size * size;
-    const times = representativeFrameTimes(analysis, start, end, count);
+    const times = representativeFrameTimes(analysis, start, end, count).map(at => fixed(Math.min(at, lastFrameTime)));
     const filename = `storyboard-grid-${randomUUID()}.jpg`;
-    const inputs = times.flatMap(at => ['-ss', at.toFixed(3), '-i', source]);
-    const cells = times.map((_, cell) => `[${cell}:v]scale=${cellWidth}:${cellHeight}:force_original_aspect_ratio=decrease,pad=${cellWidth}:${cellHeight}:(ow-iw)/2:(oh-ih)/2:0x000000[c${cell}]`).join(';');
+    const inputs = times.flatMap(at => ['-ss', at.toFixed(3), '-threads', '1', '-i', source]);
+    const cells = times.map((_, cell) => `[${cell}:v]scale=${cellWidth}:${cellHeight}:force_original_aspect_ratio=decrease,pad=${cellWidth}:${cellHeight}:(ow-iw)/2:(oh-ih)/2:black[c${cell}]`).join(';');
     const layout = times.map((_, cell) => `${cell % size * (cellWidth + 8)}_${Math.floor(cell / size) * (cellHeight + 8)}`).join('|');
-    const filter = `${cells};${times.map((_, cell) => `[c${cell}]`).join('')};xstack=inputs=${count}:layout=${layout}:fill=white[stack];[stack]pad=iw+24:ih+24:12:12:white[out]`;
-    await exec('ffmpeg', ['-nostdin', '-y', '-v', 'error', '-protocol_whitelist', 'file,pipe', ...inputs, '-filter_complex', filter, '-map', '[out]', '-frames:v', '1', '-q:v', '2', path.join(uploadDir, filename)], { timeout: 120000, maxBuffer: 1024 * 1024 });
+    const filter = `${cells};${times.map((_, cell) => `[c${cell}]`).join('')}xstack=inputs=${count}:layout=${layout}:fill=white[stack];[stack]pad=iw+24:ih+24:12:12:white[out]`;
+    await exec('ffmpeg', ['-nostdin', '-y', '-v', 'error', '-protocol_whitelist', 'file,pipe', ...inputs, '-filter_complex_threads', '1', '-filter_complex', filter, '-map', '[out]', '-frames:v', '1', '-threads', '1', '-pix_fmt', 'yuvj420p', '-q:v', '2', path.join(uploadDir, filename)], { timeout: 120000, maxBuffer: 1024 * 1024 });
     const shots = overlappingShots(analysis, start, end);
     grids.push({ id: randomUUID(), start, end, gridSize: size, frameTimes: times, filename, url: `/media/${filename}`,
       prompt: buildPrompt(analysis, shots.length ? shots : analysis.shots.slice(0, 1), start, end, size, times, aspectRatio), generatedAt: new Date().toISOString() });

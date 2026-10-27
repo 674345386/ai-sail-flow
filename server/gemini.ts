@@ -5,7 +5,10 @@ import fs from 'node:fs';
 import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { URL } from 'node:url';
-import { ProxyAgent } from 'undici';
+import http from 'node:http';
+import https from 'node:https';
+import { HttpProxyAgent } from 'http-proxy-agent';
+import { HttpsProxyAgent } from 'https-proxy-agent';
 import { MODEL, analysisModelSchema as analysisSchema, focusCandidateSchema, shotSuggestionSchema, rewriteModelSchema as rewriteSchema, countries, defaultReplication, platforms, tierStructuredSchema, type TierSource, validateContinuousTimeline, validateTimeline, type Project, type AnalysisMeta, type ModelRequestSnapshot, type ShotSuggestion } from '../shared/domain';
 import { bindRewriteToSource, keyframeBasis, sourceShotFor, type RewriteShot } from '../shared/storyboard';
 import { aiFocusPoints, selectedFocusBrief } from '../shared/focus';
@@ -56,16 +59,29 @@ Use stable IDs shot-1, shot-2, etc. Timestamps are seconds; each end must be aft
 
 function getProxyAgent(url: string) {
   const targetUrl = new URL(url);
-  const proxyUrl = process.env.HTTPS_PROXY || process.env.https_proxy || process.env.HTTP_PROXY || process.env.http_proxy || '';
-  if (proxyUrl) {
-    try {
-      return new ProxyAgent(proxyUrl);
-    } catch (error) {
-      console.warn('Failed to create ProxyAgent:', error instanceof Error ? error.message : error);
-      return undefined;
+  const httpProxyUrl = process.env.HTTP_PROXY || process.env.http_proxy || '';
+  const httpsProxyUrl = process.env.HTTPS_PROXY || process.env.https_proxy || '';
+
+  try {
+    if (targetUrl.protocol === 'https:' && httpsProxyUrl) {
+      console.log(`[Proxy] Creating HttpsProxyAgent for ${httpsProxyUrl}`);
+      return new HttpsProxyAgent(httpsProxyUrl);
+    } else if (targetUrl.protocol === 'http:' && httpProxyUrl) {
+      console.log(`[Proxy] Creating HttpProxyAgent for ${httpProxyUrl}`);
+      return new HttpProxyAgent(httpProxyUrl);
     }
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.warn(`[Proxy] Failed to create proxy agent:`, errorMsg);
   }
   return undefined;
+}
+
+// Configure Node.js to accept self-signed certificates when using proxy
+// This is needed for Clash Verge and other proxies that intercept HTTPS
+if (process.env.NODE_TLS_REJECT_UNAUTHORIZED === undefined && process.env.HTTP_PROXY) {
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+  console.log('[SSL] Disabling SSL verification for proxy compatibility');
 }
 type RequestTrace = (snapshot: ModelRequestSnapshot) => void;
 function mediaSummary(parts: unknown[]) {
@@ -125,8 +141,8 @@ export async function checkModelConnection() {
   if (!key) throw new Error('请先配置模型连接。');
   const endpoint = compatibleBaseUrl() ? compatibleEndpoint().replace(/\/chat\/completions$/, '/models') : 'https://generativelanguage.googleapis.com/v1beta/models';
   try {
-    const dispatcher = getProxyAgent(endpoint);
-    const response = await fetch(endpoint, { ...dispatcher ? { dispatcher } : {}, headers: compatibleBaseUrl() ? { Authorization: `Bearer ${key}` } : { 'x-goog-api-key': key }, redirect: 'manual', signal: AbortSignal.timeout(15000) } as RequestInit & { dispatcher?: any });
+    const agent = getProxyAgent(endpoint);
+    const response = await fetch(endpoint, { ...(agent ? { agent } : {}), headers: compatibleBaseUrl() ? { Authorization: `Bearer ${key}` } : { 'x-goog-api-key': key }, redirect: 'manual', signal: AbortSignal.timeout(15000) } as any);
     await response.body?.cancel();
     if (!response.ok) throw Object.assign(new Error(`连接检查返回 HTTP ${response.status}`), { status: response.status });
     return { connected: true, hostname: new URL(endpoint).hostname };
@@ -179,23 +195,54 @@ async function generateNative<T extends z.ZodType>(parts: NativePart[], schema: 
     generation_config: { response_mime_type: 'application/json', response_json_schema: z.toJSONSchema(schema), temperature: 0, max_output_tokens: 24000 },
   });
   if (Buffer.byteLength(body) > 100 * 1024 * 1024) throw new Error('原生直传请求超过 100 MB，本地已停止发送。请压缩视频或减少产品参考图；更大的文件需要接入 Gemini Files API。');
-  const response = await fetch(nativeEndpoint(), {
+  const streaming = parts.some(part => 'media_processing' in part && part.media_processing === 'STATIC');
+  const endpoint = streaming ? nativeEndpoint().replace(/:generateContent$/, ':streamGenerateContent?alt=sse') : nativeEndpoint();
+  const response = await fetch(endpoint, {
     method: 'POST', redirect: 'manual', signal: AbortSignal.timeout(180000),
-    dispatcher: getProxyAgent(nativeEndpoint()),
+    agent: getProxyAgent(endpoint),
     headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' }, body,
-  } as RequestInit & { dispatcher?: any });
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) throw Object.assign(new Error(payload?.error?.message || `Gemini 原生接口请求失败 (${response.status})`), { status: response.status });
-  const candidate = payload.candidates?.[0];
-  if (candidate?.finishReason && candidate.finishReason !== 'STOP') throw new Error('模型未完成输出，请缩短视频后重试。');
-  const responseParts = candidate?.content?.parts || [];
+  } as any);
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}));
+    throw Object.assign(new Error(payload?.error?.message || `Gemini 原生接口请求失败 (${response.status})`), { status: response.status });
+  }
+  const payloads: any[] = [];
+  if (streaming) {
+    if (!response.body || !response.headers.get('content-type')?.includes('text/event-stream')) throw new Error('Gemini 流式接口未返回有效的事件流。');
+    const decoder = new TextDecoder();
+    let buffer = '';
+    const consume = (event: string) => {
+      const data = event.split(/\r?\n/).filter(line => line.startsWith('data:')).map(line => line.slice(5).trimStart()).join('\n');
+      if (!data || data === '[DONE]') return;
+      const chunk = JSON.parse(data);
+      if (chunk.error) throw Object.assign(new Error(chunk.error.message || 'Gemini 流式请求失败'), { status: chunk.error.code });
+      payloads.push(chunk);
+    };
+    for await (const chunk of response.body) {
+      buffer += decoder.decode(chunk, { stream: true });
+      const events = buffer.split(/\r?\n\r?\n/);
+      buffer = events.pop() || '';
+      events.forEach(consume);
+    }
+    buffer += decoder.decode();
+    if (buffer.trim()) consume(buffer);
+    if (!payloads.some(payload => payload.candidates?.[0]?.finishReason === 'STOP')) throw new Error('Gemini 流式响应未完整结束，请重试。');
+  } else {
+    payloads.push(await response.json());
+  }
+  const candidates = payloads.map(payload => payload.candidates?.[0]).filter(Boolean);
+  if (candidates.some(candidate => candidate.finishReason && candidate.finishReason !== 'STOP')) throw new Error('模型未完成输出，请缩短视频后重试。');
+  const responseParts = candidates.flatMap(candidate => candidate.content?.parts || []);
   const text = responseParts.map((part: { text?: string; thought?: boolean }) => part.thought ? '' : part.text || '').join('');
   const agenticTrace = responseParts.some((part: any) =>
     [part.tool_call, part.tool_response, part.toolCall, part.toolResponse].some(item => item?.tool_type === 'MEDIA_PROCESSING' || item?.toolType === 'MEDIA_PROCESSING'));
   if (!text) throw new Error('Gemini 原生接口未返回文本结果。');
   const result = await parseModelResult(schema, text);
-  const usage = payload.usageMetadata || payload.usage_metadata || {};
-  return { result, providerModel: payload.modelVersion || payload.model_version, agenticTrace, usage: { input: usage.promptTokenCount || usage.prompt_token_count || 0, output: (usage.candidatesTokenCount || usage.candidates_token_count || 0) + (usage.thoughtsTokenCount || usage.thoughts_token_count || 0) } };
+  const recent = [...payloads].reverse();
+  const usagePayload = recent.find(payload => payload.usageMetadata || payload.usage_metadata) || {};
+  const usage = usagePayload.usageMetadata || usagePayload.usage_metadata || {};
+  const modelPayload = recent.find(payload => payload.modelVersion || payload.model_version) || {};
+  return { result, providerModel: modelPayload.modelVersion || modelPayload.model_version, agenticTrace, usage: { input: usage.promptTokenCount || usage.prompt_token_count || 0, output: (usage.candidatesTokenCount || usage.candidates_token_count || 0) + (usage.thoughtsTokenCount || usage.thoughts_token_count || 0) } };
 }
 function analysisMeta(mode: AnalysisMeta['mode'], transport: AnalysisMeta['transport'], video: Project['assets'][number], providerModel?: string): AnalysisMeta {
   return { mode, transport, audioSubmitted: mode !== 'sampled-frames' && !!video.hasAudio, ...(mode !== 'sampled-frames' ? { requestedVideoFps: videoAnalysisFps(video.duration) } : {}), requestedModel: MODEL, providerModel, analyzedAt: new Date().toISOString() };
@@ -261,9 +308,9 @@ async function generateCompatible<T extends z.ZodType>(content: CompatiblePart[]
     headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
     signal: AbortSignal.timeout(180000),
     redirect: 'manual',
-    dispatcher: getProxyAgent(compatibleEndpoint()),
+    agent: getProxyAgent(compatibleEndpoint()),
     body: JSON.stringify({ model: MODEL, messages: [{ role: 'system', content: instruction }, { role: 'user', content: [...content, { type: 'text', text: prompt }] }], temperature: 0, max_tokens: 24000 }),
-  } as RequestInit & { dispatcher?: any });
+  } as any);
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
     const error = new Error(payload?.error?.message || `兼容接口请求失败 (${response.status})`);
@@ -427,7 +474,7 @@ async function imageParts(project: Project): Promise<Part[]> {
   return Promise.all(project.assets.filter(a => a.kind === 'product').map(async a => ({ inlineData: { mimeType: a.mime, data: (await readFile(path.join(uploadDir, a.filename))).toString('base64') } })));
 }
 export async function analyze(project: Project, progress: (n: number, message: string) => void, trace?: RequestTrace) {
-  const mode = process.env.SOP_VIDEO_ANALYSIS_MODE || 'agentic';
+  const mode = process.env.SOP_VIDEO_ANALYSIS_MODE || 'static';
   if (!['agentic', 'static', 'frames'].includes(mode)) throw new Error('SOP_VIDEO_ANALYSIS_MODE 仅支持 agentic、static 或 frames。');
   if (mode === 'agentic') {
     try { return await analyzeInlineVideo(project, 'AGENTIC', progress, trace); } catch (error) { throw providerError(error); }
@@ -495,7 +542,7 @@ export async function analyzeChangedShots(project: Project, shotIds: string[], p
         readFile(path.join(uploadDir, path.basename(frame.url))).then(data => ({ type: 'image_url' as const, image_url: { url: `data:image/jpeg;base64,${data.toString('base64')}` } })),
       ])), refinedShotSchema, task, trace) : await generateNative([{
         inline_data: { mime_type: 'video/mp4', data: (await readFile(path.join(uploadDir, path.basename(media.clipUrl)))).toString('base64') },
-        media_processing: process.env.SOP_VIDEO_ANALYSIS_MODE === 'static' ? 'STATIC' : 'AGENTIC',
+        media_processing: (process.env.SOP_VIDEO_ANALYSIS_MODE || 'static') === 'static' ? 'STATIC' : 'AGENTIC',
         video_metadata: { fps: videoAnalysisFps(shot.end - shot.start) },
       }], refinedShotSchema, task, trace);
       suggestions[shot.id] = { ...generated.result, focusPoints: aiFocusPoints(generated.result.focusPoints, shot.start, shot.end), analyzedAt: new Date().toISOString(), source: framesOnly ? 'frames' : 'video' };
