@@ -4,6 +4,9 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
+import { URL } from 'node:url';
+import { HttpProxyAgent } from 'http-proxy-agent';
+import { HttpsProxyAgent } from 'https-proxy-agent';
 import { MODEL, analysisModelSchema as analysisSchema, focusCandidateSchema, shotSuggestionSchema, rewriteModelSchema as rewriteSchema, countries, defaultReplication, platforms, tierStructuredSchema, type TierSource, validateContinuousTimeline, validateTimeline, type Project, type AnalysisMeta, type ModelRequestSnapshot, type ShotSuggestion } from '../shared/domain';
 import { bindRewriteToSource, keyframeBasis, sourceShotFor, type RewriteShot } from '../shared/storyboard';
 import { aiFocusPoints, selectedFocusBrief } from '../shared/focus';
@@ -51,6 +54,18 @@ Keep observed source facts separate from creative suggestions and from the user'
 Do not infer sales, virality, authenticity, product performance or people's identities from appearances.
 If speech is inaudible or a feature is not visible, record uncertainty; do not invent missing details.
 Use stable IDs shot-1, shot-2, etc. Timestamps are seconds; each end must be after start and shots must not overlap.`;
+
+function getProxyAgent(url: string) {
+  const targetUrl = new URL(url);
+  if (targetUrl.protocol === 'http:') {
+    const proxyUrl = process.env.HTTP_PROXY || process.env.http_proxy || '';
+    if (proxyUrl) return new HttpProxyAgent(proxyUrl);
+  } else if (targetUrl.protocol === 'https:') {
+    const proxyUrl = process.env.HTTPS_PROXY || process.env.https_proxy || '';
+    if (proxyUrl) return new HttpsProxyAgent(proxyUrl);
+  }
+  return undefined;
+}
 type RequestTrace = (snapshot: ModelRequestSnapshot) => void;
 function mediaSummary(parts: unknown[]) {
   return parts.flatMap<ModelRequestSnapshot['media'][number]>(part => {
@@ -109,7 +124,8 @@ export async function checkModelConnection() {
   if (!key) throw new Error('请先配置模型连接。');
   const endpoint = compatibleBaseUrl() ? compatibleEndpoint().replace(/\/chat\/completions$/, '/models') : 'https://generativelanguage.googleapis.com/v1beta/models';
   try {
-    const response = await fetch(endpoint, { headers: compatibleBaseUrl() ? { Authorization: `Bearer ${key}` } : { 'x-goog-api-key': key }, redirect: 'manual', signal: AbortSignal.timeout(15000) });
+    const dispatcher = getProxyAgent(endpoint);
+    const response = await fetch(endpoint, { ...dispatcher ? { dispatcher } : {}, headers: compatibleBaseUrl() ? { Authorization: `Bearer ${key}` } : { 'x-goog-api-key': key }, redirect: 'manual', signal: AbortSignal.timeout(15000) } as RequestInit & { dispatcher?: any });
     await response.body?.cancel();
     if (!response.ok) throw Object.assign(new Error(`连接检查返回 HTTP ${response.status}`), { status: response.status });
     return { connected: true, hostname: new URL(endpoint).hostname };
@@ -164,8 +180,9 @@ async function generateNative<T extends z.ZodType>(parts: NativePart[], schema: 
   if (Buffer.byteLength(body) > 100 * 1024 * 1024) throw new Error('原生直传请求超过 100 MB，本地已停止发送。请压缩视频或减少产品参考图；更大的文件需要接入 Gemini Files API。');
   const response = await fetch(nativeEndpoint(), {
     method: 'POST', redirect: 'manual', signal: AbortSignal.timeout(180000),
+    dispatcher: getProxyAgent(nativeEndpoint()),
     headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' }, body,
-  });
+  } as RequestInit & { dispatcher?: any });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) throw Object.assign(new Error(payload?.error?.message || `Gemini 原生接口请求失败 (${response.status})`), { status: response.status });
   const candidate = payload.candidates?.[0];
@@ -243,8 +260,9 @@ async function generateCompatible<T extends z.ZodType>(content: CompatiblePart[]
     headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
     signal: AbortSignal.timeout(180000),
     redirect: 'manual',
+    dispatcher: getProxyAgent(compatibleEndpoint()),
     body: JSON.stringify({ model: MODEL, messages: [{ role: 'system', content: instruction }, { role: 'user', content: [...content, { type: 'text', text: prompt }] }], temperature: 0, max_tokens: 24000 }),
-  });
+  } as RequestInit & { dispatcher?: any });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
     const error = new Error(payload?.error?.message || `兼容接口请求失败 (${response.status})`);
