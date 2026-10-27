@@ -145,7 +145,7 @@ export async function generateStoryboardGrids(video: Asset, analysis: Analysis, 
     await exec('ffmpeg', ['-nostdin', '-y', '-v', 'error', '-protocol_whitelist', 'file,pipe', ...inputs, '-filter_complex_threads', '1', '-filter_complex', filter, '-map', '[out]', '-frames:v', '1', '-threads', '1', '-pix_fmt', 'yuvj420p', '-q:v', '2', path.join(uploadDir, filename)], { timeout: 120000, maxBuffer: 1024 * 1024 });
     const shots = overlappingShots(analysis, start, end);
     grids.push({ id: randomUUID(), start, end, gridSize: size, frameTimes: times, filename, url: `/media/${filename}`,
-      prompt: buildPrompt(analysis, shots.length ? shots : analysis.shots.slice(0, 1), start, end, size, times, aspectRatio), generatedAt: new Date().toISOString() });
+      prompt: buildPrompt(analysis, shots.length ? shots : analysis.shots.slice(0, 1), start, end, size, times, aspectRatio), generatedAt: new Date().toISOString(), included: true });
     progress?.(index + 1, total);
   }
   return grids;

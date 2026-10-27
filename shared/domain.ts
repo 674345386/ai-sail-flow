@@ -226,6 +226,8 @@ export type GeneratedVideo = {
   tierShotId?: string; tierFirst?: string; tierLast?: string;
   /** Shared id for clips sliced from one multi-shot model generation. */
   tierGroupId?: string; tierGroupShotIds?: string[];
+  /** Stage-3 storyboard-grid mode: one grid = one video unit (no shot keyframes). */
+  storyboardGridId?: string; gridId?: string;
 };
 export type ComposedVideo = {
   id: string; mode: ProductionMode; unitId?: string; sourceVideoIds: string[]; voice: string;
@@ -257,6 +259,8 @@ export type StoryboardGrid = {
   url: string;
   prompt: string;
   generatedAt: string;
+  /** When false, Stage 3 hides the grid and generation skips it. Missing means true (legacy). */
+  included?: boolean;
 };
 export const defaultWorkspace = { id: 'default', title: '我的工作空间' } as const;
 export type WorkspaceProject = { id: string; workspaceId: string; title: string; createdAt: string; updatedAt: string; revision: number };
@@ -303,6 +307,7 @@ export const projectPatchSchema = z.object({
     gridSize: z.union([z.literal(3), z.literal(4)]), frameTimes: z.array(z.number().min(0).max(2700)).min(9).max(16),
     filename: z.string().max(200).regex(/^[\w.-]+$/), url: mediaUrl,
     prompt: z.string().max(100000), generatedAt: z.string().max(40),
+    included: z.boolean().optional(),
   })).max(338).default([]),
   veoPromptDrafts: z.record(z.string(), z.object({ prompt: z.string(), basis: z.string() })).default({}),
 });

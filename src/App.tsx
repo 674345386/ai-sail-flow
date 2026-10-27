@@ -26,6 +26,7 @@ import ShotRewriteBoard, { RewriteProductInputs } from './ShotRewriteBoard';
 import FocusPointsEditor from './FocusPointsEditor';
 import ShotTimelineEditor from './ShotTimelineEditor';
 import StoryboardGridPanel from './StoryboardGridPanel';
+import StoryboardGridWorkbench from './StoryboardGridWorkbench';
 import ProjectNavigation from './ProjectNavigation';
 import AnimatedBrandMark from './AnimatedBrandMark';
 import ShaderBackdrop from './ShaderBackdrop';
@@ -176,8 +177,12 @@ const landingTools = ['文字叠加', '视频画面调整工具', '图片编辑�
 // Step requested by a URL, if this creative can show it in the steps view; otherwise its default step.
 const routeStep = (p: Project, requested?: number, canvas = false) => {
   if (canvas) return 2;
-  const allowed = requested === 0 || requested === 1 && (!!p.analysis || p.assets.some(a => a.kind === 'video')) || requested === 2 && !!p.analysis;
-  return allowed ? requested! : p.remix ? 2 : p.analysis ? 1 : 0;
+  const stage3Ready = p.breakdownType === 'storyboard-grid' ? !!(p.storyboardGrids?.length) : !!p.analysis;
+  const allowed = requested === 0 || requested === 1 && (!!p.analysis || p.assets.some(a => a.kind === 'video')) || requested === 2 && stage3Ready;
+  if (allowed) return requested!;
+  if (p.remix && stage3Ready) return 2;
+  if (p.analysis) return 1;
+  return 0;
 };
 const sizeLabel = (bytes: number) => bytes > 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.round(bytes / 1024)} KB`;
 
@@ -270,6 +275,7 @@ export default function App() {
   const updateMarket = (patch: Partial<Market>) => change(p => ({ ...p, market: { ...p.market, ...patch } }));
   const updateReplication = (patch: Partial<Replication>) => change(p => ({ ...p, replication: { ...defaultReplication, ...p.replication, ...patch } }));
   const updateStoryboardGridPrompt = (id: string, prompt: string) => change(p => ({ ...p, storyboardGrids: (p.storyboardGrids || []).map(grid => grid.id === id ? { ...grid, prompt } : grid) }));
+  const updateStoryboardGridIncluded = (id: string, included: boolean) => change(p => ({ ...p, storyboardGrids: (p.storyboardGrids || []).map(grid => grid.id === id ? { ...grid, included } : grid) }));
   const save = useCallback(async (): Promise<Project | null> => {
     if (savePromise.current) await savePromise.current;
     if (!unsaved.current || !current.current) return current.current;
@@ -760,6 +766,22 @@ export default function App() {
   const openVideoPreviewLibrary = (replaceAt: number | null) => { setFrameRefTarget(null); setVideoRefTarget({ replaceAt }); openAssetLibrary('image'); };
   const startTierVideo = (shotId: string) => prepareTierVideo([shotId]);
   const startTierVideoGroup = (shotIds: string[]) => prepareTierVideo(shotIds);
+  const startStoryboardGridVideo = (gridId: string) => perform('正在提交 Veo 3.1', async () => {
+    const p = await flush(); if (!p) return;
+    const grid = (p.storyboardGrids || []).find(item => item.id === gridId);
+    if (!grid) throw new Error('分镜网格不存在，请先完成网格拆解。');
+    if (grid.included === false) throw new Error('该分镜网格未勾选，无法生成视频。');
+    if (!grid.prompt.trim()) throw new Error('视频生成描述不能为空。');
+    const span = grid.end - grid.start;
+    if (span <= 0) throw new Error('分镜网格时长无效。');
+    if (span > 8.05) throw new Error(`分镜网格时长为 ${span.toFixed(1)} 秒，超过 Veo 单次 8 秒限制。`);
+    if (!status.videoGeneration.configured || !status.keyframeStorage?.configured) { setModal('settings'); return; }
+    const ratio = p.market.aspectRatio === '16:9' ? '16:9' : '9:16';
+    adopt(await api<Project>(`/api/projects/${p.id}/generations`, { method: 'POST', body: JSON.stringify({
+      storyboardGridId: grid.id, prompt: grid.prompt, mode: 'r2v',
+      referenceImages: [grid.url], resolution: '720p', aspectRatio: ratio, previewRevision: p.revision,
+    }) }));
+  });
   const confirmTierVideo = () => perform('正在提交 Veo 3.1', async () => {
     const preview = videoPreview; if (!preview) return;
     const p = await flush(); if (!p || p.id !== preview.projectId) return;
@@ -909,17 +931,21 @@ export default function App() {
     ...(!productImages.length ? [{ id: 'product-references', label: '产品参考图' }] : []),
   ];
   const rewriteBlocked = !project.analysis || ((project.promptFlow || 'localized') === 'localized' && missingProductFields.length > 0);
-  const available = [true, !!video || !!project.analysis, !!project.analysis];
+  const available = [true, !!video || !!project.analysis, project.breakdownType === 'storyboard-grid' ? !!(project.storyboardGrids?.length) : !!project.analysis];
   const frameHandlers: FrameHandlers = { project, disabled, busy, ratioLabel: frameRatioLabel(project), frameBusy, frameFailed,
     onFrame: (shotId, position) => void generateTierFrame(shotId, position).catch(() => {}), onFrameUndo: undoTierFrame, onFrameUpload: uploadTierFrame, onFrameRefs: uploadFrameRefs, onFrameLibrary: openFrameLibrary, onFrameInput: setFrameInput };
-  const tierPanel = project?.analysis ? <TierWorkbench project={project} disabled={disabled} busy={busy}
+  const isStoryboardGrid = project.breakdownType === 'storyboard-grid';
+  const storyboardGridPanel = isStoryboardGrid ? <StoryboardGridWorkbench project={project} disabled={disabled} canvas={canvasView}
+    onPrompt={updateStoryboardGridPrompt} onGenerate={gridId => void startStoryboardGridVideo(gridId)}
+    onIncluded={updateStoryboardGridIncluded} /> : null;
+  const tierPanel = !isStoryboardGrid && project?.analysis ? <TierWorkbench project={project} disabled={disabled} busy={busy}
     onChange={replication => change(p => ({ ...p, replication }))} onCorrect={correctTierShot} onCorrectAll={correctAllTierShots}
     onDetectSubjects={detectTierSubjects} onUploadSubjectImage={uploadTierSubjectImage} onGenerateSubjectImage={generateTierSubjectImage}
     frameBusy={frameBusy}
     onGenerateShots={shotIds => void generateTierShots(shotIds)} onVideo={startTierVideo} onGroupVideo={startTierVideoGroup} openFrame={openFrame} onOpenFrame={openFrameOnly} canvas={canvasView} /> : null;
-  const frameDrawer = openFrame && project.analysis && (canvasView || step === 2) ? <FrameDrawer {...frameHandlers} shotId={openFrame.shotId} position={openFrame.position} onClose={() => setOpenFrame(null)} />
-    : openVideo && project.analysis && (canvasView || step === 2) ? <VideoDrawer project={project} disabled={disabled} ratioLabel={frameHandlers.ratioLabel} onVideo={startTierVideo} onVideoPrompt={setVideoPrompt} shotId={openVideo} onClose={() => setOpenVideo(null)} /> : null;
-  const remixPanel = <Suspense fallback={<div className="canvas-loading" role="status"><LoaderCircle className="spin" size={20} />正在打开二创画布…</div>}><RemixStage key={project.id} project={project} disabled={disabled} tierFrames={project.analysis ? { disabled: frameHandlers.disabled, ratioLabel: frameHandlers.ratioLabel, frameBusy, frameFailed, onFrame: frameHandlers.onFrame, onGenerateShots: shotIds => void generateTierShots(shotIds), open: openFrame, onOpen: openFrameOnly, openVideo, onOpenVideo: openVideoOnly, onVideo: startTierVideo, onGroupVideo: startTierVideoGroup } : undefined} onAction={(action, settings, prompt, videoId) => void startRemix(action, settings, prompt, videoId)} onSave={(settings, prompt) => void startRemix(undefined, settings, prompt)} onUpload={(file, settings) => void uploadRemixCharacter(file, settings)} onCopy={text => void copy(text)} onSettings={() => setModal('settings')} /></Suspense>;
+  const frameDrawer = !isStoryboardGrid && openFrame && project.analysis && (canvasView || step === 2) ? <FrameDrawer {...frameHandlers} shotId={openFrame.shotId} position={openFrame.position} onClose={() => setOpenFrame(null)} />
+    : !isStoryboardGrid && openVideo && project.analysis && (canvasView || step === 2) ? <VideoDrawer project={project} disabled={disabled} ratioLabel={frameHandlers.ratioLabel} onVideo={startTierVideo} onVideoPrompt={setVideoPrompt} shotId={openVideo} onClose={() => setOpenVideo(null)} /> : null;
+  const remixPanel = isStoryboardGrid ? null : <Suspense fallback={<div className="canvas-loading" role="status"><LoaderCircle className="spin" size={20} />正在打开二创画布…</div>}><RemixStage key={project.id} project={project} disabled={disabled} tierFrames={project.analysis ? { disabled: frameHandlers.disabled, ratioLabel: frameHandlers.ratioLabel, frameBusy, frameFailed, onFrame: frameHandlers.onFrame, onGenerateShots: shotIds => void generateTierShots(shotIds), open: openFrame, onOpen: openFrameOnly, openVideo, onOpenVideo: openVideoOnly, onVideo: startTierVideo, onGroupVideo: startTierVideoGroup } : undefined} onAction={(action, settings, prompt, videoId) => void startRemix(action, settings, prompt, videoId)} onSave={(settings, prompt) => void startRemix(undefined, settings, prompt)} onUpload={(file, settings) => void uploadRemixCharacter(file, settings)} onCopy={text => void copy(text)} onSettings={() => setModal('settings')} /></Suspense>;
   const market = countries.find(c => c.code === project.market.country)!;
   const platform = platforms.find(p => p.id === project.market.platform)!;
   const shot = project.analysis?.shots[Math.min(selectedShot, project.analysis.shots.length - 1)];
@@ -1078,7 +1104,7 @@ export default function App() {
         {project.ttsTimingNotice && <SpeechTimingConfirmation notice={project.ttsTimingNotice} disabled={disabled} onConfirm={() => void composeFinal(project.ttsTimingNotice!.voice, project.ttsTimingNotice!.basis)} onManual={() => void selectWorkflowMode('manual')} />}
 
 
-        {canvasView && remixPanel}
+        {canvasView && (isStoryboardGrid ? storyboardGridPanel : remixPanel)}
         {frameDrawer}
         {manualView && !canvasView && <>
         {project.workflow?.status === 'pausing' && <div className="banner sample" role="status"><LoaderCircle size={16} className="spin" /><span>正在等待当前任务结束。完成后会停止自动推进，并开放编辑。</span></div>}
@@ -1125,14 +1151,14 @@ export default function App() {
             <div className="breakdown-source-body"><div>{previewVideo(true)}{project.analysis && <div className="video-timeline">{project.analysis.shots.map((s, i) => <button key={s.id} className={selectedShot === i ? 'selected' : ''} style={{ flex: s.end - s.start }} onClick={() => { setSelectedShot(i); seek(s.start); }} title={`${roles[s.role]} ${s.start.toFixed(3)}–${s.end.toFixed(3)} 秒`}>{i + 1}</button>)}</div>}</div><div className="breakdown-source-analysis">{project.analysis ? <><p className="breakdown-source-meta">{project.analysis.duration.toFixed(3)} 秒 · {project.breakdownType === 'storyboard-grid' ? `${project.storyboardGridSize || 3}×${project.storyboardGridSize || 3} 分镜网格拆解` : project.isDemo ? '手写示例' : project.analysisMeta?.mode === 'sampled-frames' ? '抽帧分析' : 'Gemini 视频分析'}</p><h3>原片表达与产品观察</h3>{project.analysis.sellingPoints.map((text, i) => <p key={i}>{text}</p>)}<p>{project.analysis.productAppearance}</p>{!!project.analysis.uncertainties.length && <details><summary>需要核对 · {project.analysis.uncertainties.length} 项</summary>{project.analysis.uncertainties.map((text, i) => <p key={i}>{text}</p>)}</details>}</> : <p>上传参考视频后，Gemini 会按实际剪辑和动作段落整理镜头。每行片段和关键帧都从本机原片截取。</p>}</div></div></details>
           {project.analysis && <section className="panel global-focus-panel"><div className="global-focus-heading"><h2>全片关注重点</h2><small>{(project.analysis.focusPoints || []).filter(point => point.selected).length}/{project.analysis.focusPoints?.length || 0} 项已勾选</small></div><p>AI 给出复刻候选，你可以勾选、订正或补充。已勾选的内容会成为二创提示词的优先要求。</p>{!!project.analysisReview?.globalFocusSuggestion?.length && <div className="global-focus-suggestion"><strong>局部重新分析后，AI 建议更新全片重点</strong><ul>{project.analysisReview.globalFocusSuggestion.map(point => <li key={point.id}>{point.selected ? '☑' : '□'} {point.text}</li>)}</ul><div className="global-focus-actions"><button className="btn small" disabled={disabled} onClick={dismissGlobalFocusSuggestion}>保留当前</button><button className="btn small primary" disabled={disabled} onClick={acceptGlobalFocusSuggestion}>采用 AI 建议</button></div></div>}<FocusPointsEditor points={project.analysis.focusPoints} onChange={updateGlobalFocus} disabled={disabled} onSeek={seek} /></section>}
           <section className="panel scene-panel"><div className="panel-heading"><div>{project.breakdownType === 'storyboard-grid' ? <Grid2X2 size={18} /> : <Clapperboard size={18} />}<h2>{project.breakdownType === 'storyboard-grid' ? '分镜网格与生成 Prompt' : '镜头片段与证据'}</h2><Badge>{project.breakdownType === 'storyboard-grid' ? `${project.storyboardGrids?.length || 0} 张网格` : `${project.analysis?.shots.length || 0} 个镜头`}</Badge></div>{project.analysis && project.breakdownType !== 'storyboard-grid' && <div className="breakdown-heading-actions"><button className="btn small" disabled={disabled} onClick={() => { player.current?.pause(); setTimelineOpen(true); }}><Scissors size={14} />编辑镜头时间线</button>{!!project.analysisReview?.pendingIds.length && <button className="btn small" disabled={disabled || !video} onClick={() => void startJob('analysis-refine')}><Sparkles size={14} />重新分析变动镜头（{project.analysisReview.pendingIds.length}）</button>}</div>}</div>
-            {project.analysis ? project.breakdownType === 'storyboard-grid' ? project.storyboardGrids?.length ? <StoryboardGridPanel grids={project.storyboardGrids} disabled={disabled} onCopy={text => void copy(text)} onPrompt={updateStoryboardGridPrompt} /> : <div className="empty-state"><Grid2X2 size={38} strokeWidth={1.2} /><h3>还没有当前规格的分镜网格</h3><p>重新拆解后，每个 ≤8 秒片段会生成一张网格和对应 Prompt。</p><button className="btn primary" disabled={disabled || !video} onClick={() => startJob('analysis')}><Sparkles size={16} />生成分镜网格</button></div> : <ShotBreakdown project={project} selectedIndex={selectedShot} onSelect={setSelectedShot} onSeek={seek} onCopy={text => void copy(text)} onSplit={splitAnalysisShot} onToggleInclude={setShotIncluded} onAcceptSuggestion={acceptShotSuggestion} onDismissSuggestion={dismissShotSuggestion} onFocusChange={updateShotFocus} disabled={disabled} renderEditor={(s, i) => sceneEditor(s, i)} /> : <div className="empty-state">{project.breakdownType === 'storyboard-grid' ? <Grid2X2 size={38} strokeWidth={1.2} /> : <ScanLine size={38} strokeWidth={1.2} />}<h3>{running ? '正在逐段理解视频' : '开始拆解你的参考片'}</h3><p>{project.breakdownType === 'storyboard-grid' ? `按每段 ≤8 秒生成 ${project.storyboardGridSize || 3}×${project.storyboardGridSize || 3} 分镜网格和可编辑视频 Prompt。` : '逐镜头整理片段、证据关键帧与可编辑的观察和 Prompt。'}</p><button className="btn primary" disabled={disabled || !video} onClick={() => startJob('analysis')}><Sparkles size={16} />{status.configured ? project.breakdownType === 'storyboard-grid' ? '生成分镜网格' : '开始视频拆解' : '连接 Gemini 并开始'}</button></div>}
+            {project.analysis ? project.breakdownType === 'storyboard-grid' ? project.storyboardGrids?.length ? <StoryboardGridPanel grids={project.storyboardGrids} disabled={disabled} onCopy={text => void copy(text)} onPrompt={updateStoryboardGridPrompt} onIncluded={updateStoryboardGridIncluded} /> : <div className="empty-state"><Grid2X2 size={38} strokeWidth={1.2} /><h3>还没有当前规格的分镜网格</h3><p>重新拆解后，每个 ≤8 秒片段会生成一张网格和对应 Prompt。</p><button className="btn primary" disabled={disabled || !video} onClick={() => startJob('analysis')}><Sparkles size={16} />生成分镜网格</button></div> : <ShotBreakdown project={project} selectedIndex={selectedShot} onSelect={setSelectedShot} onSeek={seek} onCopy={text => void copy(text)} onSplit={splitAnalysisShot} onToggleInclude={setShotIncluded} onAcceptSuggestion={acceptShotSuggestion} onDismissSuggestion={dismissShotSuggestion} onFocusChange={updateShotFocus} disabled={disabled} renderEditor={(s, i) => sceneEditor(s, i)} /> : <div className="empty-state">{project.breakdownType === 'storyboard-grid' ? <Grid2X2 size={38} strokeWidth={1.2} /> : <ScanLine size={38} strokeWidth={1.2} />}<h3>{running ? '正在逐段理解视频' : '开始拆解你的参考片'}</h3><p>{project.breakdownType === 'storyboard-grid' ? `按每段 ≤8 秒生成 ${project.storyboardGridSize || 3}×${project.storyboardGridSize || 3} 分镜网格和可编辑视频 Prompt。` : '逐镜头整理片段、证据关键帧与可编辑的观察和 Prompt。'}</p><button className="btn primary" disabled={disabled || !video} onClick={() => startJob('analysis')}><Sparkles size={16} />{status.configured ? project.breakdownType === 'storyboard-grid' ? '生成分镜网格' : '开始视频拆解' : '连接 Gemini 并开始'}</button></div>}
             {project.analysis && <div className="panel-footnote"><Info size={14} /><span>{project.breakdownType === 'storyboard-grid' ? '重新拆解会按当前 3×3 / 4×4 规格重新生成所有网格和 Prompt，已手动修改的 Prompt 会被覆盖。' : '重新拆解将丢弃当前所有镜头记录，重新执行完整的视频分析（第二阶段）。已编辑的镜头描述和时间调整将被覆盖。'}</span></div>}
           </section>
         </div>}
 
-        {step === 2 && tierPanel}
+        {step === 2 && (isStoryboardGrid ? storyboardGridPanel : tierPanel)}
 
-        <footer className="action-bar"><div className={`action-context${step === 1 && project.analysis ? ' action-context--breakdown' : ''}`}><CheckCheck size={16} /><span>所有编辑自动保存到本机</span>{step === 1 && project.analysis && <button className="text-button" disabled={disabled || !video} onClick={() => startJob('analysis')}>重新拆解</button>}</div><div className="action-buttons">{step > 0 && <button className="btn" disabled={!!busy} onClick={() => go(step - 1)}>上一步</button>}{step === 0 && <button className="btn primary" disabled={disabled || !video} onClick={() => startJob('analysis')}><Sparkles size={16} />{project.breakdownType === 'storyboard-grid' ? '生成分镜网格' : '拆解参考视频'}<ArrowRight size={16} /></button>}{step === 1 && <button className="btn primary" disabled={disabled || !project.analysis} onClick={() => go(2)}>人物与视频二创<ArrowRight size={16} /></button>}</div></footer>
+        <footer className="action-bar"><div className={`action-context${step === 1 && project.analysis ? ' action-context--breakdown' : ''}`}><CheckCheck size={16} /><span>所有编辑自动保存到本机</span>{step === 1 && project.analysis && <button className="text-button" disabled={disabled || !video} onClick={() => startJob('analysis')}>重新拆解</button>}</div><div className="action-buttons">{step > 0 && <button className="btn" disabled={!!busy} onClick={() => go(step - 1)}>上一步</button>}{step === 0 && <button className="btn primary" disabled={disabled || !video} onClick={() => startJob('analysis')}><Sparkles size={16} />{project.breakdownType === 'storyboard-grid' ? '生成分镜网格' : '拆解参考视频'}<ArrowRight size={16} /></button>}{step === 1 && <button className="btn primary" disabled={disabled || (project.breakdownType === 'storyboard-grid' ? !(project.storyboardGrids?.length) : !project.analysis)} onClick={() => go(2)}>{project.breakdownType === 'storyboard-grid' ? '生成网格视频' : '人物与视频二创'}<ArrowRight size={16} /></button>}</div></footer>
         </>}
         </>}
       </main>

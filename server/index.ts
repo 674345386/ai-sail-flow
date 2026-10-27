@@ -574,8 +574,9 @@ app.post('/api/projects/:id/generations', (req, res) => {
     images: Array.isArray(body.images) ? body.images.filter((value): value is string => typeof value === 'string') : [],
     tierShotId: typeof body.tierShotId === 'string' ? body.tierShotId : undefined,
     tierShotIds: Array.isArray(body.tierShotIds) ? body.tierShotIds.filter((value): value is string => typeof value === 'string') : undefined,
+    storyboardGridId: typeof body.storyboardGridId === 'string' ? body.storyboardGridId : typeof body.gridId === 'string' ? body.gridId : undefined,
     previewRevision: typeof body.previewRevision === 'number' ? body.previewRevision : undefined,
-    referenceImages: body.referenceImages === undefined ? undefined : z.array(z.string().regex(/^\/media\/(?:tier-ref|tier-frame|recreation|remix-character)-[a-f\d-]+\.(png|jpg|webp)$/)).min(1).max(3).parse(body.referenceImages),
+    referenceImages: body.referenceImages === undefined ? undefined : z.array(z.string().regex(/^\/media\/(?:tier-ref|tier-frame|recreation|remix-character|storyboard-grid)-[a-f\d-]+\.(png|jpg|webp)$/)).min(1).max(3).parse(body.referenceImages),
   };
   acceptedTask(req, res, { kind: 'generation', input });
 });

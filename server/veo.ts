@@ -27,6 +27,7 @@ export type GenerationInput = {
   tierShotIds?: string[];
   previewRevision?: number;
   referenceImages?: string[];
+  storyboardGridId?: string;
 };
 type Progress = (progress: number, message: string) => void;
 let sessionKey = '';

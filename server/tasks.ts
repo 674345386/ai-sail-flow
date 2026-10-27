@@ -98,10 +98,12 @@ export function launchTask(id: string, spec: TaskSpec): Promise<void> {
   if (spec.kind === 'keyframe' && (!p.rewrite || p.rewriteStale || p.promptFlow === 'direct-analysis' || !p.rewrite.shots.some(shot => shot.id === spec.shotId))) throw new TaskError(409, '请先生成与当前资料一致的逐镜头改写方案。');
   if (['generation', 'recover'].includes(spec.kind) && !generationConfigured()) throw new TaskError(503, '请先连接 Veo 3.1。');
   const tierShotId = spec.kind === 'generation' ? spec.input.tierShotId : undefined;
-  if (['generation', 'compose'].includes(spec.kind) && !tierShotId && !(spec.kind === 'generation' && spec.input.tierShotIds?.length) && (!p.rewrite || p.rewriteStale)) throw new TaskError(409, '请先生成与当前资料一致的分镜。');
+  const storyboardGridId = spec.kind === 'generation' ? spec.input.storyboardGridId : undefined;
+  if (['generation', 'compose'].includes(spec.kind) && !tierShotId && !(spec.kind === 'generation' && spec.input.tierShotIds?.length) && !storyboardGridId && (!p.rewrite || p.rewriteStale)) throw new TaskError(409, '请先生成与当前资料一致的分镜。');
   const generationInput = spec.kind === 'generation' ? { ...spec.input } : undefined;
   if (generationInput?.previewRevision !== undefined && generationInput.previewRevision !== p.revision) throw new TaskError(409, '镜头资料已更新，请重新打开生成预览。');
-  if (generationInput?.referenceImages && (generationInput.referenceImages.length < 1 || generationInput.referenceImages.length > (generationInput.tierShotIds?.length ? 3 : 2))) throw new TaskError(400, '参考图数量超过当前模型限制，请移除多余图片。');
+  const maxReferenceImages = generationInput?.tierShotIds?.length ? 3 : generationInput?.storyboardGridId ? 1 : 2;
+  if (generationInput?.referenceImages && (generationInput.referenceImages.length < 1 || generationInput.referenceImages.length > maxReferenceImages)) throw new TaskError(400, '参考图数量超过当前模型限制，请移除多余图片。');
   let video: GeneratedVideo | undefined;
   let groupVideos: GeneratedVideo[] = [];
   const now = new Date().toISOString();
@@ -145,6 +147,33 @@ export function launchTask(id: string, spec: TaskSpec): Promise<void> {
       tierFirst: frames.first!.filename, tierLast: frames.last!.filename, duration: VEO_DURATION * (shot.end - shot.start) / duration,
       aspectRatio: input.aspectRatio, startedAt: now }));
     video = groupVideos[0];
+  } else if (spec.kind === 'generation' && storyboardGridId) {
+    const input = generationInput!;
+    if (p.breakdownType !== 'storyboard-grid') throw new TaskError(409, '当前创意不是分镜网格模式。');
+    const grid = (p.storyboardGrids || []).find(item => item.id === storyboardGridId);
+    if (!grid) throw new TaskError(404, '分镜网格不存在，请先完成网格拆解。');
+    if (grid.included === false) throw new TaskError(409, '该分镜网格未勾选，无法生成视频。');
+    const span = Math.max(0, grid.end - grid.start);
+    if (span <= 0) throw new TaskError(400, '分镜网格时长无效。');
+    if (span > VEO_DURATION + 0.05) throw new TaskError(400, `分镜网格时长为 ${span.toFixed(1)} 秒，超过 Veo 单次 8 秒限制。`);
+    if (!keyframeStorageStatus().configured) throw new TaskError(409, '请先在模型连接设置中连接 Supabase 私有图片存储。');
+    const prompt = input.prompt.trim() || grid.prompt;
+    if (!prompt.trim()) throw new TaskError(400, '视频生成描述不能为空。');
+    const refUrl = input.referenceImages?.[0] || grid.url;
+    if (refUrl !== grid.url && path.basename(refUrl) !== grid.filename) throw new TaskError(400, '参考图必须是该分镜网格原图。');
+    Object.assign(input, {
+      mode: 'r2v', images: [], unitId: `storyboard-grid-${grid.id}`, prompt,
+      referenceImages: [grid.url], storyboardGridId: grid.id,
+    });
+    video = {
+      id: randomUUID(), provider: 'veo-3.1', model: VEO_MODELS.r2v, mode: 'r2v',
+      productionMode: p.productionMode || 'veo-native', imageUrls: [],
+      resolution: input.resolution, shotId: grid.id, unitId: input.unitId, sourceShotIds: [grid.id],
+      targetStart: grid.start, targetEnd: grid.end, targetDuration: Math.min(VEO_DURATION, span),
+      status: 'running', prompt, defaultPrompt: grid.prompt, providerRequest: requestBody(input, prompt),
+      keyframeUrl: grid.url, storyboardGridId: grid.id, gridId: grid.id,
+      duration: VEO_DURATION, aspectRatio: input.aspectRatio, startedAt: now,
+    };
   } else if (spec.kind === 'generation') {
     const input = generationInput!;
     const unit = buildVeoPlan(p.rewrite!.shots).find(unit => unit.id === input.unitId);
@@ -228,8 +257,8 @@ export function launchTask(id: string, spec: TaskSpec): Promise<void> {
           }
         }
       } else if (spec.kind === 'generation' || spec.kind === 'recover') {
-        if (spec.kind === 'generation' && generationInput?.referenceImages && (generationInput.tierShotId || generationInput.tierShotIds?.length)) {
-          progress(8, '正在发布已确认的参考图…');
+        if (spec.kind === 'generation' && generationInput?.referenceImages && (generationInput.tierShotId || generationInput.tierShotIds?.length || generationInput.storyboardGridId)) {
+          progress(8, generationInput.storyboardGridId ? '正在发布分镜网格参考图…' : '正在发布已确认的参考图…');
           const imageUrls: string[] = [];
           for (const url of generationInput.referenceImages) {
             const filename = path.basename(url);

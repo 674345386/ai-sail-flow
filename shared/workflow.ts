@@ -43,7 +43,10 @@ export function productionSources(project: Project): (GeneratedVideo | undefined
 }
 
 export function videoCurrent(project: Project, video: GeneratedVideo) {
-  if (video.stale || project.rewriteStale) return false;
+  if (video.stale) return false;
+  const gridId = video.storyboardGridId || video.gridId;
+  if (gridId) return !!(project.storyboardGrids || []).some(grid => grid.id === gridId);
+  if (project.rewriteStale) return false;
   if (project.promptFlow === 'direct-analysis') return true;
   const shot = project.rewrite?.shots.find(shot => shot.id === video.keyframeShotId);
   return !!shot && keyframeCurrent(project, shot) && video.mode === 'i2v' &&
