@@ -43,7 +43,9 @@ import AutomaticWorkspace, { SpeechTimingConfirmation, WorkflowEntry } from './W
 const RemixStage = lazy(() => import('./RemixStage'));
 import { defaultRemixSettings, remixPlanCurrent, type RemixAction, type RemixSettings } from '../shared/remix';
 import { editableUnitPrompt, finalVideo, nextWorkflowAction, productionSources, videoCurrent, workflowBusy } from '../shared/workflow';
-import { appTitle, parseRoute, replaceNextUrl, routePath, stepTitles, useUrlSync, type AppRoute } from './useUrlSync';
+import { appTitle, parseRoute, replaceNextUrl, routePath, stepTitles, studioTitle, useUrlSync, type AppRoute } from './useUrlSync';
+import StudioShell from './studio/StudioShell';
+import { FEATURE_STUDIO } from './studio/studioApi';
 
 const steps = [
   { name: '上传素材', en: 'MATERIALS', icon: Upload, title: '准备你的创意素材', description: '用一条参考视频，定义下一条内容的起点。' },
@@ -248,6 +250,7 @@ export default function App() {
   const [frameRefTarget, setFrameRefTarget] = useState<{ shotId: string; position: FramePosition } | null>(null);
   const [initialMedia, setInitialMedia] = useState<LibraryMedia | null>(null);
   const [showMediaLibrary, setShowMediaLibrary] = useState(false);
+  const [studioRoute, setStudioRoute] = useState<Extract<AppRoute, { kind: 'studio' }> | null>(null);
   const [routeReady, setRouteReady] = useState(false);
   const current = useRef<Project | null>(null);
   const unsaved = useRef(false);
@@ -321,7 +324,12 @@ export default function App() {
         if (!cancelled) {
           const target = route?.kind === 'creative' && !missing ? route : undefined;
           replaceNextUrl(); setStatus(modelStatus); adopt(p); setShowArchived(Boolean(p.archivedAt)); setStep(routeStep(p, target?.step, target?.canvas));
-          if (route && route.kind !== 'landing') { setShowLanding(false); setShowMediaLibrary(route.kind === 'library'); }
+          if (route && route.kind !== 'landing') {
+            setShowLanding(false);
+            setShowMediaLibrary(route.kind === 'library');
+            if (FEATURE_STUDIO && route.kind === 'studio') setStudioRoute(route);
+            else setStudioRoute(null);
+          }
           if (target) setWorkspaceView(target.canvas ? 'canvas' : 'steps');
           if (missing) setError('链接中的创意不存在或已被删除，已为你打开默认创意。');
           setRouteReady(true); await refreshList();
@@ -518,7 +526,7 @@ export default function App() {
   const inspectWorkflow = () => { setObserving(true); setStep(project?.rewrite ? 2 : project?.analysis ? 1 : 0); };
   const enterWorkspace = (create = false, mode?: WorkflowMode) => {
     if (publicAuthRequired && !auth.session) { setAuthOpen(true); return; }
-    setShowLanding(false); setSidebarOpen(false); if (create) void newProject(); else if (mode) void selectWorkflowMode(mode);
+    setShowLanding(false); setStudioRoute(null); setSidebarOpen(false); if (create) void newProject(); else if (mode) void selectWorkflowMode(mode);
   };
   const uploadFiles = (files: FileList | File[], kind: 'video' | 'product') => {
     const list = Array.from(files);
@@ -845,10 +853,17 @@ export default function App() {
   });
   // URL <-> view state (see src/useUrlSync.ts).
   const applyRoute = async (route: AppRoute) => {
-    if (route.kind === 'landing') { setShowLanding(true); return; }
+    if (route.kind === 'landing') { setShowLanding(true); setStudioRoute(null); return; }
     if (publicAuthRequired && !auth.session) { setShowLanding(true); setAuthOpen(true); return; }
     setShowLanding(false); setSidebarOpen(false);
+    if (FEATURE_STUDIO && route.kind === 'studio') {
+      setStudioRoute(route);
+      setShowMediaLibrary(false);
+      return;
+    }
+    setStudioRoute(null);
     if (route.kind === 'library') { setShowMediaLibrary(true); return; }
+    if (route.kind !== 'creative') return;
     if (route.id !== current.current?.id) { await switchProject(route.id, { step: route.step, canvas: route.canvas }); return; }
     await perform('正在保存', async () => {
       setShowMediaLibrary(false); await flush();
@@ -857,8 +872,14 @@ export default function App() {
       setStep(routeStep(p, route.step, !!route.canvas));
     });
   };
-  const viewRoute: AppRoute | null = showLanding ? { kind: 'landing' } : !project ? null : showMediaLibrary ? { kind: 'library' } : workspaceView === 'canvas' ? { kind: 'creative', id: project.id, canvas: true } : { kind: 'creative', id: project.id, step };
-  const viewTitle = !viewRoute || viewRoute.kind === 'landing' ? `${appTitle} · 跨境内容工作台` : viewRoute.kind === 'library' ? `所有媒体 · ${appTitle}` : `${project?.title.trim() || '未命名创意'} · ${viewRoute.canvas ? '画布' : stepTitles[step]} · ${appTitle}`;
+  const openStudio = (section: Extract<AppRoute, { kind: 'studio' }>['section'] = 'welcome', id?: string) => {
+    if (!FEATURE_STUDIO) return;
+    if (publicAuthRequired && !auth.session) { setAuthOpen(true); return; }
+    setShowLanding(false); setShowMediaLibrary(false); setSidebarOpen(false);
+    setStudioRoute(id ? { kind: 'studio', section, id } : { kind: 'studio', section });
+  };
+  const viewRoute: AppRoute | null = showLanding ? { kind: 'landing' } : studioRoute ? studioRoute : !project ? null : showMediaLibrary ? { kind: 'library' } : workspaceView === 'canvas' ? { kind: 'creative', id: project.id, canvas: true } : { kind: 'creative', id: project.id, step };
+  const viewTitle = !viewRoute || viewRoute.kind === 'landing' ? `${appTitle} · 跨境内容工作台` : viewRoute.kind === 'studio' ? studioTitle(viewRoute) : viewRoute.kind === 'library' ? `所有媒体 · ${appTitle}` : `${project?.title.trim() || '未命名创意'} · ${viewRoute.canvas ? '画布' : stepTitles[step]} · ${appTitle}`;
   useUrlSync({ path: viewRoute ? routePath(viewRoute) : '', title: viewTitle, ready: routeReady, paused: !!busy, onRoute: applyRoute });
   const copy = async (value: string) => { try { await navigator.clipboard.writeText(value); setNotice('已复制'); } catch { setError('浏览器未允许复制，请使用下载按钮。'); } };
 
@@ -888,12 +909,20 @@ export default function App() {
     setProfileEditing(false); setProfileSetupPrompt(false); setAuthOpen(false); setShowLanding(false);
   }} /> : null;
   if (publicAuthRequired && !auth.initialized) return <div className="boot-screen"><LoaderCircle className="spin" /><p>{L.boot.restoring}</p></div>;
+  if (FEATURE_STUDIO && studioRoute && !(publicAuthRequired && !auth.session)) {
+    return <StudioShell
+      route={studioRoute}
+      onNavigate={(section, id) => openStudio(section, id)}
+      onLeave={() => { setStudioRoute(null); setShowLanding(true); window.scrollTo(0, 0); }}
+      onBackWorkspace={() => { setStudioRoute(null); setShowLanding(false); setShowMediaLibrary(false); }}
+    />;
+  }
   if (showLanding || (!project && publicAuthRequired && !auth.session)) return <div className="landing-page landing-dark">
     <LandingBackground />
     <LandingAnnouncement onEnter={() => enterWorkspace()} />
     <header className="landing-nav">
       <button className="landing-brand" onClick={() => setShowLanding(true)} aria-label={L.nav.home}><img className="landing-brand-logo" src="/assets/brand/sail-mark-dark-bold.svg" alt="" width={30} height={30} /><ScrollBrand /></button>
-      <nav className="landing-links" aria-label={L.nav.aria}><a href="#overview">{L.nav.overview}</a><a href="#models">{L.nav.models}</a><a href="#tools">{L.nav.tools}</a><a href="#creator">{L.nav.creator}</a><a href="#pricing">{L.nav.pricing}</a></nav>
+      <nav className="landing-links" aria-label={L.nav.aria}><a href="#overview">{L.nav.overview}</a><a href="#models">{L.nav.models}</a><a href="#tools">{L.nav.tools}</a><a href="#creator">{L.nav.creator}</a><a href="#pricing">{L.nav.pricing}</a>{FEATURE_STUDIO && <button type="button" className="landing-studio-link" onClick={() => openStudio('welcome')}>爆款工作室</button>}</nav>
       <div className="landing-social"><button aria-label={L.nav.more}>⋮</button><LanguageSwitch /><button className="landing-account" onClick={openAuth}>{auth.user && <img src={accountAvatar} alt="" />}{auth.user ? <AccountName name={authDisplayName(auth.user)} /> : L.nav.signIn}</button></div>
     </header>
     <LandingHero authRequired={publicAuthRequired} onEnter={mode => enterWorkspace(false, mode)} />
@@ -1085,6 +1114,7 @@ export default function App() {
       }}><span className="brand-compact" aria-hidden="true">SF</span><div className="brand-icon"><img src="/assets/brand/sail-mark-dark.svg" alt="" width={40} height={40} /></div><div><strong>AI-Sail Flow</strong><span>跨境内容工作台</span></div><Badge>V1</Badge></a><button className="icon-btn sidebar-toggle sidebar-collapse-toggle" aria-label={sidebarIsCollapsed ? '展开侧边栏' : '收起侧边栏'} title={sidebarIsCollapsed ? '展开侧边栏' : '收起侧边栏'} aria-expanded={!sidebarIsCollapsed} aria-controls="workspace-sidebar" onClick={() => { setSidebarOpen(false); setSidebarCollapsed(!sidebarIsCollapsed); }}><SidebarToggleIcon expanded={!sidebarIsCollapsed} /></button></div>
       <div className="workspace-picker" title={defaultWorkspace.title}><span className="workspace-avatar workspace-brand-avatar"><AnimatedBrandMark /></span><span>{defaultWorkspace.title}<small>项目与创意</small></span></div>
       <button type="button" className={`nav-item sidebar-media-button ${showMediaLibrary ? 'active' : ''}`} aria-label="所有媒体" title="所有媒体" aria-pressed={showMediaLibrary} disabled={!!busy} onClick={() => { setShowMediaLibrary(true); setSidebarOpen(false); }}><Grid2X2 size={18} /><span>所有媒体</span></button>
+      {FEATURE_STUDIO && <button type="button" className="nav-item sidebar-studio-button" aria-label="爆款工作室" title="爆款工作室" disabled={!!busy} onClick={() => openStudio('welcome')}><Sparkles size={18} /><span>爆款工作室</span></button>}
       <ProjectNavigation collapsed={sidebarIsCollapsed} onExpand={() => { setSidebarCollapsed(false); }} groups={projectGroups} creatives={projects} currentId={project.id} currentParentId={project.parentProjectId} busy={!!busy} running={running} showArchived={showArchived} onShowArchived={setShowArchived}
         onNewProject={() => { setError(''); setOrganizationDialog({ kind: 'project-new', parentId: '', title: '' }); }} onRenameProject={editParentProject} onNewCreative={parentId => newProject(false, parentId)} onSelect={switchProject} onArchive={setProjectArchived} />
       <section className="sidebar-current-project" aria-labelledby="sidebar-current-project-title">

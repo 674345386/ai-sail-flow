@@ -1412,3 +1412,15 @@ main { padding: 42px 42px 0; max-width: 1740px; }
   --sel-float: var(--sel-ring);
   --sel-transition: transform .18s cubic-bezier(.2, .8, .2, 1), box-shadow .18s ease;
 }
+
+/* Sail Studio entry on landing nav */
+.landing-studio-link {
+  background: none;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  padding: 0;
+  cursor: pointer;
+}
+.landing-studio-link:hover { color: #a1acf6; }
+.sidebar-studio-button { margin-bottom: 8px; }

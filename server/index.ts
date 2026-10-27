@@ -645,6 +645,8 @@ app.use('/media', express.static(uploadDir, { dotfiles: 'deny', fallthrough: fal
     res.setHeader('Content-Type', 'application/octet-stream');
   }
 } }));
+const { registerStudioRoutes } = await import('./studio');
+registerStudioRoutes(app);
 app.use('/api', (_req, res) => res.status(404).json({ error: '接口不存在。' }));
 app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
   if (error instanceof HttpError || error instanceof TaskError || error instanceof RemixError) return res.status(error.status).json({ error: error.message });
