@@ -5,8 +5,7 @@ import fs from 'node:fs';
 import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { URL } from 'node:url';
-import { HttpProxyAgent } from 'http-proxy-agent';
-import { HttpsProxyAgent } from 'https-proxy-agent';
+import { ProxyAgent } from 'undici';
 import { MODEL, analysisModelSchema as analysisSchema, focusCandidateSchema, shotSuggestionSchema, rewriteModelSchema as rewriteSchema, countries, defaultReplication, platforms, tierStructuredSchema, type TierSource, validateContinuousTimeline, validateTimeline, type Project, type AnalysisMeta, type ModelRequestSnapshot, type ShotSuggestion } from '../shared/domain';
 import { bindRewriteToSource, keyframeBasis, sourceShotFor, type RewriteShot } from '../shared/storyboard';
 import { aiFocusPoints, selectedFocusBrief } from '../shared/focus';
@@ -57,12 +56,14 @@ Use stable IDs shot-1, shot-2, etc. Timestamps are seconds; each end must be aft
 
 function getProxyAgent(url: string) {
   const targetUrl = new URL(url);
-  if (targetUrl.protocol === 'http:') {
-    const proxyUrl = process.env.HTTP_PROXY || process.env.http_proxy || '';
-    if (proxyUrl) return new HttpProxyAgent(proxyUrl);
-  } else if (targetUrl.protocol === 'https:') {
-    const proxyUrl = process.env.HTTPS_PROXY || process.env.https_proxy || '';
-    if (proxyUrl) return new HttpsProxyAgent(proxyUrl);
+  const proxyUrl = process.env.HTTPS_PROXY || process.env.https_proxy || process.env.HTTP_PROXY || process.env.http_proxy || '';
+  if (proxyUrl) {
+    try {
+      return new ProxyAgent(proxyUrl);
+    } catch (error) {
+      console.warn('Failed to create ProxyAgent:', error instanceof Error ? error.message : error);
+      return undefined;
+    }
   }
   return undefined;
 }
