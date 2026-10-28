@@ -125,6 +125,7 @@ export default function ProductPipelineCanvas({
   }, [project.id]);
 
   const analysisRunning = !!project.job?.kind.startsWith('analysis') && project.job.status === 'running';
+  const analysisFailed = !!project.job?.kind.startsWith('analysis') && project.job.status === 'failed';
   const analysisReady = !!project.analysis && !analysisRunning;
 
   useEffect(() => {
@@ -158,14 +159,14 @@ export default function ProductPipelineCanvas({
     const breakdownRows = isGrid
       ? allGrids.map((grid, index) => {
         const included = grid.included !== false;
-        return <button type="button" key={grid.id} className={`pp-shot-row${included ? '' : ' is-off'}`} onClick={() => actions.current.onOpenAnalysis()}>
+        return <button type="button" key={grid.id} className={`pp-shot-row${included ? '' : ' is-off'}`} disabled={focusStep < 1} onClick={() => actions.current.onOpenAnalysis()}>
           <img src={grid.url} alt="" /><span><b>网格 {String(index + 1).padStart(2, '0')}</b><small>{grid.start.toFixed(1)}–{grid.end.toFixed(1)}s · {grid.gridSize}×{grid.gridSize}</small></span><em>{included ? '纳入' : '隐藏'}</em>
         </button>;
       })
       : [...shots.map(shot => ({ shot, included: true })), ...excludedShots.map(shot => ({ shot, included: false }))]
         .sort((a, b) => a.shot.start - b.shot.start)
         .map(({ shot, included }, index) => (
-          <button type="button" key={shot.id} className={`pp-shot-row${included ? '' : ' is-off'}`} onClick={() => actions.current.onOpenAnalysis()}>
+          <button type="button" key={shot.id} className={`pp-shot-row${included ? '' : ' is-off'}`} disabled={focusStep < 1} onClick={() => actions.current.onOpenAnalysis()}>
             <span className="pp-shot-idx">{String(index + 1).padStart(2, '0')}</span>
             <span><b>镜头 {String(index + 1).padStart(2, '0')}</b><small>{shot.start.toFixed(1)}–{shot.end.toFixed(1)}s</small></span>
             <em>{included ? '纳入' : '隐藏'}</em>
@@ -174,19 +175,20 @@ export default function ProductPipelineCanvas({
 
     const breakdownNode = {
       id: 'breakdown', kind: 'breakdown' as const, title: '拆解摘要',
-      status: analysisRunning ? '拆解中' : analysisReady ? '已完成' : '待拆解', ready: analysisReady,
+      status: analysisRunning ? '拆解中' : analysisFailed ? '拆解失败' : analysisReady ? '已完成' : '待拆解', ready: analysisReady && !analysisFailed,
       position: saved.breakdown || { x: COL.breakdown, y: 100 },
       content: <div className="pp-breakdown">
         <p className="pp-breakdown-sum">{analysisReady
           ? (isGrid ? `${allGrids.length} 张分镜网格 · ${includedGrids.length} 张纳入二创` : `${shots.length} 个镜头 · ${includedShots.length} 个纳入`)
           : '完成拆解后，摘要会汇总到这里，并连线到右侧每张已勾选卡。'}</p>
         <div className="pp-shot-list">{breakdownRows.length ? breakdownRows : <span className="pp-muted">还没有拆解结果</span>}</div>
+        {(analysisRunning || analysisFailed) && <p className={analysisFailed ? 'pp-job-error' : 'pp-muted'} role={analysisFailed ? 'alert' : 'status'}>{project.job?.message}</p>}
         <div className="pp-node-actions">
-          <button type="button" className="pp-btn pp-run" disabled={disabled || !video} onClick={() => actions.current.onAnalyze()}>
+          <button type="button" className="pp-btn pp-run" disabled={disabled || !video || focusStep < 1} onClick={() => actions.current.onAnalyze()}>
             {analysisRunning ? <LoaderCircle size={13} className="spin" /> : <Sparkles size={13} />}
             {project.analysis ? '重新拆解' : '开始拆解'}
           </button>
-          <button type="button" className="pp-btn" onClick={() => actions.current.onOpenAnalysis()}>查看与编辑</button>
+          <button type="button" className="pp-btn" disabled={focusStep < 1} onClick={() => actions.current.onOpenAnalysis()}>查看与编辑</button>
         </div>
       </div>,
     };
@@ -203,7 +205,7 @@ export default function ProductPipelineCanvas({
             kind: 'gridCard', title: `分镜网格 ${String((index < 0 ? order : index) + 1).padStart(2, '0')}`,
             status: 'card', ready: true,
             content: <StoryboardGridCardBody
-              grid={grid} index={index < 0 ? order : index} project={project} disabled={disabled}
+              grid={grid} index={index < 0 ? order : index} project={project} disabled={disabled || focusStep < 2}
               onPrompt={callPrompt} onGenerate={callGenerate} onIncluded={callIncluded}
               className="is-pipeline"
             />,
@@ -223,7 +225,7 @@ export default function ProductPipelineCanvas({
             content: <div className="pp-shot-card">
               <p>{shot.action || shot.visual || '镜头描述'}</p>
               <small>{shot.start.toFixed(2)}–{shot.end.toFixed(2)}s</small>
-              {onOpenRemixDetail && <button type="button" className="pp-btn" onClick={() => actions.current.onOpenRemixDetail?.()}>打开二创流程</button>}
+              {onOpenRemixDetail && <button type="button" className="pp-btn" disabled={focusStep < 2} onClick={() => actions.current.onOpenRemixDetail?.()}>打开二创流程</button>}
             </div>,
           },
         });
@@ -262,7 +264,7 @@ export default function ProductPipelineCanvas({
       ];
       return built;
     });
-  }, [project, disabled, isGrid, video, products, allGrids, includedGrids, shots, excludedShots, includedShots, analysisRunning, analysisReady, setNodes]);
+  }, [project, disabled, isGrid, video, products, allGrids, includedGrids, shots, excludedShots, includedShots, analysisRunning, analysisReady, setNodes, focusStep]);
 
   const edges = useMemo<Edge[]>(() => {
     const soft = (source: string, target: string, sourceHandle = 'out', targetHandle = 'in'): Edge => ({
@@ -306,7 +308,7 @@ export default function ProductPipelineCanvas({
     window.requestAnimationFrame(fit);
   };
 
-  useEffect(() => {
+  const focusCurrentStep = () => {
     const ids = focusStep === 0 ? ['asset-video', ...products.slice(0, 1).map(p => `asset-product:${p.id}`)]
       : focusStep === 1 ? ['breakdown']
         : isGrid ? includedGrids.slice(0, 3).map(g => `grid:${g.id}`) : includedShots.slice(0, 3).map(s => `shot:${s.id}`);
@@ -314,7 +316,10 @@ export default function ProductPipelineCanvas({
     window.requestAnimationFrame(() => {
       void flow.current?.fitView({ nodes: ids.map(id => ({ id })), padding: .18, minZoom: .08, maxZoom: .9, duration: 250 });
     });
-  }, [focusStep, focusVersion, isGrid, products, includedGrids, includedShots]);
+  };
+  useEffect(() => {
+    focusCurrentStep();
+  }, [focusStep, focusVersion, isGrid]);
 
   const onSelectionChange = useCallback(({ nodes: selected }: OnSelectionChangeParams<PipeNode>) => {
     setSelectedIds(selected.filter(n => n.data.kind === 'gridCard' || n.data.kind === 'shotCard').map(n => n.id));
@@ -351,7 +356,7 @@ export default function ProductPipelineCanvas({
           }}>分镜网格</button>
         </div>
         <button type="button" className="pp-btn" onClick={onOpenMaterials}>素材</button>
-        {isGrid && <button type="button" className="pp-btn pp-run" disabled={disabled || !includedGrids.length} onClick={generateAll}><Clapperboard size={13} />生成全部（已勾选）</button>}
+        {isGrid && <button type="button" className="pp-btn pp-run" disabled={disabled || focusStep < 2 || !includedGrids.length} onClick={generateAll}><Clapperboard size={13} />生成全部（已勾选）</button>}
         <span className="pp-model">{isGrid ? 'r2v · ≤8s' : 'Omni Flash'}</span>
         <button type="button" className="pp-icon" title="模型连接" aria-label="模型连接" onClick={onSettings}><Settings2 size={16} /></button>
       </div>
@@ -367,7 +372,7 @@ export default function ProductPipelineCanvas({
         onNodesChange={onNodesChange}
         onNodeDragStop={() => persist()}
         onSelectionChange={onSelectionChange}
-        onInit={instance => { flow.current = instance; window.setTimeout(() => void instance.fitView({ padding: .14, maxZoom: .95 }), 80); }}
+        onInit={instance => { flow.current = instance; window.setTimeout(focusCurrentStep, 80); }}
         onMoveEnd={(_e, viewport) => { setZoom(Math.round(viewport.zoom * 100)); persist(viewport); }}
         onMoveStart={() => setWhisper(false)}
         onNodeDragStart={() => setWhisper(false)}
@@ -400,7 +405,7 @@ export default function ProductPipelineCanvas({
 
       {selectedEligible.length >= 2 && <div className="pp-batch" role="toolbar">
         <span>{selectedIds.length} 个分镜已选</span>
-        <button type="button" className="pp-btn pp-run" disabled={disabled} onClick={generateSelected}>
+        <button type="button" className="pp-btn pp-run" disabled={disabled || focusStep < 2} onClick={generateSelected}>
           <Clapperboard size={13} />生成所选 {selectedEligible.length}
         </button>
         <button type="button" className="pp-icon" aria-label="清除选择" onClick={() => {

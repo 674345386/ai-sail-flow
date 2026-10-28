@@ -177,16 +177,23 @@ function SectionBackdrop({ src, className = '' }: { src: string; className?: str
 }
 
 const landingTools = ['文字叠加', '视频画面调整工具', '图片编辑器', '分镜脚本工作室', '音色翻译', '口播重写', '节奏诊断', '字幕本地化', '产品事实校验', '提示词包导出'];
-// Step requested by a URL, if this creative can show it in the steps view; otherwise its default step.
-const routeStep = (p: Project, requested?: number, canvas = false) => {
-  if (requested !== undefined && requested >= 0 && requested <= 2) return requested;
-  const stage3Ready = p.breakdownType === 'storyboard-grid' ? !!(p.storyboardGrids?.length) : !!p.analysis;
-  const allowed = requested === 0 || requested === 1 && (!!p.analysis || p.assets.some(a => a.kind === 'video')) || requested === 2 && stage3Ready;
-  if (allowed) return requested!;
-  if (p.remix && stage3Ready) return 2;
-  if (p.analysis) return 1;
-  return 0;
+const lastAvailableStep = (p: Project) => {
+  if (!p.assets.some(asset => asset.kind === 'video')) return 0;
+  const hasResult = p.breakdownType === 'storyboard-grid'
+    ? !!p.analysis && !!p.storyboardGrids?.some(grid => grid.gridSize === (p.storyboardGridSize || 3))
+    : !!p.analysis;
+  return hasResult ? 2 : 1;
 };
+// Old stage links remain valid, but cannot skip missing inputs.
+const routeStep = (p: Project, requested?: number, canvas = false) => {
+  const limit = lastAvailableStep(p);
+  if (requested !== undefined && requested >= 0 && requested <= 2) return Math.min(requested, limit);
+  if (p.remix && limit === 2) return 2;
+  return p.analysis ? Math.min(1, limit) : 0;
+};
+const routeStepNotice = (p: Project, requested?: number) => requested !== undefined && requested > lastAvailableStep(p)
+  ? lastAvailableStep(p) === 0 ? '请先选择参考视频，再进入视频拆解。' : '请先完成当前拆解，再进入下一步。'
+  : '';
 const sizeLabel = (bytes: number) => bytes > 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.round(bytes / 1024)} KB`;
 
 
@@ -205,8 +212,11 @@ export default function App() {
   const [stageDetail, setStageDetail] = useState<number | null>(null);
   const [canvasFocusVersion, setCanvasFocusVersion] = useState(0);
   const [stepsCollapsed, setStepsCollapsed] = useState(false);
-  const focusStage = (n: number) => { setShowMediaLibrary(false); setStageDetail(null); setStep(n); setCanvasFocusVersion(v => v + 1); setSidebarOpen(false); };
-  const openStageDetail = (n: number) => { setStep(n); setStageDetail(n); };
+  const focusStage = (n: number, advance = false) => {
+    if (n > step && (!advance || !project || n > lastAvailableStep(project))) return;
+    setShowMediaLibrary(false); setStageDetail(null); setStep(n); setCanvasFocusVersion(v => v + 1); setSidebarOpen(false);
+  };
+  const openStageDetail = (n: number) => { if (n > step) return; setStep(n); setStageDetail(n); };
   const [showLanding, setShowLanding] = useState(true);
   const [selectedShot, setSelectedShot] = useState(0);
   const [timelineOpen, setTimelineOpen] = useState(false);
@@ -336,6 +346,7 @@ export default function App() {
             else setStudioRoute(null);
           }
           if (missing) setError('链接中的创意不存在或已被删除，已为你打开默认创意。');
+          else if (target && routeStepNotice(p, target.step)) setError(routeStepNotice(p, target.step));
           setRouteReady(true); await refreshList();
         }
       } catch (e) { if (!cancelled) setBootError(e instanceof Error ? e.message : '无法连接工作台'); }
@@ -463,7 +474,7 @@ export default function App() {
         if (cancelled || current.current?.id !== id) return;
         failures = 0; adopt(p);
         if (p.job?.status === 'running' || workflowBusy(p)) timer = setTimeout(poll, 1800);
-        else { await refreshList(); if (p.job?.status === 'completed') { replaceNextUrl(); setStep(p.job.kind === 'analysis' || p.job.kind === 'analysis-refine' ? 1 : 2); setNotice(p.job.message); } }
+        else { await refreshList(); if (p.job?.status === 'completed') setNotice(p.job.message); }
       } catch (e) { if (!cancelled) { failures++; setError(failures > 2 ? '暂时无法获取任务进度，正在重新连接…' : '连接暂时中断，任务仍可能在后台运行。'); timer = setTimeout(poll, 4000); } }
     };
     timer = setTimeout(poll, 1200);
@@ -479,7 +490,7 @@ export default function App() {
   }, [step, focusTarget, busy, running]);
   const switchProject = (id: string, target?: { step?: number; canvas?: boolean }) => perform('正在打开创意', async () => { setShowMediaLibrary(false); setStageDetail(null);
     await flush(); const p = await api<Project>(`/api/projects/${id}`); adopt(p); setDirty(false); unsaved.current = false;
-    setStep(routeStep(p, target?.step, !!target?.canvas)); setSelectedShot(0); setSelectedRewrite(0); setSidebarOpen(false); setShowRequiredErrors(false); setFocusTarget(null); setObserving(false);
+    setStep(routeStep(p, target?.step, !!target?.canvas)); if (routeStepNotice(p, target?.step)) setError(routeStepNotice(p, target?.step)); setSelectedShot(0); setSelectedRewrite(0); setSidebarOpen(false); setShowRequiredErrors(false); setFocusTarget(null); setObserving(false);
   });
   const newProject = (demo = false, parentId = current.current?.parentProjectId || projectGroups[0]?.id || '') => {
     setError(''); setOrganizationDialog({ kind: 'creative-new', parentId, title: demo ? '随行冷萃杯 · 美国市场' : '', demo });
@@ -517,7 +528,7 @@ export default function App() {
     let p = await flush(); if (!p) return;
     if (mode === 'automatic' && !p.workflowMode && !p.rewrite) { change(current => ({ ...current, productionMode: 'tts-subtitles' })); p = await flush(); if (!p) return; }
     adopt(await api<Project>(`/api/projects/${p.id}/workflow/mode`, { method: 'POST', body: JSON.stringify({ mode }) }));
-    setObserving(false); setStep(p.remix ? 2 : p.analysis ? 1 : 0);
+    setObserving(false);
   });
   const startAutomatic = (maxNewClips: number) => perform('正在开始自动制作', async () => {
     const p = await flush(); if (!p) return;
@@ -526,7 +537,7 @@ export default function App() {
     adopt(await api<Project>(`/api/projects/${p.id}/workflow/start`, { method: 'POST', body: JSON.stringify({ maxNewClips: 0, target: 'keyframes' }) }));
     setObserving(false);
   });
-  const inspectWorkflow = () => { setObserving(true); setStep(project?.rewrite ? 2 : project?.analysis ? 1 : 0); };
+  const inspectWorkflow = () => { setObserving(true); };
   const enterWorkspace = (create = false, mode?: WorkflowMode) => {
     if (publicAuthRequired && !auth.session) { setAuthOpen(true); return; }
     setShowLanding(false); setStudioRoute(null); setSidebarOpen(false); if (create) void newProject(); else if (mode) void selectWorkflowMode(mode);
@@ -582,7 +593,7 @@ export default function App() {
         const form = new FormData(); form.append('file', file);
         updated = await api<Project>(`/api/projects/${p.id}/assets/${kind}?source=library`, { method: 'POST', body: form });
       }
-      adopt(updated); setShowMediaLibrary(false); setStep(0); mediaChanged();
+      adopt(updated); setShowMediaLibrary(false); mediaChanged();
       await refreshList(); setNotice('素材已添加到当前创意');
       void syncMediaLibrary(auth.user).catch(error => setNotice(error instanceof Error ? error.message : '素材已引用，云端同步暂未完成。'));
     } finally { setBusy(''); }
@@ -593,20 +604,18 @@ export default function App() {
     const p = await flush(); if (!p) return;
     if (!status.configured && (kind === 'analysis' || kind === 'analysis-refine' || p.promptFlow !== 'direct-analysis')) { setModal('settings'); return; }
     adopt(await api<Project>(`/api/projects/${p.id}/jobs/${kind}`, { method: 'POST', body: '{}' }));
-    setStep(kind === 'analysis' || kind === 'analysis-refine' ? 1 : 2);
   });
   const startKeyframe = (shotId: string) => perform('正在准备复刻关键帧', async () => {
     const p = await flush(); if (!p) return;
     if (!status.configured) { setModal('settings'); return; }
     adopt(await api<Project>(`/api/projects/${p.id}/keyframes/${shotId}`, { method: 'POST', body: '{}' }));
-    setStep(2);
   });
   const startRemix = (action: RemixAction | undefined, settings: RemixSettings, prompt?: string, videoId?: string) => perform('正在保存二创要求', async () => {
     const p = await flush(); if (!p) return;
     const proposed = { ...p, remix: { ...(p.remix || { settings, videos: [] }), settings } };
     const body = { revision: p.revision, settings, ...(prompt !== undefined && remixPlanCurrent(proposed) ? { prompt } : {}) };
     const saved = await api<Project>(`/api/projects/${p.id}/remix`, { method: 'PUT', body: JSON.stringify(body) });
-    adopt(saved); setStep(2);
+    adopt(saved);
     if (action) adopt(await api<Project>(`/api/projects/${p.id}/remix/${action}`, { method: 'POST', body: JSON.stringify({ videoId }) }));
     else setNotice('二创要求与提示词已保存');
   });
@@ -699,7 +708,7 @@ export default function App() {
     adopt(saved);
     const form = new FormData(); form.append('file', file);
     adopt(await api<Project>(`/api/projects/${p.id}/remix-character?revision=${saved.revision}`, { method: 'POST', body: form }));
-    setStep(2); setNotice('人物参考图已上传，可直接编写二创提示词');
+    setNotice('人物参考图已上传，可直接编写二创提示词');
   });
   const retryJob = () => {
     if (!project?.job) return;
@@ -716,7 +725,6 @@ export default function App() {
     const p = await flush(); if (!p) return;
     if (!status.videoGeneration.configured || p.promptFlow !== 'direct-analysis' && !status.keyframeStorage?.configured) { setModal('settings'); return; }
     adopt(await api<Project>(`/api/projects/${p.id}/generations`, { method: 'POST', body: JSON.stringify({ unitId, ...config }) }));
-    setStep(2);
   });
   /** 上传图片 in the frame input box: store each file, then add it to that frame's images. */
   const uploadFrameRefs = (shotId: string, position: FramePosition, files: File[]) => busy ? setError(`${busy}，完成后再上传图片。`) : perform('正在上传参考图', async () => {
@@ -817,17 +825,14 @@ export default function App() {
     const p = await flush(); if (!p) return;
     if (!status.videoGeneration.configured) { setModal('settings'); return; }
     adopt(await api<Project>(`/api/projects/${p.id}/generations/${videoId}/recover`, { method: 'POST', body: '{}' }));
-    setStep(2);
   });
   const composeFinal = (voice: string, timingApproval?: string) => perform('正在准备本机合成', async () => {
     const p = await flush(); if (!p) return;
     adopt(await api<Project>(`/api/projects/${p.id}/compose`, { method: 'POST', body: JSON.stringify({ voice, timingApproval }) }));
-    setStep(2);
   });
   const composeUnit = (videoId: string, voice: string) => perform('正在给已生成画面配音并烧录字幕', async () => {
     const p = await flush(); if (!p) return;
     adopt(await api<Project>(`/api/projects/${p.id}/generations/${videoId}/compose`, { method: 'POST', body: JSON.stringify({ voice }) }));
-    setStep(2);
   });
   const retryComposition = () => {
     const voice = project?.ttsVoice || '';
@@ -843,7 +848,7 @@ export default function App() {
     if (failed?.requestId) void recoverGeneration(failed.id);
     else if (failed?.unitId) void startGeneration(failed.unitId, { mode: failed.mode || 't2v', resolution: failed.resolution || '720p', aspectRatio: failed.aspectRatio === '16:9' ? '16:9' : '9:16', prompt: failed.prompt, ...(failed.mode && failed.mode !== 't2v' ? { images: failed.imageUrls || [] } : {}) });
   };
-  const go = (n: number) => perform('正在保存', async () => { setShowMediaLibrary(false); await flush(); setStep(Math.min(2, n)); setSidebarOpen(false); });
+  const go = (n: number, advance = false) => perform('正在保存', async () => { const p = await flush(); if (!p || n > step && (!advance || n > lastAvailableStep(p))) return; focusStage(n, advance); });
   const fillProductField = (id: string) => perform('正在打开产品资料', async () => {
     await flush(); setShowRequiredErrors(true); setStep(0); setFocusTarget(id); setSidebarOpen(false);
   });
@@ -869,9 +874,10 @@ export default function App() {
     if (route.kind !== 'creative') return;
     if (route.id !== current.current?.id) { await switchProject(route.id, { step: route.step, canvas: route.canvas }); return; }
     await perform('正在保存', async () => {
-      setShowMediaLibrary(false); await flush();
+      setShowMediaLibrary(false); setStageDetail(null); await flush();
       const p = current.current; if (!p) return;
       setStep(routeStep(p, route.step, !!route.canvas));
+      if (routeStepNotice(p, route.step)) setError(routeStepNotice(p, route.step));
     });
   };
   const openStudio = (section: Extract<AppRoute, { kind: 'studio' }>['section'] = 'welcome', id?: string) => {
@@ -962,7 +968,7 @@ export default function App() {
     ...(!productImages.length ? [{ id: 'product-references', label: '产品参考图' }] : []),
   ];
   const rewriteBlocked = !project.analysis || ((project.promptFlow || 'localized') === 'localized' && missingProductFields.length > 0);
-  const available = [true, !!video || !!project.analysis, project.breakdownType === 'storyboard-grid' ? !!(project.storyboardGrids?.length) : !!project.analysis];
+  const available = [true, lastAvailableStep(project) >= 1, lastAvailableStep(project) >= 2];
   const frameHandlers: FrameHandlers = { project, disabled, busy, ratioLabel: frameRatioLabel(project), frameBusy, frameFailed,
     onFrame: (shotId, position) => void generateTierFrame(shotId, position).catch(() => {}), onFrameUndo: undoTierFrame, onFrameUpload: uploadTierFrame, onFrameRefs: uploadFrameRefs, onFrameLibrary: openFrameLibrary, onFrameInput: setFrameInput };
   const isStoryboardGrid = project.breakdownType === 'storyboard-grid';
@@ -1122,7 +1128,7 @@ export default function App() {
       <section className="sidebar-current-project" aria-labelledby="sidebar-current-project-title">
         <span className="sidebar-project-caption">当前创意</span>
         <div className="sidebar-project-heading"><Clapperboard size={16} /><strong id="sidebar-current-project-title" title={project.title}>{project.title}</strong>{project.archivedAt && <Badge>已归档</Badge>}</div>
-        <nav className="workflow-nav" aria-label="制作流程">{steps.map((s, i) => { const Icon = s.icon; return <button key={s.en} className={`nav-item ${!showMediaLibrary && step === i ? 'active' : ''}`} aria-label={s.name} title={s.name} disabled={!!busy} onClick={() => focusStage(i)}><Icon size={18} /><span>{s.name}</span><span className="nav-number">0{i + 1}</span></button>; })}</nav>
+        <nav className="workflow-nav" aria-label="制作流程">{steps.map((s, i) => { const Icon = s.icon; return <button key={s.en} className={`nav-item ${!showMediaLibrary && step === i ? 'active' : ''}`} aria-label={s.name} title={s.name} disabled={!!busy || i > step} onClick={() => focusStage(i)}><Icon size={18} /><span>{s.name}</span><span className="nav-number">0{i + 1}</span></button>; })}</nav>
       </section>
       <div className="sidebar-footer-row"><button className="sidebar-config" title="配置" aria-label="配置" onClick={() => setModal('config')}><Settings size={16} /><span>配置</span></button></div>
     </aside>
@@ -1136,8 +1142,51 @@ export default function App() {
 
 
         <div className="unified-workspace">
-          <button className="unified-steps-toggle" aria-expanded={!stepsCollapsed} onClick={() => setStepsCollapsed(value => !value)}>{stepsCollapsed ? '展开步骤' : '收起步骤'}</button><aside className={`unified-steps${stepsCollapsed ? ' is-collapsed' : ''}`} aria-label="创作步骤"><div className="unified-steps-heading"><span>CREATIVE WORKFLOW</span><h2>创作流程</h2><p>从参考素材到全新创意</p></div>
-            {steps.map((item, i) => { const Icon = item.icon; const ready = i === 0 ? !!video : i === 1 ? !!project.analysis : isStoryboardGrid ? !!project.storyboardGrids?.length : !!project.remix?.plan; const activeJob = project.job?.status === 'running' && (i === 1 ? project.job.kind.startsWith('analysis') : i === 2 && !project.job.kind.startsWith('analysis')); const failedJob = project.job?.status === 'failed' && (i === 1 ? project.job.kind.startsWith('analysis') : i === 2 && !project.job.kind.startsWith('analysis')); return <section key={item.en} className={`unified-step${step === i ? ' is-active' : ''}`}><button className="unified-step-title" onClick={() => focusStage(i)}><span className="unified-step-icon"><Icon size={16} /></span><span><small>STEP 0{i + 1}</small><strong>{i === 2 && isStoryboardGrid ? '分镜视频生成' : item.name}</strong></span><em className={ready ? 'is-ready' : ''}>{activeJob ? '进行中' : failedJob ? '失败' : ready ? '已就绪' : '待准备'}</em></button><p>{i === 0 ? video ? `${video.name} · ${productImages.length} 张产品图` : '添加参考视频与产品资料' : i === 1 ? project.analysis ? isStoryboardGrid ? `${project.storyboardGrids?.length || 0} 张分镜网格` : `${project.analysis.shots.length} 个镜头` : '选择拆解方式，提取视频内容' : isStoryboardGrid ? '用分镜网格生成视频' : '准备人物、提示词和视频'}</p>{i === 0 ? <><button className="unified-action" disabled={disabled} onClick={() => { focusStage(0); openAssetLibrary('video'); }}>选择参考视频 <ArrowRight size={14} /></button><button className="unified-text-action" onClick={() => openStageDetail(0)}>编辑产品与素材</button></> : i === 1 ? <><div className="unified-mode"><button className={!isStoryboardGrid ? 'active' : ''} disabled={disabled} onClick={() => change(p => ({ ...p, breakdownType: 'shot' }))}>逐镜头</button><button className={isStoryboardGrid ? 'active' : ''} disabled={disabled} onClick={() => change(p => ({ ...p, breakdownType: 'storyboard-grid' }))}>分镜网格</button></div>{isStoryboardGrid && <div className="unified-mode">{([3, 4] as const).map(size => <button key={size} className={(project.storyboardGridSize || 3) === size ? 'active' : ''} disabled={disabled} onClick={() => change(p => ({ ...p, storyboardGridSize: size }))}>{size}×{size}</button>)}</div>}<button className="unified-action primary" disabled={disabled || !video} title={!video ? '请先添加参考视频' : undefined} onClick={() => { focusStage(1); void startJob('analysis'); }}><Sparkles size={14} />{project.analysis ? '重新拆解' : '开始拆解'}</button><button className="unified-text-action" onClick={() => openStageDetail(1)}>查看与编辑拆解</button></> : <><button className="unified-action" onClick={() => focusStage(2)}>{isStoryboardGrid ? '查看网格与视频' : '打开二创流程'} <ArrowRight size={14} /></button>{!isStoryboardGrid && project.analysis && <button className="unified-text-action" onClick={() => openStageDetail(2)}>打开关键帧工作台</button>}{!available[2] && <small className="unified-step-hint">请先完成视频拆解</small>}</>}</section>; })}
+          <button className="unified-steps-toggle" aria-expanded={!stepsCollapsed} onClick={() => setStepsCollapsed(value => !value)}>{stepsCollapsed ? '展开步骤' : '收起步骤'}</button>
+          <aside className={`unified-steps wizard-panel${stepsCollapsed ? ' is-collapsed' : ''}`} aria-label="创作步骤">
+            <header className="wizard-header">
+              <div className="wizard-eyebrow">CREATIVE WORKFLOW <span> / </span> 0{step + 1}</div>
+              <h2>创作流程</h2><p>从参考素材到全新创意</p>
+              <nav className="wizard-progress" aria-label="创作进度">
+                {steps.map((item, i) => <button key={item.en} type="button" className={`wizard-progress-item${i === step ? ' is-current' : ''}${i < step ? ' is-past' : ''}`} disabled={i >= step || !!busy} aria-current={i === step ? 'step' : undefined} onClick={() => focusStage(i)}><span>{i < step ? <Check size={13} /> : `0${i + 1}`}</span><b>{i === 2 && isStoryboardGrid ? '网格视频' : item.name}</b></button>)}
+              </nav>
+            </header>
+            <div className="wizard-body">
+              {step === 0 && <section className="wizard-content">
+                <div className="wizard-section-label"><span>01</span> 素材准备</div><h3>先准备你的参考素材</h3><p className="wizard-lead">上传一条参考视频，再补充产品信息，为后续创作提供依据。</p>
+                <div className="wizard-block"><div className="wizard-block-heading"><div><strong>参考视频</strong><small>必需 · 用于拆解镜头与声音</small></div>{video && <span className="wizard-status">已添加</span>}</div>
+                  {video ? <div className="wizard-video"><video key={video.id} src={video.url} poster={video.thumbnail} controls playsInline preload="metadata" /><div><strong title={video.name}>{video.name}</strong><span>{timeLabel(video.duration || 0)} · {video.width} × {video.height}</span></div></div> : <button type="button" className="wizard-upload" disabled={disabled} onClick={() => openAssetLibrary('video')}><span><Upload size={20} /></span><strong>选择参考视频</strong><small>从素材库选择或上传 · MP4 / MOV / WebM</small></button>}
+                  {video && <button className="wizard-link" disabled={disabled} onClick={() => openAssetLibrary('video')}>更换视频 <ArrowRight size={13} /></button>}
+                </div>
+                <div className="wizard-block"><div className="wizard-block-heading"><div><strong>产品与参考图</strong><small>补充产品信息和外观参考</small></div><span className="wizard-status">{productImages.length} 张图片</span></div><p className="wizard-product-name">{project.product.name || '尚未填写产品名称'}</p>{!!productImages.length && <div className="unified-product-images">{productImages.map(image => <img key={image.id} src={image.url} alt={image.name} />)}</div>}<div className="wizard-inline-actions"><button className="wizard-secondary" disabled={disabled} onClick={() => openAssetLibrary('image')}><ImagePlus size={14} />添加产品图</button><button className="wizard-link" onClick={() => openStageDetail(0)}>编辑产品资料 <ArrowRight size={13} /></button></div></div>
+              </section>}
+              {step === 1 && <section className="wizard-content">
+                <div className="wizard-section-label"><span>02</span> 视频拆解</div><h3>理解每个有效镜头</h3><p className="wizard-lead">选择拆解方式，整理画面、节奏与声音。结果会同步到右侧画布。</p>
+                <div className="wizard-block"><div className="wizard-block-heading"><div><strong>拆解方式</strong><small>根据你的创作方式选择</small></div></div><div className="wizard-option-grid">
+                  <button type="button" className={`wizard-option${!isStoryboardGrid ? ' is-selected' : ''}`} disabled={disabled} aria-pressed={!isStoryboardGrid} onClick={() => change(p => ({ ...p, breakdownType: 'shot' }))}><ScanLine size={17} /><strong>逐镜头</strong><span>拆解镜头、动作与关键帧</span></button>
+                  <button type="button" className={`wizard-option${isStoryboardGrid ? ' is-selected' : ''}`} disabled={disabled} aria-pressed={isStoryboardGrid} onClick={() => change(p => ({ ...p, breakdownType: 'storyboard-grid' }))}><Grid2X2 size={17} /><strong>分镜网格</strong><span>按片段生成网格与 Prompt</span></button>
+                </div>{isStoryboardGrid && <div className="wizard-density"><span>网格密度</span><div className="unified-mode">{([3, 4] as const).map(size => <button key={size} className={(project.storyboardGridSize || 3) === size ? 'active' : ''} disabled={disabled} onClick={() => change(p => ({ ...p, storyboardGridSize: size }))}>{size}×{size}</button>)}</div></div>}
+                <button className="wizard-secondary wizard-analysis-action" disabled={disabled || !video} onClick={() => void startJob('analysis')}><Sparkles size={15} />{project.analysis ? '重新拆解' : isStoryboardGrid ? '生成分镜网格' : '开始视频拆解'}</button>
+                {project.analysis && <p className="wizard-warning">重新拆解会覆盖当前拆解记录{isStoryboardGrid ? '及已编辑的网格 Prompt' : '及镜头编辑'}。</p>}
+                </div>
+                {project.job?.kind.startsWith('analysis') && project.job.status === 'running' && <div className="wizard-feedback is-running" role="status"><LoaderCircle size={16} className="spin" /><div><strong>正在拆解视频{project.job.progress != null ? ` · ${project.job.progress}%` : ''}</strong><p>{project.job.message}</p><div className="wizard-track"><span style={{ width: `${Math.max(2, project.job.progress || 0)}%` }} /></div></div></div>}
+                {project.job?.kind.startsWith('analysis') && project.job.status === 'failed' && <div className="wizard-feedback is-error" role="alert"><Info size={16} /><div><strong>拆解未完成</strong><p>{project.job.message}</p><button disabled={disabled} onClick={retryJob}>重试</button></div></div>}
+                {project.analysis && <div className="wizard-result"><div className="wizard-result-icon"><Check size={17} /></div><div><strong>{isStoryboardGrid ? `${project.storyboardGrids?.length || 0} 张分镜网格` : `${project.analysis.shots.length} 个镜头`}</strong><span>{available[2] ? '拆解结果已保存，可查看或继续下一步' : '请按当前选择重新生成结果'}</span></div><button onClick={() => openStageDetail(1)}>查看与编辑 <ArrowRight size={13} /></button></div>}
+              </section>}
+              {step === 2 && <section className="wizard-content">
+                <div className="wizard-section-label"><span>03</span> 创作生成</div><h3>{isStoryboardGrid ? '让分镜动起来' : '让创意焕然一新'}</h3><p className="wizard-lead">{isStoryboardGrid ? '在画布中编辑每段提示词，并使用对应网格生成视频。' : '在画布中查看镜头素材，准备人物、关键帧和视频。'}</p>
+                <div className="wizard-block wizard-ready-card"><div className="wizard-ready-icon">{isStoryboardGrid ? <Grid2X2 size={20} /> : <WandSparkles size={20} />}</div><div><strong>{isStoryboardGrid ? '分镜网格已就绪' : '拆解结果已就绪'}</strong><p>{isStoryboardGrid ? `${project.storyboardGrids?.length || 0} 张网格可用于生成视频` : `${project.analysis?.shots.length || 0} 个镜头可用于后续创作`}</p></div></div>
+                {project.job && !project.job.kind.startsWith('analysis') && project.job.status === 'running' && <div className="wizard-feedback is-running" role="status"><LoaderCircle size={16} className="spin" /><div><strong>正在处理{project.job.progress != null ? ` · ${project.job.progress}%` : ''}</strong><p>{project.job.message}</p></div></div>}
+                {project.job && !project.job.kind.startsWith('analysis') && project.job.status === 'failed' && <div className="wizard-feedback is-error" role="alert"><Info size={16} /><div><strong>上次操作未完成</strong><p>{project.job.message}</p><button disabled={disabled} onClick={retryJob}>重试</button></div></div>}
+                {!isStoryboardGrid && <button className="wizard-secondary wizard-wide" onClick={() => openStageDetail(2)}><Sparkles size={15} />打开关键帧工作台 <ArrowRight size={14} /></button>}
+              </section>}
+            </div>
+            <footer className="wizard-footer">
+              {step > 0 && <button className="wizard-back" disabled={!!busy} onClick={() => go(step - 1)}><ArrowLeft size={15} />上一步</button>}
+              {step === 0 && <><button className="wizard-primary" disabled={disabled || !video} onClick={() => go(1, true)}>下一步：视频拆解 <ArrowRight size={15} /></button>{!video && <small>请先选择参考视频</small>}</>}
+              {step === 1 && <><button className="wizard-primary" disabled={disabled || !available[2]} onClick={() => go(2, true)}>下一步：{isStoryboardGrid ? '网格视频生成' : '人物与视频二创'} <ArrowRight size={15} /></button>{!available[2] && <small>完成当前拆解后继续</small>}</>}
+              {step === 2 && <button className="wizard-primary" onClick={() => focusStage(2)}>定位创作画布 <ArrowRight size={15} /></button>}
+            </footer>
           </aside>
           {remixPanel}
         </div>
@@ -1146,7 +1195,7 @@ export default function App() {
         {project.workflow?.status === 'pausing' && <div className="banner sample" role="status"><LoaderCircle size={16} className="spin" /><span>正在等待当前任务结束。完成后会停止自动推进，并开放编辑。</span></div>}
         {observing && <div className="workflow-observing"><Eye size={18} /><p>正在只读查看制作过程。自动任务继续执行；接管后可以编辑已有结果。</p><button className="btn small" onClick={() => setObserving(false)}>返回自动制作</button><button className="btn small" disabled={!!busy || project.workflow?.status === 'pausing'} onClick={() => void selectWorkflowMode('manual')}>接管并编辑</button><button className="btn small" onClick={() => setShowPipeline(true)}>查看输入与输出</button></div>}
         <div className="page-heading sail-shader-surface"><ShaderBackdrop variant="heading" /><div><div className="eyebrow">CREATIVE WORKSPACE <span>/</span> 0{step + 1}</div><h1>{steps[step].title}</h1><p>{steps[step].description}</p></div></div>
-        <div className="stepper" aria-label="工作流步骤">{steps.map((s, i) => <button key={s.en} className={`step-item ${step === i ? 'current' : ''} ${i < step ? 'passed' : ''}`} disabled={!available[i] || !!busy} onClick={() => go(i)}><span className="step-circle">{i < step ? <Check size={14} /> : i + 1}</span><span>{s.name}</span>{i < steps.length - 1 && <ChevronRight className="step-chevron" size={16} />}</button>)}</div>
+        <div className="stepper" aria-label="工作流步骤">{steps.map((s, i) => <button key={s.en} className={`step-item ${step === i ? 'current' : ''} ${i < step ? 'passed' : ''}`} disabled={!available[i] || !!busy || i > step} onClick={() => go(i)}><span className="step-circle">{i < step ? <Check size={14} /> : i + 1}</span><span>{s.name}</span>{i < steps.length - 1 && <ChevronRight className="step-chevron" size={16} />}</button>)}</div>
         {project.isDemo && <div className="banner sample"><Info size={16} /><span>当前是手写示例创意，用于体验编辑与导出；不是 Gemini 对真实视频的分析。</span><button onClick={() => newProject()}>新建自己的创意 <ArrowRight size={14} /></button></div>}
         {error && <div className="banner error" role="alert"><Info size={16} /><span>{error}</span><button aria-label="关闭错误提示" onClick={() => setError('')}><X size={16} /></button></div>}
         {project.job?.status === 'failed' && <div className="banner error" role="alert"><Info size={16} /><span>{project.job.message}</span><button disabled={disabled} onClick={retryJob}>重试</button></div>}
@@ -1194,7 +1243,7 @@ export default function App() {
 
         {step === 2 && (isStoryboardGrid ? storyboardGridPanel : tierPanel)}
 
-        <footer className="action-bar"><div className={`action-context${step === 1 && project.analysis ? ' action-context--breakdown' : ''}`}><CheckCheck size={16} /><span>所有编辑自动保存到本机</span>{step === 1 && project.analysis && <button className="text-button" disabled={disabled || !video} onClick={() => startJob('analysis')}>重新拆解</button>}</div><div className="action-buttons">{step > 0 && <button className="btn" disabled={!!busy} onClick={() => go(step - 1)}>上一步</button>}{step === 0 && <button className="btn primary" disabled={disabled || !video} onClick={() => startJob('analysis')}><Sparkles size={16} />{project.breakdownType === 'storyboard-grid' ? '生成分镜网格' : '拆解参考视频'}<ArrowRight size={16} /></button>}{step === 1 && <button className="btn primary" disabled={disabled || (project.breakdownType === 'storyboard-grid' ? !(project.storyboardGrids?.length) : !project.analysis)} onClick={() => go(2)}>{project.breakdownType === 'storyboard-grid' ? '生成网格视频' : '人物与视频二创'}<ArrowRight size={16} /></button>}</div></footer>
+        <footer className="action-bar"><div className={`action-context${step === 1 && project.analysis ? ' action-context--breakdown' : ''}`}><CheckCheck size={16} /><span>所有编辑自动保存到本机</span>{step === 1 && project.analysis && <button className="text-button" disabled={disabled || !video} onClick={() => startJob('analysis')}>重新拆解</button>}</div><div className="action-buttons">{step > 0 && <button className="btn" disabled={!!busy} onClick={() => go(step - 1)}>上一步</button>}{step === 0 && <button className="btn primary" disabled={disabled || !video} onClick={() => go(1, true)}>下一步：视频拆解<ArrowRight size={16} /></button>}{step === 1 && <button className="btn primary" disabled={disabled || (project.breakdownType === 'storyboard-grid' ? !(project.storyboardGrids?.length) : !project.analysis)} onClick={() => go(2, true)}>{project.breakdownType === 'storyboard-grid' ? '生成网格视频' : '人物与视频二创'}<ArrowRight size={16} /></button>}</div></footer>
         </div></Modal>}
         </>}
       </main>
