@@ -58,7 +58,7 @@ export function gridVideoState(project: Project, grid: StoryboardGrid) {
 
 type StatusKind = 'idle' | 'run' | 'ok' | 'fail';
 
-function statusOf(state: ReturnType<typeof gridVideoState>): { kind: StatusKind; label: string } {
+export function statusOf(state: ReturnType<typeof gridVideoState>): { kind: StatusKind; label: string } {
   if (state.running) return { kind: 'run', label: state.progress != null ? `生成中 ${state.progress}%` : '生成中' };
   if (state.completed.length) return { kind: 'ok', label: '已生成' };
   if (state.failed) return { kind: 'fail', label: '失败' };
@@ -77,7 +77,7 @@ type CardData = {
 
 type CardNode = Node<CardData, 'storyboardGridCard'>;
 
-function InternalGuide() {
+export function InternalGuide() {
   return <div className="sg-iguide" aria-hidden="true">
     <svg viewBox="0 0 80 28" width="80" height="28">
       <path d="M40 1 v17.5" />
@@ -86,8 +86,11 @@ function InternalGuide() {
   </div>;
 }
 
-const StoryboardGridCardNode = memo(function StoryboardGridCardNode({ data, selected }: NodeProps<CardNode>) {
-  const { grid, index, project, disabled, onPrompt, onGenerate, onIncluded } = data;
+export function StoryboardGridCardBody({ grid, index, project, disabled, onPrompt, onGenerate, onIncluded, selected = false, className = '' }: {
+  grid: StoryboardGrid; index: number; project: Project; disabled: boolean;
+  onPrompt: (id: string, prompt: string) => void; onGenerate: (gridId: string) => void;
+  onIncluded: (id: string, included: boolean) => void; selected?: boolean; className?: string;
+}) {
   const state = useMemo(() => gridVideoState(project, grid), [project, grid]);
   const status = statusOf(state);
   const [picked, setPicked] = useState<string | null>(null);
@@ -97,7 +100,7 @@ const StoryboardGridCardNode = memo(function StoryboardGridCardNode({ data, sele
   const included = grid.included !== false;
   const canGenerate = !disabled && !state.running && !!state.prompt.trim();
 
-  return <article className={`sg-card${selected ? ' is-selected' : ''}${state.running ? ' is-running' : ''}${status.kind === 'fail' ? ' is-failed' : ''}`}>
+  return <article className={`sg-card${selected ? ' is-selected' : ''}${state.running ? ' is-running' : ''}${status.kind === 'fail' ? ' is-failed' : ''}${className ? ` ${className}` : ''}`}>
     <header className="sg-card-hd sg-card-drag">
       <label className="sg-cb nodrag" title="纳入生成">
         <input type="checkbox" checked={included} disabled={disabled || state.running}
@@ -161,6 +164,10 @@ const StoryboardGridCardNode = memo(function StoryboardGridCardNode({ data, sele
             : <><Play size={15} strokeWidth={1.6} /><span>还没有视频结果</span></>}
         </div>}
   </article>;
+}
+
+const StoryboardGridCardNode = memo(function StoryboardGridCardNode({ data, selected }: NodeProps<CardNode>) {
+  return <StoryboardGridCardBody {...data} selected={!!selected} />;
 });
 
 function formatDuration(seconds?: number) {

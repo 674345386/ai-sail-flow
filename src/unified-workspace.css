@@ -1,0 +1,100 @@
+.app-shell .main-shell > main.canvas-workspace-main { padding: 0; overflow: hidden; }
+.unified-workspace { display: flex; position: relative; flex: 1; min-height: 0; height: 100%; background: #fff; }
+.unified-steps { width: 298px; flex: 0 0 298px; overflow-y: auto; border-right: 1px solid #e9eae8; background: #fff; padding: 29px 22px; color: #202320; }
+.unified-steps-heading { padding: 0 2px 24px; border-bottom: 1px solid #edeeec; }
+.unified-steps-heading > span { font-size: 10px; font-weight: 700; letter-spacing: .14em; color: #a1a7a1; }
+.unified-steps-heading h2 { margin: 8px 0 5px; font-size: 21px; letter-spacing: -.04em; }
+.unified-steps-heading p, .unified-step > p { margin: 0; font-size: 12px; line-height: 1.6; color: #929992; overflow-wrap: anywhere; }
+.unified-step { padding: 21px 2px; border-bottom: 1px solid #edeeec; }
+.unified-step-title { width: 100%; padding: 0; border: 0; background: transparent; display: flex; align-items: center; gap: 10px; text-align: left; color: inherit; cursor: pointer; }
+.unified-step-icon { display: grid; place-items: center; width: 34px; height: 34px; flex: none; border: 1px solid #e9ebe9; border-radius: 10px; color: #808b80; background: #f8f9f7; }
+.unified-step.is-active .unified-step-icon { color: #fff; background: #202722; border-color: #202722; }
+.unified-step-title > span:nth-child(2) { flex: 1; min-width: 0; display: grid; gap: 3px; }
+.unified-step-title small { color: #a3aaa3; font-size: 9px; font-weight: 700; letter-spacing: .1em; }
+.unified-step-title strong { font-size: 13px; }
+.unified-step-title em { font-style: normal; white-space: nowrap; color: #a5aba5; font-size: 10px; }
+.unified-step-title em.is-ready { color: #66866d; }
+.unified-step > p { margin: 11px 0 14px 44px; }
+.unified-action { width: calc(100% - 44px); min-height: 35px; margin-left: 44px; padding: 0 11px; border: 1px solid #e5e9e5; border-radius: 8px; background: #fff; color: #3d463f; display: flex; align-items: center; justify-content: space-between; gap: 7px; font-size: 12px; font-weight: 600; cursor: pointer; }
+.unified-action:hover:not(:disabled) { background: #f5f7f4; }
+.unified-action.primary { justify-content: center; color: #fff; background: #202722; border-color: #202722; }
+.unified-action:disabled { opacity: .45; cursor: not-allowed; }
+.unified-mode { display: flex; margin: 0 0 9px 44px; padding: 3px; border-radius: 8px; background: #f2f4f1; }
+.unified-mode button { flex: 1; padding: 6px 3px; border: 0; border-radius: 6px; background: transparent; color: #8a918a; font-size: 11px; cursor: pointer; }
+.unified-mode button.active { background: #fff; color: #282e29; box-shadow: 0 1px 4px #18211812; }
+.unified-text-action { display: block; margin: 10px 0 0 44px; padding: 0; border: 0; background: transparent; color: #79867c; font-size: 11px; cursor: pointer; }
+.unified-step-hint { display: block; margin: 9px 0 0 44px; font-size: 10px; color: #a3aaa3; }
+.unified-workspace > .remix-stage { flex: 1; width: auto; height: auto; min-height: 0; border: 0; border-radius: 0; }
+.unified-workspace .remix-canvas-header { background: #fff; border-bottom: 1px solid #eceeeb; }
+.unified-workspace .remix-node:has(.storyboard-grid-workbench) { width: 960px; }
+.unified-workspace .storyboard-grid-workbench { border: 0; box-shadow: none; }
+.unified-product-node { display: grid; gap: 10px; padding: 14px; font-size: 12px; color: #8b968d; }
+.unified-product-node p { color: #3f4941; margin: 0; }
+.unified-product-node .remix-button { justify-self: start; }
+.unified-detail { padding: 0 4px 12px; }
+.unified-detail .action-bar { position: static; margin: 20px 0 0; padding: 12px 0; }
+.unified-steps-toggle { display: none; }
+.unified-steps.is-collapsed { display: none; }
+@media (max-width: 1000px) { .unified-steps { width: 250px; flex-basis: 250px; padding: 24px 15px; } }
+@media (max-width: 780px) { .unified-workspace { padding-top: 35px; } .unified-steps-toggle { display: block; position: absolute; top: 5px; left: 10px; z-index: 8; padding: 4px 10px; border: 1px solid #e4e7e3; border-radius: 6px; background: #fff; color: #4b554c; font-size: 11px; } .unified-steps { position: absolute; z-index: 7; top: 35px; bottom: 0; left: 0; width: min(290px, 85vw); box-shadow: 8px 0 25px #1a241218; } .unified-steps.is-collapsed { display: none; } }
+.unified-product-images { display: flex; gap: 7px; }
+.unified-product-images img { width: 58px; height: 58px; object-fit: cover; border-radius: 7px; border: 1px solid #e6eae6; }
+
+/* ElevenLabs Architect: a quiet navigation rail, a broad white control panel,
+   and floating controls over a pale dotted canvas. */
+.app-shell:has(.unified-workspace) { --canvas-ink: #171717; --canvas-line: #e8e8e8; --canvas-muted: #898989; }
+.app-shell:has(.unified-workspace) > .sidebar { background: #fafafa; border-right: 1px solid #e9e9e9; }
+.app-shell:has(.unified-workspace) .sidebar .nav-item { color: #747474; border-radius: 10px; }
+.app-shell:has(.unified-workspace) .sidebar .nav-item.active { background: #ececec; color: #171717; }
+.app-shell:has(.unified-workspace) .topbar { background: #fff; border-bottom: 1px solid #eeeeee; box-shadow: none; }
+.unified-workspace { background: #fafafa; }
+.unified-steps {
+  width: clamp(390px, 32vw, 650px); flex-basis: clamp(390px, 32vw, 650px);
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: start;
+  gap: 14px; padding: 30px 24px; background: #fff; border-color: #ececec;
+}
+.unified-steps-heading { grid-column: 1 / -1; padding: 0 2px 18px; border: 0; }
+.unified-steps-heading > span { display: none; }
+.unified-steps-heading h2 { margin: 0 0 7px; font-size: 21px; font-weight: 650; letter-spacing: -.035em; color: #171717; }
+.unified-steps-heading p { color: #999; font-size: 13px; }
+.unified-step { min-width: 0; padding: 17px; border: 1px solid #e8e8e8; border-radius: 16px; background: #fff; box-shadow: 0 1px 2px #00000005; }
+.unified-step.is-active { border-color: #cfcfcf; box-shadow: 0 1px 4px #0000000d; }
+.unified-step-title { gap: 9px; }
+.unified-step-icon, .unified-step.is-active .unified-step-icon { width: 27px; height: 27px; border: 1px solid #e9e9e9; border-radius: 50%; background: #f5f5f5; color: #323232; }
+.unified-step-title small { font-size: 9px; color: #a3a3a3; letter-spacing: .04em; }
+.unified-step-title strong { color: #222; font-size: 13px; }
+.unified-step-title em, .unified-step-title em.is-ready { color: #8d8d8d; font-size: 10px; }
+.unified-step > p { min-height: 38px; margin: 14px 0; color: #929292; font-size: 12px; line-height: 1.55; }
+.unified-action { width: 100%; min-height: 34px; margin: 0; padding: 0 11px; border-color: #e5e5e5; border-radius: 8px; color: #303030; font-size: 11px; }
+.unified-action:hover:not(:disabled) { background: #f5f5f5; }
+.unified-action.primary { background: #111; border-color: #111; color: #fff; }
+.unified-mode { margin: 0 0 10px; background: #f0f0f0; }
+.unified-mode button { color: #888; }
+.unified-mode button.active { color: #171717; box-shadow: 0 1px 3px #00000012; }
+.unified-text-action, .unified-step-hint { margin-left: 0; color: #858585; }
+.unified-workspace > .remix-stage { position: relative; background: #fafafa; }
+.unified-workspace .remix-canvas-header { position: absolute; z-index: 5; inset: 16px 16px auto; min-height: 0; padding: 0; border: 0; background: transparent; pointer-events: none; align-items: flex-start; }
+.unified-workspace .remix-canvas-header > div { pointer-events: auto; min-width: 0; padding: 7px; border: 1px solid #e9e9e9; border-radius: 15px; background: #fff; box-shadow: 0 4px 14px #0000000d; }
+.unified-workspace .remix-canvas-header > div:first-child { padding: 7px 12px; }
+.unified-workspace .remix-canvas-mark { width: 26px; height: 26px; border: 0; border-radius: 7px; background: #f2f2f2; color: #333; }
+.unified-workspace .remix-canvas-header h2 { color: #242424; font-size: 12px; }
+.unified-workspace .remix-canvas-header p { display: none; }
+.unified-workspace .remix-canvas-navigation { gap: 5px; }
+.unified-workspace .remix-canvas-navigation .remix-button, .unified-workspace .remix-canvas-navigation select { border-color: #ececec; color: #4b4b4b; background: #fff; }
+.unified-workspace .remix-canvas-navigation .remix-model-label { color: #999; }
+.unified-workspace .remix-tier-bar { top: 80px; }
+.unified-workspace .remix-canvas-viewport .react-flow { background: #fafafa; }
+.unified-workspace .remix-canvas-viewport .react-flow__edge-path { stroke: #c2c2c2 !important; }
+.unified-workspace .remix-canvas-viewport .react-flow__handle, .unified-workspace .remix-canvas-viewport .react-flow__handle.image-port, .unified-workspace .remix-canvas-viewport .react-flow__handle.text-port { background: #bdbdbd; border-color: #fafafa; }
+.unified-workspace .remix-node, .unified-workspace .remix-node--action { border: 1px solid #e6e6e6; border-radius: 11px; background: #fff; box-shadow: 0 2px 8px #00000005; }
+.unified-workspace .remix-node--action .remix-node-drag { background: #fff; }
+.unified-workspace .remix-node-drag { border-color: #f1f1f1; color: #252525; }
+.unified-workspace .remix-node-drag > span > svg, .unified-workspace .remix-node--action .remix-node-drag > span > svg { color: #555; }
+.unified-workspace .remix-node-role { border-color: #f2f2f2; color: #a0a0a0; }
+.unified-workspace .remix-node-role > span, .unified-workspace .remix-node--action .remix-node-role > span { color: #777; background: #f3f3f3; }
+.unified-workspace .remix-action-method { color: #777; }
+.unified-workspace .remix-action-io { border-color: #eee; background: #fafafa; }
+.unified-workspace .remix-action-io > span, .unified-workspace .remix-action-io > p { color: #888; }
+.unified-workspace .remix-canvas-tools { border-color: #e7e7e7; background: #fff; box-shadow: 0 4px 15px #0000000c; }
+@media (max-width: 1180px) and (min-width: 781px) { .unified-steps { width: 330px; flex-basis: 330px; grid-template-columns: 1fr; padding: 24px 18px; } .unified-steps-heading { grid-column: 1; } .unified-workspace .remix-canvas-header .remix-canvas-navigation select, .unified-workspace .remix-model-label { display: none; } }
+@media (max-width: 780px) { .unified-steps { display: grid; width: min(330px, 88vw); grid-template-columns: 1fr; padding: 22px 18px; } .unified-steps-heading { grid-column: 1; } .unified-steps.is-collapsed { display: none; } .unified-workspace .remix-canvas-header { inset: 10px 10px auto; } .unified-workspace .remix-canvas-header > div:first-child { display: none; } .unified-workspace .remix-canvas-navigation { overflow-x: auto; flex-wrap: nowrap; max-width: 100%; } }

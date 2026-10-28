@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode, type InputHTMLAttributes, type TextareaHTMLAttributes } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode, type InputHTMLAttributes, type TextareaHTMLAttributes } from 'react';
 import TierWorkbench, { FrameDrawer, VideoDrawer, tierVideoState, type FrameHandlers, type OpenFrame } from './TierWorkbench';
 import VideoPromptImages, { type VideoPromptImage } from './VideoPromptImages';
 import { tierGroupPrompt, withVideoReferences } from '../shared/tier-video-group';
@@ -27,6 +27,7 @@ import FocusPointsEditor from './FocusPointsEditor';
 import ShotTimelineEditor from './ShotTimelineEditor';
 import StoryboardGridPanel from './StoryboardGridPanel';
 import StoryboardGridWorkbench from './StoryboardGridWorkbench';
+import ProductPipelineCanvas from './ProductPipelineCanvas';
 import ProjectNavigation from './ProjectNavigation';
 import AnimatedBrandMark from './AnimatedBrandMark';
 import ShaderBackdrop from './ShaderBackdrop';
@@ -40,10 +41,10 @@ import { LanguageSwitch, pick, useDict } from './i18n';
 import { AUTH_TEXT, LANDING } from './landing-i18n';
 import { shotReconstructionPrompt } from '../shared/shot-evidence';
 import AutomaticWorkspace, { SpeechTimingConfirmation, WorkflowEntry } from './WorkflowWorkspace';
-const RemixStage = lazy(() => import('./RemixStage'));
 import { defaultRemixSettings, remixPlanCurrent, type RemixAction, type RemixSettings } from '../shared/remix';
 import { editableUnitPrompt, finalVideo, nextWorkflowAction, productionSources, videoCurrent, workflowBusy } from '../shared/workflow';
 import { appTitle, parseRoute, replaceNextUrl, routePath, stepTitles, studioTitle, useUrlSync, type AppRoute } from './useUrlSync';
+import './unified-workspace.css';
 import StudioShell from './studio/StudioShell';
 import { FEATURE_STUDIO } from './studio/studioApi';
 
@@ -178,7 +179,7 @@ function SectionBackdrop({ src, className = '' }: { src: string; className?: str
 const landingTools = ['文字叠加', '视频画面调整工具', '图片编辑器', '分镜脚本工作室', '音色翻译', '口播重写', '节奏诊断', '字幕本地化', '产品事实校验', '提示词包导出'];
 // Step requested by a URL, if this creative can show it in the steps view; otherwise its default step.
 const routeStep = (p: Project, requested?: number, canvas = false) => {
-  if (canvas) return 2;
+  if (requested !== undefined && requested >= 0 && requested <= 2) return requested;
   const stage3Ready = p.breakdownType === 'storyboard-grid' ? !!(p.storyboardGrids?.length) : !!p.analysis;
   const allowed = requested === 0 || requested === 1 && (!!p.analysis || p.assets.some(a => a.kind === 'video')) || requested === 2 && stage3Ready;
   if (allowed) return requested!;
@@ -200,8 +201,12 @@ export default function App() {
   const [project, setProject] = useState<Project | null>(null);
   const [status, setStatus] = useState<Status>({ model: 'gemini-3.8-flash', configured: false, videoGeneration: { provider: 'veo-3.1', models: { t2v: 'veo_3_1', i2v: 'veo_3_1-fl', r2v: 'veo_3_1-components' }, configured: false, duration: 8 } });
   const [step, setStep] = useState(0);
-  const [workspaceView, setWorkspaceView] = useState<'steps' | 'canvas'>(() => { try { return localStorage.getItem('sop-workspace-view') === 'canvas' ? 'canvas' : 'steps'; } catch { return 'steps'; } });
-  useEffect(() => { try { localStorage.setItem('sop-workspace-view', workspaceView); } catch {} }, [workspaceView]);
+  const workspaceView: 'canvas' = 'canvas';
+  const [stageDetail, setStageDetail] = useState<number | null>(null);
+  const [canvasFocusVersion, setCanvasFocusVersion] = useState(0);
+  const [stepsCollapsed, setStepsCollapsed] = useState(false);
+  const focusStage = (n: number) => { setShowMediaLibrary(false); setStageDetail(null); setStep(n); setCanvasFocusVersion(v => v + 1); setSidebarOpen(false); };
+  const openStageDetail = (n: number) => { setStep(n); setStageDetail(n); };
   const [showLanding, setShowLanding] = useState(true);
   const [selectedShot, setSelectedShot] = useState(0);
   const [timelineOpen, setTimelineOpen] = useState(false);
@@ -330,7 +335,6 @@ export default function App() {
             if (FEATURE_STUDIO && route.kind === 'studio') setStudioRoute(route);
             else setStudioRoute(null);
           }
-          if (target) setWorkspaceView(target.canvas ? 'canvas' : 'steps');
           if (missing) setError('链接中的创意不存在或已被删除，已为你打开默认创意。');
           setRouteReady(true); await refreshList();
         }
@@ -473,10 +477,9 @@ export default function App() {
     field?.scrollIntoView({ block: 'center' });
     setFocusTarget(null);
   }, [step, focusTarget, busy, running]);
-  const switchProject = (id: string, target?: { step?: number; canvas?: boolean }) => perform('正在打开创意', async () => { setShowMediaLibrary(false);
+  const switchProject = (id: string, target?: { step?: number; canvas?: boolean }) => perform('正在打开创意', async () => { setShowMediaLibrary(false); setStageDetail(null);
     await flush(); const p = await api<Project>(`/api/projects/${id}`); adopt(p); setDirty(false); unsaved.current = false;
-    if (target) setWorkspaceView(target.canvas ? 'canvas' : 'steps');
-    setStep(routeStep(p, target?.step, target ? !!target.canvas : workspaceView === 'canvas')); setSelectedShot(0); setSelectedRewrite(0); setSidebarOpen(false); setShowRequiredErrors(false); setFocusTarget(null); setObserving(false);
+    setStep(routeStep(p, target?.step, !!target?.canvas)); setSelectedShot(0); setSelectedRewrite(0); setSidebarOpen(false); setShowRequiredErrors(false); setFocusTarget(null); setObserving(false);
   });
   const newProject = (demo = false, parentId = current.current?.parentProjectId || projectGroups[0]?.id || '') => {
     setError(''); setOrganizationDialog({ kind: 'creative-new', parentId, title: demo ? '随行冷萃杯 · 美国市场' : '', demo });
@@ -584,7 +587,7 @@ export default function App() {
       void syncMediaLibrary(auth.user).catch(error => setNotice(error instanceof Error ? error.message : '素材已引用，云端同步暂未完成。'));
     } finally { setBusy(''); }
   };
-  useImagePaste(imageUploadBoxes, workspaceView === 'steps' && step === 0 && !busy && !running && !observing && !modal && !showPipeline && !authOpen && !showLanding && !assetLibraryTarget && !showMediaLibrary, files => { void uploadFiles(files, 'product'); });
+  useImagePaste(imageUploadBoxes, stageDetail === 0 && step === 0 && !busy && !running && !observing && !modal && !showPipeline && !authOpen && !showLanding && !assetLibraryTarget && !showMediaLibrary, files => { void uploadFiles(files, 'product'); });
   const removeAsset = (id: string) => perform('正在移除素材', async () => { const p = await flush(); if (p) adopt(await api<Project>(`/api/projects/${p.id}/assets/${id}`, { method: 'DELETE' })); });
   const startJob = (kind: 'analysis' | 'analysis-refine' | 'rewrite') => perform('正在准备任务', async () => {
     const p = await flush(); if (!p) return;
@@ -868,7 +871,6 @@ export default function App() {
     await perform('正在保存', async () => {
       setShowMediaLibrary(false); await flush();
       const p = current.current; if (!p) return;
-      setWorkspaceView(route.canvas ? 'canvas' : 'steps');
       setStep(routeStep(p, route.step, !!route.canvas));
     });
   };
@@ -878,7 +880,7 @@ export default function App() {
     setShowLanding(false); setShowMediaLibrary(false); setSidebarOpen(false);
     setStudioRoute(id ? { kind: 'studio', section, id } : { kind: 'studio', section });
   };
-  const viewRoute: AppRoute | null = showLanding ? { kind: 'landing' } : studioRoute ? studioRoute : !project ? null : showMediaLibrary ? { kind: 'library' } : workspaceView === 'canvas' ? { kind: 'creative', id: project.id, canvas: true } : { kind: 'creative', id: project.id, step };
+  const viewRoute: AppRoute | null = showLanding ? { kind: 'landing' } : studioRoute ? studioRoute : !project ? null : showMediaLibrary ? { kind: 'library' } : { kind: 'creative', id: project.id, step };
   const viewTitle = !viewRoute || viewRoute.kind === 'landing' ? `${appTitle} · 跨境内容工作台` : viewRoute.kind === 'studio' ? studioTitle(viewRoute) : viewRoute.kind === 'library' ? `所有媒体 · ${appTitle}` : `${project?.title.trim() || '未命名创意'} · ${viewRoute.canvas ? '画布' : stepTitles[step]} · ${appTitle}`;
   useUrlSync({ path: viewRoute ? routePath(viewRoute) : '', title: viewTitle, ready: routeReady, paused: !!busy, onRoute: applyRoute });
   const copy = async (value: string) => { try { await navigator.clipboard.writeText(value); setNotice('已复制'); } catch { setError('浏览器未允许复制，请使用下载按钮。'); } };
@@ -964,7 +966,7 @@ export default function App() {
   const frameHandlers: FrameHandlers = { project, disabled, busy, ratioLabel: frameRatioLabel(project), frameBusy, frameFailed,
     onFrame: (shotId, position) => void generateTierFrame(shotId, position).catch(() => {}), onFrameUndo: undoTierFrame, onFrameUpload: uploadTierFrame, onFrameRefs: uploadFrameRefs, onFrameLibrary: openFrameLibrary, onFrameInput: setFrameInput };
   const isStoryboardGrid = project.breakdownType === 'storyboard-grid';
-  const storyboardGridPanel = isStoryboardGrid ? <StoryboardGridWorkbench project={project} disabled={disabled} canvas={canvasView}
+  const storyboardGridPanel = isStoryboardGrid ? <StoryboardGridWorkbench project={project} disabled={disabled} canvas={false}
     onPrompt={updateStoryboardGridPrompt} onGenerate={gridId => void startStoryboardGridVideo(gridId)}
     onIncluded={updateStoryboardGridIncluded} /> : null;
   const tierPanel = !isStoryboardGrid && project?.analysis ? <TierWorkbench project={project} disabled={disabled} busy={busy}
@@ -974,7 +976,7 @@ export default function App() {
     onGenerateShots={shotIds => void generateTierShots(shotIds)} onVideo={startTierVideo} onGroupVideo={startTierVideoGroup} openFrame={openFrame} onOpenFrame={openFrameOnly} canvas={canvasView} /> : null;
   const frameDrawer = !isStoryboardGrid && openFrame && project.analysis && (canvasView || step === 2) ? <FrameDrawer {...frameHandlers} shotId={openFrame.shotId} position={openFrame.position} onClose={() => setOpenFrame(null)} />
     : !isStoryboardGrid && openVideo && project.analysis && (canvasView || step === 2) ? <VideoDrawer project={project} disabled={disabled} ratioLabel={frameHandlers.ratioLabel} onVideo={startTierVideo} onVideoPrompt={setVideoPrompt} shotId={openVideo} onClose={() => setOpenVideo(null)} /> : null;
-  const remixPanel = isStoryboardGrid ? null : <Suspense fallback={<div className="canvas-loading" role="status"><LoaderCircle className="spin" size={20} />正在打开二创画布…</div>}><RemixStage key={project.id} project={project} disabled={disabled} tierFrames={project.analysis ? { disabled: frameHandlers.disabled, ratioLabel: frameHandlers.ratioLabel, frameBusy, frameFailed, onFrame: frameHandlers.onFrame, onGenerateShots: shotIds => void generateTierShots(shotIds), open: openFrame, onOpen: openFrameOnly, openVideo, onOpenVideo: openVideoOnly, onVideo: startTierVideo, onGroupVideo: startTierVideoGroup } : undefined} onAction={(action, settings, prompt, videoId) => void startRemix(action, settings, prompt, videoId)} onSave={(settings, prompt) => void startRemix(undefined, settings, prompt)} onUpload={(file, settings) => void uploadRemixCharacter(file, settings)} onCopy={text => void copy(text)} onSettings={() => setModal('settings')} /></Suspense>;
+  const remixPanel = <ProductPipelineCanvas key={project.id} project={project} disabled={disabled} onPrompt={updateStoryboardGridPrompt} onGenerate={gridId => void startStoryboardGridVideo(gridId)} onIncluded={updateStoryboardGridIncluded} onUploadVideo={() => openAssetLibrary('video')} onUploadProduct={() => openAssetLibrary('image')} onAnalyze={() => void startJob('analysis')} onOpenMaterials={() => openStageDetail(0)} onOpenAnalysis={() => openStageDetail(1)} onOpenRemixDetail={() => openStageDetail(2)} onSettings={() => setModal('settings')} focusStep={step} focusVersion={canvasFocusVersion} />;
   const market = countries.find(c => c.code === project.market.country)!;
   const platform = platforms.find(p => p.id === project.market.platform)!;
   const shot = project.analysis?.shots[Math.min(selectedShot, project.analysis.shots.length - 1)];
@@ -1120,7 +1122,7 @@ export default function App() {
       <section className="sidebar-current-project" aria-labelledby="sidebar-current-project-title">
         <span className="sidebar-project-caption">当前创意</span>
         <div className="sidebar-project-heading"><Clapperboard size={16} /><strong id="sidebar-current-project-title" title={project.title}>{project.title}</strong>{project.archivedAt && <Badge>已归档</Badge>}</div>
-        <nav className="workflow-nav" aria-label="制作流程">{steps.map((s, i) => { const Icon = s.icon; return <button key={s.en} className={`nav-item ${!showMediaLibrary && step === i ? 'active' : ''}`} aria-label={s.name} title={s.name} disabled={!!busy || (i !== 2 && !available[i]) || (!canvasView && !available[i])} onClick={() => { setShowMediaLibrary(false); if (canvasView && i === 2) setStep(2); else { setWorkspaceView('steps'); void go(i); } }}><Icon size={18} /><span>{s.name}</span><span className="nav-number">0{i + 1}</span></button>; })}</nav>
+        <nav className="workflow-nav" aria-label="制作流程">{steps.map((s, i) => { const Icon = s.icon; return <button key={s.en} className={`nav-item ${!showMediaLibrary && step === i ? 'active' : ''}`} aria-label={s.name} title={s.name} disabled={!!busy} onClick={() => focusStage(i)}><Icon size={18} /><span>{s.name}</span><span className="nav-number">0{i + 1}</span></button>; })}</nav>
       </section>
       <div className="sidebar-footer-row"><button className="sidebar-config" title="配置" aria-label="配置" onClick={() => setModal('config')}><Settings size={16} /><span>配置</span></button></div>
     </aside>
@@ -1129,14 +1131,18 @@ export default function App() {
       <main className={showMediaLibrary ? 'media-workspace-main' : canvasView ? 'canvas-workspace-main' : step === 2 ? 'remix-workspace-main' : undefined}>
         {showMediaLibrary ? <MediaLibraryPage user={auth.user} onSelect={item => openAssetLibrary('all', item)} onUpload={() => openAssetLibrary('all')} onSignIn={openAuth} /> : <>
         {project.archivedAt && <div className="banner sample"><Archive size={16} /><span>此创意已归档，素材和制作结果仍保存在本机。</span><button disabled={!!busy || running} onClick={() => setProjectArchived(project.id, false)}>恢复到所属项目 <ArchiveRestore size={14} /></button></div>}
-        <div className="workspace-controls"><div className="workspace-view-switch" role="group" aria-label="工作台视图"><button type="button" aria-pressed={workspaceView === 'steps'} className={workspaceView === 'steps' ? 'active' : ''} onClick={() => { setWorkspaceView('steps'); if (!available[step]) setStep(project.remix ? 2 : project.analysis ? 1 : 0); }}><LayoutList size={15} />步骤视图</button><button type="button" aria-pressed={workspaceView === 'canvas'} className={workspaceView === 'canvas' ? 'active' : ''} onClick={() => { setStep(2); setWorkspaceView('canvas'); }}><Workflow size={15} />画布视图</button></div></div>
         {(canvasView || autoView || !project.workflowMode) && error && <div className="banner error" role="alert"><Info size={16} /><span>{error}</span><button aria-label="关闭错误提示" onClick={() => setError('')}><X size={16} /></button></div>}
         {project.ttsTimingNotice && <SpeechTimingConfirmation notice={project.ttsTimingNotice} disabled={disabled} onConfirm={() => void composeFinal(project.ttsTimingNotice!.voice, project.ttsTimingNotice!.basis)} onManual={() => void selectWorkflowMode('manual')} />}
 
 
-        {canvasView && (isStoryboardGrid ? storyboardGridPanel : remixPanel)}
+        <div className="unified-workspace">
+          <button className="unified-steps-toggle" aria-expanded={!stepsCollapsed} onClick={() => setStepsCollapsed(value => !value)}>{stepsCollapsed ? '展开步骤' : '收起步骤'}</button><aside className={`unified-steps${stepsCollapsed ? ' is-collapsed' : ''}`} aria-label="创作步骤"><div className="unified-steps-heading"><span>CREATIVE WORKFLOW</span><h2>创作流程</h2><p>从参考素材到全新创意</p></div>
+            {steps.map((item, i) => { const Icon = item.icon; const ready = i === 0 ? !!video : i === 1 ? !!project.analysis : isStoryboardGrid ? !!project.storyboardGrids?.length : !!project.remix?.plan; const activeJob = project.job?.status === 'running' && (i === 1 ? project.job.kind.startsWith('analysis') : i === 2 && !project.job.kind.startsWith('analysis')); const failedJob = project.job?.status === 'failed' && (i === 1 ? project.job.kind.startsWith('analysis') : i === 2 && !project.job.kind.startsWith('analysis')); return <section key={item.en} className={`unified-step${step === i ? ' is-active' : ''}`}><button className="unified-step-title" onClick={() => focusStage(i)}><span className="unified-step-icon"><Icon size={16} /></span><span><small>STEP 0{i + 1}</small><strong>{i === 2 && isStoryboardGrid ? '分镜视频生成' : item.name}</strong></span><em className={ready ? 'is-ready' : ''}>{activeJob ? '进行中' : failedJob ? '失败' : ready ? '已就绪' : '待准备'}</em></button><p>{i === 0 ? video ? `${video.name} · ${productImages.length} 张产品图` : '添加参考视频与产品资料' : i === 1 ? project.analysis ? isStoryboardGrid ? `${project.storyboardGrids?.length || 0} 张分镜网格` : `${project.analysis.shots.length} 个镜头` : '选择拆解方式，提取视频内容' : isStoryboardGrid ? '用分镜网格生成视频' : '准备人物、提示词和视频'}</p>{i === 0 ? <><button className="unified-action" disabled={disabled} onClick={() => { focusStage(0); openAssetLibrary('video'); }}>选择参考视频 <ArrowRight size={14} /></button><button className="unified-text-action" onClick={() => openStageDetail(0)}>编辑产品与素材</button></> : i === 1 ? <><div className="unified-mode"><button className={!isStoryboardGrid ? 'active' : ''} disabled={disabled} onClick={() => change(p => ({ ...p, breakdownType: 'shot' }))}>逐镜头</button><button className={isStoryboardGrid ? 'active' : ''} disabled={disabled} onClick={() => change(p => ({ ...p, breakdownType: 'storyboard-grid' }))}>分镜网格</button></div>{isStoryboardGrid && <div className="unified-mode">{([3, 4] as const).map(size => <button key={size} className={(project.storyboardGridSize || 3) === size ? 'active' : ''} disabled={disabled} onClick={() => change(p => ({ ...p, storyboardGridSize: size }))}>{size}×{size}</button>)}</div>}<button className="unified-action primary" disabled={disabled || !video} title={!video ? '请先添加参考视频' : undefined} onClick={() => { focusStage(1); void startJob('analysis'); }}><Sparkles size={14} />{project.analysis ? '重新拆解' : '开始拆解'}</button><button className="unified-text-action" onClick={() => openStageDetail(1)}>查看与编辑拆解</button></> : <><button className="unified-action" onClick={() => focusStage(2)}>{isStoryboardGrid ? '查看网格与视频' : '打开二创流程'} <ArrowRight size={14} /></button>{!isStoryboardGrid && project.analysis && <button className="unified-text-action" onClick={() => openStageDetail(2)}>打开关键帧工作台</button>}{!available[2] && <small className="unified-step-hint">请先完成视频拆解</small>}</>}</section>; })}
+          </aside>
+          {remixPanel}
+        </div>
         {frameDrawer}
-        {manualView && !canvasView && <>
+        {manualView && stageDetail !== null && <Modal title={steps[step].name} wide onClose={() => setStageDetail(null)}><div className="unified-detail">
         {project.workflow?.status === 'pausing' && <div className="banner sample" role="status"><LoaderCircle size={16} className="spin" /><span>正在等待当前任务结束。完成后会停止自动推进，并开放编辑。</span></div>}
         {observing && <div className="workflow-observing"><Eye size={18} /><p>正在只读查看制作过程。自动任务继续执行；接管后可以编辑已有结果。</p><button className="btn small" onClick={() => setObserving(false)}>返回自动制作</button><button className="btn small" disabled={!!busy || project.workflow?.status === 'pausing'} onClick={() => void selectWorkflowMode('manual')}>接管并编辑</button><button className="btn small" onClick={() => setShowPipeline(true)}>查看输入与输出</button></div>}
         <div className="page-heading sail-shader-surface"><ShaderBackdrop variant="heading" /><div><div className="eyebrow">CREATIVE WORKSPACE <span>/</span> 0{step + 1}</div><h1>{steps[step].title}</h1><p>{steps[step].description}</p></div></div>
@@ -1152,9 +1158,9 @@ export default function App() {
               {video ? <><div className="video-file-bar"><Film size={15} /><span>{video.name}</span><button className="text-button" disabled={disabled} onClick={() => openAssetLibrary('video')}>更换视频</button></div>{previewVideo()}<div className="video-metadata"><span>{timeLabel(video.duration || 0)} 时长</span><span>{video.width} × {video.height}</span><span>{sizeLabel(video.size)}</span><span>{video.hasAudio ? '含音轨' : '无音轨'}</span></div></> : <button className={`upload-drop ${dragging ? 'dragging' : ''}`} disabled={disabled} onClick={() => openAssetLibrary('video')} onDragOver={e => { e.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={e => { e.preventDefault(); setDragging(false); if (!disabled && e.dataTransfer.files.length) void uploadFiles(e.dataTransfer.files, 'video'); }}><div className="upload-visual"><span className="upload-outline back" /><span className="upload-outline front"><Film size={27} strokeWidth={1.4} /></span><span className="upload-plus"><Plus size={13} /></span></div><strong>拖入一条值得拆解的视频</strong><span>或点击从素材库选择</span><small>MP4、MOV、WebM · 最长 10 分钟 · 最大 250 MB</small></button>}
               <div className="panel-footnote"><ScanLine size={15} /><span>分析画面与原始音轨，提取镜头、动作、口播和商品展示。</span></div>
               <div className="breakdown-mode-panel"><p>选择视频拆解类型</p><div className="breakdown-mode-options">
-                <button type="button" className={`breakdown-mode-option ${(project.breakdownType || 'shot') === 'shot' ? 'selected' : ''}`} disabled={disabled} onClick={() => change(p => ({ ...p, breakdownType: 'shot', storyboardGrids: [] }))}><LayoutList size={19} /><span><strong>逐镜头拆解</strong><small>识别剪辑点、动作、运镜、口播和证据帧</small></span></button>
-                <button type="button" className={`breakdown-mode-option ${project.breakdownType === 'storyboard-grid' ? 'selected' : ''}`} disabled={disabled} onClick={() => change(p => ({ ...p, breakdownType: 'storyboard-grid', storyboardGrids: [] }))}><Grid2X2 size={19} /><span><strong>分镜网格拆解</strong><small>每张网格对应 ≤8 秒，同时生成视频 Prompt</small></span></button>
-              </div>{project.breakdownType === 'storyboard-grid' && <div className="storyboard-size-picker"><span>网格密度</span>{([3, 4] as const).map(size => <button type="button" key={size} className={(project.storyboardGridSize || 3) === size ? 'selected' : ''} disabled={disabled} onClick={() => change(p => ({ ...p, storyboardGridSize: size, storyboardGrids: [] }))}>{size}×{size}</button>)}<small>{project.storyboardGridSize === 4 ? '16 格，动作变化更细' : '9 格，画面主体更大'}</small></div>}</div>
+                <button type="button" className={`breakdown-mode-option ${(project.breakdownType || 'shot') === 'shot' ? 'selected' : ''}`} disabled={disabled} onClick={() => change(p => ({ ...p, breakdownType: 'shot' }))}><LayoutList size={19} /><span><strong>逐镜头拆解</strong><small>识别剪辑点、动作、运镜、口播和证据帧</small></span></button>
+                <button type="button" className={`breakdown-mode-option ${project.breakdownType === 'storyboard-grid' ? 'selected' : ''}`} disabled={disabled} onClick={() => change(p => ({ ...p, breakdownType: 'storyboard-grid' }))}><Grid2X2 size={19} /><span><strong>分镜网格拆解</strong><small>每张网格对应 ≤8 秒，同时生成视频 Prompt</small></span></button>
+              </div>{project.breakdownType === 'storyboard-grid' && <div className="storyboard-size-picker"><span>网格密度</span>{([3, 4] as const).map(size => <button type="button" key={size} className={(project.storyboardGridSize || 3) === size ? 'selected' : ''} disabled={disabled} onClick={() => change(p => ({ ...p, storyboardGridSize: size }))}>{size}×{size}</button>)}<small>{project.storyboardGridSize === 4 ? '16 格，动作变化更细' : '9 格，画面主体更大'}</small></div>}</div>
           </section>
           <section className="panel brief-panel"><div className="panel-heading"><div><Package size={18} /><h2>你的产品</h2></div><span className="secondary-label">信息与外观</span></div><div className="panel-body">
             <div className="materials-basic-fields"><Field label="产品名称 · 必填" error={showRequiredErrors && !project.product.name.trim() ? '请填写要推广的产品名称' : undefined} errorId="product-name-error"><Input id="product-name" required aria-invalid={showRequiredErrors && !project.product.name.trim()} aria-describedby={showRequiredErrors && !project.product.name.trim() ? 'product-name-error' : undefined} placeholder="例如：便携冷萃咖啡杯" value={project.product.name} disabled={disabled} onChange={e => updateProduct({ name: e.target.value })} /></Field>
@@ -1189,7 +1195,7 @@ export default function App() {
         {step === 2 && (isStoryboardGrid ? storyboardGridPanel : tierPanel)}
 
         <footer className="action-bar"><div className={`action-context${step === 1 && project.analysis ? ' action-context--breakdown' : ''}`}><CheckCheck size={16} /><span>所有编辑自动保存到本机</span>{step === 1 && project.analysis && <button className="text-button" disabled={disabled || !video} onClick={() => startJob('analysis')}>重新拆解</button>}</div><div className="action-buttons">{step > 0 && <button className="btn" disabled={!!busy} onClick={() => go(step - 1)}>上一步</button>}{step === 0 && <button className="btn primary" disabled={disabled || !video} onClick={() => startJob('analysis')}><Sparkles size={16} />{project.breakdownType === 'storyboard-grid' ? '生成分镜网格' : '拆解参考视频'}<ArrowRight size={16} /></button>}{step === 1 && <button className="btn primary" disabled={disabled || (project.breakdownType === 'storyboard-grid' ? !(project.storyboardGrids?.length) : !project.analysis)} onClick={() => go(2)}>{project.breakdownType === 'storyboard-grid' ? '生成网格视频' : '人物与视频二创'}<ArrowRight size={16} /></button>}</div></footer>
-        </>}
+        </div></Modal>}
         </>}
       </main>
     </div>
