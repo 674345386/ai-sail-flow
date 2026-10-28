@@ -371,6 +371,39 @@ button, input, textarea, select { font-family: inherit; }
 .breadcrumbs > svg { flex-shrink: 0; }
 .organization-form-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
 .sidebar-projects .archive-list-toggle { order: 2; }
+
+.sidebar-creative-block { display: grid; gap: 2px; margin-top: 4px; }
+.sidebar-creative-label { display: flex; align-items: center; gap: 6px; padding: 6px 8px 4px; color: var(--muted); font-size: 11px; line-height: 16px; }
+.sidebar-creative-label > svg { flex-shrink: 0; }
+.creative-task-badge { display: inline-flex; align-items: center; gap: 3px; margin-left: auto; flex-shrink: 0; color: var(--muted); font-size: 11px; line-height: 1; font-style: normal; font-variant-numeric: tabular-nums; }
+.creative-task-badge > em { font-style: normal; }
+.project-link .creative-task-badge { margin-left: auto; }
+.project-pin-action { display: grid; place-items: center; flex-shrink: 0; width: 24px; height: 28px; padding: 0; border: 0; border-radius: 5px; background: transparent; color: var(--muted); opacity: 0; }
+.project-row:hover .project-pin-action, .project-row:focus-within .project-pin-action, .project-pin-action.is-visible, .project-pin-action.is-on { opacity: 1; }
+.project-pin-action:hover:not(:disabled) { background: #eee; color: var(--text); }
+.project-pin-action.is-on { color: var(--text); }
+.project-pin-action.is-on svg { fill: currentColor; }
+.sidebar-more-wrap { position: relative; margin-top: 4px; }
+.sidebar-more-button { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 32px; padding: 6px 8px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); font-size: 13px; line-height: 18px; text-align: left; }
+.sidebar-more-button:hover, .sidebar-more-button.active { background: #eee; color: var(--text); }
+.sidebar-more-popover { position: fixed; z-index: 90; width: min(320px, 70vw); max-height: min(420px, 70vh); display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 12px; background: #fff; box-shadow: 0 12px 32px #0000001a, 0 2px 8px #0000000d; overflow: hidden; }
+.sidebar-more-toolbar { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--line-soft, var(--line)); }
+.sidebar-more-search { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; min-height: 32px; padding: 0 8px; border: 1px solid var(--line); border-radius: 8px; background: #fafafa; color: var(--muted); }
+.sidebar-more-search input { flex: 1; min-width: 0; border: 0; background: transparent; color: var(--text); font: inherit; font-size: 13px; outline: none; }
+.sidebar-more-view-all { flex-shrink: 0; border: 0; background: transparent; color: #1a7f4b; font-size: 13px; line-height: 18px; padding: 4px 2px; cursor: pointer; }
+.sidebar-more-view-all:hover { text-decoration: underline; }
+.sidebar-more-list { overflow: auto; padding: 6px; scrollbar-width: thin; }
+.sidebar-more-row { display: flex; align-items: center; gap: 2px; border-radius: 8px; }
+.sidebar-more-row.selected, .sidebar-more-row:hover { background: #f0f0f0; }
+.sidebar-more-link { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; min-height: 34px; padding: 6px 8px; border: 0; border-radius: 8px; background: transparent; color: var(--text); text-align: left; font-size: 13px; line-height: 18px; }
+.sidebar-more-link > svg { flex-shrink: 0; color: var(--muted); }
+.sidebar-more-link > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sidebar-more-empty { margin: 0; padding: 16px 10px; color: var(--muted); font-size: 12px; }
+.sidebar-compact-toggle { display: block; width: 100%; margin-top: 6px; padding: 8px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); font-size: 12px; text-align: left; }
+.sidebar-compact-toggle:hover { background: #eee; color: var(--text); }
+.project-row .project-archive-action { opacity: 0; }
+.project-row:hover .project-archive-action, .project-row:focus-within .project-archive-action { opacity: 1; }
+
 .sidebar-current-project { order: 2; margin-top: 16px; padding: 16px 4px 0; border-top: 1px solid var(--line); }
 .sidebar-project-caption { display: block; margin-bottom: 8px; font-size: 12px; line-height: 18px; color: var(--muted); }
 .sidebar-project-heading { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 0 4px; margin-bottom: 12px; color: var(--text); }

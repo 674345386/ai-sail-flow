@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { MODEL, defaultMarket, defaultReplication, defaultWorkspace, emptyProduct, stageOf, type Project, type WorkspaceProject } from '../shared/domain';
+import { MODEL, defaultMarket, defaultReplication, defaultWorkspace, emptyProduct, inProgressCount, stageOf, type Project, type WorkspaceProject } from '../shared/domain';
 import { demoProject } from '../shared/demo';
 
 export const dataDir = path.resolve(process.env.SOP_DATA_DIR || path.join(process.cwd(), 'data'));
@@ -98,7 +98,7 @@ export function getProject(id: string) {
   return projects.get(id);
 }
 export function listProjects() {
-  return [...projects.values()].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).map(p => ({ id: p.id, parentProjectId: p.parentProjectId, title: p.title, updatedAt: p.updatedAt, isDemo: p.isDemo, archivedAt: p.archivedAt, stage: stageOf(p) }));
+  return [...projects.values()].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).map(p => ({ id: p.id, parentProjectId: p.parentProjectId, title: p.title, updatedAt: p.updatedAt, isDemo: p.isDemo, archivedAt: p.archivedAt, stage: stageOf(p), inProgressCount: inProgressCount(p) }));
 }
 export function createProject(demo = false, parentProjectId = defaultProjectId, title?: string) {
   if (!workspaceProjects.has(parentProjectId)) throw new Error('所属项目不存在。');

@@ -284,7 +284,7 @@ export type Project = {
   ttsTimingNotice?: TtsTimingNotice;
   remix?: RemixWorkflow;
 };
-export type ProjectSummary = Pick<Project, 'id' | 'title' | 'parentProjectId' | 'updatedAt' | 'isDemo' | 'archivedAt'> & { stage: number };
+export type ProjectSummary = Pick<Project, 'id' | 'title' | 'parentProjectId' | 'updatedAt' | 'isDemo' | 'archivedAt'> & { stage: number; inProgressCount?: number };
 export const emptyProduct: Product = { name: '', category: '家居生活', facts: '', audience: '', price: '', currency: 'USD', offer: '', landingUrl: '' };
 export const defaultMarket: Market = { country: 'US', language: 'en-US', platform: 'tiktok', destination: 'website', cta: '', tone: 'natural', duration: 'original', people: 'preserve', keepStructure: true, subtitles: true, aspectRatio: '9:16' };
 export const defaultReplication: Replication = {
@@ -313,6 +313,16 @@ export const projectPatchSchema = z.object({
 });
 export function stageOf(project: Pick<Project, 'assets' | 'analysis' | 'rewrite' | 'rewriteStale'>) {
   return project.analysis ? 3 : project.assets.some(a => a.kind === 'video') ? 2 : 1;
+}
+
+/** Count running jobs/generations for sidebar task badges. */
+export function inProgressCount(project: Pick<Project, 'job' | 'workflow' | 'generatedVideos' | 'remix'>): number {
+  let count = 0;
+  if (project.job?.status === 'running') count += 1;
+  if (project.workflow?.status === 'running' || project.workflow?.status === 'pausing') count += 1;
+  count += (project.generatedVideos || []).filter(video => video.status === 'running').length;
+  count += (project.remix?.videos || []).filter(video => video.status === 'running').length;
+  return count;
 }
 export function timeLabel(seconds: number) {
   return `${Math.floor(seconds / 60).toString().padStart(2, '0')}:${Math.floor(seconds % 60).toString().padStart(2, '0')}`;
