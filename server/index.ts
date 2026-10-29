@@ -34,6 +34,7 @@ const { imageGenerationStatus, configureImageGeneration, IMAGE_MODELS } = await 
 const { VEO_MODELS, VEO_DURATION, configureGenerationKey, generationConfigured } = await import('./veo');
 const { listTtsVoices } = await import('./compose');
 const { launchTask, TaskError } = await import('./tasks');
+const { getVideoAnalysisMethod, setVideoAnalysisMethod } = await import('./video-analysis-settings');
 const { launchRemix, RemixError } = await import('./remix');
 const { startWorkflow, setWorkflowMode } = await import('./workflow');
 const { inspectMedia, prepareShotMedia, cropToRatio } = await import('./media');
@@ -105,7 +106,7 @@ const uploadsInProgress = new Set<string>();
 function editable(project: Project) {
   if (project.job?.status === 'running' || workflowBusy(project) || uploadsInProgress.has(project.id)) throw new HttpError(409, '当前任务正在处理，请等待完成或接管制作。');
 }
-app.get('/api/status', (_req, res) => res.json({ model: MODEL, keyframeModel: imageGenerationStatus().model, configured: configured(), imageGeneration: imageGenerationStatus(), local: !publicAuthEnabled, maxVideoMB: 250, maxImageMB: 10, keyframeStorage: keyframeStorageStatus(), videoGeneration: { provider: 'veo-3.1', models: VEO_MODELS, configured: generationConfigured(), duration: VEO_DURATION } }));
+app.get('/api/status', (_req, res) => res.json({ model: MODEL, keyframeModel: imageGenerationStatus().model, configured: configured(), imageGeneration: imageGenerationStatus(), local: !publicAuthEnabled, maxVideoMB: 250, maxImageMB: 10, videoAnalysisMethod: getVideoAnalysisMethod(), keyframeStorage: keyframeStorageStatus(), videoGeneration: { provider: 'veo-3.1', models: VEO_MODELS, configured: generationConfigured(), duration: VEO_DURATION } }));
 app.post('/api/auth/session', async (req, res) => {
   if (!publicAuthEnabled) return res.sendStatus(204);
   const token = bearerToken(req);
@@ -156,6 +157,11 @@ app.post('/api/settings', (req, res) => {
 });
 app.post('/api/settings/check', async (_req, res) => {
   try { res.json(await checkModelConnection()); } catch (error) { res.status(502).json({ error: error instanceof Error ? error.message : '模型连接检查失败。' }); }
+});
+app.post('/api/settings/video-analysis', (req, res) => {
+  const { method } = z.object({ method: z.enum(['full', 'segmented']) }).parse(req.body);
+  setVideoAnalysisMethod(method);
+  res.json({ method });
 });
 app.post('/api/settings/image-generation', (req, res) => {
   const { apiKey, baseUrl, model } = z.object({ apiKey: z.string().trim().min(16).max(300).optional(), baseUrl: z.url().max(300).optional(), model: z.enum(IMAGE_MODELS) }).parse(req.body);

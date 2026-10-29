@@ -18,6 +18,9 @@ import { tierSourceBasis, usesSource } from '../shared/tier-prompt';
 import { levelInfo, replicationContract } from '../shared/replication-levels';
 import { buildRemixPrompt, buildRemixAudio, getRemixSettings, characterBasis, remixPlanBasis, remixTimingSchema, remixCorrectionPatchSchema, applyRemixShotPatches, remixCorrectionBasis, type RemixCorrection, type RemixPromptPhase, type RemixSettings } from '../shared/remix';
 import { generateImage, imageGenerationStatus, type ImageModel, type ImageReference } from './image-generation';
+import { analyzeInSegments } from './segmented-analysis';
+import { getVideoAnalysisMethod } from './video-analysis-settings';
+import type { VideoAnalysisMethod } from '../shared/video-analysis';
 
 const connectionFile = path.join(dataDir, '.gemini-connection.json');
 function savedConnection(): { apiKey: string; baseUrl: string } | null {
@@ -473,7 +476,7 @@ async function analyzeInlineVideo(project: Project, processing: 'AGENTIC' | 'STA
 async function imageParts(project: Project): Promise<Part[]> {
   return Promise.all(project.assets.filter(a => a.kind === 'product').map(async a => ({ inlineData: { mimeType: a.mime, data: (await readFile(path.join(uploadDir, a.filename))).toString('base64') } })));
 }
-export async function analyze(project: Project, progress: (n: number, message: string) => void, trace?: RequestTrace) {
+async function analyzeWholeVideo(project: Project, progress: (n: number, message: string) => void, trace?: RequestTrace) {
   const mode = process.env.SOP_VIDEO_ANALYSIS_MODE || 'static';
   if (!['agentic', 'static', 'frames'].includes(mode)) throw new Error('SOP_VIDEO_ANALYSIS_MODE 仅支持 agentic、static 或 frames。');
   if (mode === 'agentic') {
@@ -518,6 +521,10 @@ Return Chinese analysis with original-language narration. One continuous timelin
     return { ...result, result: withFocusPoints(result.result), meta: analysisMeta('native-video', 'gemini-files', video, result.providerModel) };
   } catch (error) { throw providerError(error); }
   finally { if (remoteName) await ai.files.delete({ name: remoteName }).catch(() => {}); }
+}
+
+export async function analyze(project: Project, progress: (n: number, message: string) => void, trace?: RequestTrace, method: VideoAnalysisMethod = getVideoAnalysisMethod()) {
+  return method === 'segmented' ? analyzeInSegments(project, progress, trace, analyzeWholeVideo) : analyzeWholeVideo(project, progress, trace);
 }
 
 const refinedShotSchema = shotSuggestionSchema.omit({ analyzedAt: true, source: true }).required({

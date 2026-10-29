@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
+import fs from 'node:fs/promises';
 import type { GeneratedVideo, Job, Project, Rewrite } from '../shared/domain';
 import { validateMarket } from '../shared/domain';
 import { buildVeoUnitPrompt } from '../shared/export';
@@ -8,16 +9,20 @@ import { finalVideo, productionSources, videoCurrent } from '../shared/workflow'
 import { analyze, analyzeChangedShots, rewrite, configured, keyframeRequest, generateKeyframe } from './gemini';
 import { VEO_MODELS, VEO_DURATION, generateVideo, resumeVideo, generationConfigured, saveGeneratedVideo, requestBody, type GenerationInput } from './veo';
 import { composeVideo, composeUnitVideo, composeNativeVideo, TimingConfirmationRequired } from './compose';
-import { getProject, saveProject } from './store';
+import { dataDir, uploadDir, getProject, saveProject } from './store';
 import { shotReconstructionPrompt } from '../shared/shot-evidence';
 import { mergeFocusPoints, selectedFocus, selectedShotFocus } from '../shared/focus';
 import { keyframeBasis, keyframeCurrent } from '../shared/storyboard';
 import { keyframeStorageStatus, publishKeyframe, publishReferenceImage } from './keyframe-storage';
 import { tierPlan, tierVideoPrompt } from '../shared/tier-prompt';
 import { tierGroupPrompt } from '../shared/tier-video-group';
-import { sliceGeneratedVideo } from './media';
+import { inspectMedia, sliceGeneratedVideo } from './media';
 import { imageAttemptStatus, imageGenerationStatus } from './image-generation';
 import { generateStoryboardGrids } from './storyboard-grid';
+import { MAX_STORYBOARD_GRID_DURATION } from '../shared/storyboard-grid';
+import { REMIX_MODEL, REMIX_SECONDS } from '../shared/remix';
+import { generateOmniVideo, omniRequestBody, waitOmni } from './omni';
+import { getVideoAnalysisMethod } from './video-analysis-settings';
 
 export class TaskError extends Error { constructor(public status: number, message: string) { super(message); } }
 export type TaskSpec = { kind: 'analysis' } | { kind: 'analysis-refine' } | { kind: 'rewrite' } | { kind: 'keyframe'; shotId: string } | { kind: 'generation'; input: GenerationInput } |
@@ -72,8 +77,8 @@ async function renderKeyframe(id: string, shotId: string) {
 
 async function saveSource(id: string, videoId: string, local: Partial<GeneratedVideo>, progress: (n: number, message: string) => void) {
   let project = update(id, p => ({ ...p, generatedVideos: p.generatedVideos.map(video => video.id === videoId ? { ...video, status: 'completed', finishedAt: new Date().toISOString(), stale: false, ...local } : video) }));
-  if (project.productionMode !== 'tts-subtitles') return;
   const source = project.generatedVideos.find(video => video.id === videoId)!;
+  if (project.productionMode !== 'tts-subtitles' || source.storyboardGridId || source.gridId) return;
   const rendered = await composeUnitVideo(project, source, project.ttsVoice || '', progress);
   project = update(id, p => ({ ...p, composedVideos: [...(p.composedVideos || []), rendered] }));
   if (productionSources(project).every(video => video?.filename) && !finalVideo(project)) {
@@ -96,7 +101,7 @@ export function launchTask(id: string, spec: TaskSpec): Promise<void> {
   if (spec.kind === 'rewrite' && (!p.analysis || (p.promptFlow !== 'direct-analysis' && (!p.product.name.trim() || !p.product.facts.trim())))) throw new TaskError(400, '请先完成视频拆解，并填写产品名称与已确认卖点。');
   if (spec.kind === 'rewrite' && p.promptFlow !== 'direct-analysis' && !p.assets.some(asset => asset.kind === 'product')) throw new TaskError(400, '请上传产品参考图，作为复刻关键帧的外观依据。');
   if (spec.kind === 'keyframe' && (!p.rewrite || p.rewriteStale || p.promptFlow === 'direct-analysis' || !p.rewrite.shots.some(shot => shot.id === spec.shotId))) throw new TaskError(409, '请先生成与当前资料一致的逐镜头改写方案。');
-  if (['generation', 'recover'].includes(spec.kind) && !generationConfigured()) throw new TaskError(503, '请先连接 Veo 3.1。');
+  if (['generation', 'recover'].includes(spec.kind) && !(spec.kind === 'generation' && spec.input.storyboardGridId) && !generationConfigured()) throw new TaskError(503, '请先连接视频生成服务。');
   const tierShotId = spec.kind === 'generation' ? spec.input.tierShotId : undefined;
   const storyboardGridId = spec.kind === 'generation' ? spec.input.storyboardGridId : undefined;
   if (['generation', 'compose'].includes(spec.kind) && !tierShotId && !(spec.kind === 'generation' && spec.input.tierShotIds?.length) && !storyboardGridId && (!p.rewrite || p.rewriteStale)) throw new TaskError(409, '请先生成与当前资料一致的分镜。');
@@ -155,8 +160,9 @@ export function launchTask(id: string, spec: TaskSpec): Promise<void> {
     if (grid.included === false) throw new TaskError(409, '该分镜网格未勾选，无法生成视频。');
     const span = Math.max(0, grid.end - grid.start);
     if (span <= 0) throw new TaskError(400, '分镜网格时长无效。');
-    if (span > VEO_DURATION + 0.05) throw new TaskError(400, `分镜网格时长为 ${span.toFixed(1)} 秒，超过 Veo 单次 8 秒限制。`);
-    if (!keyframeStorageStatus().configured) throw new TaskError(409, '请先在模型连接设置中连接 Supabase 私有图片存储。');
+    if (span > MAX_STORYBOARD_GRID_DURATION + 0.05) throw new TaskError(400, `分镜网格原片时长为 ${span.toFixed(1)} 秒，超过每段 ${MAX_STORYBOARD_GRID_DURATION} 秒限制。`);
+    const gridIndex = (p.storyboardGrids || []).findIndex(item => item.id === grid.id);
+    if (gridIndex >= 3) throw new TaskError(400, '本地测试仅提供前三个网格的视频。');
     const prompt = input.prompt.trim() || grid.prompt;
     if (!prompt.trim()) throw new TaskError(400, '视频生成描述不能为空。');
     const refUrl = input.referenceImages?.[0] || grid.url;
@@ -166,13 +172,13 @@ export function launchTask(id: string, spec: TaskSpec): Promise<void> {
       referenceImages: [grid.url], storyboardGridId: grid.id,
     });
     video = {
-      id: randomUUID(), provider: 'veo-3.1', model: VEO_MODELS.r2v, mode: 'r2v',
+      id: randomUUID(), provider: 'local-test', model: 'local-test', mode: 'r2v',
       productionMode: p.productionMode || 'veo-native', imageUrls: [],
       resolution: input.resolution, shotId: grid.id, unitId: input.unitId, sourceShotIds: [grid.id],
-      targetStart: grid.start, targetEnd: grid.end, targetDuration: Math.min(VEO_DURATION, span),
-      status: 'running', prompt, defaultPrompt: grid.prompt, providerRequest: requestBody(input, prompt),
+      targetStart: grid.start, targetEnd: grid.end, targetDuration: span,
+      status: 'running', prompt, defaultPrompt: grid.prompt,
       keyframeUrl: grid.url, storyboardGridId: grid.id, gridId: grid.id,
-      duration: VEO_DURATION, aspectRatio: input.aspectRatio, startedAt: now,
+      duration: REMIX_SECONDS, aspectRatio: input.aspectRatio, startedAt: now,
     };
   } else if (spec.kind === 'generation') {
     const input = generationInput!;
@@ -201,6 +207,7 @@ export function launchTask(id: string, spec: TaskSpec): Promise<void> {
   } else if (spec.kind === 'compose') sources(p);
   const job: Job = { id: randomUUID(), kind: spec.kind === 'recover' ? 'generation' : spec.kind === 'compose' ? 'composition' : spec.kind,
     status: 'running', progress: 2, message: '正在准备任务…', startedAt: now, videoId: video?.id, unitId: video?.unitId, shotId: spec.kind === 'keyframe' ? spec.shotId : undefined };
+  const analysisMethod = getVideoAnalysisMethod();
   const saved = saveProject({ ...p, job, generatedVideos: spec.kind === 'generation' ? [...p.generatedVideos, ...(groupVideos.length ? groupVideos : [video!])] : spec.kind === 'recover' ? p.generatedVideos.map(item => item.id === video!.id ? { ...item, status: 'running', error: undefined } : item) : p.generatedVideos });
   activeProjects.add(id);
   const progress = (n: number, message: string) => update(id, current => ({ ...current, job: { ...current.job!, progress: n, message } }));
@@ -223,7 +230,7 @@ export function launchTask(id: string, spec: TaskSpec): Promise<void> {
       } else if (spec.kind === 'analysis' || spec.kind === 'rewrite') {
         const snapshot = (request: NonNullable<Project['analysisRequest']>) => update(id, current => ({ ...current, [spec.kind === 'analysis' ? 'analysisRequest' : 'rewriteRequest']: request }));
         const direct = spec.kind === 'rewrite' && saved.promptFlow === 'direct-analysis';
-        const result = spec.kind === 'analysis' ? await analyze(saved, progress, snapshot) : direct
+        const result = spec.kind === 'analysis' ? await analyze(saved, progress, snapshot, analysisMethod) : direct
           ? { result: directAnalysisStoryboard(saved), usage: { input: 0, output: 0 } }
           : await rewrite(saved, progress, snapshot);
         const storyboardGrids = spec.kind === 'analysis' && saved.breakdownType === 'storyboard-grid'
@@ -256,6 +263,16 @@ export function launchTask(id: string, spec: TaskSpec): Promise<void> {
             catch { message = '逐镜头描述已保存，关键帧生成中断；可在镜头卡中继续生成。'; break; }
           }
         }
+      } else if (spec.kind === 'generation' && generationInput?.storyboardGridId) {
+        const index = (saved.storyboardGrids || []).findIndex(grid => grid.id === generationInput.storyboardGridId);
+        const source = path.join(dataDir, 'test-videos', `test_video_${index + 1}.mp4`);
+        const filename = `local-test-${video!.id}.mp4`;
+        progress(20, `正在准备本地测试视频 ${index + 1}…`);
+        try { await fs.copyFile(source, path.join(uploadDir, filename)); }
+        catch { throw new Error(`找不到本地测试视频 ${source}，请确认文件存在。`); }
+        const metadata = await inspectMedia(filename, 'video');
+        await saveSource(id, video!.id, { ...metadata, filename, url: `/media/${filename}`, size: (await fs.stat(path.join(uploadDir, filename))).size }, progress);
+        message = `本地测试视频 ${index + 1} 已就绪`;
       } else if (spec.kind === 'generation' || spec.kind === 'recover') {
         if (spec.kind === 'generation' && generationInput?.referenceImages && (generationInput.tierShotId || generationInput.tierShotIds?.length || generationInput.storyboardGridId)) {
           progress(8, generationInput.storyboardGridId ? '正在发布分镜网格参考图…' : '正在发布已确认的参考图…');
@@ -267,7 +284,9 @@ export function launchTask(id: string, spec: TaskSpec): Promise<void> {
           }
           generationInput.images = imageUrls;
           update(id, current => ({ ...current, generatedVideos: current.generatedVideos.map(item => item.id === video!.id || (!!video!.tierGroupId && item.tierGroupId === video!.tierGroupId)
-            ? { ...item, imageUrls, providerRequest: requestBody(generationInput!, generationInput!.prompt) } : item) }));
+            ? { ...item, imageUrls, providerRequest: generationInput!.storyboardGridId
+              ? omniRequestBody(generationInput!.prompt, { resolution: generationInput!.resolution === '1080p' ? '1080p' : '720p', aspectRatio: generationInput!.aspectRatio }, imageUrls[0])
+              : requestBody(generationInput!, generationInput!.prompt) } : item) }));
         } else if (spec.kind === 'generation' && generationInput?.tierShotIds?.length) {
           progress(8, '正在发布多镜头关键帧并准备分镜…');
           const imageUrls: string[] = [];
@@ -294,10 +313,15 @@ export function launchTask(id: string, spec: TaskSpec): Promise<void> {
             ? { ...item, imageUrls: [imageUrl], providerRequest: requestBody(generationInput!, generationInput!.prompt) } : item) }));
         }
         if (spec.kind === 'generation') update(id, current => ({ ...current, workflow: current.workflow && ['running', 'pausing'].includes(current.workflow.status) ? { ...current.workflow, newClipCount: current.workflow.newClipCount + 1 } : current.workflow }));
-        const remote = spec.kind === 'recover' ? await resumeVideo(video!.requestId!, progress) : await generateVideo(generationInput!, generationInput!.prompt, progress, requestId => {
+        const rememberRequest = (requestId: string) => {
           update(id, current => ({ ...current, generatedVideos: current.generatedVideos.map(item => item.id === video!.id || (!!video!.tierGroupId && item.tierGroupId === video!.tierGroupId) ? { ...item, requestId } : item) }));
-        });
-        const local = await saveGeneratedVideo(remote.url, video!.id, progress, { prefix: generationInput?.tierShotIds?.length ? 'tier-group-source' : 'veo' });
+        };
+        const remote = spec.kind === 'recover'
+          ? video!.model === REMIX_MODEL ? { id: video!.requestId!, url: await waitOmni(video!.requestId!, progress) } : await resumeVideo(video!.requestId!, progress)
+          : generationInput!.storyboardGridId
+            ? await generateOmniVideo(generationInput!.prompt, { resolution: generationInput!.resolution === '1080p' ? '1080p' : '720p', aspectRatio: generationInput!.aspectRatio }, generationInput!.images[0], progress, rememberRequest)
+            : await generateVideo(generationInput!, generationInput!.prompt, progress, rememberRequest);
+        const local = await saveGeneratedVideo(remote.url, video!.id, progress, { prefix: video!.model === REMIX_MODEL ? 'omni' : generationInput?.tierShotIds?.length ? 'tier-group-source' : 'veo', requestId: remote.id });
         if (spec.kind === 'generation' && generationInput?.tierShotIds?.length) {
           progress(84, '正在按镜头顺序切分生成结果…');
           const rows = saved.analysis!.shots.filter(shot => generationInput!.tierShotIds!.includes(shot.id));
@@ -311,7 +335,7 @@ export function launchTask(id: string, spec: TaskSpec): Promise<void> {
             return index >= 0 ? { ...item, ...clips[index], requestId: remote.id, status: 'completed', finishedAt: new Date().toISOString(), stale: false } : item;
           }) }));
         } else await saveSource(id, video!.id, local, progress);
-        message = saved.productionMode === 'tts-subtitles' ? '画面、配音与字幕已完成' : 'Veo 视频片段已保存到本机';
+        message = saved.productionMode === 'tts-subtitles' && !video!.storyboardGridId && !video!.gridId ? '画面、配音与字幕已完成' : `${video!.model === REMIX_MODEL ? 'Omni Flash' : 'Veo'} 视频片段已保存到本机`;
       } else {
         let current = getProject(id)!;
         if (!spec.videoId && current.productionMode === 'tts-subtitles') {

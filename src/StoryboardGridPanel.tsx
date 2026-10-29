@@ -9,7 +9,7 @@ export default function StoryboardGridPanel({ grids, disabled, onCopy, onPrompt,
   onIncluded: (id: string, included: boolean) => void;
 }) {
   return <div className="storyboard-grid-results">
-    <div className="storyboard-grid-intro"><Info size={15} /><p>每张网格对应一段不超过 8 秒的原片。Prompt 已按从左到右、从上到下的格子顺序组织镜头和动作。</p></div>
+    <div className="storyboard-grid-intro"><Info size={15} /><p>每张网格对应不超过 10 秒的原片，Omni Flash 固定生成 10 秒视频。格子按从左到右、从上到下的顺序组织镜头和动作。</p></div>
     {grids.map((grid, index) => {
       const included = grid.included !== false;
       return <article className="storyboard-grid-card" key={grid.id}>

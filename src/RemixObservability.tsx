@@ -9,7 +9,7 @@ const frameLabels = { first: '首帧', middle: '中间关键帧', last: '尾帧'
 export function analysisModeLabel(project: Project) {
   if (project.isDemo) return '手写示例 · 未分析视频';
   const mode = project.analysisMeta?.mode;
-  return mode === 'agentic-video' ? '模型 Agentic 模式分析视频' : mode === 'native-video' ? '模型原生视频分析' : mode === 'sampled-frames' ? '模型抽帧分析' : '视频分析 · 模式未记录';
+  return mode === 'segmented-video' ? `10 秒分段并行分析 · ${project.analysisMeta?.segmentCount || 0} 段` : mode === 'agentic-video' ? '模型 Agentic 模式分析视频' : mode === 'native-video' ? '模型原生视频分析' : mode === 'sampled-frames' ? '模型抽帧分析' : '视频分析 · 模式未记录';
 }
 function sourceFields(shot: Shot) {
   return [

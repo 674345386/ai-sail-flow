@@ -8,6 +8,7 @@ import {
   LoaderCircle, LocateFixed, MousePointer2, Play, RefreshCw, RotateCcw, X, ZoomIn, ZoomOut,
 } from 'lucide-react';
 import type { GeneratedVideo, Project, StoryboardGrid } from '../shared/domain';
+import { REMIX_MODEL } from '../shared/remix';
 import '@xyflow/react/dist/style.css';
 
 const CARD_W = 400;
@@ -52,7 +53,7 @@ export function gridVideoState(project: Project, grid: StoryboardGrid) {
     error: failed ? latest?.error || '上次生成没有完成' : '',
     progress: running ? project.job?.progress : undefined,
     prompt: grid.prompt,
-    duration: Math.min(8, Math.max(0, grid.end - grid.start)),
+    duration: completed.at(-1)?.duration,
   };
 }
 
@@ -72,6 +73,7 @@ type CardData = {
   disabled: boolean;
   onPrompt: (id: string, prompt: string) => void;
   onGenerate: (gridId: string) => void;
+  onRecover: (videoId: string) => void;
   onIncluded: (id: string, included: boolean) => void;
 };
 
@@ -86,9 +88,10 @@ export function InternalGuide() {
   </div>;
 }
 
-export function StoryboardGridCardBody({ grid, index, project, disabled, onPrompt, onGenerate, onIncluded, selected = false, className = '', externalVideoResult = false }: {
+export function StoryboardGridCardBody({ grid, index, project, disabled, onPrompt, onGenerate, onRecover, onIncluded, selected = false, className = '', externalVideoResult = false }: {
   grid: StoryboardGrid; index: number; project: Project; disabled: boolean;
   onPrompt: (id: string, prompt: string) => void; onGenerate: (gridId: string) => void;
+  onRecover: (videoId: string) => void;
   onIncluded: (id: string, included: boolean) => void; selected?: boolean; className?: string; externalVideoResult?: boolean;
 }) {
   const state = useMemo(() => gridVideoState(project, grid), [project, grid]);
@@ -96,7 +99,7 @@ export function StoryboardGridCardBody({ grid, index, project, disabled, onPromp
   const [picked, setPicked] = useState<string | null>(null);
   const shown = state.completed.find(video => video.id === picked) || state.completed.at(-1);
   const label = `分镜网格 ${String(index + 1).padStart(2, '0')}`;
-  const meta = `${grid.gridSize}×${grid.gridSize} · ${grid.start.toFixed(2)}–${grid.end.toFixed(2)}s · 目标 ${state.duration.toFixed(0)}s`;
+  const meta = `${grid.gridSize}×${grid.gridSize} · ${grid.start.toFixed(2)}–${grid.end.toFixed(2)}s · ${state.duration ? `成片 ${state.duration.toFixed(1)}s` : '本地测试'}`;
   const included = grid.included !== false;
   const canGenerate = !disabled && !state.running && !!state.prompt.trim();
 
@@ -110,6 +113,7 @@ export function StoryboardGridCardBody({ grid, index, project, disabled, onPromp
       <span className="sg-card-ttl">{label}</span>
       <span className="sg-card-meta mono">{meta}</span>
       <span className={`sg-chip sg-chip--${status.kind}`}>{status.label}</span>
+      {state.latest?.status === 'failed' && state.latest.requestId && <button type="button" className="sg-btn-gen is-ghost nodrag" disabled={disabled} onClick={() => onRecover(state.latest!.id)}>恢复查询</button>}
       <button type="button" className={`sg-btn-gen nodrag${state.completed.length || state.running ? ' is-ghost' : ''}${state.running ? ' is-dim' : ''}`}
         disabled={!canGenerate} onClick={() => onGenerate(grid.id)}>
         {state.running ? <LoaderCircle size={13} className="spin" /> : state.completed.length ? <RefreshCw size={13} /> : <Clapperboard size={13} />}
@@ -147,7 +151,7 @@ export function StoryboardGridCardBody({ grid, index, project, disabled, onPromp
           </div>
           <div className="sg-vmeta">
             <div className="sg-vn">{state.running ? '新版本生成中…' : `已就绪 · v${state.completed.indexOf(shown) + 1}`}</div>
-            <div className="sg-vs">时长 {(shown.duration || 0).toFixed(1)}s · {shown.mode || 'r2v'}</div>
+            <div className="sg-vs">时长 {(shown.duration || 0).toFixed(1)}s · {shown.model === 'local-test' ? '本地测试视频' : shown.model === REMIX_MODEL ? 'Omni Flash' : shown.mode || 'r2v'}</div>
             <div className="sg-vers">
               {state.completed.map((video, i) => <button type="button" key={video.id}
                 className={video.id === shown.id ? 'on' : ''}
@@ -177,10 +181,11 @@ function formatDuration(seconds?: number) {
 
 const nodeTypes = { storyboardGridCard: StoryboardGridCardNode };
 
-function StoryboardGridCanvas({ project, disabled, onPrompt, onGenerate, onIncluded }: {
+function StoryboardGridCanvas({ project, disabled, onPrompt, onGenerate, onRecover, onIncluded }: {
   project: Project; disabled: boolean;
   onPrompt: (id: string, prompt: string) => void;
-  onGenerate: (gridId: string) => void;
+  onGenerate: (gridId: string | string[]) => void;
+  onRecover: (videoId: string) => void;
   onIncluded: (id: string, included: boolean) => void;
 }) {
   const allGrids = project.storyboardGrids || [];
@@ -195,8 +200,8 @@ function StoryboardGridCanvas({ project, disabled, onPrompt, onGenerate, onInclu
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const flow = useRef<ReactFlowInstance<CardNode>>(null);
   const defaults = useRef(layout);
-  const handlers = useRef({ onPrompt, onGenerate, onIncluded });
-  handlers.current = { onPrompt, onGenerate, onIncluded };
+  const handlers = useRef({ onPrompt, onGenerate, onRecover, onIncluded });
+  handlers.current = { onPrompt, onGenerate, onRecover, onIncluded };
 
   useEffect(() => { defaults.current = readLayout(project.id); }, [project.id]);
 
@@ -213,6 +218,7 @@ function StoryboardGridCanvas({ project, disabled, onPrompt, onGenerate, onInclu
   useEffect(() => {
     const callPrompt = (id: string, prompt: string) => handlers.current.onPrompt(id, prompt);
     const callGenerate = (gridId: string) => handlers.current.onGenerate(gridId);
+    const callRecover = (videoId: string) => handlers.current.onRecover(videoId);
     const callIncluded = (id: string, included: boolean) => handlers.current.onIncluded(id, included);
     setNodes(previous => {
       const byId = new Map(previous.map(node => [node.id, node]));
@@ -223,7 +229,7 @@ function StoryboardGridCanvas({ project, disabled, onPrompt, onGenerate, onInclu
         const position = byId.get(id)?.position || saved[id] || defaultPosition(order);
         const data: CardData = {
           grid, index: index < 0 ? order : index, project, disabled,
-          onPrompt: callPrompt, onGenerate: callGenerate, onIncluded: callIncluded,
+          onPrompt: callPrompt, onGenerate: callGenerate, onRecover: callRecover, onIncluded: callIncluded,
         };
         const prior = byId.get(id);
         return {
@@ -263,8 +269,8 @@ function StoryboardGridCanvas({ project, disabled, onPrompt, onGenerate, onInclu
     return !gridVideoState(project, grid).running;
   }), [grids, project]);
 
-  const generateSelected = () => { selectedEligible.forEach(id => onGenerate(id)); };
-  const generateAll = () => { allEligible.forEach(grid => onGenerate(grid.id)); };
+  const generateSelected = () => { onGenerate(selectedEligible); };
+  const generateAll = () => { onGenerate(allEligible.map(grid => grid.id)); };
 
   if (!allGrids.length) {
     return <section className="sg-stage" aria-label="分镜网格视频">
@@ -278,7 +284,7 @@ function StoryboardGridCanvas({ project, disabled, onPrompt, onGenerate, onInclu
         <span className="sg-cv-mark" aria-hidden="true"><Grid2X2 size={17} /></span>
         <div>
           <h2>分镜网格视频生成</h2>
-          <p className="sg-cv-sub">已放入 <em>{grids.length}</em> 个分镜{hiddenCount > 0 ? <> · 已隐藏 {hiddenCount} 个未勾选</> : null} · 每格 ≤8 秒 · r2v</p>
+          <p className="sg-cv-sub">已放入 <em>{grids.length}</em> 个分镜{hiddenCount > 0 ? <> · 已隐藏 {hiddenCount} 个未勾选</> : null} · 原片每段 ≤10 秒 · 使用本地测试视频（前三个网格）</p>
         </div>
       </div>
       <div className="sg-cv-actions">
@@ -371,16 +377,17 @@ function StoryboardGridCanvas({ project, disabled, onPrompt, onGenerate, onInclu
   </section>;
 }
 
-function GridVideoCard({ project, grid, index, disabled, onPrompt, onGenerate, onIncluded }: {
+function GridVideoCard({ project, grid, index, disabled, onPrompt, onGenerate, onRecover, onIncluded }: {
   project: Project; grid: StoryboardGrid; index: number; disabled: boolean;
   onPrompt: (id: string, prompt: string) => void; onGenerate: (gridId: string) => void;
+  onRecover: (videoId: string) => void;
   onIncluded: (id: string, included: boolean) => void;
 }) {
   const state = useMemo(() => gridVideoState(project, grid), [project, grid]);
   const [picked, setPicked] = useState<string | null>(null);
   const shown = state.completed.find(video => video.id === picked) || state.completed.at(-1);
   const label = `分镜网格 ${String(index + 1).padStart(2, '0')}`;
-  const spanLabel = `${grid.start.toFixed(2)}–${grid.end.toFixed(2)} 秒 · 目标 ${state.duration.toFixed(2)}s`;
+  const spanLabel = `${grid.start.toFixed(2)}–${grid.end.toFixed(2)} 秒 · ${state.duration ? `成片 ${state.duration.toFixed(1)}s` : '本地测试'}`;
   const included = grid.included !== false;
 
   return <article className="storyboard-grid-card storyboard-grid-video-card">
@@ -394,6 +401,7 @@ function GridVideoCard({ project, grid, index, disabled, onPrompt, onGenerate, o
         <div><span><Grid2X2 size={15} />{label}</span><strong>{grid.gridSize}×{grid.gridSize} · {spanLabel}</strong></div>
       </div>
       <div className="storyboard-grid-actions">
+        {state.latest?.status === 'failed' && state.latest.requestId && <button type="button" className="btn small" disabled={disabled} onClick={() => onRecover(state.latest!.id)}>恢复查询</button>}
         <button type="button" className="btn small primary" disabled={disabled || state.running || !state.prompt.trim()}
           onClick={() => onGenerate(grid.id)}>
           {state.running ? <LoaderCircle size={14} className="spin" /> : state.completed.length ? <RefreshCw size={14} /> : <Clapperboard size={14} />}
@@ -420,7 +428,7 @@ function GridVideoCard({ project, grid, index, disabled, onPrompt, onGenerate, o
           {state.completed.length > 1 ? <select className="input" value={shown.id} aria-label="视频版本" onChange={event => setPicked(event.target.value)}>
             {state.completed.map((video, i) => <option key={video.id} value={video.id}>版本 {i + 1}</option>)}
           </select> : <span>版本 {state.completed.indexOf(shown) + 1}</span>}
-          <span>{(shown.duration || 0).toFixed(1)}s · {shown.mode || 'r2v'}</span>
+          <span>{(shown.duration || 0).toFixed(1)}s · {shown.model === 'local-test' ? '本地测试视频' : shown.model === REMIX_MODEL ? 'Omni Flash' : shown.mode || 'r2v'}</span>
           <a className="btn small" href={shown.url} download><Download size={13} />下载</a>
         </div>}
         {state.failed && shown && <p className="storyboard-grid-video-error">{state.error}</p>}
@@ -430,17 +438,18 @@ function GridVideoCard({ project, grid, index, disabled, onPrompt, onGenerate, o
   </article>;
 }
 
-export default function StoryboardGridWorkbench({ project, disabled, onPrompt, onGenerate, onIncluded, canvas = false }: {
+export default function StoryboardGridWorkbench({ project, disabled, onPrompt, onGenerate, onRecover, onIncluded, canvas = false }: {
   project: Project;
   disabled: boolean;
   onPrompt: (id: string, prompt: string) => void;
-  onGenerate: (gridId: string) => void;
+  onGenerate: (gridId: string | string[]) => void;
+  onRecover: (videoId: string) => void;
   onIncluded: (id: string, included: boolean) => void;
   canvas?: boolean;
 }) {
   if (canvas) {
     return <StoryboardGridCanvas project={project} disabled={disabled}
-      onPrompt={onPrompt} onGenerate={onGenerate} onIncluded={onIncluded} />;
+      onPrompt={onPrompt} onGenerate={onGenerate} onRecover={onRecover} onIncluded={onIncluded} />;
   }
 
   const allGrids = project.storyboardGrids || [];
@@ -453,14 +462,14 @@ export default function StoryboardGridWorkbench({ project, disabled, onPrompt, o
 
   return <section className="panel storyboard-grid-workbench" aria-label="分镜网格视频">
     <div className="panel-heading">
-      <div><Grid2X2 size={18} /><h2>分镜网格视频生成</h2><span className="badge-inline">{grids.length} 张网格 · 每格 ≤8 秒 · r2v</span></div>
+      <div><Grid2X2 size={18} /><h2>分镜网格视频生成</h2><span className="badge-inline">{grids.length} 张网格 · 原片每段 ≤10 秒 · 使用本地测试视频（前三个网格）</span></div>
     </div>
     <div className="storyboard-grid-intro"><Info size={15} /><p>每张分镜网格作为一张参考图，配合可编辑 Prompt 直接生成一段视频。不经过逐镜头关键帧与主体设定卡。</p></div>
     <div className="storyboard-grid-results">
       {grids.map(grid => {
         const index = allGrids.findIndex(item => item.id === grid.id);
         return <GridVideoCard key={grid.id} project={project} grid={grid} index={index} disabled={disabled}
-          onPrompt={onPrompt} onGenerate={onGenerate} onIncluded={onIncluded} />;
+          onPrompt={onPrompt} onGenerate={onGenerate} onRecover={onRecover} onIncluded={onIncluded} />;
       })}
     </div>
   </section>;

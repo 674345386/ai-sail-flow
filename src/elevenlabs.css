@@ -416,6 +416,17 @@ button, input, textarea, select { font-family: inherit; }
 .sidebar-config:hover { background: #eee; color: var(--text); }
 .sidebar-config > svg { stroke-width: 1.6; }
 .configuration-options { display: grid; gap: 8px; }
+.configuration-analysis { margin-bottom: 16px; padding: 14px; border: 1px solid var(--line); border-radius: 10px; }
+.configuration-analysis-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.configuration-analysis-heading strong { font-size: 14px; font-weight: 600; }
+.configuration-analysis-heading small, .configuration-analysis p { color: var(--muted); font-size: 11px; }
+.configuration-analysis-options { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+.configuration-analysis-options button { display: grid; gap: 4px; padding: 11px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--text); text-align: left; }
+.configuration-analysis-options button.selected { border-color: #252525; background: #f8f8f8; }
+.configuration-analysis-options button strong { font-size: 12px; font-weight: 600; }
+.configuration-analysis-options button small { color: var(--muted); font-size: 11px; line-height: 1.4; }
+.configuration-analysis p { margin: 10px 0 0; line-height: 1.5; }
+.configuration-analysis p.field-error { color: #b94a48; }
 .configuration-option { display: flex; align-items: center; gap: 12px; width: 100%; padding: 14px; border: 1px solid var(--line); border-radius: 10px; background: #fff; color: var(--text); text-align: left; }
 .configuration-option:hover { background: #fafafa; border-color: var(--ui-border-hover); }
 .configuration-option > svg { color: var(--muted); }

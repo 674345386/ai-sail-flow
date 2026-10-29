@@ -99,12 +99,13 @@ function formatDur(seconds?: number) {
 }
 
 export default function ProductPipelineCanvas({
-  project, disabled, onPrompt, onGenerate, onIncluded, onUploadVideo,
+  project, disabled, onPrompt, onGenerate, onRecover, onIncluded, onUploadVideo,
   onAnalyze, onOpenMaterials, onOpenAnalysis, onOpenRemixDetail, onSettings, focusStep, focusVersion,
 }: {
   project: Project; disabled: boolean;
   onPrompt: (id: string, prompt: string) => void;
-  onGenerate: (gridId: string) => void;
+  onGenerate: (gridId: string | string[]) => void;
+  onRecover: (videoId: string) => void;
   onIncluded: (id: string, included: boolean) => void;
   onUploadVideo: () => void;
   onAnalyze: () => void; onOpenMaterials: () => void; onOpenAnalysis: () => void;
@@ -128,8 +129,8 @@ export default function ProductPipelineCanvas({
   const [whisper, setWhisper] = useState(true);
   const [viewMode, setViewMode] = useState<'pipeline' | 'grids'>('pipeline');
   const flow = useRef<ReactFlowInstance<PipeNode>>(null);
-  const handlers = useRef({ onPrompt, onGenerate, onIncluded });
-  handlers.current = { onPrompt, onGenerate, onIncluded };
+  const handlers = useRef({ onPrompt, onGenerate, onRecover, onIncluded });
+  handlers.current = { onPrompt, onGenerate, onRecover, onIncluded };
   const actions = useRef({ onUploadVideo, onAnalyze, onOpenAnalysis, onOpenRemixDetail });
   actions.current = { onUploadVideo, onAnalyze, onOpenAnalysis, onOpenRemixDetail };
 
@@ -152,6 +153,7 @@ export default function ProductPipelineCanvas({
   useEffect(() => {
     const callPrompt = (id: string, prompt: string) => handlers.current.onPrompt(id, prompt);
     const callGenerate = (id: string) => handlers.current.onGenerate(id);
+    const callRecover = (id: string) => handlers.current.onRecover(id);
     const callIncluded = (id: string, included: boolean) => handlers.current.onIncluded(id, included);
     const saved = defaults.current.positions || {};
 
@@ -216,7 +218,7 @@ export default function ProductPipelineCanvas({
             status: 'card', ready: true,
             content: <StoryboardGridCardBody
               grid={grid} index={index < 0 ? order : index} project={project} disabled={disabled || focusStep < 2}
-              onPrompt={callPrompt} onGenerate={callGenerate} onIncluded={callIncluded}
+              onPrompt={callPrompt} onGenerate={callGenerate} onRecover={callRecover} onIncluded={callIncluded}
               className="is-pipeline" externalVideoResult
             />,
           },
@@ -259,7 +261,7 @@ export default function ProductPipelineCanvas({
       const content = state.running
         ? <div className="pp-video-output is-loading" role="status"><div className="pp-video-loading"><LoaderCircle size={20} className="spin" /><strong>{state.progress != null ? `正在生成视频 · ${state.progress}%` : '正在生成视频…'}</strong><div className="pp-video-progress"><i style={{ width: `${Math.max(8, state.progress || 24)}%` }} /></div></div></div>
         : latest
-          ? <div className="pp-video-output"><video key={latest.id} src={latest.url} poster={latest.thumbnail} controls playsInline preload="metadata" /><div className="pp-video-meta"><strong>{latest.filename || '生成视频'}</strong><span>{(latest.duration || 0).toFixed(1)} 秒 · {latest.mode || 'r2v'}</span></div></div>
+          ? <div className="pp-video-output"><video key={latest.id} src={latest.url} poster={latest.thumbnail} controls playsInline preload="metadata" /><div className="pp-video-meta"><strong>{latest.filename || '生成视频'}</strong><span>{(latest.duration || 0).toFixed(1)} 秒 · {latest.model === 'local-test' ? '本地测试视频' : latest.model === 'omni_flash_10s' ? 'Omni Flash' : latest.mode || 'r2v'}</span></div></div>
           : <div className="pp-video-output is-failed"><span>{state.error || '视频生成失败'}</span></div>;
       return [{
         id: `video-result:${grid.id}`, type: 'pipeline' as const, dragHandle: '.pp-node-drag',
@@ -369,10 +371,8 @@ export default function ProductPipelineCanvas({
     return !gridVideoState(project, grid).running;
   });
 
-  const generateSelected = () => selectedEligible.forEach(id => onGenerate(id));
-  const generateAll = () => includedGrids.forEach(grid => {
-    if (grid.prompt.trim() && !gridVideoState(project, grid).running) onGenerate(grid.id);
-  });
+  const generateSelected = () => onGenerate(selectedEligible);
+  const generateAll = () => onGenerate(includedGrids.filter(grid => grid.prompt.trim() && !gridVideoState(project, grid).running).map(grid => grid.id));
 
   return <section className="pp-stage" aria-label="流水线画布">
     <header className="pp-header">
@@ -394,7 +394,7 @@ export default function ProductPipelineCanvas({
         </div>
         <button type="button" className="pp-btn" onClick={onOpenMaterials}>素材</button>
         {isGrid && <button type="button" className="pp-btn pp-run" disabled={disabled || focusStep < 2 || !includedGrids.length} onClick={generateAll}><Clapperboard size={13} />生成全部（已勾选）</button>}
-        <span className="pp-model">{isGrid ? 'r2v · ≤8s' : 'Omni Flash'}</span>
+        <span className="pp-model">{isGrid ? '本地测试视频 · 前三个网格' : 'Omni Flash'}</span>
         <button type="button" className="pp-icon" title="模型连接" aria-label="模型连接" onClick={onSettings}><Settings2 size={16} /></button>
       </div>
     </header>

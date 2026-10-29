@@ -115,7 +115,7 @@ export async function resumeVideo(id: string, progress: Progress) {
 
 export async function saveGeneratedVideo(url: string, id: string, progress: Progress, options?: { prefix: string; requestId?: string }) {
   if (!publicHttps(url)) throw new Error('生成结果必须是公网 HTTPS 视频直链。');
-  progress(75, '正在保存 Veo 3.1 成片到本机…');
+  progress(75, `正在保存 ${options?.prefix === 'omni' ? 'Omni Flash' : 'Veo 3.1'} 成片到本机…`);
   let response: Response;
   for (let redirect = 0; ; redirect++) {
     response = await fetch(url, { redirect: 'manual', headers: { 'User-Agent': 'Mozilla/5.0', Referer: 'https://gaorui.cc/' }, signal: AbortSignal.timeout(120_000) });

@@ -1,0 +1,1 @@
+export const MAX_STORYBOARD_GRID_DURATION = 10;

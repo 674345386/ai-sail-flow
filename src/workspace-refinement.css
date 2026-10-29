@@ -51,6 +51,7 @@
 .app-shell .wizard-progress-item { color: #999; }
 .app-shell .wizard-progress-item > span { width: 27px; height: 27px; background: #f6f6f6; border-color: #ececec; }
 .app-shell .wizard-progress-item.is-current { color: #171717; }
+.app-shell .wizard-progress-item.is-current:disabled { opacity: 1; }
 .app-shell .wizard-progress-item.is-current > span { background: #171717; border-color: #171717; color: #fff; }
 .app-shell .wizard-progress-item.is-past > span { background: #edf6f0; border-color: #d8eadd; color: #16834b; }
 .app-shell .wizard-progress-item.is-past > span svg { animation: wizard-check-in 180ms ease-out both; }
@@ -210,3 +211,86 @@
 .app-shell .topbar-actions .btn, .app-shell .account-chip, .app-shell .topbar-actions .lang-switch button { min-height: 32px; }
 .app-shell .sidebar-brand-row .brand strong { font-size: 16px; }
 .app-shell .sidebar-search-create { min-height: 34px; height: 34px; margin-bottom: 6px; border-radius: 8px; }
+
+/* Creation flow panel: vertical stage list mirrors the canvas columns. */
+.app-shell .wizard-header { padding: 18px 20px 14px; border-bottom: 1px solid #efefef; }
+.app-shell .wizard-header h2 { margin: 0 0 12px 4px; font-size: 13px; font-weight: 600; color: #555; letter-spacing: 0; }
+.wizard-steps { position: relative; display: grid; gap: 2px; }
+.wizard-step { position: relative; display: flex; align-items: center; gap: 11px; width: 100%; min-height: 44px; padding: 6px 8px; border: 0; border-radius: 9px; background: transparent; color: #444; text-align: left; cursor: pointer; transition: background .14s; }
+.wizard-step:not(:last-child)::after { content: ''; position: absolute; left: 19px; top: 34px; bottom: -12px; width: 1px; background: #e6e6e6; }
+.wizard-step.has-done:not(:last-child)::after { background: #bfdcc9; }
+.wizard-step:hover:not(:disabled) { background: #f5f5f5; }
+.wizard-step:disabled { cursor: default; }
+.wizard-step.is-current { background: #f3f3f3; }
+.wizard-step.is-locked { color: #b5b5b5; }
+.wizard-step-dot { position: relative; z-index: 1; display: grid; flex: none; place-items: center; width: 22px; height: 22px; border: 1px solid #dcdcdc; border-radius: 50%; background: #fff; color: #888; font-size: 11px; font-weight: 600; }
+.wizard-step.is-current .wizard-step-dot { border-color: #171717; background: #171717; color: #fff; }
+.wizard-step.has-done .wizard-step-dot { border-color: #16834b; background: #16834b; color: #fff; }
+.wizard-step.is-current.has-done .wizard-step-dot { box-shadow: 0 0 0 3px #16834b26; }
+.wizard-step.is-locked .wizard-step-dot { border-style: dashed; color: #c2c2c2; }
+.wizard-step-text { display: flex; flex: 1; min-width: 0; align-items: baseline; justify-content: space-between; gap: 8px; }
+.wizard-step-text b { font-size: 13px; font-weight: 500; }
+.wizard-step.is-current .wizard-step-text b { font-weight: 600; color: #171717; }
+.wizard-step-text small { overflow: hidden; color: #999; font-size: 11px; white-space: nowrap; text-overflow: ellipsis; }
+.wizard-step.has-done .wizard-step-text small { color: #16834b; }
+
+.app-shell .wizard-body { padding: 20px; }
+.wizard-review { display: flex; align-items: center; gap: 8px; margin-bottom: 18px; padding: 9px 11px; border: 1px solid #d8eadd; border-radius: 9px; background: #f3faf5; color: #16834b; font-size: 11px; }
+.wizard-review > span { flex: 1; min-width: 0; color: #4f7a5e; }
+.wizard-review strong { margin-right: 6px; color: #16834b; font-weight: 600; }
+.wizard-review button { display: inline-flex; flex: none; align-items: center; gap: 3px; padding: 4px 8px; border: 1px solid #c9e2d1; border-radius: 6px; background: #fff; color: #16834b; font-size: 11px; cursor: pointer; }
+.wizard-title { margin-bottom: 16px; }
+.wizard-title > span { color: #999; font-size: 11px; font-weight: 500; }
+.app-shell .wizard-title h3 { margin: 4px 0 6px; font-size: 18px; font-weight: 600; letter-spacing: -.02em; }
+.wizard-title p { margin: 0; color: #888; font-size: 12px; line-height: 1.6; }
+.wizard-card { margin-bottom: 10px; padding: 14px; border: 1px solid #e8e8e8; border-radius: 11px; background: #fff; }
+.wizard-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.wizard-card-head strong { font-size: 12px; font-weight: 600; }
+.wizard-chip { padding: 2px 7px; border-radius: 999px; background: #f2f2f2; color: #777; font-size: 10px; font-weight: 500; white-space: nowrap; }
+.wizard-chip.is-ok { background: #edf6f0; color: #16834b; }
+.wizard-chip.is-warn { background: #fbf4ea; color: #a26a1d; }
+.wizard-card .wizard-upload { margin-top: 12px; padding: 22px 12px; min-height: 0; }
+.wizard-card .wizard-video { margin-top: 12px; padding: 0; border: 0; background: none; align-items: flex-start; }
+.wizard-card .wizard-video video { width: 112px; height: 72px; }
+.wizard-card .wizard-video .wizard-link { margin-top: 2px; justify-self: start; }
+.wizard-card .wizard-option-grid { margin-top: 12px; gap: 8px; }
+.wizard-card .wizard-option { padding: 12px; gap: 5px; }
+.wizard-row { display: flex; align-items: center; gap: 10px; width: 100%; padding: 11px 12px; border: 1px solid #e8e8e8; border-radius: 11px; background: #fff; color: #555; text-align: left; cursor: pointer; }
+.wizard-row:hover:not(:disabled) { background: #fafafa; border-color: #dadada; }
+.wizard-row > span:first-of-type { display: grid; flex: 1; min-width: 0; gap: 2px; }
+.wizard-row strong { color: #222; font-size: 12px; font-weight: 600; }
+.wizard-row small { overflow: hidden; color: #999; font-size: 11px; white-space: nowrap; text-overflow: ellipsis; }
+.wizard-row > svg:last-child { color: #aaa; }
+.wizard-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 12px; }
+.wizard-stats > div { display: grid; gap: 2px; padding: 9px 10px; border-radius: 8px; background: #f7f7f7; }
+.wizard-stats b { font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.wizard-stats small { color: #999; font-size: 10px; }
+.wizard-card-actions { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
+.wizard-card-actions .wizard-link { margin: 0; }
+.wizard-card .wizard-warning { margin-top: 8px; color: #aaa; }
+.wizard-track.is-static { margin: 10px 0 4px; }
+.wizard-track.is-static span { background: #16834b; }
+.wizard-units { display: grid; gap: 1px; max-height: 300px; margin: 8px -6px 0; padding: 0; overflow-y: auto; list-style: none; }
+.wizard-units button { display: flex; align-items: center; gap: 8px; width: 100%; padding: 7px 6px; border: 0; border-radius: 7px; background: none; color: #333; text-align: left; cursor: pointer; }
+.wizard-units button:hover:not(:disabled) { background: #f5f5f5; }
+.wizard-units button:disabled { cursor: default; }
+.wizard-units b { font-size: 12px; font-weight: 500; }
+.wizard-units small { flex: 1; min-width: 0; overflow: hidden; color: #999; font-size: 11px; white-space: nowrap; text-overflow: ellipsis; }
+.wizard-unit-state { display: inline-flex; align-items: center; gap: 4px; flex: none; padding: 2px 7px; border-radius: 999px; background: #f2f2f2; color: #888; font-size: 10px; }
+.wizard-unit-state.is-run { background: #eef3fb; color: #3366b3; }
+.wizard-unit-state.is-ok { background: #edf6f0; color: #16834b; }
+.wizard-unit-state.is-fail { background: #fcefee; color: #b4483f; }
+.wizard-empty { margin: 10px 0 0; color: #999; font-size: 11px; }
+.app-shell .wizard-footer { flex-wrap: nowrap; padding: 14px 20px 18px; }
+.app-shell .wizard-back { flex: none; width: 42px; padding: 0; }
+.app-shell .wizard-primary { min-height: 40px; }
+@media (max-width: 1180px) { .app-shell .wizard-header { padding: 16px 14px 12px; } .app-shell .wizard-body { padding: 18px 14px; } .app-shell .wizard-footer { padding: 12px 14px 16px; } }
+
+@media (min-width: 781px) {
+  .app-shell .unified-steps.wizard-panel { width: min(var(--wizard-width, 320px), calc(100% - 320px)); flex-basis: min(var(--wizard-width, 320px), calc(100% - 320px)); }
+  .wizard-resize { position: relative; z-index: 3; flex: 0 0 8px; width: 8px; margin-left: -4px; margin-right: -4px; cursor: col-resize; touch-action: none; }
+  .wizard-resize::after { content: ''; position: absolute; top: 0; bottom: 0; left: 3px; width: 2px; background: transparent; transition: background .15s; }
+  .wizard-resize:hover::after, .wizard-resize:focus-visible::after { background: #9da4a0; }
+  .wizard-resize:focus-visible { outline: none; }
+}
+@media (max-width: 780px) { .wizard-resize { display: none; } }

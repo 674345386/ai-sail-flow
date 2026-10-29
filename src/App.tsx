@@ -4,10 +4,12 @@ import VideoPromptImages, { type VideoPromptImage } from './VideoPromptImages';
 import { tierGroupPrompt, withVideoReferences } from '../shared/tier-video-group';
 import { applyFrameInput, framePositions, tierPlan, type FramePosition, type TierImage } from '../shared/tier-prompt';
 const frameRatioLabel = (project: Project) => { const video = project.assets.find(asset => asset.kind === 'video'); if (!video?.width || !video?.height) return project.market.aspectRatio; const gcd = (a: number, b: number): number => b ? gcd(b, a % b) : a; const g = gcd(video.width, video.height); return `${video.width / g}:${video.height / g}`; };
-import { Archive, ArchiveRestore, ArrowDownToLine, ArrowLeft, ArrowRight, ArrowUpRight, Check, CheckCheck, ChevronDown, ChevronRight, CircleHelp, CirclePlay, Clapperboard, Copy, Download, Eye, FileJson, FileText, Film, FolderOpen, Globe2, Grid2X2, ImagePlus, Info, LayoutList, LoaderCircle, LogOut, Mail, Package, Plus, Save, ScanLine, Scissors, Search, Settings, Settings2, ShieldCheck, Sparkles, Subtitles, Upload, Video, WandSparkles, Workflow, X } from 'lucide-react';
+import { Archive, ArchiveRestore, ArrowDownToLine, ArrowLeft, ArrowRight, ArrowUpRight, Check, CheckCheck, ChevronDown, ChevronRight, CircleHelp, CirclePlay, Clapperboard, Copy, Download, Eye, FileJson, FileText, Film, FolderOpen, Globe2, Grid2X2, ImagePlus, Info, LayoutList, LoaderCircle, LocateFixed, LogOut, Mail, Package, Plus, Save, ScanLine, Scissors, Search, Settings, Settings2, ShieldCheck, Sparkles, Subtitles, Upload, Video, WandSparkles, Workflow, X } from 'lucide-react';
 import { countries, defaultReplication, defaultWorkspace, languages, platforms, roles, timeLabel, validateContinuousTimeline, validateTimeline, type FocusPoint, type Project, type ProjectSummary, type WorkspaceProject, type Shot, type Product, type Market, type Replication, type ProductionMode, type WorkflowMode } from '../shared/domain';
 import { mergeFocusPoints } from '../shared/focus';
 import { keyframeCurrent } from '../shared/storyboard';
+import type { VideoAnalysisMethod } from '../shared/video-analysis';
+import { MAX_STORYBOARD_GRID_DURATION } from '../shared/storyboard-grid';
 import { buildBrief, buildPrompt, buildExportFiles, buildVeoPromptPreview, buildVeoUnitPrompt, subtitles } from '../shared/export';
 import { buildVeoPlan, type VeoPlanUnit } from '../shared/veo-plan';
 import { api, downloadBlob } from './api';
@@ -25,7 +27,7 @@ import ShotRewriteBoard, { RewriteProductInputs } from './ShotRewriteBoard';
 import FocusPointsEditor from './FocusPointsEditor';
 import ShotTimelineEditor from './ShotTimelineEditor';
 import StoryboardGridPanel from './StoryboardGridPanel';
-import StoryboardGridWorkbench from './StoryboardGridWorkbench';
+import StoryboardGridWorkbench, { gridVideoState } from './StoryboardGridWorkbench';
 import ProductPipelineCanvas from './ProductPipelineCanvas';
 import ProjectNavigation from './ProjectNavigation';
 import WorkspaceSearchPalette from './WorkspaceSearchPalette';
@@ -55,6 +57,7 @@ const steps = [
 ];
 type Status = {
   model: string; configured: boolean;
+  videoAnalysisMethod?: VideoAnalysisMethod;
   keyframeModel?: string;
   imageGeneration?: { configured: boolean; baseUrl: string; model: string; models: string[] };
   keyframeStorage?: { configured: boolean; url: string; bucket: string };
@@ -212,8 +215,15 @@ export default function App() {
   const [stageDetail, setStageDetail] = useState<number | null>(null);
   const [canvasFocusVersion, setCanvasFocusVersion] = useState(0);
   const [stepsCollapsed, setStepsCollapsed] = useState(false);
-  const focusStage = (n: number, advance = false) => {
-    if (n > step && (!advance || !project || n > lastAvailableStep(project))) return;
+  const [stepsWidth, setStepsWidth] = useState(320);
+  const workspaceRef = useRef<HTMLDivElement>(null);
+  const stepsDrag = useRef<{ x: number; width: number } | null>(null);
+  const resizeSteps = (width: number) => {
+    const max = Math.max(280, Math.min(600, (workspaceRef.current?.clientWidth || 920) - 320));
+    setStepsWidth(Math.max(280, Math.min(max, width)));
+  };
+  const focusStage = (n: number) => {
+    if (!project || n > lastAvailableStep(project)) return;
     setShowMediaLibrary(false); setStageDetail(null); setStep(n); setCanvasFocusVersion(v => v + 1); setSidebarOpen(false);
   };
   const openStageDetail = (n: number) => { if (n > step) return; setStep(n); setStageDetail(n); };
@@ -224,6 +234,8 @@ export default function App() {
   const [exportTab, setExportTab] = useState('prompt');
   const [ttsVoices, setTtsVoices] = useState<TtsVoice[]>([]);
   const [modal, setModal] = useState<'config' | 'settings' | 'guide' | null>(null);
+  const [analysisMethodSaving, setAnalysisMethodSaving] = useState(false);
+  const [analysisMethodError, setAnalysisMethodError] = useState('');
   const [apiKey, setApiKey] = useState('');
   const [imageApiKey, setImageApiKey] = useState('');
   const [imageBaseUrl, setImageBaseUrl] = useState('');
@@ -319,6 +331,19 @@ export default function App() {
     if (busy) return;
     setBusy(label); setError('');
     try { await action(); } catch (e) { setError(e instanceof Error ? e.message : '操作未完成'); } finally { setBusy(''); }
+  };
+  const openConfiguration = () => {
+    setModal('config'); setAnalysisMethodError(''); setAnalysisMethodSaving(true);
+    void api<Status>('/api/status').then(next => setStatus(next)).catch(error => setAnalysisMethodError(error instanceof Error ? error.message : '读取配置失败')).finally(() => setAnalysisMethodSaving(false));
+  };
+  const changeAnalysisMethod = async (method: VideoAnalysisMethod) => {
+    if (analysisMethodSaving || method === (status.videoAnalysisMethod || 'full')) return;
+    setAnalysisMethodSaving(true); setAnalysisMethodError('');
+    try {
+      const result = await api<{ method: VideoAnalysisMethod }>('/api/settings/video-analysis', { method: 'POST', body: JSON.stringify({ method }) });
+      setStatus(current => ({ ...current, videoAnalysisMethod: result.method }));
+    } catch (error) { setAnalysisMethodError(error instanceof Error ? error.message : '保存配置失败'); }
+    finally { setAnalysisMethodSaving(false); }
   };
   useEffect(() => {
     let cancelled = false;
@@ -784,21 +809,32 @@ export default function App() {
   const openVideoPreviewLibrary = (replaceAt: number | null) => { setFrameRefTarget(null); setVideoRefTarget({ replaceAt }); openAssetLibrary('image'); };
   const startTierVideo = (shotId: string) => prepareTierVideo([shotId]);
   const startTierVideoGroup = (shotIds: string[]) => prepareTierVideo(shotIds);
-  const startStoryboardGridVideo = (gridId: string) => perform('正在提交 Veo 3.1', async () => {
-    const p = await flush(); if (!p) return;
-    const grid = (p.storyboardGrids || []).find(item => item.id === gridId);
-    if (!grid) throw new Error('分镜网格不存在，请先完成网格拆解。');
-    if (grid.included === false) throw new Error('该分镜网格未勾选，无法生成视频。');
-    if (!grid.prompt.trim()) throw new Error('视频生成描述不能为空。');
-    const span = grid.end - grid.start;
-    if (span <= 0) throw new Error('分镜网格时长无效。');
-    if (span > 8.05) throw new Error(`分镜网格时长为 ${span.toFixed(1)} 秒，超过 Veo 单次 8 秒限制。`);
-    if (!status.videoGeneration.configured || !status.keyframeStorage?.configured) { setModal('settings'); return; }
-    const ratio = p.market.aspectRatio === '16:9' ? '16:9' : '9:16';
-    adopt(await api<Project>(`/api/projects/${p.id}/generations`, { method: 'POST', body: JSON.stringify({
-      storyboardGridId: grid.id, prompt: grid.prompt, mode: 'r2v',
-      referenceImages: [grid.url], resolution: '720p', aspectRatio: ratio, previewRevision: p.revision,
-    }) }));
+  const startStoryboardGridVideo = (gridIds: string | string[]) => perform('正在准备本地测试视频', async () => {
+    const initial = await flush(); if (!initial) return;
+    let p: Project = initial;
+    const projectId = p.id;
+    for (const gridId of Array.isArray(gridIds) ? gridIds : [gridIds]) {
+      const grid: NonNullable<Project['storyboardGrids']>[number] | undefined = (p.storyboardGrids || []).find(item => item.id === gridId);
+      if (!grid) throw new Error('分镜网格不存在，请先完成网格拆解。');
+      if (grid.included === false) throw new Error('该分镜网格未勾选，无法生成视频。');
+      if (!grid.prompt.trim()) throw new Error('视频生成描述不能为空。');
+      const span = grid.end - grid.start;
+      if (span <= 0 || span > MAX_STORYBOARD_GRID_DURATION + 0.05) throw new Error('分镜网格时长无效或超过 10 秒。');
+      const ratio: '16:9' | '9:16' = p.market.aspectRatio === '16:9' ? '16:9' : '9:16';
+      p = await api<Project>(`/api/projects/${projectId}/generations`, { method: 'POST', body: JSON.stringify({
+        storyboardGridId: grid.id, prompt: grid.prompt, mode: 'r2v',
+        referenceImages: [grid.url], resolution: '720p', aspectRatio: ratio, previewRevision: p.revision,
+      }) });
+      if (current.current?.id !== projectId) return;
+      adopt(p);
+      while (p.job?.status === 'running') {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        p = await api<Project>(`/api/projects/${projectId}`);
+        if (current.current?.id !== projectId) return;
+        adopt(p);
+      }
+      if (p.job?.status === 'failed') throw new Error(p.job.message);
+    }
   });
   const confirmTierVideo = () => perform('正在提交 Veo 3.1', async () => {
     const preview = videoPreview; if (!preview) return;
@@ -820,7 +856,7 @@ export default function App() {
     void startGeneration(unit.id, { mode: 'i2v', prompt: editableUnitPrompt(p, unit),
       resolution: p.automaticSettings?.resolution || '720p', aspectRatio: p.market.aspectRatio === '16:9' ? '16:9' : '9:16' });
   };
-  const recoverGeneration = (videoId: string) => perform('正在恢复 Veo 3.1 成片', async () => {
+  const recoverGeneration = (videoId: string) => perform('正在恢复视频任务', async () => {
     const p = await flush(); if (!p) return;
     if (!status.videoGeneration.configured) { setModal('settings'); return; }
     adopt(await api<Project>(`/api/projects/${p.id}/generations/${videoId}/recover`, { method: 'POST', body: '{}' }));
@@ -847,7 +883,7 @@ export default function App() {
     if (failed?.requestId) void recoverGeneration(failed.id);
     else if (failed?.unitId) void startGeneration(failed.unitId, { mode: failed.mode || 't2v', resolution: failed.resolution || '720p', aspectRatio: failed.aspectRatio === '16:9' ? '16:9' : '9:16', prompt: failed.prompt, ...(failed.mode && failed.mode !== 't2v' ? { images: failed.imageUrls || [] } : {}) });
   };
-  const go = (n: number, advance = false) => perform('正在保存', async () => { const p = await flush(); if (!p || n > step && (!advance || n > lastAvailableStep(p))) return; focusStage(n, advance); });
+  const go = (n: number) => perform('正在保存', async () => { const p = await flush(); if (!p || n > lastAvailableStep(p)) return; focusStage(n); });
   const fillProductField = (id: string) => perform('正在打开产品资料', async () => {
     await flush(); setShowRequiredErrors(true); setStep(0); setFocusTarget(id); setSidebarOpen(false);
   });
@@ -965,12 +1001,13 @@ export default function App() {
     ...(!project.product.facts.trim() ? [{ id: 'product-facts', label: '已确认的卖点与规格' }] : []),
   ];
   const rewriteBlocked = !project.analysis || ((project.promptFlow || 'localized') === 'localized' && missingProductFields.length > 0);
-  const available = [true, lastAvailableStep(project) >= 1, lastAvailableStep(project) >= 2];
+  const lastReadyStep = lastAvailableStep(project);
+  const available = [true, lastReadyStep >= 1, lastReadyStep >= 2];
   const frameHandlers: FrameHandlers = { project, disabled, busy, ratioLabel: frameRatioLabel(project), frameBusy, frameFailed,
     onFrame: (shotId, position) => void generateTierFrame(shotId, position).catch(() => {}), onFrameUndo: undoTierFrame, onFrameUpload: uploadTierFrame, onFrameRefs: uploadFrameRefs, onFrameLibrary: openFrameLibrary, onFrameInput: setFrameInput };
   const isStoryboardGrid = project.breakdownType === 'storyboard-grid';
   const storyboardGridPanel = isStoryboardGrid ? <StoryboardGridWorkbench project={project} disabled={disabled} canvas={false}
-    onPrompt={updateStoryboardGridPrompt} onGenerate={gridId => void startStoryboardGridVideo(gridId)}
+    onPrompt={updateStoryboardGridPrompt} onGenerate={gridId => void startStoryboardGridVideo(gridId)} onRecover={videoId => void recoverGeneration(videoId)}
     onIncluded={updateStoryboardGridIncluded} /> : null;
   const tierPanel = !isStoryboardGrid && project?.analysis ? <TierWorkbench project={project} disabled={disabled} busy={busy}
     onChange={replication => change(p => ({ ...p, replication }))} onCorrect={correctTierShot} onCorrectAll={correctAllTierShots}
@@ -979,7 +1016,32 @@ export default function App() {
     onGenerateShots={shotIds => void generateTierShots(shotIds)} onVideo={startTierVideo} onGroupVideo={startTierVideoGroup} openFrame={openFrame} onOpenFrame={openFrameOnly} canvas={canvasView} /> : null;
   const frameDrawer = !isStoryboardGrid && openFrame && project.analysis && (canvasView || step === 2) ? <FrameDrawer {...frameHandlers} shotId={openFrame.shotId} position={openFrame.position} onClose={() => setOpenFrame(null)} />
     : !isStoryboardGrid && openVideo && project.analysis && (canvasView || step === 2) ? <VideoDrawer project={project} disabled={disabled} ratioLabel={frameHandlers.ratioLabel} onVideo={startTierVideo} onVideoPrompt={setVideoPrompt} shotId={openVideo} onClose={() => setOpenVideo(null)} /> : null;
-  const remixPanel = <ProductPipelineCanvas key={project.id} project={project} disabled={disabled} onPrompt={updateStoryboardGridPrompt} onGenerate={gridId => void startStoryboardGridVideo(gridId)} onIncluded={updateStoryboardGridIncluded} onUploadVideo={() => openAssetLibrary('video')} onAnalyze={() => void startJob('analysis')} onOpenMaterials={() => openStageDetail(0)} onOpenAnalysis={() => openStageDetail(1)} onOpenRemixDetail={() => openStageDetail(2)} onSettings={() => setModal('settings')} focusStep={step} focusVersion={canvasFocusVersion} />;
+  const analysisRunning = !!project.job?.kind.startsWith('analysis') && project.job.status === 'running';
+  const analysisFailed = !!project.job?.kind.startsWith('analysis') && project.job.status === 'failed';
+  const otherJob = project.job && !project.job.kind.startsWith('analysis') ? project.job : undefined;
+  const allGrids = project.storyboardGrids || [];
+  const outputUnits: { id: string; label: string; range: string; state: 'idle' | 'run' | 'ok' | 'fail'; note: string }[] = isStoryboardGrid
+    ? allGrids.flatMap((grid, i) => {
+      if (grid.included === false) return [];
+      const s = gridVideoState(project, grid);
+      return [{ id: grid.id, label: `网格 ${String(i + 1).padStart(2, '0')}`, range: `${grid.start.toFixed(1)}–${grid.end.toFixed(1)}s`, state: s.running ? 'run' as const : s.completed.length ? 'ok' as const : s.failed ? 'fail' as const : 'idle' as const, note: grid.prompt.trim() ? '' : '缺少 Prompt' }];
+    })
+    : (project.analysis?.shots || []).map((shot, i) => {
+      const s = tierVideoState(project, shot);
+      return { id: shot.id, label: `镜头 ${String(i + 1).padStart(2, '0')}`, range: `${shot.start.toFixed(1)}–${shot.end.toFixed(1)}s`, state: s.running ? 'run' as const : s.completed.length ? 'ok' as const : s.failed ? 'fail' as const : 'idle' as const, note: s.ready ? '' : `缺${s.missing.join('、')}` };
+    });
+  const unitsDone = outputUnits.filter(unit => unit.state === 'ok').length;
+  const pendingGrids = isStoryboardGrid ? allGrids.filter(grid => grid.included !== false && grid.prompt.trim() && !gridVideoState(project, grid).running && !gridVideoState(project, grid).completed.length) : [];
+  const stageDone = [!!video, lastReadyStep >= 2, outputUnits.length > 0 && unitsDone === outputUnits.length];
+  const stageMeta = [
+    video ? '参考视频已就绪' : '待上传',
+    analysisRunning ? '拆解中' : lastReadyStep >= 2 ? (isStoryboardGrid ? `${allGrids.length} 张网格` : `${project.analysis?.shots.length || 0} 个镜头`) : available[1] ? '待拆解' : '未解锁',
+    available[2] ? `${unitsDone}/${outputUnits.length} 已出片` : '未解锁',
+  ];
+  const stageNames = ['上传素材', '视频拆解', isStoryboardGrid ? '网格出片' : '二创出片'];
+  const reviewing = step < lastReadyStep;
+  const unitStateLabel = { idle: '待生成', run: '生成中', ok: '已出片', fail: '失败' } as const;
+  const remixPanel = <ProductPipelineCanvas key={project.id} project={project} disabled={disabled} onPrompt={updateStoryboardGridPrompt} onGenerate={gridId => void startStoryboardGridVideo(gridId)} onRecover={videoId => void recoverGeneration(videoId)} onIncluded={updateStoryboardGridIncluded} onUploadVideo={() => openAssetLibrary('video')} onAnalyze={() => void startJob('analysis')} onOpenMaterials={() => openStageDetail(0)} onOpenAnalysis={() => openStageDetail(1)} onOpenRemixDetail={() => openStageDetail(2)} onSettings={() => setModal('settings')} focusStep={step} focusVersion={canvasFocusVersion} />;
   const market = countries.find(c => c.code === project.market.country)!;
   const platform = platforms.find(p => p.id === project.market.platform)!;
   const shot = project.analysis?.shots[Math.min(selectedShot, project.analysis.shots.length - 1)];
@@ -1126,9 +1188,9 @@ export default function App() {
       <section className="sidebar-current-project" aria-labelledby="sidebar-current-project-title">
         <span className="sidebar-project-caption">当前创意</span>
         <div className="sidebar-project-heading"><Clapperboard size={16} /><strong id="sidebar-current-project-title" title={project.title}>{project.title}</strong>{project.archivedAt && <Badge>已归档</Badge>}</div>
-        <nav className="workflow-nav" aria-label="制作流程">{steps.map((s, i) => { const Icon = s.icon; return <button key={s.en} className={`nav-item ${!showMediaLibrary && step === i ? 'active' : ''}`} aria-label={s.name} title={s.name} disabled={!!busy || i > step} onClick={() => focusStage(i)}><Icon size={18} /><span>{s.name}</span><span className="nav-number">0{i + 1}</span></button>; })}</nav>
+        <nav className="workflow-nav" aria-label="制作流程">{steps.map((s, i) => { const Icon = s.icon; return <button key={s.en} className={`nav-item ${!showMediaLibrary && step === i ? 'active' : ''}`} aria-label={s.name} title={s.name} disabled={!!busy || !available[i]} onClick={() => focusStage(i)}><Icon size={18} /><span>{s.name}</span><span className="nav-number">0{i + 1}</span></button>; })}</nav>
       </section>
-      <div className="sidebar-footer-row"><button className="sidebar-config" title="配置" aria-label="配置" onClick={() => setModal('config')}><Settings size={16} /><span>配置</span></button></div>
+      <div className="sidebar-footer-row"><button className="sidebar-config" title="配置" aria-label="配置" onClick={openConfiguration}><Settings size={16} /><span>配置</span></button></div>
     </aside>
     {searchPaletteOpen && <WorkspaceSearchPalette creatives={projects} groups={projectGroups} busy={!!busy} onChoose={id => { setShowArchived(false); void switchProject(id); }} onCreateCreative={() => { setError(''); newProject(); }} onCreateProject={() => { setError(''); setOrganizationDialog({ kind: 'project-new', parentId: '', title: '' }); }} onClose={() => setSearchPaletteOpen(false)} />}
     <div className="main-shell">
@@ -1140,51 +1202,83 @@ export default function App() {
         {project.ttsTimingNotice && <SpeechTimingConfirmation notice={project.ttsTimingNotice} disabled={disabled} onConfirm={() => void composeFinal(project.ttsTimingNotice!.voice, project.ttsTimingNotice!.basis)} onManual={() => void selectWorkflowMode('manual')} />}
 
 
-        <div className="unified-workspace">
+        <div className="unified-workspace" ref={workspaceRef} style={{ '--wizard-width': `${stepsWidth}px` } as CSSProperties}>
           <button className="unified-steps-toggle" aria-expanded={!stepsCollapsed} onClick={() => setStepsCollapsed(value => !value)}>{stepsCollapsed ? '展开步骤' : '收起步骤'}</button>
           <aside className={`unified-steps wizard-panel${stepsCollapsed ? ' is-collapsed' : ''}`} aria-label="创作步骤">
             <header className="wizard-header">
               <h2>创作流程</h2>
-              <nav className="wizard-progress" aria-label="创作进度">
-                {steps.map((item, i) => <button key={item.en} type="button" className={`wizard-progress-item${i === step ? ' is-current' : ''}${i < step ? ' is-past' : ''}`} disabled={i >= step || !!busy} aria-current={i === step ? 'step' : undefined} onClick={() => focusStage(i)}><span>{i < step ? <Check size={13} /> : `0${i + 1}`}</span><b>{i === 2 && isStoryboardGrid ? '网格视频' : item.name}</b></button>)}
+              <nav className="wizard-steps" aria-label="创作进度">
+                {stageNames.map((name, i) => {
+                  const state = i === step ? 'current' : stageDone[i] ? 'done' : available[i] ? 'open' : 'locked';
+                  return <button key={name} type="button" className={`wizard-step is-${state}${stageDone[i] ? ' has-done' : ''}`} disabled={i === step || !available[i] || !!busy} aria-current={i === step ? 'step' : undefined} onClick={() => focusStage(i)}>
+                    <span className="wizard-step-dot">{stageDone[i] ? <Check size={12} strokeWidth={2.6} /> : i + 1}</span>
+                    <span className="wizard-step-text"><b>{name}</b><small>{stageMeta[i]}</small></span>
+                  </button>;
+                })}
               </nav>
             </header>
             <div className="wizard-body">
+              {reviewing && <div className="wizard-review" role="status"><Check size={14} /><span><strong>此阶段已完成</strong>正在回看，修改会同步到后续阶段</span><button type="button" disabled={!!busy} onClick={() => focusStage(lastReadyStep)}>回到进度 <ArrowRight size={12} /></button></div>}
               {step === 0 && <section className="wizard-content">
-                <div className="wizard-section-label"><span>01</span> 素材准备</div><h3>先准备你的参考素材</h3><p className="wizard-lead">上传参考视频即可开始；产品信息可以稍后补充。</p>
-                <div className="wizard-block"><div className="wizard-block-heading"><div><strong>参考视频</strong><small>必需 · 用于拆解镜头与声音</small></div>{video && <span className="wizard-status">已添加</span>}</div>
-                  {video ? <div className="wizard-video"><video key={video.id} src={video.url} poster={video.thumbnail} controls playsInline preload="metadata" /><div><strong title={video.name}>{video.name}</strong><span>{timeLabel(video.duration || 0)} · {video.width} × {video.height}</span></div></div> : <button type="button" className="wizard-upload" disabled={disabled} onClick={() => openAssetLibrary('video')}><span><Upload size={20} /></span><strong>选择参考视频</strong><small>从素材库选择或上传 · MP4 / MOV / WebM</small></button>}
-                  {video && <button className="wizard-link" disabled={disabled} onClick={() => openAssetLibrary('video')}>更换视频 <ArrowRight size={13} /></button>}
+                <div className="wizard-title"><span>步骤 1 / 3</span><h3>准备参考素材</h3><p>上传一条参考视频即可开始，产品信息可稍后补充。对应画布第 1 列。</p></div>
+                <div className="wizard-card">
+                  <div className="wizard-card-head"><strong>参考视频</strong>{video ? <span className="wizard-chip is-ok">已添加</span> : <span className="wizard-chip">必需</span>}</div>
+                  {video ? <div className="wizard-video"><video key={video.id} src={video.url} poster={video.thumbnail} controls playsInline preload="metadata" /><div><strong title={video.name}>{video.name}</strong><span>{timeLabel(video.duration || 0)} · {video.width} × {video.height}</span><button className="wizard-link" disabled={disabled} onClick={() => openAssetLibrary('video')}>更换视频</button></div></div> : <button type="button" className="wizard-upload" disabled={disabled} onClick={() => openAssetLibrary('video')}><span><Upload size={18} /></span><strong>选择参考视频</strong><small>MP4 / MOV / WebM · 最长 10 分钟</small></button>}
                 </div>
+                <button type="button" className="wizard-row" disabled={disabled} onClick={() => openStageDetail(0)}><Package size={16} /><span><strong>产品信息</strong><small>{project.product.name.trim() || '可选 · 用于二创时替换卖点'}</small></span>{project.product.name.trim() && project.product.facts.trim() ? <span className="wizard-chip is-ok">已填写</span> : <span className="wizard-chip">补充</span>}<ChevronRight size={14} /></button>
               </section>}
               {step === 1 && <section className="wizard-content">
-                <div className="wizard-section-label"><span>02</span> 视频拆解</div><h3>理解每个有效镜头</h3><p className="wizard-lead">选择拆解方式，整理画面、节奏与声音。结果会同步到右侧画布。</p>
-                <div className="wizard-block"><div className="wizard-block-heading"><div><strong>拆解方式</strong><small>根据你的创作方式选择</small></div></div><div className="wizard-option-grid">
-                  <button type="button" className={`wizard-option${!isStoryboardGrid ? ' is-selected' : ''}`} disabled={disabled} aria-pressed={!isStoryboardGrid} onClick={() => change(p => ({ ...p, breakdownType: 'shot' }))}><ScanLine size={17} /><strong>逐镜头</strong><span>拆解镜头、动作与关键帧</span></button>
-                  <button type="button" className={`wizard-option${isStoryboardGrid ? ' is-selected' : ''}`} disabled={disabled} aria-pressed={isStoryboardGrid} onClick={() => change(p => ({ ...p, breakdownType: 'storyboard-grid' }))}><Grid2X2 size={17} /><strong>分镜网格</strong><span>按片段生成网格与 Prompt</span></button>
-                </div>{isStoryboardGrid && <div className="wizard-density"><span>网格密度</span><div className="unified-mode">{([3, 4] as const).map(size => <button key={size} className={(project.storyboardGridSize || 3) === size ? 'active' : ''} disabled={disabled} onClick={() => change(p => ({ ...p, storyboardGridSize: size }))}>{size}×{size}</button>)}</div></div>}
-                <button className="wizard-secondary wizard-analysis-action" disabled={disabled || !video} onClick={() => void startJob('analysis')}><Sparkles size={15} />{project.analysis ? '重新拆解' : isStoryboardGrid ? '生成分镜网格' : '开始视频拆解'}</button>
-                {project.analysis && <p className="wizard-warning">重新拆解会覆盖当前拆解记录{isStoryboardGrid ? '及已编辑的网格 Prompt' : '及镜头编辑'}。</p>}
+                <div className="wizard-title"><span>步骤 2 / 3</span><h3>拆解参考视频</h3><p>选择拆解方式，结果显示在画布第 2 列的拆解摘要中。</p></div>
+                <div className="wizard-card">
+                  <div className="wizard-card-head"><strong>拆解方式</strong></div>
+                  <div className="wizard-option-grid">
+                    <button type="button" className={`wizard-option${!isStoryboardGrid ? ' is-selected' : ''}`} disabled={disabled || analysisRunning} aria-pressed={!isStoryboardGrid} onClick={() => change(p => ({ ...p, breakdownType: 'shot' }))}><ScanLine size={16} /><strong>逐镜头</strong><span>镜头、动作与关键帧</span></button>
+                    <button type="button" className={`wizard-option${isStoryboardGrid ? ' is-selected' : ''}`} disabled={disabled || analysisRunning} aria-pressed={isStoryboardGrid} onClick={() => change(p => ({ ...p, breakdownType: 'storyboard-grid' }))}><Grid2X2 size={16} /><strong>分镜网格</strong><span>按片段生成网格与 Prompt</span></button>
+                  </div>
+                  {isStoryboardGrid && <div className="wizard-density"><span>网格密度</span><div className="unified-mode">{([3, 4] as const).map(size => <button key={size} className={(project.storyboardGridSize || 3) === size ? 'active' : ''} disabled={disabled || analysisRunning} onClick={() => change(p => ({ ...p, storyboardGridSize: size }))}>{size}×{size}</button>)}</div></div>}
                 </div>
-                {project.job?.kind.startsWith('analysis') && project.job.status === 'running' && <div className="wizard-feedback is-running" role="status"><LoaderCircle size={16} className="spin" /><div><strong>正在拆解视频{project.job.progress != null ? ` · ${project.job.progress}%` : ''}</strong><p>{project.job.message}</p><div className="wizard-track"><span style={{ width: `${Math.max(2, project.job.progress || 0)}%` }} /></div></div></div>}
-                {project.job?.kind.startsWith('analysis') && project.job.status === 'failed' && <div className="wizard-feedback is-error" role="alert"><Info size={16} /><div><strong>拆解未完成</strong><p>{project.job.message}</p><button disabled={disabled} onClick={retryJob}>重试</button></div></div>}
-                {project.analysis && <div className="wizard-result"><div className="wizard-result-icon"><Check size={17} /></div><div><strong>{isStoryboardGrid ? `${project.storyboardGrids?.length || 0} 张分镜网格` : `${project.analysis.shots.length} 个镜头`}</strong><span>{available[2] ? '拆解结果已保存，可查看或继续下一步' : '请按当前选择重新生成结果'}</span></div><button onClick={() => openStageDetail(1)}>查看与编辑 <ArrowRight size={13} /></button></div>}
+                {analysisRunning && <div className="wizard-feedback is-running" role="status"><LoaderCircle size={16} className="spin" /><div><strong>正在拆解{project.job!.progress != null ? ` · ${project.job!.progress}%` : ''}</strong><p>{project.job!.message}</p><div className="wizard-track"><span style={{ width: `${Math.max(2, project.job!.progress || 0)}%` }} /></div></div></div>}
+                {analysisFailed && <div className="wizard-feedback is-error" role="alert"><Info size={16} /><div><strong>拆解未完成</strong><p>{project.job!.message}</p><button disabled={disabled} onClick={retryJob}>重试</button></div></div>}
+                {project.analysis && !analysisRunning && <div className="wizard-card">
+                  <div className="wizard-card-head"><strong>拆解结果</strong>{available[2] ? <span className="wizard-chip is-ok">已完成</span> : <span className="wizard-chip is-warn">需按当前方式重新拆解</span>}</div>
+                  <div className="wizard-stats">{isStoryboardGrid
+                    ? <><div><b>{allGrids.length}</b><small>网格</small></div><div><b>{allGrids.filter(grid => grid.included !== false).length}</b><small>纳入出片</small></div><div><b>{project.analysis.duration.toFixed(1)}s</b><small>原片时长</small></div></>
+                    : <><div><b>{project.analysis.shots.length}</b><small>纳入镜头</small></div><div><b>{project.analysis.excludedShots?.length || 0}</b><small>已隐藏</small></div><div><b>{project.analysis.duration.toFixed(1)}s</b><small>原片时长</small></div></>}</div>
+                  <div className="wizard-card-actions"><button className="wizard-secondary" onClick={() => openStageDetail(1)}>查看与编辑</button><button className="wizard-link" disabled={disabled || !video} onClick={() => void startJob('analysis')}>重新拆解</button></div>
+                  <p className="wizard-warning">重新拆解会覆盖当前{isStoryboardGrid ? '网格与已编辑的 Prompt' : '镜头编辑'}。</p>
+                </div>}
               </section>}
               {step === 2 && <section className="wizard-content">
-                <div className="wizard-section-label"><span>03</span> 创作生成</div><h3>{isStoryboardGrid ? '让分镜动起来' : '让创意焕然一新'}</h3><p className="wizard-lead">{isStoryboardGrid ? '在画布中编辑每段提示词，并使用对应网格生成视频。' : '在画布中查看镜头素材，准备人物、关键帧和视频。'}</p>
-                <div className="wizard-block wizard-ready-card"><div className="wizard-ready-icon">{isStoryboardGrid ? <Grid2X2 size={20} /> : <WandSparkles size={20} />}</div><div><strong>{isStoryboardGrid ? '分镜网格已就绪' : '拆解结果已就绪'}</strong><p>{isStoryboardGrid ? `${project.storyboardGrids?.length || 0} 张网格可用于生成视频` : `${project.analysis?.shots.length || 0} 个镜头可用于后续创作`}</p></div></div>
-                {project.job && !project.job.kind.startsWith('analysis') && project.job.status === 'running' && <div className="wizard-feedback is-running" role="status"><LoaderCircle size={16} className="spin" /><div><strong>正在处理{project.job.progress != null ? ` · ${project.job.progress}%` : ''}</strong><p>{project.job.message}</p></div></div>}
-                {project.job && !project.job.kind.startsWith('analysis') && project.job.status === 'failed' && <div className="wizard-feedback is-error" role="alert"><Info size={16} /><div><strong>上次操作未完成</strong><p>{project.job.message}</p><button disabled={disabled} onClick={retryJob}>重试</button></div></div>}
-                {!isStoryboardGrid && <button className="wizard-secondary wizard-wide" onClick={() => openStageDetail(2)}><Sparkles size={15} />打开关键帧工作台 <ArrowRight size={14} /></button>}
+                <div className="wizard-title"><span>步骤 3 / 3</span><h3>{isStoryboardGrid ? '用网格生成视频' : '生成二创视频'}</h3><p>{isStoryboardGrid ? '在画布第 3 列编辑每张网格的 Prompt，再生成视频。' : '在画布第 3 列为每个镜头准备人物、首尾帧，再生成视频。'}</p></div>
+                {otherJob?.status === 'running' && <div className="wizard-feedback is-running" role="status"><LoaderCircle size={16} className="spin" /><div><strong>正在处理{otherJob.progress != null ? ` · ${otherJob.progress}%` : ''}</strong><p>{otherJob.message}</p></div></div>}
+                {otherJob?.status === 'failed' && <div className="wizard-feedback is-error" role="alert"><Info size={16} /><div><strong>上次操作未完成</strong><p>{otherJob.message}</p><button disabled={disabled} onClick={retryJob}>重试</button></div></div>}
+                <div className="wizard-card">
+                  <div className="wizard-card-head"><strong>出片进度</strong><span className={`wizard-chip${stageDone[2] ? ' is-ok' : ''}`}>{unitsDone}/{outputUnits.length}</span></div>
+                  <div className="wizard-track is-static"><span style={{ width: `${outputUnits.length ? unitsDone / outputUnits.length * 100 : 0}%` }} /></div>
+                  <ul className="wizard-units">{outputUnits.map(unit => <li key={unit.id}>
+                    <button type="button" disabled={isStoryboardGrid} onClick={() => openVideoOnly(unit.id)}><b>{unit.label}</b><small>{unit.range}{unit.note && unit.state !== 'ok' ? ` · ${unit.note}` : ''}</small><span className={`wizard-unit-state is-${unit.state}`}>{unit.state === 'run' && <LoaderCircle size={11} className="spin" />}{unitStateLabel[unit.state]}</span></button>
+                  </li>)}</ul>
+                  {!outputUnits.length && <p className="wizard-empty">没有纳入的{isStoryboardGrid ? '网格' : '镜头'}，请回到拆解阶段勾选。</p>}
+                </div>
+                <button className="wizard-row" onClick={() => focusStage(2)}><LocateFixed size={16} /><span><strong>在画布中定位</strong><small>聚焦第 3 列的出片卡片</small></span><ChevronRight size={14} /></button>
               </section>}
             </div>
             <footer className="wizard-footer">
-              {step > 0 && <button className="wizard-back" disabled={!!busy} onClick={() => go(step - 1)}><ArrowLeft size={15} />上一步</button>}
-              {step === 0 && <><button className="wizard-primary" disabled={disabled || !video} onClick={() => go(1, true)}>下一步：视频拆解 <ArrowRight size={15} /></button>{!video && <small>请先选择参考视频</small>}</>}
-              {step === 1 && <><button className="wizard-primary" disabled={disabled || !available[2]} onClick={() => go(2, true)}>下一步：{isStoryboardGrid ? '网格视频生成' : '人物与视频二创'} <ArrowRight size={15} /></button>{!available[2] && <small>完成当前拆解后继续</small>}</>}
-              {step === 2 && <button className="wizard-primary" onClick={() => focusStage(2)}>定位创作画布 <ArrowRight size={15} /></button>}
+              {step > 0 && <button className="wizard-back" disabled={!!busy} onClick={() => go(step - 1)} aria-label="上一步"><ArrowLeft size={15} /></button>}
+              {step === 0 && <button className="wizard-primary" disabled={disabled || !video} onClick={() => go(1)}>{video ? '下一步：视频拆解' : '请先选择参考视频'}{video && <ArrowRight size={15} />}</button>}
+              {step === 1 && (available[2]
+                ? <button className="wizard-primary" disabled={disabled} onClick={() => go(2)}>下一步：{stageNames[2]} <ArrowRight size={15} /></button>
+                : <button className="wizard-primary" disabled={disabled || !video || analysisRunning} onClick={() => void startJob('analysis')}>{analysisRunning ? <><LoaderCircle size={15} className="spin" />拆解中</> : <><Sparkles size={15} />{isStoryboardGrid ? '生成分镜网格' : '开始拆解'}</>}</button>)}
+              {step === 2 && (isStoryboardGrid
+                ? <button className="wizard-primary" disabled={disabled || !pendingGrids.length} onClick={() => void startStoryboardGridVideo(pendingGrids.map(grid => grid.id))}>{stageDone[2] ? <><Check size={15} />全部已出片</> : <><Clapperboard size={15} />生成未出片的网格（{pendingGrids.length}）</>}</button>
+                : <button className="wizard-primary" onClick={() => openStageDetail(2)}>{stageDone[2] ? <><Check size={15} />全部已出片 · 查看</> : <><WandSparkles size={15} />打开关键帧工作台</>}</button>)}
             </footer>
           </aside>
+          <div className="wizard-resize" role="separator" aria-label="调整创作流程面板宽度" aria-orientation="vertical" aria-valuemin={280} aria-valuemax={600} aria-valuenow={stepsWidth} tabIndex={0}
+            onPointerDown={event => { if (event.button !== 0) return; const panel = event.currentTarget.previousElementSibling; stepsDrag.current = { x: event.clientX, width: panel?.getBoundingClientRect().width || stepsWidth }; event.currentTarget.setPointerCapture(event.pointerId); }}
+            onPointerMove={event => { if (stepsDrag.current) resizeSteps(stepsDrag.current.width + event.clientX - stepsDrag.current.x); }}
+            onPointerUp={() => { stepsDrag.current = null; }} onPointerCancel={() => { stepsDrag.current = null; }} onLostPointerCapture={() => { stepsDrag.current = null; }}
+            onKeyDown={event => { if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') { event.preventDefault(); resizeSteps(stepsWidth + (event.key === 'ArrowRight' ? 16 : -16)); } }} />
           {remixPanel}
         </div>
         {frameDrawer}
@@ -1192,11 +1286,11 @@ export default function App() {
         {project.workflow?.status === 'pausing' && <div className="banner sample" role="status"><LoaderCircle size={16} className="spin" /><span>正在等待当前任务结束。完成后会停止自动推进，并开放编辑。</span></div>}
         {observing && <div className="workflow-observing"><Eye size={18} /><p>正在只读查看制作过程。自动任务继续执行；接管后可以编辑已有结果。</p><button className="btn small" onClick={() => setObserving(false)}>返回自动制作</button><button className="btn small" disabled={!!busy || project.workflow?.status === 'pausing'} onClick={() => void selectWorkflowMode('manual')}>接管并编辑</button><button className="btn small" onClick={() => setShowPipeline(true)}>查看输入与输出</button></div>}
         <div className="page-heading sail-shader-surface"><ShaderBackdrop variant="heading" /><div><div className="eyebrow">CREATIVE WORKSPACE <span>/</span> 0{step + 1}</div><h1>{steps[step].title}</h1><p>{steps[step].description}</p></div></div>
-        <div className="stepper" aria-label="工作流步骤">{steps.map((s, i) => <button key={s.en} className={`step-item ${step === i ? 'current' : ''} ${i < step ? 'passed' : ''}`} disabled={!available[i] || !!busy || i > step} onClick={() => go(i)}><span className="step-circle">{i < step ? <Check size={14} /> : i + 1}</span><span>{s.name}</span>{i < steps.length - 1 && <ChevronRight className="step-chevron" size={16} />}</button>)}</div>
+        <div className="stepper" aria-label="工作流步骤">{steps.map((s, i) => <button key={s.en} className={`step-item ${step === i ? 'current' : ''} ${i < lastReadyStep ? 'passed' : ''}`} disabled={!available[i] || !!busy} onClick={() => go(i)}><span className="step-circle">{i < lastReadyStep ? <Check size={14} /> : i + 1}</span><span>{s.name}</span>{i < steps.length - 1 && <ChevronRight className="step-chevron" size={16} />}</button>)}</div>
         {project.isDemo && <div className="banner sample"><Info size={16} /><span>当前是手写示例创意，用于体验编辑与导出；不是 Gemini 对真实视频的分析。</span><button onClick={() => newProject()}>新建自己的创意 <ArrowRight size={14} /></button></div>}
         {error && <div className="banner error" role="alert"><Info size={16} /><span>{error}</span><button aria-label="关闭错误提示" onClick={() => setError('')}><X size={16} /></button></div>}
         {project.job?.status === 'failed' && <div className="banner error" role="alert"><Info size={16} /><span>{project.job.message}</span><button disabled={disabled} onClick={retryJob}>重试</button></div>}
-        {taskRunning && <div className="job-banner" role="status"><div className="job-text"><LoaderCircle size={18} className="spin" /><div><strong>{project.job!.kind === 'analysis' ? project.breakdownType === 'storyboard-grid' ? '正在生成分镜网格与 Prompt' : '正在理解参考视频' : project.job!.kind === 'analysis-refine' ? '正在分析变动镜头' : project.job!.kind === 'rewrite' ? '正在逐镜头改写并生成关键帧' : project.job!.kind === 'keyframe' ? '正在生成复刻关键帧' : project.job!.kind === 'composition' ? '正在本机合成配音与字幕' : 'Veo 3.1 正在生成分镜'}</strong><span>{project.job!.message}</span></div><span className="job-percent">{project.job!.progress}%</span></div><div className="job-track"><span style={{ width: `${project.job!.progress}%` }} /></div></div>}
+        {taskRunning && <div className="job-banner" role="status"><div className="job-text"><LoaderCircle size={18} className="spin" /><div><strong>{project.job!.kind === 'analysis' ? project.breakdownType === 'storyboard-grid' ? '正在生成分镜网格与 Prompt' : '正在理解参考视频' : project.job!.kind === 'analysis-refine' ? '正在分析变动镜头' : project.job!.kind === 'rewrite' ? '正在逐镜头改写并生成关键帧' : project.job!.kind === 'keyframe' ? '正在生成复刻关键帧' : project.job!.kind === 'composition' ? '正在本机合成配音与字幕' : project.job!.unitId?.startsWith('storyboard-grid-') ? '正在准备本地测试视频' : 'Veo 3.1 正在生成分镜'}</strong><span>{project.job!.message}</span></div><span className="job-percent">{project.job!.progress}%</span></div><div className="job-track"><span style={{ width: `${project.job!.progress}%` }} /></div></div>}
         {step !== 1 && <div className="project-title-row"><span className="tiny-label">创意名称</span><input aria-label="创意名称" value={project.title} maxLength={120} disabled={disabled} onChange={e => change(p => ({ ...p, title: e.target.value }))} /><span className="project-id">{project.id.slice(0, 8).toUpperCase()}</span></div>}
 
         {step === 0 && <div className="workspace-grid materials-grid">
@@ -1205,7 +1299,7 @@ export default function App() {
               <div className="panel-footnote"><ScanLine size={15} /><span>分析画面与原始音轨，提取镜头、动作、口播和商品展示。</span></div>
               <div className="breakdown-mode-panel"><p>选择视频拆解类型</p><div className="breakdown-mode-options">
                 <button type="button" className={`breakdown-mode-option ${(project.breakdownType || 'shot') === 'shot' ? 'selected' : ''}`} disabled={disabled} onClick={() => change(p => ({ ...p, breakdownType: 'shot' }))}><LayoutList size={19} /><span><strong>逐镜头拆解</strong><small>识别剪辑点、动作、运镜、口播和证据帧</small></span></button>
-                <button type="button" className={`breakdown-mode-option ${project.breakdownType === 'storyboard-grid' ? 'selected' : ''}`} disabled={disabled} onClick={() => change(p => ({ ...p, breakdownType: 'storyboard-grid' }))}><Grid2X2 size={19} /><span><strong>分镜网格拆解</strong><small>每张网格对应 ≤8 秒，同时生成视频 Prompt</small></span></button>
+                <button type="button" className={`breakdown-mode-option ${project.breakdownType === 'storyboard-grid' ? 'selected' : ''}`} disabled={disabled} onClick={() => change(p => ({ ...p, breakdownType: 'storyboard-grid' }))}><Grid2X2 size={19} /><span><strong>分镜网格拆解</strong><small>每张网格对应 ≤10 秒，同时生成视频 Prompt</small></span></button>
               </div>{project.breakdownType === 'storyboard-grid' && <div className="storyboard-size-picker"><span>网格密度</span>{([3, 4] as const).map(size => <button type="button" key={size} className={(project.storyboardGridSize || 3) === size ? 'selected' : ''} disabled={disabled} onClick={() => change(p => ({ ...p, storyboardGridSize: size }))}>{size}×{size}</button>)}<small>{project.storyboardGridSize === 4 ? '16 格，动作变化更细' : '9 格，画面主体更大'}</small></div>}</div>
           </section>
           <section className="panel brief-panel"><div className="panel-heading"><div><Package size={18} /><h2>你的产品</h2></div><span className="secondary-label">产品信息</span></div><div className="panel-body">
@@ -1229,14 +1323,14 @@ export default function App() {
             <div className="breakdown-source-body"><div>{previewVideo(true)}{project.analysis && <div className="video-timeline">{project.analysis.shots.map((s, i) => <button key={s.id} className={selectedShot === i ? 'selected' : ''} style={{ flex: s.end - s.start }} onClick={() => { setSelectedShot(i); seek(s.start); }} title={`${roles[s.role]} ${s.start.toFixed(3)}–${s.end.toFixed(3)} 秒`}>{i + 1}</button>)}</div>}</div><div className="breakdown-source-analysis">{project.analysis ? <><p className="breakdown-source-meta">{project.analysis.duration.toFixed(3)} 秒 · {project.breakdownType === 'storyboard-grid' ? `${project.storyboardGridSize || 3}×${project.storyboardGridSize || 3} 分镜网格拆解` : project.isDemo ? '手写示例' : project.analysisMeta?.mode === 'sampled-frames' ? '抽帧分析' : 'Gemini 视频分析'}</p><h3>原片表达与产品观察</h3>{project.analysis.sellingPoints.map((text, i) => <p key={i}>{text}</p>)}<p>{project.analysis.productAppearance}</p>{!!project.analysis.uncertainties.length && <details><summary>需要核对 · {project.analysis.uncertainties.length} 项</summary>{project.analysis.uncertainties.map((text, i) => <p key={i}>{text}</p>)}</details>}</> : <p>上传参考视频后，Gemini 会按实际剪辑和动作段落整理镜头。每行片段和关键帧都从本机原片截取。</p>}</div></div></details>
           {project.analysis && <section className="panel global-focus-panel"><div className="global-focus-heading"><h2>全片关注重点</h2><small>{(project.analysis.focusPoints || []).filter(point => point.selected).length}/{project.analysis.focusPoints?.length || 0} 项已勾选</small></div><p>AI 给出复刻候选，你可以勾选、订正或补充。已勾选的内容会成为二创提示词的优先要求。</p>{!!project.analysisReview?.globalFocusSuggestion?.length && <div className="global-focus-suggestion"><strong>局部重新分析后，AI 建议更新全片重点</strong><ul>{project.analysisReview.globalFocusSuggestion.map(point => <li key={point.id}>{point.selected ? '☑' : '□'} {point.text}</li>)}</ul><div className="global-focus-actions"><button className="btn small" disabled={disabled} onClick={dismissGlobalFocusSuggestion}>保留当前</button><button className="btn small primary" disabled={disabled} onClick={acceptGlobalFocusSuggestion}>采用 AI 建议</button></div></div>}<FocusPointsEditor points={project.analysis.focusPoints} onChange={updateGlobalFocus} disabled={disabled} onSeek={seek} /></section>}
           <section className="panel scene-panel"><div className="panel-heading"><div>{project.breakdownType === 'storyboard-grid' ? <Grid2X2 size={18} /> : <Clapperboard size={18} />}<h2>{project.breakdownType === 'storyboard-grid' ? '分镜网格与生成 Prompt' : '镜头片段与证据'}</h2><Badge>{project.breakdownType === 'storyboard-grid' ? `${project.storyboardGrids?.length || 0} 张网格` : `${project.analysis?.shots.length || 0} 个镜头`}</Badge></div>{project.analysis && project.breakdownType !== 'storyboard-grid' && <div className="breakdown-heading-actions"><button className="btn small" disabled={disabled} onClick={() => { player.current?.pause(); setTimelineOpen(true); }}><Scissors size={14} />编辑镜头时间线</button>{!!project.analysisReview?.pendingIds.length && <button className="btn small" disabled={disabled || !video} onClick={() => void startJob('analysis-refine')}><Sparkles size={14} />重新分析变动镜头（{project.analysisReview.pendingIds.length}）</button>}</div>}</div>
-            {project.analysis ? project.breakdownType === 'storyboard-grid' ? project.storyboardGrids?.length ? <StoryboardGridPanel grids={project.storyboardGrids} disabled={disabled} onCopy={text => void copy(text)} onPrompt={updateStoryboardGridPrompt} onIncluded={updateStoryboardGridIncluded} /> : <div className="empty-state"><Grid2X2 size={38} strokeWidth={1.2} /><h3>还没有当前规格的分镜网格</h3><p>重新拆解后，每个 ≤8 秒片段会生成一张网格和对应 Prompt。</p><button className="btn primary" disabled={disabled || !video} onClick={() => startJob('analysis')}><Sparkles size={16} />生成分镜网格</button></div> : <ShotBreakdown project={project} selectedIndex={selectedShot} onSelect={setSelectedShot} onSeek={seek} onCopy={text => void copy(text)} onSplit={splitAnalysisShot} onToggleInclude={setShotIncluded} onAcceptSuggestion={acceptShotSuggestion} onDismissSuggestion={dismissShotSuggestion} onFocusChange={updateShotFocus} disabled={disabled} renderEditor={(s, i) => sceneEditor(s, i)} /> : <div className="empty-state">{project.breakdownType === 'storyboard-grid' ? <Grid2X2 size={38} strokeWidth={1.2} /> : <ScanLine size={38} strokeWidth={1.2} />}<h3>{running ? '正在逐段理解视频' : '开始拆解你的参考片'}</h3><p>{project.breakdownType === 'storyboard-grid' ? `按每段 ≤8 秒生成 ${project.storyboardGridSize || 3}×${project.storyboardGridSize || 3} 分镜网格和可编辑视频 Prompt。` : '逐镜头整理片段、证据关键帧与可编辑的观察和 Prompt。'}</p><button className="btn primary" disabled={disabled || !video} onClick={() => startJob('analysis')}><Sparkles size={16} />{status.configured ? project.breakdownType === 'storyboard-grid' ? '生成分镜网格' : '开始视频拆解' : '连接 Gemini 并开始'}</button></div>}
+            {project.analysis ? project.breakdownType === 'storyboard-grid' ? project.storyboardGrids?.length ? <StoryboardGridPanel grids={project.storyboardGrids} disabled={disabled} onCopy={text => void copy(text)} onPrompt={updateStoryboardGridPrompt} onIncluded={updateStoryboardGridIncluded} /> : <div className="empty-state"><Grid2X2 size={38} strokeWidth={1.2} /><h3>还没有当前规格的分镜网格</h3><p>重新拆解后，每个 ≤10 秒片段会生成一张网格和对应 Prompt。</p><button className="btn primary" disabled={disabled || !video} onClick={() => startJob('analysis')}><Sparkles size={16} />生成分镜网格</button></div> : <ShotBreakdown project={project} selectedIndex={selectedShot} onSelect={setSelectedShot} onSeek={seek} onCopy={text => void copy(text)} onSplit={splitAnalysisShot} onToggleInclude={setShotIncluded} onAcceptSuggestion={acceptShotSuggestion} onDismissSuggestion={dismissShotSuggestion} onFocusChange={updateShotFocus} disabled={disabled} renderEditor={(s, i) => sceneEditor(s, i)} /> : <div className="empty-state">{project.breakdownType === 'storyboard-grid' ? <Grid2X2 size={38} strokeWidth={1.2} /> : <ScanLine size={38} strokeWidth={1.2} />}<h3>{running ? '正在逐段理解视频' : '开始拆解你的参考片'}</h3><p>{project.breakdownType === 'storyboard-grid' ? `按每段 ≤10 秒生成 ${project.storyboardGridSize || 3}×${project.storyboardGridSize || 3} 分镜网格和可编辑视频 Prompt。` : '逐镜头整理片段、证据关键帧与可编辑的观察和 Prompt。'}</p><button className="btn primary" disabled={disabled || !video} onClick={() => startJob('analysis')}><Sparkles size={16} />{status.configured ? project.breakdownType === 'storyboard-grid' ? '生成分镜网格' : '开始视频拆解' : '连接 Gemini 并开始'}</button></div>}
             {project.analysis && <div className="panel-footnote"><Info size={14} /><span>{project.breakdownType === 'storyboard-grid' ? '重新拆解会按当前 3×3 / 4×4 规格重新生成所有网格和 Prompt，已手动修改的 Prompt 会被覆盖。' : '重新拆解将丢弃当前所有镜头记录，重新执行完整的视频分析（第二阶段）。已编辑的镜头描述和时间调整将被覆盖。'}</span></div>}
           </section>
         </div>}
 
         {step === 2 && (isStoryboardGrid ? storyboardGridPanel : tierPanel)}
 
-        <footer className="action-bar"><div className={`action-context${step === 1 && project.analysis ? ' action-context--breakdown' : ''}`}><CheckCheck size={16} /><span>所有编辑自动保存到本机</span>{step === 1 && project.analysis && <button className="text-button" disabled={disabled || !video} onClick={() => startJob('analysis')}>重新拆解</button>}</div><div className="action-buttons">{step > 0 && <button className="btn" disabled={!!busy} onClick={() => go(step - 1)}>上一步</button>}{step === 0 && <button className="btn primary" disabled={disabled || !video} onClick={() => go(1, true)}>下一步：视频拆解<ArrowRight size={16} /></button>}{step === 1 && <button className="btn primary" disabled={disabled || (project.breakdownType === 'storyboard-grid' ? !(project.storyboardGrids?.length) : !project.analysis)} onClick={() => go(2, true)}>{project.breakdownType === 'storyboard-grid' ? '生成网格视频' : '人物与视频二创'}<ArrowRight size={16} /></button>}</div></footer>
+        <footer className="action-bar"><div className={`action-context${step === 1 && project.analysis ? ' action-context--breakdown' : ''}`}><CheckCheck size={16} /><span>所有编辑自动保存到本机</span>{step === 1 && project.analysis && <button className="text-button" disabled={disabled || !video} onClick={() => startJob('analysis')}>重新拆解</button>}</div><div className="action-buttons">{step > 0 && <button className="btn" disabled={!!busy} onClick={() => go(step - 1)}>上一步</button>}{step === 0 && <button className="btn primary" disabled={disabled || !video} onClick={() => go(1)}>下一步：视频拆解<ArrowRight size={16} /></button>}{step === 1 && <button className="btn primary" disabled={disabled || (project.breakdownType === 'storyboard-grid' ? !(project.storyboardGrids?.length) : !project.analysis)} onClick={() => go(2)}>{project.breakdownType === 'storyboard-grid' ? '生成网格视频' : '人物与视频二创'}<ArrowRight size={16} /></button>}</div></footer>
         </div></Modal>}
         </>}
       </main>
@@ -1255,6 +1349,15 @@ export default function App() {
       <div className="modal-actions"><button className="btn" disabled={!!busy} onClick={() => setVideoPreview(null)}>取消</button><button className="btn primary" disabled={!!busy || !videoPreview.prompt.trim() || !videoPreview.images.length} onClick={() => void confirmTierVideo()}>{busy ? <LoaderCircle size={15} className="spin" /> : <Clapperboard size={15} />}确认生成</button></div>
     </Modal>}
     {modal === 'config' && <Modal title="配置" onClose={() => setModal(null)}>
+      <section className="configuration-analysis" aria-labelledby="configuration-analysis-title">
+        <div className="configuration-analysis-heading"><strong id="configuration-analysis-title">视频分析方式</strong><small>切换立即保存，所有新任务生效</small></div>
+        <div className="configuration-analysis-options" role="radiogroup" aria-label="视频分析方式">
+          <button type="button" role="radio" aria-checked={(status.videoAnalysisMethod || 'full') === 'full'} className={(status.videoAnalysisMethod || 'full') === 'full' ? 'selected' : ''} disabled={analysisMethodSaving} onClick={() => void changeAnalysisMethod('full')}><strong>完整视频</strong><small>一次分析整段视频</small></button>
+          <button type="button" role="radio" aria-checked={status.videoAnalysisMethod === 'segmented'} className={status.videoAnalysisMethod === 'segmented' ? 'selected' : ''} disabled={analysisMethodSaving} onClick={() => void changeAnalysisMethod('segmented')}><strong>10 秒并行</strong><small>每段单独分析，最多 3 段同时进行</small></button>
+        </div>
+        <p>分段模式每段调用一次模型，结果会合并到原视频时间轴。</p>
+        {analysisMethodError && <p className="field-error" role="alert">{analysisMethodError}</p>}
+      </section>
       <div className="configuration-options">
         <button className="configuration-option" onClick={() => setModal('settings')}><Sparkles size={18} /><span><strong>模型与图片生成</strong><small>{status.configured && status.imageGeneration?.configured ? '模型已配置' : '配置模型连接'}</small></span><ChevronRight size={16} /></button>
         <button className="configuration-option" onClick={() => setModal('guide')}><CircleHelp size={18} /><span><strong>创意方法与使用指南</strong><small>查看工作流与创意说明</small></span><ChevronRight size={16} /></button>

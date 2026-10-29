@@ -3,10 +3,11 @@ import { promisify } from 'node:util';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type { Analysis, Asset, Market, Shot, StoryboardGrid, StoryboardGridSize } from '../shared/domain';
+import { MAX_STORYBOARD_GRID_DURATION } from '../shared/storyboard-grid';
+import { REMIX_SECONDS } from '../shared/remix';
 import { uploadDir } from './store';
 
 const exec = promisify(execFile);
-const MAX_GRID_DURATION = 8;
 
 function fixed(value: number) {
   return Number(value.toFixed(3));
@@ -58,11 +59,13 @@ function clean(value?: string) {
 }
 
 function buildPrompt(analysis: Analysis, shots: Shot[], start: number, end: number, size: StoryboardGridSize, times: number[], aspectRatio: Market['aspectRatio']) {
-  const duration = fixed(end - start);
+  const sourceDuration = fixed(end - start);
+  const duration = REMIX_SECONDS;
+  const timeScale = duration / sourceDuration;
   const count = size * size;
   const shotSections = shots.map((shot, index) => {
-    const localStart = fixed(Math.max(start, shot.start) - start);
-    const localEnd = fixed(Math.min(end, shot.end) - start);
+    const localStart = fixed((Math.max(start, shot.start) - start) * timeScale);
+    const localEnd = fixed((Math.min(end, shot.end) - start) * timeScale);
     const cells = shotCells(shot, times);
     const motion = shot.motionBeats?.length
       ? shot.motionBeats.map(beat => beat.description).join('；')
@@ -75,7 +78,7 @@ ${clean(shot.visual)}
 转场与效果：${clean([shot.transition, shot.effects].filter(Boolean).join('；'))}`;
   }).join('\n\n');
 
-  return `生成一条${duration.toFixed(2)}秒、${aspectRatio}画幅视频。
+  return `生成一条${duration.toFixed(2)}秒、${aspectRatio}画幅视频。${sourceDuration !== duration ? `原片本段为${sourceDuration.toFixed(2)}秒，请按比例安排到生成时长，保持各镜头的相对节奏。` : ''}
 
 【参考图的读取方式】
 上传的参考图是一张${size}行×${size}列的连续分镜板，共${count}格。
@@ -119,7 +122,7 @@ function overlappingShots(analysis: Analysis, start: number, end: number) {
 
 export async function generateStoryboardGrids(video: Asset, analysis: Analysis, size: StoryboardGridSize, aspectRatio: Market['aspectRatio'], progress?: (done: number, total: number) => void): Promise<StoryboardGrid[]> {
   if (!video.duration || !video.width || !video.height) throw new Error('缺少参考视频的时长或尺寸信息。');
-  const total = Math.ceil(video.duration / MAX_GRID_DURATION);
+  const total = Math.ceil(video.duration / MAX_STORYBOARD_GRID_DURATION);
   const source = path.join(uploadDir, video.filename);
   const probe = await exec('ffprobe', ['-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=duration,r_frame_rate', '-of', 'json', source], { timeout: 20000 });
   const stream = JSON.parse(probe.stdout).streams?.[0];
@@ -132,8 +135,8 @@ export async function generateStoryboardGrids(video: Asset, analysis: Analysis, 
   const cellHeight = portrait ? 480 : 270;
   const grids: StoryboardGrid[] = [];
   for (let index = 0; index < total; index++) {
-    const start = fixed(index * MAX_GRID_DURATION);
-    const end = fixed(Math.min(video.duration, start + MAX_GRID_DURATION));
+    const start = fixed(index * MAX_STORYBOARD_GRID_DURATION);
+    const end = fixed(Math.min(video.duration, start + MAX_STORYBOARD_GRID_DURATION));
     const duration = end - start;
     const count = size * size;
     const times = representativeFrameTimes(analysis, start, end, count).map(at => fixed(Math.min(at, lastFrameTime)));

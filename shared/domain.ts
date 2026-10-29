@@ -213,14 +213,14 @@ export type ModelRequestSnapshot = {
   recordedAt: string;
 };
 export type GeneratedVideo = {
-  id: string; provider: 'veo-3.1' | 'grok-imagine'; model: 'veo_3_1' | 'veo_3_1-fl' | 'veo_3_1-components' | 'grok-imagine-video-1.5'; shotId: string;
+  id: string; provider: 'veo-3.1' | 'grok-imagine' | 'omni-flash' | 'local-test'; model: 'veo_3_1' | 'veo_3_1-fl' | 'veo_3_1-components' | 'grok-imagine-video-1.5' | 'omni_flash_10s' | 'local-test'; shotId: string;
   mode?: 't2v' | 'i2v' | 'r2v'; imageUrls?: string[]; resolution?: '720p' | '1080p' | 'lite';
   unitId?: string; sourceShotIds?: string[]; targetStart?: number; targetEnd?: number; targetDuration?: number;
   requestId?: string; status: 'running' | 'completed' | 'failed'; prompt: string; productionMode?: ProductionMode;
   duration: number; aspectRatio: Market['aspectRatio'] | '16:9'; startedAt: string; finishedAt?: string;
   filename?: string; url?: string; mime?: string; size?: number; width?: number; height?: number;
   hasAudio?: boolean; thumbnail?: string; stale?: boolean; error?: string;
-  defaultPrompt?: string; providerRequest?: { model: string; prompt: string; resolution: string; aspect_ratio: string; images?: string[] };
+  defaultPrompt?: string; providerRequest?: { model: string; prompt: string; resolution: string; aspect_ratio: string; images?: string[]; input_reference?: string[]; first_last_frame?: boolean };
   keyframeShotId?: string; keyframeFilename?: string; keyframeBasis?: string; keyframeUrl?: string;
   /** 档位工作台 step 2: the new first/last frame files this clip was made from. */
   tierShotId?: string; tierFirst?: string; tierLast?: string;
@@ -242,10 +242,11 @@ export type ComposedVideo = {
   };
 };
 export type AnalysisMeta = {
-  mode: 'agentic-video' | 'native-video' | 'sampled-frames';
+  mode: 'agentic-video' | 'native-video' | 'sampled-frames' | 'segmented-video';
   transport: 'gemini-inline' | 'gemini-files' | 'openai-images';
   audioSubmitted: boolean; requestedModel: string; providerModel?: string; agenticTrace?: boolean; analyzedAt: string;
   requestedVideoFps?: number;
+  segmentCount?: number;
 };
 export type BreakdownType = 'shot' | 'storyboard-grid';
 export type StoryboardGridSize = 3 | 4;
