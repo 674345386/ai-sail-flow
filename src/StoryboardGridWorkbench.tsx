@@ -86,10 +86,10 @@ export function InternalGuide() {
   </div>;
 }
 
-export function StoryboardGridCardBody({ grid, index, project, disabled, onPrompt, onGenerate, onIncluded, selected = false, className = '' }: {
+export function StoryboardGridCardBody({ grid, index, project, disabled, onPrompt, onGenerate, onIncluded, selected = false, className = '', externalVideoResult = false }: {
   grid: StoryboardGrid; index: number; project: Project; disabled: boolean;
   onPrompt: (id: string, prompt: string) => void; onGenerate: (gridId: string) => void;
-  onIncluded: (id: string, included: boolean) => void; selected?: boolean; className?: string;
+  onIncluded: (id: string, included: boolean) => void; selected?: boolean; className?: string; externalVideoResult?: boolean;
 }) {
   const state = useMemo(() => gridVideoState(project, grid), [project, grid]);
   const status = statusOf(state);
@@ -130,15 +130,15 @@ export function StoryboardGridCardBody({ grid, index, project, disabled, onPromp
       </label>
     </div>
 
-    <InternalGuide />
+    {!externalVideoResult && <InternalGuide />}
 
-    {state.running && !shown ? <div className="sg-result is-loading">
+    {!externalVideoResult && state.running && !shown ? <div className="sg-result is-loading">
       <div className="sg-shimmer" />
       <span className="sg-result-lab">视频结果</span>
       <p className="sg-result-msg">正在生成视频{state.progress != null ? ` · ${state.progress}%` : '…'}</p>
       <div className="sg-result-bar"><i style={{ width: `${Math.max(8, state.progress || 28)}%` }} /></div>
     </div>
-      : shown ? <div className={`sg-result${state.running ? ' is-loading' : ''}`}>
+      : !externalVideoResult && shown ? <div className={`sg-result${state.running ? ' is-loading' : ''}`}>
         <span className="sg-result-lab">视频结果</span>
         <div className="sg-vres nodrag nowheel">
           <div className="sg-vthumb">
@@ -158,11 +158,11 @@ export function StoryboardGridCardBody({ grid, index, project, disabled, onPromp
         </div>
         {state.failed && <p className="sg-err"><AlertTriangle size={12} />{state.error}</p>}
       </div>
-        : <div className={`sg-result is-empty${state.failed ? ' is-failed' : ''}`}>
+        : !externalVideoResult ? <div className={`sg-result is-empty${state.failed ? ' is-failed' : ''}`}>
           {state.failed
             ? <><AlertTriangle size={15} /><span>{state.error || '生成失败'}</span></>
             : <><Play size={15} strokeWidth={1.6} /><span>还没有视频结果</span></>}
-        </div>}
+        </div> : null}
   </article>;
 }
 

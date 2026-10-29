@@ -4,14 +4,13 @@ import VideoPromptImages, { type VideoPromptImage } from './VideoPromptImages';
 import { tierGroupPrompt, withVideoReferences } from '../shared/tier-video-group';
 import { applyFrameInput, framePositions, tierPlan, type FramePosition, type TierImage } from '../shared/tier-prompt';
 const frameRatioLabel = (project: Project) => { const video = project.assets.find(asset => asset.kind === 'video'); if (!video?.width || !video?.height) return project.market.aspectRatio; const gcd = (a: number, b: number): number => b ? gcd(b, a % b) : a; const g = gcd(video.width, video.height); return `${video.width / g}:${video.height / g}`; };
-import { Archive, ArchiveRestore, ArrowDownToLine, ArrowLeft, ArrowRight, ArrowUpRight, Check, CheckCheck, ChevronDown, ChevronRight, CircleHelp, CirclePlay, Clapperboard, Copy, Download, Eye, FileJson, FileText, Film, FolderOpen, Globe2, Grid2X2, ImagePlus, Info, LayoutList, LoaderCircle, LogOut, Mail, Package, Plus, Save, ScanLine, Scissors, Settings, Settings2, ShieldCheck, Sparkles, Subtitles, Upload, Video, WandSparkles, Workflow, X } from 'lucide-react';
+import { Archive, ArchiveRestore, ArrowDownToLine, ArrowLeft, ArrowRight, ArrowUpRight, Check, CheckCheck, ChevronDown, ChevronRight, CircleHelp, CirclePlay, Clapperboard, Copy, Download, Eye, FileJson, FileText, Film, FolderOpen, Globe2, Grid2X2, ImagePlus, Info, LayoutList, LoaderCircle, LogOut, Mail, Package, Plus, Save, ScanLine, Scissors, Search, Settings, Settings2, ShieldCheck, Sparkles, Subtitles, Upload, Video, WandSparkles, Workflow, X } from 'lucide-react';
 import { countries, defaultReplication, defaultWorkspace, languages, platforms, roles, timeLabel, validateContinuousTimeline, validateTimeline, type FocusPoint, type Project, type ProjectSummary, type WorkspaceProject, type Shot, type Product, type Market, type Replication, type ProductionMode, type WorkflowMode } from '../shared/domain';
 import { mergeFocusPoints } from '../shared/focus';
 import { keyframeCurrent } from '../shared/storyboard';
 import { buildBrief, buildPrompt, buildExportFiles, buildVeoPromptPreview, buildVeoUnitPrompt, subtitles } from '../shared/export';
 import { buildVeoPlan, type VeoPlanUnit } from '../shared/veo-plan';
 import { api, downloadBlob } from './api';
-import { useImagePaste } from './useImagePaste';
 import { authDisplayName, authEmail, authErrorMessage, initialAuthState, publicAuthRequired, syncPublicServerSession, supabase, loadAuthAvailability, unknownAuthAvailability, validEmail, validEmailCode, withAuthTimeout, readAuthCallback, clearAuthCallback, type AuthAvailability, type SailAuthState } from './auth';
 import AuthDialog from './AuthDialog';
 import AccountName from './AccountName';
@@ -29,6 +28,7 @@ import StoryboardGridPanel from './StoryboardGridPanel';
 import StoryboardGridWorkbench from './StoryboardGridWorkbench';
 import ProductPipelineCanvas from './ProductPipelineCanvas';
 import ProjectNavigation from './ProjectNavigation';
+import WorkspaceSearchPalette from './WorkspaceSearchPalette';
 import AnimatedBrandMark from './AnimatedBrandMark';
 import ShaderBackdrop from './ShaderBackdrop';
 import LandingHero from './LandingHero';
@@ -241,6 +241,7 @@ export default function App() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [searchPaletteOpen, setSearchPaletteOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => { try { return localStorage.getItem('sop-sidebar-collapsed') === 'true'; } catch { return false; } });
   useEffect(() => { try { localStorage.setItem('sop-sidebar-collapsed', String(sidebarCollapsed)); } catch {} }, [sidebarCollapsed]);
   const [showPipeline, setShowPipeline] = useState(false);
@@ -271,7 +272,6 @@ export default function App() {
   const unsaved = useRef(false);
   const editSequence = useRef(0);
   const savePromise = useRef<Promise<Project | null> | null>(null);
-  const imageUploadBoxes = useRef<HTMLDivElement>(null);
   const player = useRef<HTMLVideoElement>(null);
   const pendingSourceSeek = useRef<{ media: HTMLVideoElement; seconds: number } | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -448,10 +448,10 @@ export default function App() {
   const openAuth = () => { setAuthOpen(true); setAuthStage(auth.user ? 'email' : authStage); setAuthEmailValue(authEmail(auth.user) || authEmailValue); };
   useEffect(() => {
     const unload = (e: BeforeUnloadEvent) => { if (unsaved.current) { e.preventDefault(); } };
-    const shortcut = (e: KeyboardEvent) => { if ((e.metaKey || e.ctrlKey) && e.key === 's') { e.preventDefault(); void save().catch(err => setError(err.message)); } };
+    const shortcut = (e: KeyboardEvent) => { if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k' && !showLanding) { e.preventDefault(); setSearchPaletteOpen(value => !value); } if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') { e.preventDefault(); void save().catch(err => setError(err.message)); } };
     window.addEventListener('beforeunload', unload); window.addEventListener('keydown', shortcut);
     return () => { window.removeEventListener('beforeunload', unload); window.removeEventListener('keydown', shortcut); };
-  }, [save]);
+  }, [save, showLanding]);
   const taskRunning = project?.job?.status === 'running';
   const running = taskRunning || !!project && workflowBusy(project);
   useEffect(() => {
@@ -598,7 +598,6 @@ export default function App() {
       void syncMediaLibrary(auth.user).catch(error => setNotice(error instanceof Error ? error.message : '素材已引用，云端同步暂未完成。'));
     } finally { setBusy(''); }
   };
-  useImagePaste(imageUploadBoxes, stageDetail === 0 && step === 0 && !busy && !running && !observing && !modal && !showPipeline && !authOpen && !showLanding && !assetLibraryTarget && !showMediaLibrary, files => { void uploadFiles(files, 'product'); });
   const removeAsset = (id: string) => perform('正在移除素材', async () => { const p = await flush(); if (p) adopt(await api<Project>(`/api/projects/${p.id}/assets/${id}`, { method: 'DELETE' })); });
   const startJob = (kind: 'analysis' | 'analysis-refine' | 'rewrite') => perform('正在准备任务', async () => {
     const p = await flush(); if (!p) return;
@@ -957,7 +956,6 @@ export default function App() {
   </div>;
   if (!project) return <div className="boot-screen"><div className="brand-icon"><img src="/assets/brand/sail-mark-dark.svg" alt="" /></div><h1>AI-Sail Flow</h1>{bootError ? <><p className="error-text">{bootError}</p><button className="btn" onClick={() => location.reload()}>重新连接</button></> : <><LoaderCircle className="spin" /><p>正在打开工作台…</p></>}{profileDialog}</div>;
   const video = project.assets.find(a => a.kind === 'video');
-  const productImages = project.assets.filter(a => a.kind === 'product');
   const disabled = !!busy || running || observing;
   const autoView = false;
   const manualView = true;
@@ -965,7 +963,6 @@ export default function App() {
   const missingProductFields = [
     ...(!project.product.name.trim() ? [{ id: 'product-name', label: '产品名称' }] : []),
     ...(!project.product.facts.trim() ? [{ id: 'product-facts', label: '已确认的卖点与规格' }] : []),
-    ...(!productImages.length ? [{ id: 'product-references', label: '产品参考图' }] : []),
   ];
   const rewriteBlocked = !project.analysis || ((project.promptFlow || 'localized') === 'localized' && missingProductFields.length > 0);
   const available = [true, lastAvailableStep(project) >= 1, lastAvailableStep(project) >= 2];
@@ -982,7 +979,7 @@ export default function App() {
     onGenerateShots={shotIds => void generateTierShots(shotIds)} onVideo={startTierVideo} onGroupVideo={startTierVideoGroup} openFrame={openFrame} onOpenFrame={openFrameOnly} canvas={canvasView} /> : null;
   const frameDrawer = !isStoryboardGrid && openFrame && project.analysis && (canvasView || step === 2) ? <FrameDrawer {...frameHandlers} shotId={openFrame.shotId} position={openFrame.position} onClose={() => setOpenFrame(null)} />
     : !isStoryboardGrid && openVideo && project.analysis && (canvasView || step === 2) ? <VideoDrawer project={project} disabled={disabled} ratioLabel={frameHandlers.ratioLabel} onVideo={startTierVideo} onVideoPrompt={setVideoPrompt} shotId={openVideo} onClose={() => setOpenVideo(null)} /> : null;
-  const remixPanel = <ProductPipelineCanvas key={project.id} project={project} disabled={disabled} onPrompt={updateStoryboardGridPrompt} onGenerate={gridId => void startStoryboardGridVideo(gridId)} onIncluded={updateStoryboardGridIncluded} onUploadVideo={() => openAssetLibrary('video')} onUploadProduct={() => openAssetLibrary('image')} onAnalyze={() => void startJob('analysis')} onOpenMaterials={() => openStageDetail(0)} onOpenAnalysis={() => openStageDetail(1)} onOpenRemixDetail={() => openStageDetail(2)} onSettings={() => setModal('settings')} focusStep={step} focusVersion={canvasFocusVersion} />;
+  const remixPanel = <ProductPipelineCanvas key={project.id} project={project} disabled={disabled} onPrompt={updateStoryboardGridPrompt} onGenerate={gridId => void startStoryboardGridVideo(gridId)} onIncluded={updateStoryboardGridIncluded} onUploadVideo={() => openAssetLibrary('video')} onAnalyze={() => void startJob('analysis')} onOpenMaterials={() => openStageDetail(0)} onOpenAnalysis={() => openStageDetail(1)} onOpenRemixDetail={() => openStageDetail(2)} onSettings={() => setModal('settings')} focusStep={step} focusVersion={canvasFocusVersion} />;
   const market = countries.find(c => c.code === project.market.country)!;
   const platform = platforms.find(p => p.id === project.market.platform)!;
   const shot = project.analysis?.shots[Math.min(selectedShot, project.analysis.shots.length - 1)];
@@ -1120,6 +1117,7 @@ export default function App() {
         // Always navigate home, even while a task runs (tasks continue in the background); save pending edits first when idle.
         void (async () => { if (!busy) { try { await flush(); } catch { /* keep navigating; edits stay local */ } } setSidebarOpen(false); setShowLanding(true); window.scrollTo(0, 0); })();
       }}><span className="brand-compact" aria-hidden="true">SF</span><div className="brand-icon"><img src="/assets/brand/sail-mark-dark.svg" alt="" width={40} height={40} /></div><div><strong>AI-Sail Flow</strong><span>跨境内容工作台</span></div><Badge>V1</Badge></a><button className="icon-btn sidebar-toggle sidebar-collapse-toggle" aria-label={sidebarIsCollapsed ? '展开侧边栏' : '收起侧边栏'} title={sidebarIsCollapsed ? '展开侧边栏' : '收起侧边栏'} aria-expanded={!sidebarIsCollapsed} aria-controls="workspace-sidebar" onClick={() => { setSidebarOpen(false); setSidebarCollapsed(!sidebarIsCollapsed); }}><SidebarToggleIcon expanded={!sidebarIsCollapsed} /></button></div>
+      <button type="button" className="sidebar-search-create" title="搜索与创建（⌘K）" aria-label="搜索与创建" onClick={() => setSearchPaletteOpen(true)}><Search size={17} /><span>搜索与创建</span><kbd><span>⌘</span><span>K</span></kbd></button>
       <div className="workspace-picker" title={defaultWorkspace.title}><span className="workspace-avatar workspace-brand-avatar"><AnimatedBrandMark /></span><span>{defaultWorkspace.title}<small>项目与创意</small></span></div>
       <button type="button" className={`nav-item sidebar-media-button ${showMediaLibrary ? 'active' : ''}`} aria-label="所有媒体" title="所有媒体" aria-pressed={showMediaLibrary} disabled={!!busy} onClick={() => { setShowMediaLibrary(true); setSidebarOpen(false); }}><Grid2X2 size={18} /><span>所有媒体</span></button>
       {FEATURE_STUDIO && <button type="button" className="nav-item sidebar-studio-button" aria-label="爆款工作室" title="爆款工作室" disabled={!!busy} onClick={() => openStudio('welcome')}><Sparkles size={18} /><span>爆款工作室</span></button>}
@@ -1132,6 +1130,7 @@ export default function App() {
       </section>
       <div className="sidebar-footer-row"><button className="sidebar-config" title="配置" aria-label="配置" onClick={() => setModal('config')}><Settings size={16} /><span>配置</span></button></div>
     </aside>
+    {searchPaletteOpen && <WorkspaceSearchPalette creatives={projects} groups={projectGroups} busy={!!busy} onChoose={id => { setShowArchived(false); void switchProject(id); }} onCreateCreative={() => { setError(''); newProject(); }} onCreateProject={() => { setError(''); setOrganizationDialog({ kind: 'project-new', parentId: '', title: '' }); }} onClose={() => setSearchPaletteOpen(false)} />}
     <div className="main-shell">
       <header className="topbar"><div className="topbar-leading"><button className="icon-btn sidebar-toggle mobile-menu" aria-label={sidebarOpen ? '关闭导航' : '打开导航'} title={sidebarOpen ? '关闭导航' : '打开导航'} aria-expanded={sidebarOpen} aria-controls="workspace-sidebar" onClick={() => setSidebarOpen(!sidebarOpen)}><SidebarToggleIcon expanded={sidebarOpen} /></button><span className="topbar-leading-divider" aria-hidden="true" /><div className="breadcrumbs"><FolderOpen size={16} /><span>{defaultWorkspace.title}</span><ChevronRight size={14} /><button className="breadcrumb-project" onClick={() => parentProject && editParentProject(parentProject)} disabled={!!busy} title="重命名项目">{parentProject?.title || '默认项目'}</button><ChevronRight size={14} /><button className="breadcrumb-current breadcrumb-creative" onClick={editCreative} disabled={disabled} title="编辑创意名称与所属项目">{project.title}</button></div></div><div className="topbar-actions"><span className="save-status">{saving ? <LoaderCircle size={14} className="spin" /> : dirty ? <span className="unsaved-dot" /> : <CheckCheck size={14} />}{saving ? '保存中' : dirty ? '待保存' : '已保存'}</span><button className="icon-btn" title="保存创意 ⌘S" aria-label="保存创意" disabled={disabled || !dirty} onClick={() => perform('正在保存', async () => { await flush(); setNotice('已保存'); })}><Save size={17} /></button><span className="topbar-divider" /><button className="btn small" onClick={() => newProject()} disabled={!!busy}><Plus size={15} />新建创意</button><LanguageSwitch /><button className="account-chip" onClick={openAuth}><span>{auth.user ? <img src={accountAvatar} alt="" /> : <Mail size={14} />}</span>{auth.user ? authDisplayName(auth.user) : '登录'}</button></div></header>
       <main className={showMediaLibrary ? 'media-workspace-main' : canvasView ? 'canvas-workspace-main' : step === 2 ? 'remix-workspace-main' : undefined}>
@@ -1145,20 +1144,18 @@ export default function App() {
           <button className="unified-steps-toggle" aria-expanded={!stepsCollapsed} onClick={() => setStepsCollapsed(value => !value)}>{stepsCollapsed ? '展开步骤' : '收起步骤'}</button>
           <aside className={`unified-steps wizard-panel${stepsCollapsed ? ' is-collapsed' : ''}`} aria-label="创作步骤">
             <header className="wizard-header">
-              <div className="wizard-eyebrow">CREATIVE WORKFLOW <span> / </span> 0{step + 1}</div>
-              <h2>创作流程</h2><p>从参考素材到全新创意</p>
+              <h2>创作流程</h2>
               <nav className="wizard-progress" aria-label="创作进度">
                 {steps.map((item, i) => <button key={item.en} type="button" className={`wizard-progress-item${i === step ? ' is-current' : ''}${i < step ? ' is-past' : ''}`} disabled={i >= step || !!busy} aria-current={i === step ? 'step' : undefined} onClick={() => focusStage(i)}><span>{i < step ? <Check size={13} /> : `0${i + 1}`}</span><b>{i === 2 && isStoryboardGrid ? '网格视频' : item.name}</b></button>)}
               </nav>
             </header>
             <div className="wizard-body">
               {step === 0 && <section className="wizard-content">
-                <div className="wizard-section-label"><span>01</span> 素材准备</div><h3>先准备你的参考素材</h3><p className="wizard-lead">上传一条参考视频，再补充产品信息，为后续创作提供依据。</p>
+                <div className="wizard-section-label"><span>01</span> 素材准备</div><h3>先准备你的参考素材</h3><p className="wizard-lead">上传参考视频即可开始；产品信息可以稍后补充。</p>
                 <div className="wizard-block"><div className="wizard-block-heading"><div><strong>参考视频</strong><small>必需 · 用于拆解镜头与声音</small></div>{video && <span className="wizard-status">已添加</span>}</div>
                   {video ? <div className="wizard-video"><video key={video.id} src={video.url} poster={video.thumbnail} controls playsInline preload="metadata" /><div><strong title={video.name}>{video.name}</strong><span>{timeLabel(video.duration || 0)} · {video.width} × {video.height}</span></div></div> : <button type="button" className="wizard-upload" disabled={disabled} onClick={() => openAssetLibrary('video')}><span><Upload size={20} /></span><strong>选择参考视频</strong><small>从素材库选择或上传 · MP4 / MOV / WebM</small></button>}
                   {video && <button className="wizard-link" disabled={disabled} onClick={() => openAssetLibrary('video')}>更换视频 <ArrowRight size={13} /></button>}
                 </div>
-                <div className="wizard-block"><div className="wizard-block-heading"><div><strong>产品与参考图</strong><small>补充产品信息和外观参考</small></div><span className="wizard-status">{productImages.length} 张图片</span></div><p className="wizard-product-name">{project.product.name || '尚未填写产品名称'}</p>{!!productImages.length && <div className="unified-product-images">{productImages.map(image => <img key={image.id} src={image.url} alt={image.name} />)}</div>}<div className="wizard-inline-actions"><button className="wizard-secondary" disabled={disabled} onClick={() => openAssetLibrary('image')}><ImagePlus size={14} />添加产品图</button><button className="wizard-link" onClick={() => openStageDetail(0)}>编辑产品资料 <ArrowRight size={13} /></button></div></div>
               </section>}
               {step === 1 && <section className="wizard-content">
                 <div className="wizard-section-label"><span>02</span> 视频拆解</div><h3>理解每个有效镜头</h3><p className="wizard-lead">选择拆解方式，整理画面、节奏与声音。结果会同步到右侧画布。</p>
@@ -1211,16 +1208,12 @@ export default function App() {
                 <button type="button" className={`breakdown-mode-option ${project.breakdownType === 'storyboard-grid' ? 'selected' : ''}`} disabled={disabled} onClick={() => change(p => ({ ...p, breakdownType: 'storyboard-grid' }))}><Grid2X2 size={19} /><span><strong>分镜网格拆解</strong><small>每张网格对应 ≤8 秒，同时生成视频 Prompt</small></span></button>
               </div>{project.breakdownType === 'storyboard-grid' && <div className="storyboard-size-picker"><span>网格密度</span>{([3, 4] as const).map(size => <button type="button" key={size} className={(project.storyboardGridSize || 3) === size ? 'selected' : ''} disabled={disabled} onClick={() => change(p => ({ ...p, storyboardGridSize: size }))}>{size}×{size}</button>)}<small>{project.storyboardGridSize === 4 ? '16 格，动作变化更细' : '9 格，画面主体更大'}</small></div>}</div>
           </section>
-          <section className="panel brief-panel"><div className="panel-heading"><div><Package size={18} /><h2>你的产品</h2></div><span className="secondary-label">信息与外观</span></div><div className="panel-body">
+          <section className="panel brief-panel"><div className="panel-heading"><div><Package size={18} /><h2>你的产品</h2></div><span className="secondary-label">产品信息</span></div><div className="panel-body">
             <div className="materials-basic-fields"><Field label="产品名称 · 必填" error={showRequiredErrors && !project.product.name.trim() ? '请填写要推广的产品名称' : undefined} errorId="product-name-error"><Input id="product-name" required aria-invalid={showRequiredErrors && !project.product.name.trim()} aria-describedby={showRequiredErrors && !project.product.name.trim() ? 'product-name-error' : undefined} placeholder="例如：便携冷萃咖啡杯" value={project.product.name} disabled={disabled} onChange={e => updateProduct({ name: e.target.value })} /></Field>
             <Field label="产品类别"><select className="input" value={project.product.category} disabled={disabled} onChange={e => updateProduct({ category: e.target.value })}>{['家居生活', '美妆个护', '服饰配件', '数码配件', '户外运动', '宠物用品', '其他'].map(c => <option key={c}>{c}</option>)}</select></Field></div>
             <Field label="已确认的卖点与规格 · 必填" hint="写具体事实。参考片里的功效、价格不会自动变成你的产品卖点。" error={showRequiredErrors && !project.product.facts.trim() ? '请填写已确认的产品卖点或规格' : undefined} errorId="product-facts-error"><Textarea id="product-facts" required aria-invalid={showRequiredErrors && !project.product.facts.trim()} aria-describedby={showRequiredErrors && !project.product.facts.trim() ? 'product-facts-error' : undefined} rows={3} placeholder={'例如：\n500 ml 容量\n滤网可拆卸清洗\n杯盖采用旋拧结构'} value={project.product.facts} disabled={disabled} onChange={e => updateProduct({ facts: e.target.value })} /></Field>
             <Field label="目标购买人群" hint="他们在什么情境下，会需要这个产品？"><Textarea rows={2} placeholder="例如：想在家准备咖啡的通勤人群" value={project.product.audience} disabled={disabled} onChange={e => updateProduct({ audience: e.target.value })} /></Field>
           </div>
-            <div className="materials-product-images" id="product-references" tabIndex={-1}><div className="panel-heading"><div><ImagePlus size={18} /><h3>产品/主体参考图</h3><Badge>{project.promptFlow === 'direct-analysis' ? '选填' : '改写必填'}</Badge></div><div className="asset-library-inline-actions"><span className="secondary-label">{productImages.length} / 3</span><button type="button" className="text-button" disabled={disabled || productImages.length >= 3} onClick={() => openAssetLibrary('image')}><FolderOpen size={14} />素材库</button></div></div>
-              <div className="product-images" ref={imageUploadBoxes}>{[0, 1, 2].map(i => <div className="product-image-slot" key={i}>{productImages[i] ? <><img src={productImages[i].url} alt={productImages[i].name} /><button className="remove-image" aria-label={`移除 ${productImages[i].name}`} disabled={disabled} onClick={() => removeAsset(productImages[i].id)}><X size={14} /></button><span>{productImages[i].name}</span></> : <button data-image-upload disabled={disabled} aria-label="上传或粘贴产品/主体参考图" onClick={() => openAssetLibrary('image')}><Plus size={23} strokeWidth={1.2} /><span>产品/主体参考图</span><small>选择素材或粘贴图片</small></button>}</div>)}</div>
-              <div className="panel-footnote"><Info size={14} /><span>鼠标停在上传框后，按 ⌘V / Ctrl+V 粘贴图片。参考图用于约束产品或主体外观，每张最大 10 MB。</span></div>
-            </div>
           </section>
           <div className="materials-help"><div className="insight-card"><span className="tiny-label">创意起点</span><h3>先看见用途，再讲清价值。</h3><p>好的参考片能展示产品如何解决一个具体问题。上传时，优先选择动作完整、声音清晰的片段。</p><button className="text-button" onClick={() => setModal('guide')}>查看创意指南 <ArrowUpRight size={13} /></button></div>
             <button className="demo-invite" onClick={() => newProject(true)} disabled={!!busy}><span className="demo-icon"><CirclePlay size={20} /></span><span><strong>先看看，一条创意如何完成</strong><small>用示例创意体验分镜编辑、本地化和导出</small></span><ArrowUpRight size={19} /></button>

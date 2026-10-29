@@ -1,0 +1,2 @@
+(()=>{"use strict";(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["object"==typeof document?document.currentScript:void 0,2325698,e=>{var i=e.i(7843476);e.i(1928302);var t=e.i(6466234),r=e.i(7030598);e.s(["f",0,function({children:e,...n}){let{i18n:s}=(0,t.z)();return(0,i.jsx)(r.Q,{title:s.t("Agents"),variant:"fullscreen",requiredPermission:"conversational_ai",...n,children:e})}])},481454,e=>{let i=e.i(2325698).f;e.s(["default",0,i])}])})();
+

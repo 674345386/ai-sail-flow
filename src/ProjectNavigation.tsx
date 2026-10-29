@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
-import { Archive, ArchiveRestore, ArrowLeft, ChevronDown, ChevronRight, Clapperboard, Ellipsis, FileText, FolderOpen, MessageSquare, Pencil, Pin, Plus, Search } from 'lucide-react';
+import { Archive, ArchiveRestore, ArrowLeft, ChevronDown, ChevronRight, Clapperboard, Ellipsis, FolderOpen, MessageSquare, Pencil, Pin, Plus } from 'lucide-react';
 import type { ProjectSummary, WorkspaceProject } from '../shared/domain';
 
 const RECENT_LIMIT = 4;
@@ -20,7 +20,8 @@ function writeIds(key: string, ids: string[]) {
   try { localStorage.setItem(key, JSON.stringify(ids)); } catch { /* storage unavailable */ }
 }
 
-function TaskBadge({ count }: { count: number }) {
+function TaskBadge({ count, showZero = false }: { count: number; showZero?: boolean }) {
+  if (!count && !showZero) return null;
   return <span className="creative-task-badge" title={`进行中任务：${count}`} aria-label={`进行中任务 ${count}`}>
     <MessageSquare size={12} aria-hidden="true" /><em>{count}</em>
   </span>;
@@ -66,7 +67,7 @@ function MorePopover({
     const place = () => {
       const rect = anchorRef.current?.getBoundingClientRect();
       if (!rect) return;
-      const width = Math.min(320, window.innerWidth * 0.7);
+      const width = Math.min(512, window.innerWidth - 24);
       const left = Math.min(rect.right + 10, window.innerWidth - width - 12);
       const top = Math.min(Math.max(12, rect.top), window.innerHeight - 80);
       setCoords({ top, left: Math.max(12, left) });
@@ -103,10 +104,9 @@ function MorePopover({
     return () => { document.removeEventListener('mousedown', onPointer); document.removeEventListener('keydown', onKey); };
   }, [anchorRef, onClose]);
 
-  return <div className="sidebar-more-popover" ref={panelRef} role="dialog" aria-label="更多创作" style={{ top: coords.top, left: coords.left }}>
+  return <div className="sidebar-more-popover" ref={panelRef} role="dialog" aria-label="更多创作" style={{ top: coords.top, left: coords.left, maxHeight: `min(420px, calc(100dvh - ${coords.top + 12}px))` }}>
     <div className="sidebar-more-toolbar">
       <label className="sidebar-more-search">
-        <Search size={14} aria-hidden="true" />
         <input value={query} onChange={event => setQuery(event.target.value)} placeholder="搜索创作…" aria-label="搜索创作" autoFocus />
       </label>
       <button type="button" className="sidebar-more-view-all" onClick={onViewAll}>查看全部</button>
@@ -116,8 +116,8 @@ function MorePopover({
         const pinned = pinnedIds.has(creative.id);
         return <div key={creative.id} className={`sidebar-more-row${creative.id === currentId ? ' selected' : ''}`}>
           <button type="button" className="sidebar-more-link" disabled={busy} onClick={() => { onSelect(creative.id); onClose(); }} title={creative.title}>
-            <FileText size={14} aria-hidden="true" /><span>{creative.title}</span>
-            <TaskBadge count={creative.inProgressCount || 0} />
+            <span className="sidebar-more-avatar" aria-hidden="true">{creative.title.trim().charAt(0).toUpperCase()}</span><span>{creative.title}</span>
+            <TaskBadge count={creative.inProgressCount || 0} showZero />
           </button>
           <button
             type="button"

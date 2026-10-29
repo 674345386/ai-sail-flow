@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>阶段完成标记 · 平台做法对照</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: #242424;
+      background: #f7f7f7;
+      font-synthesis: none;
+      text-rendering: optimizeLegibility;
+      -webkit-font-smoothing: antialiased;
+      --ink: #171717;
+      --text: #292929;
+      --muted: #8a8a8a;
+      --line: #e9e9e9;
+      --green: #16834b;
+      --green-soft: #edf6f0;
+    }
+    * { box-sizing: border-box; }
+    body { min-height: 100vh; margin: 0; padding: 44px 24px; }
+    main { width: min(100%, 1050px); margin: 0 auto; }
+    .page-heading { margin: 0 0 22px; }
+    .page-heading h1 { margin: 0; font-size: 20px; font-weight: 600; letter-spacing: -.035em; }
+    .page-heading p { margin: 6px 0 0; color: #777; font-size: 12px; line-height: 1.6; }
+    .variants { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    .variant { overflow: hidden; border: 1px solid #e8e8e8; border-radius: 11px; background: #fff; }
+    .variant-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 16px; border-bottom: 1px solid #efefef; }
+    .variant-heading strong { font-size: 12px; font-weight: 600; }
+    .variant-heading span { color: #999; font-size: 10px; }
+    .variant.recommended .variant-heading strong { color: #333; }
+    .recommended-tag { padding: 3px 7px; border-radius: 999px; background: #f3f3f2; color: #686868 !important; white-space: nowrap; }
+    .wizard { padding: 20px 18px 0; }
+    .wizard h2 { margin: 0; font-size: 16px; font-weight: 600; letter-spacing: -.025em; }
+    .progress { display: flex; gap: 8px; margin-top: 18px; padding: 0 0 16px; border-bottom: 1px solid #eee; }
+    .step { display: flex; flex: 1; min-width: 0; align-items: center; gap: 7px; color: #999; }
+    .step-icon { display: grid; flex: 0 0 25px; width: 25px; height: 25px; place-items: center; border: 1px solid #e8e8e8; border-radius: 50%; background: #f7f7f7; color: #a4a4a4; font-size: 10px; font-weight: 650; }
+    .step-label { overflow: hidden; font-size: 10px; font-weight: 550; text-overflow: ellipsis; white-space: nowrap; }
+    .step.current { color: var(--ink); }
+    .step.current .step-icon { border-color: var(--ink); background: var(--ink); color: #fff; }
+    .step.current .step-label { color: var(--ink); font-weight: 650; }
+    .step.done .step-label { color: #686868; }
+    .step.done .step-icon { border-color: #e1e1df; background: #f3f3f2; color: #555; }
+    .step.done .check { animation: check-in .18s ease-out both; }
+
+    /* Runway-style semantic alternative: a green completion signal, with neutral label text. */
+    .runway .step.done .step-icon { border-color: #d8eadd; background: var(--green-soft); color: var(--green); }
+    .runway .step.done .step-label { color: #686868; }
+    .check { display: block; width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 2; }
+    @keyframes check-in { from { opacity: 0; transform: scale(.88); } to { opacity: 1; transform: scale(1); } }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+    .sample-content { padding: 17px 18px 19px; }
+    .sample-content .line { width: 76%; height: 7px; margin: 0 0 9px; border-radius: 99px; background: #f1f1f1; }
+    .sample-content .line.short { width: 48%; }
+    .rationale { min-height: 56px; padding: 12px 16px; border-top: 1px solid #efefef; color: #7c7c7c; font-size: 10px; line-height: 1.55; }
+    .sources { margin: 16px 2px 0; color: #858585; font-size: 10px; line-height: 1.8; }
+    a { color: #555; text-decoration-color: #c9c9c9; text-underline-offset: 2px; }
+    @media (max-width: 700px) {
+      body { padding: 25px 14px; }
+      .variants { grid-template-columns: 1fr; gap: 12px; }
+      .wizard { padding-inline: 14px; }
+      .progress { gap: 4px; }
+      .step { gap: 5px; }
+      .step-label { font-size: 9px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header class="page-heading">
+      <h1>已完成阶段标记 · 参考做法</h1>
+      <p>保留你现在的勾号、黑色当前步骤和紧凑侧栏，只对比已完成步骤的颜色处理。</p>
+    </header>
+    <div class="variants">
+      <section class="variant recommended" aria-labelledby="eleven-title">
+        <div class="variant-heading"><strong id="eleven-title">中性完成态</strong><span class="recommended-tag">推荐 · 更贴近 ElevenLabs</span></div>
+        <div class="wizard">
+          <h2>创作流程</h2>
+          <nav class="progress" aria-label="创作进度，中性完成态">
+            <div class="step done" aria-label="上传素材，已完成"><span class="step-icon"><svg class="check" viewBox="0 0 16 16" aria-hidden="true"><path d="m3.2 8.2 3.1 3.1 6.5-6.7" /></svg></span><span class="step-label">上传素材</span></div>
+            <div class="step current" aria-current="step"><span class="step-icon">02</span><span class="step-label">视频拆解</span></div>
+            <div class="step"><span class="step-icon">03</span><span class="step-label">网格视频</span></div>
+          </nav>
+        </div>
+        <div class="sample-content" aria-hidden="true"><div class="line"></div><div class="line short"></div></div>
+        <div class="rationale">勾号用深灰，圆底只比白色深一点；完成阶段的标题保持中性灰。明确但克制，不额外铺绿色。</div>
+      </section>
+      <section class="variant runway" aria-labelledby="runway-title">
+        <div class="variant-heading"><strong id="runway-title">语义成功态</strong><span>对照 · Runway 的状态色做法</span></div>
+        <div class="wizard">
+          <h2>创作流程</h2>
+          <nav class="progress" aria-label="创作进度，语义成功态">
+            <div class="step done" aria-label="上传素材，已完成"><span class="step-icon"><svg class="check" viewBox="0 0 16 16" aria-hidden="true"><path d="m3.2 8.2 3.1 3.1 6.5-6.7" /></svg></span><span class="step-label">上传素材</span></div>
+            <div class="step current" aria-current="step"><span class="step-icon">02</span><span class="step-label">视频拆解</span></div>
+            <div class="step"><span class="step-icon">03</span><span class="step-label">网格视频</span></div>
+          </nav>
+        </div>
+        <div class="sample-content" aria-hidden="true"><div class="line"></div><div class="line short"></div></div>
+        <div class="rationale">只给勾号和圆底加淡绿，标题仍用中性灰；不加绿线、外发光或循环动画。</div>
+      </section>
+    </div>
+    <p class="sources">参考：<a href="https://elevenlabs.io/docs/eleven-creative/products/studio" target="_blank" rel="noreferrer">ElevenLabs Studio</a> 用浅灰 / 深灰竖条表示段落未生成 / 已生成；<a href="https://docs.runway.team/using-runway/release-steps" target="_blank" rel="noreferrer">Runway Release</a> 用灰、黄、绿、红状态点区分阶段状态。创作画布本身则以节点状态为主。</p>
+  </main>
+</body>
+</html>

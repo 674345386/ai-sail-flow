@@ -1,10 +1,10 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
-  Background, BackgroundVariant, Handle, MarkerType, Position, ReactFlow, SelectionMode, useNodesState,
-  type Edge, type Node, type NodeProps, type OnSelectionChangeParams, type ReactFlowInstance, type Viewport,
+  Background, BackgroundVariant, Handle, MarkerType, MiniMap, Position, ReactFlow, SelectionMode, useNodesState,
+  type Edge, type MiniMapNodeProps, type Node, type NodeProps, type OnSelectionChangeParams, type ReactFlowInstance, type Viewport,
 } from '@xyflow/react';
 import {
-  Clapperboard, Hand, ImagePlus, LoaderCircle, LocateFixed,
+  Clapperboard, Hand, LoaderCircle, LocateFixed,
   MousePointer2, RotateCcw, Settings2, Sparkles, Upload, WandSparkles, X, ZoomIn, ZoomOut,
 } from 'lucide-react';
 import type { Project, Shot, StoryboardGrid } from '../shared/domain';
@@ -16,6 +16,7 @@ const LAYOUT_KEY = (id: string) => `sop-pipeline-canvas-v1:${id}`;
 const WIRE = '#9bb0c8';
 const COL = { assets: 40, breakdown: 420, remix: 820 } as const;
 const CARD_GAP_Y = 28;
+const GRID_ROW_STEP = 280 + CARD_GAP_Y;
 const emptyGrids: StoryboardGrid[] = [];
 const emptyShots: Shot[] = [];
 
@@ -37,7 +38,7 @@ function readLayout(id: string): Layout {
   } catch { return {}; }
 }
 
-type PipeKind = 'assetVideo' | 'assetImage' | 'breakdown' | 'gridCard' | 'shotCard' | 'label';
+type PipeKind = 'assetVideo' | 'breakdown' | 'gridCard' | 'shotCard' | 'videoResult' | 'label';
 
 type PipeData = {
   kind: PipeKind;
@@ -53,8 +54,9 @@ type PipeNode = Node<PipeData, 'pipeline'>;
 const PipelineNode = memo(function PipelineNode({ id, data, selected }: NodeProps<PipeNode>) {
   const isLabel = data.kind === 'label';
   const isGrid = data.kind === 'gridCard';
-  const showOut = data.kind === 'assetVideo' || data.kind === 'assetImage' || data.kind === 'breakdown';
-  const showIn = data.kind === 'breakdown' || data.kind === 'gridCard' || data.kind === 'shotCard';
+  const showOut = data.kind === 'assetVideo' || data.kind === 'breakdown';
+  const showIn = data.kind === 'breakdown' || data.kind === 'gridCard' || data.kind === 'shotCard' || data.kind === 'videoResult';
+  const showVideoOut = data.kind === 'gridCard';
   if (isLabel) {
     return <div className="pp-stage-label" aria-hidden="true"><span className="pp-stage-n">{id.replace('label-', '')}</span>{data.title}<span className="pp-stage-hint">{data.status}</span></div>;
   }
@@ -65,11 +67,31 @@ const PipelineNode = memo(function PipelineNode({ id, data, selected }: NodeProp
       <span className={`pp-chip${data.ready ? ' ok' : ''}`}>{data.status}</span>
     </header>}
     <div className={`pp-node-body${!isGrid ? ' nodrag nowheel nopan' : ''}`}>{data.content}</div>
+    {showVideoOut && <Handle type="source" id="video-out" position={Position.Right} className="pp-port pp-port--video" />}
     {showOut && <Handle type="source" id="out" position={Position.Right} className="pp-port" />}
   </article>;
 });
 
 const nodeTypes = { pipeline: PipelineNode };
+
+function MiniMapOverviewNode({ id, x, y, width, height, color, strokeColor, strokeWidth, selected, onClick }: MiniMapNodeProps) {
+  // Give tiny off-screen nodes a readable footprint while retaining their map positions.
+  const mapWidth = Math.max(width, 5);
+  const mapHeight = Math.max(height, 4);
+  return <rect
+    className={`react-flow__minimap-node${selected ? ' selected' : ''}`}
+    x={x - (mapWidth - width) / 2}
+    y={y - (mapHeight - height) / 2}
+    width={mapWidth}
+    height={mapHeight}
+    rx={1.5}
+    fill={color || '#d5d5d5'}
+    stroke={selected ? '#555' : strokeColor || '#a9a9a9'}
+    strokeWidth={strokeWidth || .6}
+    onClick={onClick ? event => onClick(event, id) : undefined}
+  />;
+}
+
 
 function formatDur(seconds?: number) {
   const total = Math.max(0, Math.round(seconds || 0));
@@ -77,21 +99,20 @@ function formatDur(seconds?: number) {
 }
 
 export default function ProductPipelineCanvas({
-  project, disabled, onPrompt, onGenerate, onIncluded, onUploadVideo, onUploadProduct,
+  project, disabled, onPrompt, onGenerate, onIncluded, onUploadVideo,
   onAnalyze, onOpenMaterials, onOpenAnalysis, onOpenRemixDetail, onSettings, focusStep, focusVersion,
 }: {
   project: Project; disabled: boolean;
   onPrompt: (id: string, prompt: string) => void;
   onGenerate: (gridId: string) => void;
   onIncluded: (id: string, included: boolean) => void;
-  onUploadVideo: () => void; onUploadProduct: () => void;
+  onUploadVideo: () => void;
   onAnalyze: () => void; onOpenMaterials: () => void; onOpenAnalysis: () => void;
   onOpenRemixDetail?: () => void; onSettings: () => void;
   focusStep: number; focusVersion: number;
 }) {
   const isGrid = project.breakdownType === 'storyboard-grid';
   const video = useMemo(() => project.assets.find(asset => asset.kind === 'video'), [project.assets]);
-  const products = useMemo(() => project.assets.filter(asset => asset.kind === 'product'), [project.assets]);
   const allGrids = project.storyboardGrids || emptyGrids;
   const includedGrids = useMemo(() => allGrids.filter(grid => grid.included !== false), [allGrids]);
   const shots = project.analysis?.shots || emptyShots;
@@ -109,8 +130,8 @@ export default function ProductPipelineCanvas({
   const flow = useRef<ReactFlowInstance<PipeNode>>(null);
   const handlers = useRef({ onPrompt, onGenerate, onIncluded });
   handlers.current = { onPrompt, onGenerate, onIncluded };
-  const actions = useRef({ onUploadVideo, onUploadProduct, onAnalyze, onOpenAnalysis, onOpenRemixDetail });
-  actions.current = { onUploadVideo, onUploadProduct, onAnalyze, onOpenAnalysis, onOpenRemixDetail };
+  const actions = useRef({ onUploadVideo, onAnalyze, onOpenAnalysis, onOpenRemixDetail });
+  actions.current = { onUploadVideo, onAnalyze, onOpenAnalysis, onOpenRemixDetail };
 
   useEffect(() => { defaults.current = readLayout(project.id); }, [project.id]);
 
@@ -143,18 +164,7 @@ export default function ProductPipelineCanvas({
         ? <div className="pp-media"><video src={video.url} poster={video.thumbnail} muted playsInline preload="metadata" /><div className="pp-media-meta"><strong title={video.name}>{video.name}</strong><span>{formatDur(video.duration)} · {video.width && video.height ? `${video.width}×${video.height}` : '视频'}</span></div><button type="button" className="pp-btn" disabled={disabled} onClick={() => actions.current.onUploadVideo()}>更换视频</button></div>
         : <button type="button" className="pp-empty" disabled={disabled} onClick={() => actions.current.onUploadVideo()}><Upload size={22} /><strong>上传参考视频</strong><span>MP4 / MOV · 作为流水线输入</span></button>,
     });
-    const productSlots = products.length ? products.slice(0, 3) : [null];
-    productSlots.forEach((image, i) => {
-      const id = image ? `asset-product:${image.id}` : 'asset-product:empty';
-      assetNodes.push({
-        id, kind: 'assetImage', title: '产品图',
-        status: image ? '已上传' : '待上传', ready: !!image,
-        position: saved[id] || { x: COL.assets, y: 320 + i * 200 },
-        content: image
-          ? <div className="pp-media is-image"><img src={image.url} alt={image.name} draggable={false} /><div className="pp-media-meta"><strong>{image.name}</strong><span>产品参考</span></div></div>
-          : <button type="button" className="pp-empty" disabled={disabled} onClick={() => actions.current.onUploadProduct()}><ImagePlus size={22} /><strong>添加产品图</strong><span>约束主体与卖点</span></button>,
-      });
-    });
+
 
     const breakdownRows = isGrid
       ? allGrids.map((grid, index) => {
@@ -200,14 +210,14 @@ export default function ProductPipelineCanvas({
         const id = `grid:${grid.id}`;
         remixUnits.push({
           id,
-          position: saved[id] || { x: COL.remix + (order % 2) * 440, y: 56 + Math.floor(order / 2) * (460 + CARD_GAP_Y) },
+          position: saved[id] || { x: COL.remix, y: 56 + order * GRID_ROW_STEP },
           data: {
             kind: 'gridCard', title: `分镜网格 ${String((index < 0 ? order : index) + 1).padStart(2, '0')}`,
             status: 'card', ready: true,
             content: <StoryboardGridCardBody
               grid={grid} index={index < 0 ? order : index} project={project} disabled={disabled || focusStep < 2}
               onPrompt={callPrompt} onGenerate={callGenerate} onIncluded={callIncluded}
-              className="is-pipeline"
+              className="is-pipeline" externalVideoResult
             />,
           },
         });
@@ -233,10 +243,30 @@ export default function ProductPipelineCanvas({
     }
 
     const labels: PipeNode[] = [
-      { id: 'label-1', type: 'pipeline', position: { x: COL.assets, y: 18 }, data: { kind: 'label', title: '上传素材', status: '参考视频 · 产品图', ready: true, content: null }, selectable: false, draggable: false },
+      { id: 'label-1', type: 'pipeline', position: { x: COL.assets, y: 18 }, data: { kind: 'label', title: '上传素材', status: '参考视频', ready: true, content: null }, selectable: false, draggable: false },
       { id: 'label-2', type: 'pipeline', position: { x: COL.breakdown, y: 18 }, data: { kind: 'label', title: '视频拆解', status: isGrid ? '网格摘要' : '镜头摘要', ready: true, content: null }, selectable: false, draggable: false },
       { id: 'label-3', type: 'pipeline', position: { x: COL.remix, y: 18 }, data: { kind: 'label', title: '二创 / 出片', status: isGrid ? '每张已勾选宫格' : '已勾选镜头', ready: true, content: null }, selectable: false, draggable: false },
     ];
+
+    const activeGridResults = isGrid ? includedGrids.flatMap((grid, order) => {
+      const state = gridVideoState(project, grid);
+      if (!state.versions.length) return [];
+      const gridId = `grid:${grid.id}`;
+      const gridPosition = saved[gridId] || remixUnits.find(unit => unit.id === gridId)?.position || { x: COL.remix, y: 56 + order * GRID_ROW_STEP };
+      const latest = state.completed.at(-1);
+      const title = state.running ? '待生成的视频' : latest ? '生成的视频' : '视频生成结果';
+      const status = state.running ? (state.progress != null ? `生成中 ${state.progress}%` : '生成中') : state.failed ? '生成失败' : '已完成';
+      const content = state.running
+        ? <div className="pp-video-output is-loading" role="status"><div className="pp-video-loading"><LoaderCircle size={20} className="spin" /><strong>{state.progress != null ? `正在生成视频 · ${state.progress}%` : '正在生成视频…'}</strong><div className="pp-video-progress"><i style={{ width: `${Math.max(8, state.progress || 24)}%` }} /></div></div></div>
+        : latest
+          ? <div className="pp-video-output"><video key={latest.id} src={latest.url} poster={latest.thumbnail} controls playsInline preload="metadata" /><div className="pp-video-meta"><strong>{latest.filename || '生成视频'}</strong><span>{(latest.duration || 0).toFixed(1)} 秒 · {latest.mode || 'r2v'}</span></div></div>
+          : <div className="pp-video-output is-failed"><span>{state.error || '视频生成失败'}</span></div>;
+      return [{
+        id: `video-result:${grid.id}`, type: 'pipeline' as const, dragHandle: '.pp-node-drag',
+        position: saved[`video-result:${grid.id}`] || { x: gridPosition.x + 470, y: gridPosition.y },
+        data: { kind: 'videoResult' as const, title, status, ready: !!latest && !state.running, content },
+      }];
+    }) : [];
 
     setNodes(previous => {
       const byId = new Map(previous.map(node => [node.id, node]));
@@ -261,10 +291,15 @@ export default function ProductPipelineCanvas({
           data: unit.data,
           selected: byId.get(unit.id)?.selected,
         })),
+        ...activeGridResults.map(unit => ({
+          ...unit,
+          position: byId.get(unit.id)?.position || unit.position,
+          selected: byId.get(unit.id)?.selected,
+        })),
       ];
       return built;
     });
-  }, [project, disabled, isGrid, video, products, allGrids, includedGrids, shots, excludedShots, includedShots, analysisRunning, analysisReady, setNodes, focusStep]);
+  }, [project, disabled, isGrid, video, allGrids, includedGrids, shots, excludedShots, includedShots, analysisRunning, analysisReady, setNodes, focusStep]);
 
   const edges = useMemo<Edge[]>(() => {
     const soft = (source: string, target: string, sourceHandle = 'out', targetHandle = 'in'): Edge => ({
@@ -276,12 +311,13 @@ export default function ProductPipelineCanvas({
     });
     const list: Edge[] = [];
     if (video) list.push(soft('asset-video', 'breakdown'));
-    products.slice(0, 3).forEach(image => list.push(soft(`asset-product:${image.id}`, 'breakdown')));
-    if (!products.length) list.push(soft('asset-product:empty', 'breakdown'));
-    if (isGrid) includedGrids.forEach(grid => list.push(soft('breakdown', `grid:${grid.id}`)));
+    if (isGrid) includedGrids.forEach(grid => {
+      list.push(soft('breakdown', `grid:${grid.id}`));
+      if (gridVideoState(project, grid).versions.length) list.push(soft(`grid:${grid.id}`, `video-result:${grid.id}`, 'video-out', 'in'));
+    });
     else includedShots.forEach(shot => list.push(soft('breakdown', `shot:${shot.id}`)));
     return list;
-  }, [video, products, isGrid, includedGrids, includedShots]);
+  }, [video, isGrid, includedGrids, includedShots, project]);
 
   const fit = () => { void flow.current?.fitView({ padding: .14, maxZoom: 1, duration: 180 }); };
   const resetLayout = () => {
@@ -290,14 +326,15 @@ export default function ProductPipelineCanvas({
     setNodes(previous => previous.map(node => {
       if (node.data.kind === 'label') return node;
       if (node.id === 'asset-video') return { ...node, position: { x: COL.assets, y: 72 } };
-      if (node.id.startsWith('asset-product:')) {
-        const i = products.findIndex(p => `asset-product:${p.id}` === node.id);
-        return { ...node, position: { x: COL.assets, y: 320 + Math.max(0, i) * 200 } };
+      if (node.id.startsWith('video-result:')) {
+        const order = includedGrids.findIndex(grid => `video-result:${grid.id}` === node.id);
+        const gridOrder = Math.max(0, order);
+        return { ...node, position: { x: COL.remix + 470, y: 56 + gridOrder * GRID_ROW_STEP } };
       }
       if (node.id === 'breakdown') return { ...node, position: { x: COL.breakdown, y: 100 } };
       if (node.id.startsWith('grid:')) {
         const order = includedGrids.findIndex(g => `grid:${g.id}` === node.id);
-        return { ...node, position: { x: COL.remix + (order % 2) * 440, y: 56 + Math.floor(Math.max(0, order) / 2) * (460 + CARD_GAP_Y) } };
+        return { ...node, position: { x: COL.remix, y: 56 + Math.max(0, order) * GRID_ROW_STEP } };
       }
       if (node.id.startsWith('shot:')) {
         const order = includedShots.findIndex(s => `shot:${s.id}` === node.id);
@@ -309,7 +346,7 @@ export default function ProductPipelineCanvas({
   };
 
   const focusCurrentStep = () => {
-    const ids = focusStep === 0 ? ['asset-video', ...products.slice(0, 1).map(p => `asset-product:${p.id}`)]
+    const ids = focusStep === 0 ? ['asset-video']
       : focusStep === 1 ? ['breakdown']
         : isGrid ? includedGrids.slice(0, 3).map(g => `grid:${g.id}`) : includedShots.slice(0, 3).map(s => `shot:${s.id}`);
     if (!ids.length) return;
@@ -363,8 +400,6 @@ export default function ProductPipelineCanvas({
     </header>
 
     <div className="pp-viewport">
-      <div className="pp-col-guide" style={{ left: 292 }} aria-hidden="true" />
-      <div className="pp-col-guide" style={{ left: 610 }} aria-hidden="true" />
       <ReactFlow<PipeNode>
         nodes={nodes}
         edges={edges}
@@ -398,7 +433,8 @@ export default function ProductPipelineCanvas({
         proOptions={{ hideAttribution: true }}
         ariaLabelConfig={{ 'node.a11yDescription.default': '使用方向键移动节点。' }}
       >
-        <Background variant={BackgroundVariant.Dots} gap={18} size={1.15} color="#d4d9df" />
+        <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="#dedede" />
+        <MiniMap className="pp-minimap" ariaLabel="全流程小地图，可拖动查看当前视口之外的节点" pannable zoomable nodeComponent={MiniMapOverviewNode} nodeColor={node => node.id.startsWith('asset-') ? '#cfcfcf' : node.id === 'breakdown' ? '#aebdce' : '#bdbdbd'} nodeStrokeColor="#999999" nodeStrokeWidth={0.7} maskColor="rgba(20, 20, 20, 0.18)" maskStrokeColor="#777777" maskStrokeWidth={1.2} bgColor="#ffffff" />
       </ReactFlow>
 
       {whisper && <div className="pp-whisper">拖动卡片 · 滚动平移 · 双指缩放</div>}

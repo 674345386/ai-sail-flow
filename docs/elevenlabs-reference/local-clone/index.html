@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Templates | ElevenLabs</title>
+  <link rel="stylesheet" href="/app_assets/_next/static/chunks/3rwwkc73v-yu0.css">
+  <link rel="stylesheet" href="/app_assets/_next/static/chunks/360zurca8l5x4.css">
+  <link rel="stylesheet" href="/local-clone/styles.css">
+  <script src="/local-clone/app.js" defer></script>
+</head>
+<body>
+  <div class="app-frame">
+    <aside class="sidebar">
+      <div class="brand-row">
+        <div class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></div>
+        <span class="brand-name">ElevenLabs</span>
+        <button class="icon-button sidebar-collapse" aria-label="Collapse sidebar" title="Collapse sidebar"><span class="collapse-glyph"></span></button>
+      </div>
+      <button class="workspace-switcher"><span class="workspace-avatar">C</span><span class="workspace-copy"><strong>Creative workspace</strong><small>Personal workspace</small></span><span class="chevrons">⌄</span></button>
+      <div class="sidebar-scroll">
+        <div class="sidebar-label">BUILD</div>
+        <nav class="nav-list" aria-label="Main navigation">
+          <a class="nav-link" href="#"><span class="nav-icon grid-icon"><i></i><i></i><i></i><i></i></span><span>Home</span></a>
+          <a class="nav-link active" href="#" aria-current="page"><span class="nav-icon agent-icon"><i></i><i></i></span><span>Agents</span><span class="nav-chevron">›</span></a>
+          <div class="nav-sublist"><a href="#" class="nav-sublink">My agents</a><a href="#" class="nav-sublink selected">Templates</a></div>
+          <a class="nav-link" href="#"><span class="nav-icon sound-icon"><i></i><i></i><i></i><i></i></span><span>Voices</span></a>
+          <a class="nav-link" href="#"><span class="nav-icon book-icon">▤</span><span>Knowledge base</span></a>
+          <a class="nav-link" href="#"><span class="nav-icon plug-icon">⌘</span><span>Integrations</span></a>
+        </nav>
+        <div class="sidebar-label section-label">MANAGE</div>
+        <nav class="nav-list" aria-label="Management navigation">
+          <a class="nav-link" href="#"><span class="nav-icon chart-icon"><i></i><i></i><i></i></span><span>Analytics</span></a>
+          <a class="nav-link" href="#"><span class="nav-icon phone-icon">⌕</span><span>Phone numbers</span></a>
+          <a class="nav-link" href="#"><span class="nav-icon settings-icon">⚙</span><span>Settings</span></a>
+        </nav>
+      </div>
+      <div class="sidebar-bottom">
+        <button class="nav-link bottom-link"><span class="help-icon">?</span><span>Help center</span><span class="external-mark">↗</span></button>
+        <button class="account-row"><span class="account-avatar">C</span><span><strong>Workspace owner</strong><small>Free plan</small></span><span class="more-dots">···</span></button>
+      </div>
+    </aside>
+
+    <div class="main-column">
+      <header class="topbar">
+        <div class="breadcrumbs"><span>Agents</span><span class="crumb-separator">/</span><strong>Templates</strong></div>
+        <div class="topbar-actions"><button class="quiet-button">Documentation <span>↗</span></button><button class="primary-button" id="create-agent"><span class="plus">+</span> Create agent</button><button class="top-avatar" aria-label="Account">C</button></div>
+      </header>
+
+      <main class="templates-layout">
+        <section class="template-library" aria-label="Browse templates">
+          <header class="library-header">
+            <div class="title-row"><div><p class="eyebrow">AGENTS</p><h1>Browse templates</h1></div><span class="template-count" id="template-count"></span></div>
+            <div class="search-row"><label class="search-box"><span class="search-icon"></span><input id="template-search" type="search" placeholder="Search templates" autocomplete="off"><kbd>⌘ K</kbd></label></div>
+            <div class="filter-row">
+              <label class="filter-select"><span class="filter-caption">Source</span><select id="source-filter"><option value="all">All sources</option><option value="elevenlabs">ElevenLabs</option><option value="workspace">Workspace</option></select><span class="select-chevron">⌄</span></label>
+              <label class="filter-select"><span class="filter-caption">Industry</span><select id="industry-filter"><option value="all">All industries</option><option value="ecommerce">E-commerce</option><option value="healthcare">Healthcare</option><option value="real-estate">Real estate</option><option value="finance">Finance</option><option value="travel">Travel</option></select><span class="select-chevron">⌄</span></label>
+              <label class="filter-select"><span class="filter-caption">Use case</span><select id="usecase-filter"><option value="all">All use cases</option><option value="customer-support">Customer support</option><option value="sales">Sales</option><option value="scheduling">Scheduling</option><option value="information">Information</option></select><span class="select-chevron">⌄</span></label>
+              <button class="filter-reset" id="reset-filters" aria-label="Reset filters" title="Reset filters">↺</button>
+            </div>
+          </header>
+          <div class="library-content">
+            <div class="section-heading"><div><h2>Featured templates</h2><p>Start with a proven setup and make it yours.</p></div><button class="sort-button">Featured <span>⌄</span></button></div>
+            <div class="template-grid" id="template-grid"></div>
+            <div class="empty-state" id="empty-state" hidden><div class="empty-icon">⌕</div><strong>No templates found</strong><p>Try changing your search or filters.</p><button class="outline-button" id="empty-reset">Clear filters</button></div>
+          </div>
+          <footer class="library-footer"><span><span class="status-dot"></span> Templates by ElevenLabs</span><span>Updated regularly</span></footer>
+        </section>
+
+        <section class="preview-panel" aria-label="Template preview">
+          <div class="preview-toolbar">
+            <div class="preview-toolbar-left"><span class="preview-glyph"><span></span><span></span><span></span></span><div><strong id="preview-name">Customer Support Agent</strong><small id="preview-category">E-commerce · Customer support</small></div></div>
+            <div class="preview-toolbar-actions"><div class="view-switch" role="tablist" aria-label="Preview mode"><button class="view-tab active" data-view="preview" role="tab" aria-selected="true">Preview</button><button class="view-tab" data-view="workflow" role="tab" aria-selected="false">Workflow</button></div><button class="icon-button more-button" aria-label="More options">···</button></div>
+          </div>
+          <div class="preview-canvas" id="preview-canvas">
+            <div class="canvas-caption"><span class="live-dot"></span><span>AGENT PREVIEW</span><span class="caption-divider"></span><span id="preview-subtitle">Customer support</span></div>
+            <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
+            <div class="agent-demo" id="agent-demo">
+              <div class="orb-shell"><div class="orb-glow"></div><div class="orb-core"><div class="orb-wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div><div class="orb-ring ring-one"></div><div class="orb-ring ring-two"></div></div>
+              <p class="demo-status"><span class="status-dot"></span>Ready to talk</p>
+              <button class="talk-button" id="talk-button"><span class="mic-mark">●</span><span>Start a conversation</span><span class="talk-arrow">↗</span></button>
+              <span class="demo-footnote">Powered by ElevenLabs Conversational AI</span>
+            </div>
+            <div class="workflow-demo" id="workflow-demo" hidden>
+              <div class="workflow-node start-node"><span class="node-mark">◉</span><div><strong>Conversation start</strong><small>Listen and understand</small></div><span class="node-port"></span></div>
+              <div class="workflow-connector"><span></span></div>
+              <div class="workflow-node agent-node"><span class="node-mark agent-node-mark">✳</span><div><strong>AI agent</strong><small id="workflow-agent-label">Customer Support Agent</small></div><span class="node-port"></span></div>
+              <div class="workflow-connector"><span></span></div>
+              <div class="workflow-node end-node"><span class="node-mark">✓</span><div><strong>End conversation</strong><small>Resolve or hand off</small></div></div>
+            </div>
+            <div class="canvas-zoom"><button aria-label="Zoom out">−</button><span>100%</span><button aria-label="Zoom in">+</button><i></i><button aria-label="Fit view">⌖</button></div>
+          </div>
+          <aside class="detail-card">
+            <div class="detail-actions"><button class="primary-button use-template" id="use-template">Use template <span>→</span></button><button class="outline-button" id="details-toggle">View details</button><button class="icon-button share-button" aria-label="Copy template link" title="Copy template link">↗</button></div>
+            <div class="detail-body"><div class="detail-title-row"><div><p class="eyebrow">TEMPLATE OVERVIEW</p><h2 id="detail-name">Customer Support Agent</h2></div><span class="verified-mark" title="ElevenLabs template">✓</span></div><p class="detail-description" id="detail-description"></p><div class="detail-tags" id="detail-tags"></div><div class="detail-extra" id="detail-extra" hidden><div class="detail-divider"></div><strong>What this agent can do</strong><ul id="detail-capabilities"></ul></div></div>
+            <div class="detail-meta"><span>Template by <strong>ElevenLabs</strong></span><button class="copy-link" id="copy-link">Copy link</button></div>
+          </aside>
+          <div class="toast" id="toast" role="status" aria-live="polite"></div>
+        </section>
+      </main>
+    </div>
+  </div>
+</body>
+</html>

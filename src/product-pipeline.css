@@ -43,11 +43,6 @@ main.canvas-workspace-main > .pp-stage,
 .pp-viewport .react-flow__node { border: none; background: transparent; padding: 0; }
 .pp-viewport .react-flow__attribution { display: none !important; }
 .pp-viewport .react-flow__edge-path { stroke: var(--pp-wire) !important; }
-.pp-col-guide {
-  position: absolute; top: 0; bottom: 0; width: 1px; z-index: 1; pointer-events: none;
-  background: linear-gradient(180deg, transparent, #e4e8ee 12%, #e4e8ee 88%, transparent);
-}
-
 .pp-stage-label {
   display: inline-flex; align-items: center; gap: 7px; height: 26px; padding: 0 11px;
   border-radius: 999px; background: #fffffff0; border: 1px solid #e4e8ee;
@@ -66,8 +61,9 @@ main.canvas-workspace-main > .pp-stage,
 }
 .pp-node--gridCard { min-width: 400px; max-width: 400px; background: transparent; border: none; box-shadow: none; }
 .pp-node--gridCard .pp-node-body { padding: 0; }
+.pp-node--videoResult { width: 300px; min-width: 300px; }
 .pp-node--breakdown { width: 320px; }
-.pp-node--assetVideo, .pp-node--assetImage { width: 280px; }
+.pp-node--assetVideo { width: 280px; }
 .pp-node--shotCard { width: 280px; }
 .react-flow__node.selected .pp-node,
 .pp-node.is-selected {
@@ -98,15 +94,44 @@ main.canvas-workspace-main > .pp-stage,
   width: 10px !important; height: 10px !important;
   border: 1.6px solid #a8b8c9 !important; background: #fff !important;
 }
+.pp-port--video { width: 12px !important; height: 12px !important; border-color: #8399b2 !important; box-shadow: 0 0 0 3px #9bb0c81a; }
 
 .pp-media { display: flex; flex-direction: column; gap: 8px; }
 .pp-media video, .pp-media img {
   display: block; width: 100%; height: 140px; object-fit: cover; border-radius: 8px; background: #f3f5f7;
 }
-.pp-media.is-image img { height: 150px; }
 .pp-media-meta { display: flex; flex-direction: column; gap: 2px; }
 .pp-media-meta strong { font-size: 11px; font-weight: 550; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pp-media-meta span { font-size: 10px; color: var(--pp-muted); }
+
+.pp-video-output { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.pp-video-output video {
+  display: block; width: 100%; aspect-ratio: 16 / 9; max-height: 168px;
+  object-fit: cover; border-radius: 8px; background: #17191d;
+}
+.pp-video-meta { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.pp-video-meta strong { overflow: hidden; color: #454e5a; font-size: 11px; font-weight: 550; text-overflow: ellipsis; white-space: nowrap; }
+.pp-video-meta span { color: var(--pp-muted); font-size: 10px; }
+.pp-video-output.is-loading {
+  position: relative; display: grid; min-height: 170px; place-items: center; overflow: hidden;
+  border: 1px solid #e3eaf2; border-radius: 9px;
+  background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+}
+.pp-video-output.is-loading::before {
+  position: absolute; inset: 0; content: ""; pointer-events: none;
+  background: linear-gradient(105deg, transparent 25%, #dbe7f333 50%, transparent 75%);
+  animation: pp-video-shimmer 1.7s ease-in-out infinite;
+}
+.pp-video-loading { position: relative; display: flex; width: min(220px, 100%); flex-direction: column; align-items: center; gap: 11px; color: #7489a2; }
+.pp-video-loading strong { font-size: 11px; font-weight: 550; text-align: center; }
+.pp-video-progress { width: 100%; height: 3px; overflow: hidden; border-radius: 999px; background: #dfe7f0; }
+.pp-video-progress i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #adc5e2, #7897bd); transition: width .25s ease; }
+.pp-video-output.is-failed {
+  display: grid; min-height: 120px; padding: 12px; place-items: center; border: 1px solid #eadbd3;
+  border-radius: 9px; background: #fcf8f5; color: #a56546; font-size: 11px; text-align: center;
+}
+@keyframes pp-video-shimmer { 0% { transform: translateX(-45%); } 100% { transform: translateX(45%); } }
+@media (prefers-reduced-motion: reduce) { .pp-video-output.is-loading::before { animation: none; } }
 
 .pp-empty {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
@@ -167,7 +192,7 @@ main.canvas-workspace-main > .pp-stage,
   font-size: 11px; font-variant-numeric: tabular-nums; padding: 0; cursor: pointer;
 }
 .pp-whisper {
-  position: absolute; left: 18px; bottom: 13px; z-index: 3;
+  position: absolute; right: 18px; bottom: 13px; z-index: 3;
   color: #a9b1bc; font-size: 10px; pointer-events: none;
 }
 .pp-batch {
@@ -179,3 +204,16 @@ main.canvas-workspace-main > .pp-stage,
 
 /* Stage3 card inside pipeline: keep light sg-card styles */
 .pp-node--gridCard .sg-card.is-pipeline { box-shadow: 0 3px 14px #27374805; }
+
+/* Overview map for navigating a large workflow canvas. */
+.pp-viewport .react-flow__minimap {
+  left: 16px; right: auto; bottom: 16px; width: 196px; height: 126px;
+  overflow: hidden; border: 1px solid #d9d9d9; border-radius: 10px;
+  box-shadow: 0 3px 12px #00000010;
+}
+.pp-viewport .react-flow__minimap-mask { fill: rgba(20, 20, 20, .18); stroke: #777; stroke-width: 1.2; }
+.pp-viewport .react-flow__minimap-node { vector-effect: non-scaling-stroke; }
+@media (max-width: 780px) {
+  .pp-viewport .react-flow__minimap { left: 8px; bottom: 8px; width: 116px; height: 76px; }
+  .pp-whisper { right: 8px; }
+}

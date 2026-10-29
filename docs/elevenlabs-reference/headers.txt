@@ -1,0 +1,25 @@
+HTTP/1.1 200 Connection established
+
+HTTP/2 200 
+server: nginx
+date: Wed, 28 Oct 2026 08:46:40 GMT
+content-type: text/html; charset=utf-8
+content-length: 89515
+vary: Accept-Encoding,rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch, Accept-Encoding
+cross-origin-opener-policy: same-origin-allow-popups
+content-security-policy-report-only: default-src 'self'; script-src 'self' 'wasm-unsafe-eval' https://snippet.meticulous.ai https://*.hcaptcha.com https://hcaptcha.com https://checkout.stripe.com https://js.stripe.com https://*.js.stripe.com https://hooks.stripe.com https://www.googletagmanager.com https://apis.google.com https://accounts.google.com https://consent.cookiebot.com https://consentcdn.cookiebot.com https://connect.facebook.net https://www.facebook.com https://www.youtube.com https://*.elevenlabs.io https://unpkg.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://pagead2.googlesyndication.com https://bat.bing.com https://analytics.tiktok.com https://snap.licdn.com https://static.ads-twitter.com https://www.redditstatic.com https://dev.visualwebsiteoptimizer.com https://px.mountain.com https://dx.mountain.com https://gs.mountain.com 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.hcaptcha.com https://hcaptcha.com; img-src 'self' data: blob: https://*.stripe.com https://www.googletagmanager.com http://imgsct.cookiebot.com https://storage.googleapis.com https://*.elevenlabs.io https://img.youtube.com https://cdn.jsdelivr.net https://www.google.com https://googleads.g.doubleclick.net https://pagead2.googlesyndication.com https://www.googleadservices.com https://bat.bing.com https://analytics.twitter.com https://t.co https://www.facebook.com https://connect.facebook.net https://alb.reddit.com https://px.ads.linkedin.com https://dev.visualwebsiteoptimizer.com https://r1.visualwebsiteoptimizer.com https://r2.visualwebsiteoptimizer.com https://r3.visualwebsiteoptimizer.com; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' data: https://cognito-identity.us-west-2.amazonaws.com https://user-events-v3.s3-accelerate.amazonaws.com https://*.googleapis.com https://*.hcaptcha.com https://hcaptcha.com https://checkout.stripe.com https://api.stripe.com https://maps.googleapis.com https://analytics.google.com https://*.analytics.google.com https://*.google-analytics.com https://www.googletagmanager.com https://www.google.com https://consentcdn.cookiebot.com https://consent.cookiebot.com https://www.facebook.com https://*.elevenlabs.io wss://api.elevenlabs.io wss://api.us.elevenlabs.io https://us-central1-xi-labs-prod-2.cloudfunctions.net https://us-central1-xi-labs.cloudfunctions.net https://grsm.io https://partnerlinks.io https://pagead2.googlesyndication.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://stats.g.doubleclick.net https://ad.doubleclick.net https://unpkg.com https://bat.bing.com https://analytics.tiktok.com https://analytics-ipv6.tiktokw.us https://px.ads.linkedin.com https://analytics.twitter.com https://t.co https://dev.visualwebsiteoptimizer.com https://r1.visualwebsiteoptimizer.com https://r2.visualwebsiteoptimizer.com https://r3.visualwebsiteoptimizer.com https://pixel-config.reddit.com https://fonts.gstatic.com; frame-src 'self' https://snippet.meticulous.ai https://*.hcaptcha.com https://hcaptcha.com https://checkout.stripe.com https://connect-js.stripe.com https://js.stripe.com https://*.js.stripe.com https://hooks.stripe.com https://consentcdn.cookiebot.com https://www.googletagmanager.com https://www.facebook.com https://docs.google.com https://accounts.google.com https://services.sheerid.com https://cal.com https://*.cal.com; media-src 'self' data: blob: https://storage.googleapis.com https://eleven-public-cdn.elevenlabs.io https://eleven-public-cdn-common.elevenlabs.io https://api.us.elevenlabs.io; manifest-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self' https://*.elevenlabs.io; report-uri /dachshund/0/report/?token=phc_KQDh5IkRcTsPOoUtwmVxoATdOqNYCo0vTdwE77aNOQv&v=prod&sample_rate=0.05; report-to csp-endpoint
+reporting-endpoints: csp-endpoint="https://eu.i.posthog.com/report/?token=phc_KQDh5IkRcTsPOoUtwmVxoATdOqNYCo0vTdwE77aNOQv&v=prod&sample_rate=0.05", isolation-reports="/api/browser-isolation-reports"
+x-nextjs-cache: HIT
+x-nextjs-prerender: 1
+x-nextjs-prerender: 1
+x-nextjs-stale-time: 300
+x-powered-by: Next.js
+cache-control: s-maxage=31536000
+etag: "15ufxvgv3cc1x2j"
+x-frame-options: SAMEORIGIN
+content-security-policy: frame-ancestors 'self' https://twitter.com;
+strict-transport-security: max-age=1800;
+via: 1.1 google
+x-external-managed-migration-selected-scheme: EXTERNAL_MANAGED
+alt-svc: h3=":443"; ma=2592000
+
