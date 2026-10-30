@@ -217,3 +217,24 @@ main.canvas-workspace-main > .pp-stage,
   .pp-viewport .react-flow__minimap { left: 8px; bottom: 8px; width: 116px; height: 76px; }
   .pp-whisper { right: 8px; }
 }
+
+.pp-node--timeline { width: 860px; min-width: 860px; max-width: none; }
+.canvas-timeline { padding: 4px 2px 8px; color: #e8e9eb; }
+.canvas-timeline-preview { display: grid; place-items: center; min-height: 180px; border: 1px solid rgba(255,255,255,.1); border-radius: 7px; overflow: hidden; background: #090a0c; }
+.canvas-timeline-preview video { display: block; width: 100%; max-height: 280px; aspect-ratio: 16/9; object-fit: contain; background: #090a0c; }
+.canvas-timeline-empty { padding: 25px; color: #9a9b9e; font-size: 12px; text-align: center; }
+.canvas-timeline-controls { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 13px 0; }
+.canvas-timeline-controls button { display: grid; place-items: center; width: 30px; height: 30px; border: 0; border-radius: 6px; color: #e8e9eb; background: transparent; cursor: pointer; }
+.canvas-timeline-controls button:hover:not(:disabled) { background: rgba(255,255,255,.12); }
+.canvas-timeline-controls button:disabled { opacity: .35; cursor: default; }
+.canvas-timeline-controls button.canvas-timeline-play { color: #111; background: #f4f3ef; }
+.canvas-timeline-controls span { min-width: 80px; color: #a4a6aa; font-size: 11px; font-variant-numeric: tabular-nums; }
+.canvas-timeline-track { padding: 0 2px 4px; }
+.canvas-timeline-ruler { position: relative; height: 22px; color: #9a9b9e; font-size: 10px; font-variant-numeric: tabular-nums; }
+.canvas-timeline-ruler span { position: absolute; top: 0; transform: translateX(-50%); }
+.canvas-timeline-ruler span:first-child { transform: none; }
+.canvas-timeline-clips { position: relative; display: flex; height: 68px; gap: 2px; padding: 2px; border: 1px solid rgba(255,255,255,.12); border-radius: 6px; background: #111316; }
+.canvas-timeline-clip { position: relative; min-width: 24px; overflow: hidden; border: 1px solid transparent; border-radius: 4px; background-color: #30353a; background-size: cover; background-position: center; color: #fff; text-align: left; cursor: pointer; }
+.canvas-timeline-clip.is-active { border: 2px solid #f4f3ef; }
+.canvas-timeline-clip span { position: absolute; left: 7px; bottom: 5px; color: #fff; font-size: 10px; white-space: nowrap; text-shadow: 0 1px 3px #000; }
+.canvas-timeline-playhead { position: absolute; top: -8px; bottom: -2px; width: 2px; background: #fff; pointer-events: none; box-shadow: 0 0 0 1px #0008; }

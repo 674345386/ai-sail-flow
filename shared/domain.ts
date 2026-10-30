@@ -285,7 +285,7 @@ export type Project = {
   ttsTimingNotice?: TtsTimingNotice;
   remix?: RemixWorkflow;
 };
-export type ProjectSummary = Pick<Project, 'id' | 'title' | 'parentProjectId' | 'updatedAt' | 'isDemo' | 'archivedAt'> & { stage: number; inProgressCount?: number };
+export type ProjectSummary = Pick<Project, 'id' | 'title' | 'parentProjectId' | 'createdAt' | 'updatedAt' | 'isDemo' | 'archivedAt'> & { stage: number; inProgressCount?: number };
 export const emptyProduct: Product = { name: '', category: '家居生活', facts: '', audience: '', price: '', currency: 'USD', offer: '', landingUrl: '' };
 export const defaultMarket: Market = { country: 'US', language: 'en-US', platform: 'tiktok', destination: 'website', cta: '', tone: 'natural', duration: 'original', people: 'preserve', keepStructure: true, subtitles: true, aspectRatio: '9:16' };
 export const defaultReplication: Replication = {

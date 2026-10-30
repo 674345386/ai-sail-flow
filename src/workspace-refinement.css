@@ -287,10 +287,185 @@
 @media (max-width: 1180px) { .app-shell .wizard-header { padding: 16px 14px 12px; } .app-shell .wizard-body { padding: 18px 14px; } .app-shell .wizard-footer { padding: 12px 14px 16px; } }
 
 @media (min-width: 781px) {
-  .app-shell .unified-steps.wizard-panel { width: min(var(--wizard-width, 320px), calc(100% - 320px)); flex-basis: min(var(--wizard-width, 320px), calc(100% - 320px)); }
-  .wizard-resize { position: relative; z-index: 3; flex: 0 0 8px; width: 8px; margin-left: -4px; margin-right: -4px; cursor: col-resize; touch-action: none; }
-  .wizard-resize::after { content: ''; position: absolute; top: 0; bottom: 0; left: 3px; width: 2px; background: transparent; transition: background .15s; }
-  .wizard-resize:hover::after, .wizard-resize:focus-visible::after { background: #9da4a0; }
-  .wizard-resize:focus-visible { outline: none; }
+  .app-shell .unified-steps.wizard-panel.workflow-toc { flex: 0 0 180px; width: 180px; padding: 32px 16px; }
 }
-@media (max-width: 780px) { .wizard-resize { display: none; } }
+.app-shell .workflow-toc h2 { margin: 0 0 14px; font-size: 12px; font-weight: 600; color: #555; }
+.workflow-toc nav { display: grid; gap: 2px; padding-left: 0; border-left: 1px solid #e6e6e6; }
+.workflow-toc-item { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 34px; padding: 0 10px; border: 0; border-left: 2px solid transparent; border-radius: 0 6px 6px 0; background: transparent; color: #777; font-size: 12px; text-align: left; cursor: pointer; }
+.workflow-toc-item.is-current { margin-left: -1px; border-left-color: #222; background: #f3f3f3; color: #171717; font-weight: 600; }
+.workflow-toc-item.is-done svg { color: #16834b; }
+.workflow-toc-item:disabled { color: #b5b5b5; cursor: default; }
+.pp-analysis-options { display: flex; gap: 6px; margin-bottom: 12px; }
+.pp-analysis-options button, .pp-grid-density button { padding: 5px 9px; border: 1px solid #e6e6e6; border-radius: 6px; background: #fff; color: #777; font-size: 11px; cursor: pointer; }
+.pp-analysis-options button.is-active, .pp-grid-density button.is-active { border-color: #222; color: #222; background: #f5f5f5; }
+.pp-analysis-options button:disabled, .pp-grid-density button:disabled { opacity: .5; cursor: default; }
+.pp-grid-density { display: flex; align-items: center; gap: 6px; margin-bottom: 12px; color: #888; font-size: 11px; }
+.pp-grid-density span { margin-right: auto; }
+@media (max-width: 780px) { .app-shell .unified-steps.wizard-panel.workflow-toc { width: 180px; padding: 22px 16px; } }
+
+/* The creative workspace uses the landing page's ambient field and dark palette. */
+.app-shell.app-shell.workflow-dark { color: #f4f3ef; background: #070708; }
+.app-shell.workflow-dark .unified-workspace { isolation: isolate; background: #070708; overflow: hidden; }
+.workflow-ambient { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
+.workflow-ambient > .lbg { position: absolute; inset: 0; overflow: hidden; background: var(--lbg-base); contain: strict; }
+.app-shell.workflow-dark .unified-workspace > .workflow-toc, .app-shell.workflow-dark .unified-workspace > .pp-stage { z-index: 1; }
+.app-shell.workflow-dark .unified-workspace > .pp-stage { position: relative; }
+.app-shell.workflow-dark .unified-workspace > .workflow-toc { position: relative; }
+.app-shell.workflow-dark .unified-steps.wizard-panel.workflow-toc { background: transparent; border: 0; color: #f4f3ef; font-family: "Sail Workspace Inter", Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif; padding: 28px 16px 0 24px; }
+.app-shell.workflow-dark .workflow-toc h2 { margin: 0 0 10px 12px; color: #f4f3ef; font-size: 11px; font-weight: 600; }
+.app-shell.workflow-dark .workflow-toc nav { gap: 0; border-left-color: rgba(255,255,255,.18); }
+.app-shell.workflow-dark .workflow-toc-item { min-height: 30px; margin: 1px 0 1px -1px; padding: 6px 10px 6px 12px; color: #a3a4a7; font-size: 12px; line-height: 1.35; transition: color .2s, background .2s, border-color .2s; }
+.app-shell.workflow-dark .workflow-toc-item:hover:not(:disabled) { color: #f4f3ef; }
+.app-shell.workflow-dark .workflow-toc-item.is-current { border-left-color: #f4f3ef; background: rgba(255,255,255,.09); color: #fff; font-weight: 500; }
+.app-shell.workflow-dark .workflow-toc-item:disabled { color: #696b6e; }
+.app-shell.workflow-dark .workflow-toc-item.is-current:disabled { color: #f4f3ef; }
+.app-shell.workflow-dark .workflow-toc-item.is-done svg { color: #8cc5a1; }
+.app-shell.workflow-dark .topbar { color: #f4f3ef; background: #090a0c; border-color: rgba(255,255,255,.07); }
+.app-shell.workflow-dark .breadcrumbs, .app-shell.workflow-dark .save-status { color: #a3a4a7; }
+.app-shell.workflow-dark .breadcrumbs .breadcrumb-current, .app-shell.workflow-dark .breadcrumbs button, .app-shell.workflow-dark .topbar .icon-btn { color: #f4f3ef; }
+.app-shell.workflow-dark .topbar .btn, .app-shell.workflow-dark .topbar .account-chip, .app-shell.workflow-dark .topbar .lang-switch button { color: #e9e8e4; background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.14); }
+.app-shell.workflow-dark .topbar .icon-btn:hover, .app-shell.workflow-dark .topbar .btn:hover:not(:disabled) { background: rgba(255,255,255,.12); }
+.app-shell.workflow-dark .topbar-divider, .app-shell.workflow-dark .topbar-leading-divider { background: rgba(255,255,255,.14); }
+.app-shell.workflow-dark > .sidebar { color: #e9e8e4; background: #0b0c0e; border-color: rgba(255,255,255,.08); }
+.app-shell.workflow-dark .sidebar .nav-item, .app-shell.workflow-dark .sidebar-config, .app-shell.workflow-dark .archive-list-toggle, .app-shell.workflow-dark .sidebar button, .app-shell.workflow-dark .sidebar-current-project { color: #a3a4a7; }
+.app-shell.workflow-dark .sidebar .brand strong, .app-shell.workflow-dark .sidebar-project-heading strong, .app-shell.workflow-dark .sidebar .nav-item.active, .app-shell.workflow-dark .sidebar .nav-item.active svg { color: #f4f3ef; }
+.app-shell.workflow-dark .sidebar .nav-item:hover:not(:disabled), .app-shell.workflow-dark .sidebar-config:hover, .app-shell.workflow-dark .sidebar .nav-item.active, .app-shell.workflow-dark .project-row.selected { background: rgba(255,255,255,.09); color: #fff; }
+.app-shell.workflow-dark .sidebar-current-project, .app-shell.workflow-dark .workspace-picker, .app-shell.workflow-dark .project-tree-children { border-color: rgba(255,255,255,.1); }
+.app-shell.workflow-dark .pp-stage { --pp-ink: #f4f3ef; --pp-muted: #a3a4a7; --pp-line: rgba(255,255,255,.1); --pp-border: rgba(255,255,255,.12); --pp-node: rgba(255,255,255,.14); --pp-sel: #a8c9dc; --pp-wire: #8d9da9; --pp-bg: transparent; background: transparent; color: #f4f3ef; color-scheme: dark; }
+.app-shell.workflow-dark .pp-viewport .react-flow { background: transparent !important; }
+.app-shell.workflow-dark .pp-header { background: transparent; border-color: rgba(255,255,255,.08); }
+.app-shell.workflow-dark .pp-header h2, .app-shell.workflow-dark .pp-node, .app-shell.workflow-dark .pp-shot-row b { color: #f4f3ef; }
+.app-shell.workflow-dark .pp-header p, .app-shell.workflow-dark .pp-model, .app-shell.workflow-dark .pp-muted, .app-shell.workflow-dark .pp-breakdown-sum { color: #a3a4a7; }
+.app-shell.workflow-dark .pp-mark, .app-shell.workflow-dark .pp-view-toggle { background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.1); color: #c6c8cc; }
+.app-shell.workflow-dark .pp-view-toggle > button { color: #a3a4a7; }
+.app-shell.workflow-dark .pp-view-toggle > button.on { background: rgba(255,255,255,.12); color: #f4f3ef; }
+.app-shell.workflow-dark .pp-node, .app-shell.workflow-dark .pp-node--gridCard .sg-card.is-pipeline { background: rgba(16,18,21,.82); border-color: rgba(255,255,255,.14); box-shadow: 0 12px 36px rgba(0,0,0,.16); }
+.app-shell.workflow-dark .pp-node--gridCard { background: transparent; border: 0; box-shadow: none; }
+.app-shell.workflow-dark .pp-node-drag, .app-shell.workflow-dark .sg-card-hd { background: transparent; border-color: rgba(255,255,255,.1); color: #f4f3ef; }
+.app-shell.workflow-dark .sg-card-ttl, .app-shell.workflow-dark .sg-prompt > span, .app-shell.workflow-dark .pp-video-meta strong { color: #e9e8e4; }
+.app-shell.workflow-dark .sg-card-meta, .app-shell.workflow-dark .pp-video-meta span, .app-shell.workflow-dark .pp-media-meta span { color: #a3a4a7; }
+.app-shell.workflow-dark .pp-stage-label { color: #e9e8e4; background: rgba(18,20,23,.82); border-color: rgba(255,255,255,.12); box-shadow: none; }
+.app-shell.workflow-dark .pp-stage-n, .app-shell.workflow-dark .pp-chip, .app-shell.workflow-dark .sg-chip--idle { color: #b9babe; background: rgba(255,255,255,.09); }
+.app-shell.workflow-dark .pp-chip.ok, .app-shell.workflow-dark .sg-chip--ok { color: #a0d2b1; background: rgba(63,133,85,.2); }
+.app-shell.workflow-dark .pp-stage-hint, .app-shell.workflow-dark .pp-shot-row small, .app-shell.workflow-dark .sg-card-meta { color: #929498; }
+.app-shell.workflow-dark .pp-btn, .app-shell.workflow-dark .sg-btn-gen.is-ghost, .app-shell.workflow-dark .pp-analysis-options button, .app-shell.workflow-dark .pp-grid-density button { color: #dedfe1; background: rgba(255,255,255,.07); border-color: rgba(255,255,255,.14); }
+.app-shell.workflow-dark .pp-btn:hover:not(:disabled), .app-shell.workflow-dark .sg-btn-gen.is-ghost:hover:not(:disabled) { color: #fff; background: rgba(255,255,255,.14); border-color: rgba(255,255,255,.22); }
+.app-shell.workflow-dark .pp-btn.pp-run, .app-shell.workflow-dark .sg-btn-gen:not(.is-ghost) { color: #101112; background: #f4f3ef; border-color: #f4f3ef; }
+.app-shell.workflow-dark .pp-analysis-options button.is-active, .app-shell.workflow-dark .pp-grid-density button.is-active { color: #f4f3ef; background: rgba(255,255,255,.15); border-color: rgba(255,255,255,.5); }
+.app-shell.workflow-dark .pp-grid-density { color: #a3a4a7; }
+.app-shell.workflow-dark .pp-shot-row, .app-shell.workflow-dark .pp-empty, .app-shell.workflow-dark .sg-prompt textarea { color: #e0e1e3; background: rgba(255,255,255,.045); border-color: rgba(255,255,255,.1); }
+.app-shell.workflow-dark .pp-shot-row:hover, .app-shell.workflow-dark .pp-empty:hover { background: rgba(255,255,255,.09); }
+.app-shell.workflow-dark .pp-empty strong, .app-shell.workflow-dark .pp-shot-card p { color: #d1d2d4; }
+.app-shell.workflow-dark .sg-thumb { border-color: rgba(255,255,255,.1); background: #151617; }
+.app-shell.workflow-dark .pp-port { background: #14191d !important; border-color: #a1b5c2 !important; }
+.app-shell.workflow-dark .pp-viewport .react-flow__edge-path { stroke: #8d9da9 !important; }
+.app-shell.workflow-dark .pp-tools, .app-shell.workflow-dark .pp-batch { background: rgba(20,21,24,.9); border-color: rgba(255,255,255,.13); color: #e9e8e4; box-shadow: 0 8px 30px #0005; }
+.app-shell.workflow-dark .pp-tools > i { background: rgba(255,255,255,.14); }
+.app-shell.workflow-dark .pp-icon, .app-shell.workflow-dark .pp-pct { color: #b5b7ba; }
+.app-shell.workflow-dark .pp-icon:hover, .app-shell.workflow-dark .pp-icon.on { color: #fff; background: rgba(255,255,255,.12); }
+.app-shell.workflow-dark .pp-viewport .react-flow__minimap { border-color: rgba(255,255,255,.16); background: #14181c; }
+.app-shell.workflow-dark .pp-video-output.is-loading { background: #171e25; border-color: rgba(255,255,255,.12); }
+.app-shell.workflow-dark .pp-video-output.is-failed { color: #e5ac91; background: #281c1a; border-color: #65443a; }
+@media (max-width: 780px) {
+  .app-shell.workflow-dark .unified-workspace > .workflow-toc { position: absolute; background: rgba(13,15,18,.94); }
+  .app-shell.workflow-dark .unified-steps-toggle { z-index: 8; color: #eee; background: #202226; border-color: rgba(255,255,255,.16); }
+}
+
+.app-shell.workflow-dark .sidebar-more-popover { background: #191b1e; border-color: rgba(255,255,255,.14); color: #e9e8e4; }
+.app-shell.workflow-dark .sidebar-more-search, .app-shell.workflow-dark .workspace-picker { background: #202226; border-color: rgba(255,255,255,.12); color: #e9e8e4; }
+.app-shell.workflow-dark .sidebar-more-search input { color: #e9e8e4; }
+.app-shell.workflow-dark .sidebar-more-view-all, .app-shell.workflow-dark .project-tree-folder, .app-shell.workflow-dark .project-link { color: #d5d5d6; }
+.app-shell.workflow-dark .pp-shot-idx { background: rgba(255,255,255,.1); color: #c5c6c8; }
+.app-shell.workflow-dark .pp-shot-row em { color: #9ac7a8; }
+.app-shell.workflow-dark .pp-video-loading { color: #b5c7d4; }
+.app-shell.workflow-dark .pp-video-progress { background: #33424c; }
+
+/* Raise specificity over the scoped light workspace theme. */
+.app-shell.workflow-dark .topbar { background: #090a0c; border-color: rgba(255,255,255,.07); }
+.app-shell.workflow-dark > .sidebar { background: #0b0c0e; border-color: rgba(255,255,255,.08); }
+.app-shell.workflow-dark .sidebar-search-create { color: #b4b5b8; background: rgba(255,255,255,.05); border-color: rgba(255,255,255,.12); }
+.app-shell.workflow-dark .sidebar-search-create:hover { color: #fff; background: rgba(255,255,255,.1); border-color: rgba(255,255,255,.2); }
+.app-shell.workflow-dark .sidebar-search-create kbd { color: #b4b5b8; background: rgba(255,255,255,.07); border-color: rgba(255,255,255,.14); }
+.app-shell.workflow-dark .workflow-ambient { z-index: 3; }
+.app-shell.workflow-dark .workflow-ambient > .lbg-panel { position: absolute; top: 80px; right: 16px; z-index: 4; display: flex; flex-direction: column; width: 296px; max-height: calc(100% - 96px); overflow: hidden; pointer-events: auto; color: #e9e8e4; font: 12.5px/1.4 "Sail Workspace Inter", Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif; background: rgba(18,18,20,.6); -webkit-backdrop-filter: blur(18px) saturate(140%); backdrop-filter: blur(18px) saturate(140%); border: 1px solid rgba(255,255,255,.1); border-radius: 14px; box-shadow: 0 20px 60px rgba(0,0,0,.45); }
+.app-shell.workflow-dark .workflow-ambient > .lbg-panel.is-collapsed { width: auto; border-radius: 999px; }
+@media (max-width: 780px) { .app-shell.workflow-dark .workflow-ambient > .lbg-panel { top: 45px; right: 10px; max-width: calc(100% - 20px); max-height: calc(100% - 55px); } }
+
+/* Scrollable creative narrative with a two-level table of contents. */
+.app-shell.workflow-dark .unified-workspace > .workflow-page { position: relative; z-index: 1; }
+.workflow-page { display: flex; flex: 1; min-width: 0; min-height: 0; flex-direction: column; color: #f4f3ef; font-family: "Sail Workspace Inter", Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif; }
+.workflow-page-header { display: flex; flex: none; align-items: center; justify-content: space-between; gap: 20px; min-height: 62px; padding: 10px 24px; border-bottom: 1px solid rgba(255,255,255,.08); }
+.workflow-page-header > div { display: grid; gap: 3px; }
+.workflow-page-header strong { font-size: 14px; font-weight: 600; }
+.workflow-page-header span { color: #9a9b9e; font-size: 11px; }
+.workflow-page-scroll { position: relative; flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-color: rgba(255,255,255,.25) transparent; }
+.workflow-page-content { width: min(100%, 1380px); margin: 0 auto; padding: 0 clamp(28px, 5vw, 90px) 120px; }
+.workflow-section { padding: clamp(75px, 11vh, 130px) 0 34px; scroll-margin-top: 24px; }
+.workflow-subsection { padding: 52px 0 90px; border-bottom: 1px solid rgba(255,255,255,.1); scroll-margin-top: 24px; }
+.workflow-section-number, .workflow-eyebrow { margin-bottom: 17px; color: #96999c; font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+.workflow-section h1 { max-width: 750px; margin: 0; font-size: clamp(34px, 3.2vw, 52px); line-height: 1.12; font-weight: 500; letter-spacing: -.035em; }
+.workflow-lead, .workflow-subsection > p { max-width: 660px; margin: 18px 0 30px; color: #a8aaad; font-size: 15px; line-height: 1.7; }
+.workflow-subsection h2 { margin: 0; font-size: 25px; font-weight: 500; letter-spacing: -.02em; }
+.workflow-page-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 38px; padding: 0 16px; border: 1px solid #f4f3ef; border-radius: 5px; background: #f4f3ef; color: #111; font: inherit; font-size: 12px; font-weight: 550; cursor: pointer; }
+.workflow-page-button:hover:not(:disabled) { background: #fff; }
+.workflow-page-button.ghost { color: #e4e4e2; background: rgba(255,255,255,.09); border-color: rgba(255,255,255,.12); }
+.workflow-page-button.ghost:hover:not(:disabled) { background: rgba(255,255,255,.16); }
+.workflow-page-button:disabled, .workflow-options button:disabled { opacity: .45; cursor: not-allowed; }
+.workflow-source { display: flex; align-items: center; gap: 28px; max-width: 800px; margin-top: 32px; }
+.workflow-source video { width: min(58%, 430px); aspect-ratio: 16 / 9; object-fit: contain; border: 1px solid rgba(255,255,255,.1); border-radius: 6px; background: #101113; }
+.workflow-source h3 { margin: 0 0 8px; font-size: 18px; font-weight: 500; overflow-wrap: anywhere; }
+.workflow-source p { color: #a3a4a7; font-size: 13px; }
+.workflow-upload { display: grid; justify-items: center; gap: 10px; width: min(100%, 650px); min-height: 220px; padding: 38px; border: 1px dashed rgba(255,255,255,.26); border-radius: 8px; color: #ddd; background: rgba(255,255,255,.035); cursor: pointer; }
+.workflow-upload span { color: #9a9b9e; font-size: 12px; }
+.workflow-upload:disabled { opacity: .5; cursor: default; }
+.workflow-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; max-width: 800px; margin: 34px 0 18px; }
+.workflow-options button { display: grid; justify-items: start; gap: 9px; min-height: 146px; padding: 22px; border: 1px solid rgba(255,255,255,.12); border-radius: 8px; background: rgba(255,255,255,.045); color: #eee; text-align: left; cursor: pointer; }
+.workflow-options button.is-selected { border-color: rgba(255,255,255,.65); background: rgba(255,255,255,.1); }
+.workflow-options strong { font-size: 15px; font-weight: 500; }
+.workflow-options span { color: #a3a4a7; font-size: 12px; }
+.workflow-density { display: flex; align-items: center; gap: 8px; margin: 0 0 20px; color: #aaa; font-size: 12px; }
+.workflow-density button { padding: 5px 11px; color: #bbb; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); border-radius: 5px; cursor: pointer; }
+.workflow-density button.is-selected { color: #fff; border-color: rgba(255,255,255,.5); background: rgba(255,255,255,.14); }
+.workflow-job, .workflow-empty { color: #a3a4a7; font-size: 13px; line-height: 1.6; }
+.workflow-analysis-grid, .workflow-video-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin: 28px 0; }
+.workflow-analysis-grid button { display: grid; gap: 7px; min-width: 0; padding: 0; border: 0; background: transparent; color: #eee; text-align: left; cursor: pointer; }
+.workflow-analysis-grid img { width: 100%; aspect-ratio: 16/9; object-fit: cover; border-radius: 6px; background: #151617; }
+.workflow-analysis-grid strong, .workflow-video-grid strong { font-size: 13px; font-weight: 500; }
+.workflow-analysis-grid span, .workflow-video-grid small { color: #999b9e; font-size: 11px; }
+.workflow-grid-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 370px), 1fr)); gap: 16px; margin: 32px 0 22px; }
+.workflow-grid-cards .sg-card { width: 100%; color: #e9e8e4; background: rgba(17,19,22,.84); border-color: rgba(255,255,255,.14); box-shadow: none; }
+.workflow-grid-cards .sg-card-hd { cursor: default; }
+.workflow-grid-cards .sg-card-meta { color: #a3a4a7; }
+.workflow-grid-cards .sg-prompt textarea { min-height: 130px; }
+.workflow-grid-cards .sg-card-mid { padding-bottom: 12px; }
+.workflow-grid-cards .sg-chip--ok { color: #a0d2b1; background: rgba(63,133,85,.2); }
+.workflow-grid-cards .sg-chip--idle { color: #b9babe; background: rgba(255,255,255,.09); }
+.workflow-grid-cards .sg-btn-gen:not(.is-ghost) { color: #111; background: #f4f3ef; border-color: #f4f3ef; }
+.workflow-video-grid article { display: grid; align-content: start; gap: 7px; min-width: 0; }
+.workflow-video-frame { display: grid; place-items: center; overflow: hidden; width: 100%; aspect-ratio: 16/9; border: 1px solid rgba(255,255,255,.1); border-radius: 6px; background: rgba(12,14,17,.7); color: #a3a4a7; }
+.workflow-video-frame video { width: 100%; height: 100%; object-fit: contain; }
+.workflow-video-frame span { display: flex; align-items: center; gap: 9px; font-size: 12px; }
+.app-shell.workflow-dark .workflow-toc-group { display: grid; }
+.app-shell.workflow-dark .workflow-toc-item { width: 100%; }
+.app-shell.workflow-dark .workflow-toc-children { display: grid; padding: 1px 0 6px 16px; }
+.app-shell.workflow-dark .workflow-toc-subitem { min-height: 27px; padding: 4px 10px; border: 0; border-left: 1px solid rgba(255,255,255,.12); border-radius: 0 5px 5px 0; background: transparent; color: #87898c; font: inherit; font-size: 11px; text-align: left; cursor: pointer; }
+.app-shell.workflow-dark .workflow-toc-subitem.is-current { color: #f4f3ef; border-left-color: #f4f3ef; background: rgba(255,255,255,.06); }
+.app-shell.workflow-dark .workflow-toc-subitem:disabled { color: #5f6164; cursor: default; }
+@media (max-width: 780px) { .workflow-source { flex-direction: column; align-items: flex-start; } .workflow-source video { width: 100%; } .workflow-options { grid-template-columns: 1fr; } .workflow-page-content { padding-left: 20px; padding-right: 20px; } .workflow-page-header { padding-left: 16px; } }
+/* Keep the ambient layer behind content while the configurator remains interactive above it. */
+.app-shell.workflow-dark .workflow-ambient { display: contents; }
+.app-shell.workflow-dark .workflow-ambient > .lbg { z-index: 0; pointer-events: none; }
+
+.experience-switch { display: inline-flex; gap: 2px; padding: 3px; border: 1px solid #dedede; border-radius: 8px; background: #f5f5f5; }
+.experience-switch button { min-height: 25px; padding: 0 9px; border: 0; border-radius: 5px; background: transparent; color: #777; font-size: 11px; white-space: nowrap; cursor: pointer; }
+.experience-switch button[aria-pressed="true"] { background: #fff; color: #171717; box-shadow: 0 1px 3px #0002; }
+.app-shell.workflow-dark .experience-switch { background: rgba(255,255,255,.05); border-color: rgba(255,255,255,.14); }
+.app-shell.workflow-dark .experience-switch button { color: #a3a4a7; }
+.app-shell.workflow-dark .experience-switch button[aria-pressed="true"] { color: #fff; background: rgba(255,255,255,.15); }
+@media (min-width: 781px) {
+  .app-shell:not(.workflow-dark) .unified-steps.wizard-panel { width: min(var(--wizard-width, 320px), calc(100% - 320px)); flex-basis: min(var(--wizard-width, 320px), calc(100% - 320px)); }
+  .app-shell:not(.workflow-dark) .wizard-resize { position: relative; z-index: 3; flex: 0 0 8px; width: 8px; margin-left: -4px; margin-right: -4px; cursor: col-resize; touch-action: none; }
+  .app-shell:not(.workflow-dark) .wizard-resize::after { content: ''; position: absolute; top: 0; bottom: 0; left: 3px; width: 2px; background: transparent; }
+  .app-shell:not(.workflow-dark) .wizard-resize:hover::after, .app-shell:not(.workflow-dark) .wizard-resize:focus-visible::after { background: #9da4a0; }
+}
+@media (max-width: 780px) { .wizard-resize { display: none; } .experience-switch button { padding: 0 5px; font-size: 10px; } }

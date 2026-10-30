@@ -29,6 +29,7 @@ import ShotTimelineEditor from './ShotTimelineEditor';
 import StoryboardGridPanel from './StoryboardGridPanel';
 import StoryboardGridWorkbench, { gridVideoState } from './StoryboardGridWorkbench';
 import ProductPipelineCanvas from './ProductPipelineCanvas';
+import StudioPipelineCanvas from './StudioPipelineCanvas';
 import ProjectNavigation from './ProjectNavigation';
 import WorkspaceSearchPalette from './WorkspaceSearchPalette';
 import AnimatedBrandMark from './AnimatedBrandMark';
@@ -39,6 +40,7 @@ import ScrollBrand from "./ScrollBrand";
 import LandingSections from './LandingSections';
 import LandingToc from './LandingToc';
 import LandingBackground from './LandingBackground';
+import WorkflowPage, { workflowSections, type WorkflowSection } from './WorkflowPage';
 import { LanguageSwitch, pick, useDict } from './i18n';
 import { AUTH_TEXT, LANDING } from './landing-i18n';
 import { shotReconstructionPrompt } from '../shared/shot-evidence';
@@ -215,16 +217,20 @@ export default function App() {
   const [stageDetail, setStageDetail] = useState<number | null>(null);
   const [canvasFocusVersion, setCanvasFocusVersion] = useState(0);
   const [stepsCollapsed, setStepsCollapsed] = useState(false);
+  const [visibleStage, setVisibleStage] = useState(0);
+  const [visibleSection, setVisibleSection] = useState<WorkflowSection>('source');
+  const [workspacePresentation, setWorkspacePresentation] = useState<'page' | 'canvas'>('page');
+  const [experienceMode, setExperienceMode] = useState<'studio' | 'agent'>(() => { try { return localStorage.getItem('sail-experience-mode') === 'studio' ? 'studio' : 'agent'; } catch { return 'agent'; } });
+  const switchExperience = (mode: 'studio' | 'agent') => { setExperienceMode(mode); setStageDetail(null); setShowMediaLibrary(false); try { localStorage.setItem('sail-experience-mode', mode); } catch { /* storage unavailable */ } };
   const [stepsWidth, setStepsWidth] = useState(320);
   const workspaceRef = useRef<HTMLDivElement>(null);
   const stepsDrag = useRef<{ x: number; width: number } | null>(null);
-  const resizeSteps = (width: number) => {
-    const max = Math.max(280, Math.min(600, (workspaceRef.current?.clientWidth || 920) - 320));
-    setStepsWidth(Math.max(280, Math.min(max, width)));
-  };
+  const resizeSteps = (width: number) => { const max = Math.max(280, Math.min(600, (workspaceRef.current?.clientWidth || 920) - 320)); setStepsWidth(Math.max(280, Math.min(max, width))); };
+  const [sectionTarget, setSectionTarget] = useState<{ id: WorkflowSection; version: number } | null>(null);
   const focusStage = (n: number) => {
     if (!project || n > lastAvailableStep(project)) return;
-    setShowMediaLibrary(false); setStageDetail(null); setStep(n); setCanvasFocusVersion(v => v + 1); setSidebarOpen(false);
+    setShowMediaLibrary(false); setStageDetail(null); setStep(n); setVisibleStage(n); setCanvasFocusVersion(v => v + 1); setSidebarOpen(false);
+    if (workspacePresentation === 'page') { const id = workflowSections[n][0]; setVisibleSection(id); setSectionTarget(current => ({ id, version: (current?.version || 0) + 1 })); }
   };
   const openStageDetail = (n: number) => { if (n > step) return; setStep(n); setStageDetail(n); };
   const [showLanding, setShowLanding] = useState(true);
@@ -965,7 +971,7 @@ export default function App() {
     <LandingAnnouncement onEnter={() => enterWorkspace()} />
     <header className="landing-nav">
       <button className="landing-brand" onClick={() => setShowLanding(true)} aria-label={L.nav.home}><img className="landing-brand-logo" src="/assets/brand/sail-mark-dark-bold.svg" alt="" width={30} height={30} /><ScrollBrand /></button>
-      <nav className="landing-links" aria-label={L.nav.aria}><a href="#overview">{L.nav.overview}</a><a href="#models">{L.nav.models}</a><a href="#tools">{L.nav.tools}</a><a href="#creator">{L.nav.creator}</a><a href="#pricing">{L.nav.pricing}</a>{FEATURE_STUDIO && <button type="button" className="landing-studio-link" onClick={() => openStudio('welcome')}>爆款工作室</button>}</nav>
+      <nav className="landing-links" aria-label={L.nav.aria}><button type="button" className="landing-mode-link" onClick={() => { switchExperience('studio'); enterWorkspace(); }}>Studio mode</button><button type="button" className="landing-mode-link" onClick={() => { switchExperience('agent'); enterWorkspace(); }}>Agent mode</button><a href="#overview">{L.nav.overview}</a><a href="#models">{L.nav.models}</a><a href="#tools">{L.nav.tools}</a><a href="#creator">{L.nav.creator}</a><a href="#pricing">{L.nav.pricing}</a>{FEATURE_STUDIO && <button type="button" className="landing-studio-link" onClick={() => openStudio('welcome')}>爆款工作室</button>}</nav>
       <div className="landing-social"><button aria-label={L.nav.more}>⋮</button><LanguageSwitch /><button className="landing-account" onClick={openAuth}>{auth.user && <img src={accountAvatar} alt="" />}{auth.user ? <AccountName name={authDisplayName(auth.user)} /> : L.nav.signIn}</button></div>
     </header>
     <LandingHero authRequired={publicAuthRequired} onEnter={mode => enterWorkspace(false, mode)} />
@@ -1016,9 +1022,6 @@ export default function App() {
     onGenerateShots={shotIds => void generateTierShots(shotIds)} onVideo={startTierVideo} onGroupVideo={startTierVideoGroup} openFrame={openFrame} onOpenFrame={openFrameOnly} canvas={canvasView} /> : null;
   const frameDrawer = !isStoryboardGrid && openFrame && project.analysis && (canvasView || step === 2) ? <FrameDrawer {...frameHandlers} shotId={openFrame.shotId} position={openFrame.position} onClose={() => setOpenFrame(null)} />
     : !isStoryboardGrid && openVideo && project.analysis && (canvasView || step === 2) ? <VideoDrawer project={project} disabled={disabled} ratioLabel={frameHandlers.ratioLabel} onVideo={startTierVideo} onVideoPrompt={setVideoPrompt} shotId={openVideo} onClose={() => setOpenVideo(null)} /> : null;
-  const analysisRunning = !!project.job?.kind.startsWith('analysis') && project.job.status === 'running';
-  const analysisFailed = !!project.job?.kind.startsWith('analysis') && project.job.status === 'failed';
-  const otherJob = project.job && !project.job.kind.startsWith('analysis') ? project.job : undefined;
   const allGrids = project.storyboardGrids || [];
   const outputUnits: { id: string; label: string; range: string; state: 'idle' | 'run' | 'ok' | 'fail'; note: string }[] = isStoryboardGrid
     ? allGrids.flatMap((grid, i) => {
@@ -1031,17 +1034,22 @@ export default function App() {
       return { id: shot.id, label: `镜头 ${String(i + 1).padStart(2, '0')}`, range: `${shot.start.toFixed(1)}–${shot.end.toFixed(1)}s`, state: s.running ? 'run' as const : s.completed.length ? 'ok' as const : s.failed ? 'fail' as const : 'idle' as const, note: s.ready ? '' : `缺${s.missing.join('、')}` };
     });
   const unitsDone = outputUnits.filter(unit => unit.state === 'ok').length;
-  const pendingGrids = isStoryboardGrid ? allGrids.filter(grid => grid.included !== false && grid.prompt.trim() && !gridVideoState(project, grid).running && !gridVideoState(project, grid).completed.length) : [];
   const stageDone = [!!video, lastReadyStep >= 2, outputUnits.length > 0 && unitsDone === outputUnits.length];
-  const stageMeta = [
-    video ? '参考视频已就绪' : '待上传',
-    analysisRunning ? '拆解中' : lastReadyStep >= 2 ? (isStoryboardGrid ? `${allGrids.length} 张网格` : `${project.analysis?.shots.length || 0} 个镜头`) : available[1] ? '待拆解' : '未解锁',
-    available[2] ? `${unitsDone}/${outputUnits.length} 已出片` : '未解锁',
-  ];
-  const stageNames = ['上传素材', '视频拆解', isStoryboardGrid ? '网格出片' : '二创出片'];
+  const analysisRunning = !!project.job?.kind.startsWith('analysis') && project.job.status === 'running';
+  const analysisFailed = !!project.job?.kind.startsWith('analysis') && project.job.status === 'failed';
+  const otherJob = project.job && !project.job.kind.startsWith('analysis') ? project.job : undefined;
+  const pendingGrids = isStoryboardGrid ? allGrids.filter(grid => grid.included !== false && grid.prompt.trim() && !gridVideoState(project, grid).running && !gridVideoState(project, grid).completed.length) : [];
+  const stageMeta = [video ? '参考视频已就绪' : '待上传', analysisRunning ? '拆解中' : lastReadyStep >= 2 ? (isStoryboardGrid ? `${allGrids.length} 张网格` : `${project.analysis?.shots.length || 0} 个镜头`) : available[1] ? '待拆解' : '未解锁', available[2] ? `${unitsDone}/${outputUnits.length} 已出片` : '未解锁'];
   const reviewing = step < lastReadyStep;
   const unitStateLabel = { idle: '待生成', run: '生成中', ok: '已出片', fail: '失败' } as const;
-  const remixPanel = <ProductPipelineCanvas key={project.id} project={project} disabled={disabled} onPrompt={updateStoryboardGridPrompt} onGenerate={gridId => void startStoryboardGridVideo(gridId)} onRecover={videoId => void recoverGeneration(videoId)} onIncluded={updateStoryboardGridIncluded} onUploadVideo={() => openAssetLibrary('video')} onAnalyze={() => void startJob('analysis')} onOpenMaterials={() => openStageDetail(0)} onOpenAnalysis={() => openStageDetail(1)} onOpenRemixDetail={() => openStageDetail(2)} onSettings={() => setModal('settings')} focusStep={step} focusVersion={canvasFocusVersion} />;
+  const stageNames = ['上传素材', '视频拆解', isStoryboardGrid ? '网格出片' : '二创出片'];
+  const sectionNames: Record<WorkflowSection, string> = { source: '参考视频', product: '产品信息', 'analysis-method': '拆解方式', 'analysis-result': '拆解结果', 'production-grid': isStoryboardGrid ? '分镜与 Prompt' : '关键帧制作', 'production-video': '视频结果' };
+  const navigateSection = (id: WorkflowSection, stage: number) => {
+    if (!available[stage]) return;
+    focusStage(stage); setVisibleSection(id); setWorkspacePresentation('page');
+    setSectionTarget(current => ({ id, version: (current?.version || 0) + 1 }));
+  };
+  const remixPanel = <ProductPipelineCanvas key={project.id} project={project} disabled={disabled} onPrompt={updateStoryboardGridPrompt} onGenerate={gridId => void startStoryboardGridVideo(gridId)} onRecover={videoId => void recoverGeneration(videoId)} onIncluded={updateStoryboardGridIncluded} onUploadVideo={() => openAssetLibrary('video')} onAnalyze={() => void startJob('analysis')} onOpenMaterials={() => openStageDetail(0)} onOpenAnalysis={() => openStageDetail(1)} onOpenRemixDetail={() => openStageDetail(2)} onSettings={() => setModal('settings')} onBreakdownType={breakdownType => change(p => ({ ...p, breakdownType }))} onGridSize={storyboardGridSize => change(p => ({ ...p, storyboardGridSize }))} onViewportStage={n => { setVisibleStage(n); if (available[n]) setStep(n); }} onShowPage={() => setWorkspacePresentation('page')} focusStep={step} focusVersion={canvasFocusVersion} />;
   const market = countries.find(c => c.code === project.market.country)!;
   const platform = platforms.find(p => p.id === project.market.platform)!;
   const shot = project.analysis?.shots[Math.min(selectedShot, project.analysis.shots.length - 1)];
@@ -1170,7 +1178,7 @@ export default function App() {
   const sidebarIsCollapsed = sidebarCollapsed && !sidebarOpen;
   const editParentProject = (group: WorkspaceProject) => { setError(''); setOrganizationDialog({ kind: 'project-edit', parentId: group.id, title: group.title }); };
   const editCreative = () => { setError(''); setOrganizationDialog({ kind: 'creative-edit', parentId: project.parentProjectId || '', title: project.title }); };
-  return <div className={`app-shell ${sidebarIsCollapsed ? 'sidebar-collapsed' : ''}`}>
+  return <div className={`app-shell ${!showMediaLibrary && experienceMode === 'agent' ? 'workflow-dark' : ''} ${sidebarIsCollapsed ? 'sidebar-collapsed' : ''}`}>
     {sidebarOpen && <button className="sidebar-scrim" aria-label="关闭导航" onClick={() => setSidebarOpen(false)} />}
     <aside id="workspace-sidebar" aria-label="工作区导航" className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
       <div className="sidebar-brand-row"><a className="brand" href="/" title="回到门户首页" aria-label="AI-Sail Flow，回到门户首页" onClick={event => {
@@ -1194,7 +1202,7 @@ export default function App() {
     </aside>
     {searchPaletteOpen && <WorkspaceSearchPalette creatives={projects} groups={projectGroups} busy={!!busy} onChoose={id => { setShowArchived(false); void switchProject(id); }} onCreateCreative={() => { setError(''); newProject(); }} onCreateProject={() => { setError(''); setOrganizationDialog({ kind: 'project-new', parentId: '', title: '' }); }} onClose={() => setSearchPaletteOpen(false)} />}
     <div className="main-shell">
-      <header className="topbar"><div className="topbar-leading"><button className="icon-btn sidebar-toggle mobile-menu" aria-label={sidebarOpen ? '关闭导航' : '打开导航'} title={sidebarOpen ? '关闭导航' : '打开导航'} aria-expanded={sidebarOpen} aria-controls="workspace-sidebar" onClick={() => setSidebarOpen(!sidebarOpen)}><SidebarToggleIcon expanded={sidebarOpen} /></button><span className="topbar-leading-divider" aria-hidden="true" /><div className="breadcrumbs"><FolderOpen size={16} /><span>{defaultWorkspace.title}</span><ChevronRight size={14} /><button className="breadcrumb-project" onClick={() => parentProject && editParentProject(parentProject)} disabled={!!busy} title="重命名项目">{parentProject?.title || '默认项目'}</button><ChevronRight size={14} /><button className="breadcrumb-current breadcrumb-creative" onClick={editCreative} disabled={disabled} title="编辑创意名称与所属项目">{project.title}</button></div></div><div className="topbar-actions"><span className="save-status">{saving ? <LoaderCircle size={14} className="spin" /> : dirty ? <span className="unsaved-dot" /> : <CheckCheck size={14} />}{saving ? '保存中' : dirty ? '待保存' : '已保存'}</span><button className="icon-btn" title="保存创意 ⌘S" aria-label="保存创意" disabled={disabled || !dirty} onClick={() => perform('正在保存', async () => { await flush(); setNotice('已保存'); })}><Save size={17} /></button><span className="topbar-divider" /><button className="btn small" onClick={() => newProject()} disabled={!!busy}><Plus size={15} />新建创意</button><LanguageSwitch /><button className="account-chip" onClick={openAuth}><span>{auth.user ? <img src={accountAvatar} alt="" /> : <Mail size={14} />}</span>{auth.user ? authDisplayName(auth.user) : '登录'}</button></div></header>
+      <header className="topbar"><div className="topbar-leading"><button className="icon-btn sidebar-toggle mobile-menu" aria-label={sidebarOpen ? '关闭导航' : '打开导航'} title={sidebarOpen ? '关闭导航' : '打开导航'} aria-expanded={sidebarOpen} aria-controls="workspace-sidebar" onClick={() => setSidebarOpen(!sidebarOpen)}><SidebarToggleIcon expanded={sidebarOpen} /></button><span className="topbar-leading-divider" aria-hidden="true" /><div className="breadcrumbs"><FolderOpen size={16} /><span>{defaultWorkspace.title}</span><ChevronRight size={14} /><button className="breadcrumb-project" onClick={() => parentProject && editParentProject(parentProject)} disabled={!!busy} title="重命名项目">{parentProject?.title || '默认项目'}</button><ChevronRight size={14} /><button className="breadcrumb-current breadcrumb-creative" onClick={editCreative} disabled={disabled} title="编辑创意名称与所属项目">{project.title}</button></div></div><div className="topbar-actions"><div className="experience-switch" role="group" aria-label="创作模式"><button type="button" aria-pressed={experienceMode === 'studio'} onClick={() => switchExperience('studio')}>Studio mode</button><button type="button" aria-pressed={experienceMode === 'agent'} onClick={() => switchExperience('agent')}>Agent mode</button></div><span className="save-status">{saving ? <LoaderCircle size={14} className="spin" /> : dirty ? <span className="unsaved-dot" /> : <CheckCheck size={14} />}{saving ? '保存中' : dirty ? '待保存' : '已保存'}</span><button className="icon-btn" title="保存创意 ⌘S" aria-label="保存创意" disabled={disabled || !dirty} onClick={() => perform('正在保存', async () => { await flush(); setNotice('已保存'); })}><Save size={17} /></button><span className="topbar-divider" /><button className="btn small" onClick={() => newProject()} disabled={!!busy}><Plus size={15} />新建创意</button><LanguageSwitch /><button className="account-chip" onClick={openAuth}><span>{auth.user ? <img src={accountAvatar} alt="" /> : <Mail size={14} />}</span>{auth.user ? authDisplayName(auth.user) : '登录'}</button></div></header>
       <main className={showMediaLibrary ? 'media-workspace-main' : canvasView ? 'canvas-workspace-main' : step === 2 ? 'remix-workspace-main' : undefined}>
         {showMediaLibrary ? <MediaLibraryPage user={auth.user} onSelect={item => openAssetLibrary('all', item)} onUpload={() => openAssetLibrary('all')} onSignIn={openAuth} /> : <>
         {project.archivedAt && <div className="banner sample"><Archive size={16} /><span>此创意已归档，素材和制作结果仍保存在本机。</span><button disabled={!!busy || running} onClick={() => setProjectArchived(project.id, false)}>恢复到所属项目 <ArchiveRestore size={14} /></button></div>}
@@ -1202,6 +1210,7 @@ export default function App() {
         {project.ttsTimingNotice && <SpeechTimingConfirmation notice={project.ttsTimingNotice} disabled={disabled} onConfirm={() => void composeFinal(project.ttsTimingNotice!.voice, project.ttsTimingNotice!.basis)} onManual={() => void selectWorkflowMode('manual')} />}
 
 
+        {experienceMode === 'studio' ? <>
         <div className="unified-workspace" ref={workspaceRef} style={{ '--wizard-width': `${stepsWidth}px` } as CSSProperties}>
           <button className="unified-steps-toggle" aria-expanded={!stepsCollapsed} onClick={() => setStepsCollapsed(value => !value)}>{stepsCollapsed ? '展开步骤' : '收起步骤'}</button>
           <aside className={`unified-steps wizard-panel${stepsCollapsed ? ' is-collapsed' : ''}`} aria-label="创作步骤">
@@ -1279,8 +1288,30 @@ export default function App() {
             onPointerMove={event => { if (stepsDrag.current) resizeSteps(stepsDrag.current.width + event.clientX - stepsDrag.current.x); }}
             onPointerUp={() => { stepsDrag.current = null; }} onPointerCancel={() => { stepsDrag.current = null; }} onLostPointerCapture={() => { stepsDrag.current = null; }}
             onKeyDown={event => { if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') { event.preventDefault(); resizeSteps(stepsWidth + (event.key === 'ArrowRight' ? 16 : -16)); } }} />
-          {remixPanel}
+          <StudioPipelineCanvas key={project.id} project={project} disabled={disabled} onPrompt={updateStoryboardGridPrompt} onGenerate={gridId => void startStoryboardGridVideo(gridId)} onRecover={videoId => void recoverGeneration(videoId)} onIncluded={updateStoryboardGridIncluded} onUploadVideo={() => openAssetLibrary('video')} onAnalyze={() => void startJob('analysis')} onOpenMaterials={() => openStageDetail(0)} onOpenAnalysis={() => openStageDetail(1)} onOpenRemixDetail={() => openStageDetail(2)} onSettings={() => setModal('settings')} focusStep={step} focusVersion={canvasFocusVersion} />
         </div>
+        </> : <>
+        <div className="unified-workspace">
+          <div className="workflow-ambient"><LandingBackground storageKey="sail-workspace-bg-v1" uiStorageKey="sail-workspace-bg-ui-v1" /></div>
+          <button className="unified-steps-toggle" aria-expanded={!stepsCollapsed} onClick={() => setStepsCollapsed(value => !value)}>{stepsCollapsed ? '展开步骤' : '收起步骤'}</button>
+          <aside className={`unified-steps wizard-panel workflow-toc${stepsCollapsed ? ' is-collapsed' : ''}`} aria-label="创作流程">
+            <h2>创作流程</h2>
+            <nav aria-label="创作进度">
+              {stageNames.map((name, i) => <div className="workflow-toc-group" key={name}>
+                <button type="button" className={`workflow-toc-item${visibleStage === i ? ' is-current' : ''}${stageDone[i] ? ' is-done' : ''}`} disabled={!available[i] || !!busy} aria-current={visibleStage === i ? 'location' : undefined} onClick={() => navigateSection(workflowSections[i][0], i)}>
+                  <span>{name}</span>{stageDone[i] && <Check size={13} aria-label="已完成" />}
+                </button>
+                <div className="workflow-toc-children">{workflowSections[i].map(id => <button type="button" key={id} className={`workflow-toc-subitem${visibleStage === i && visibleSection === id && workspacePresentation === 'page' ? ' is-current' : ''}`} disabled={!available[i] || !!busy} aria-current={visibleStage === i && visibleSection === id && workspacePresentation === 'page' ? 'location' : undefined} onClick={() => navigateSection(id, i)}>{sectionNames[id]}</button>)}</div>
+              </div>)}
+            </nav>
+          </aside>
+          {workspacePresentation === 'canvas' ? remixPanel : <WorkflowPage key={project.id} project={project} disabled={disabled} available={available} target={sectionTarget}
+            onVisible={(id, stage) => { setVisibleSection(id); setVisibleStage(stage); if (available[stage]) setStep(stage); }} onCanvas={() => setWorkspacePresentation('canvas')}
+            onUploadVideo={() => openAssetLibrary('video')} onOpenMaterials={() => openStageDetail(0)} onOpenAnalysis={() => openStageDetail(1)} onOpenRemixDetail={() => openStageDetail(2)} onAnalyze={() => void startJob('analysis')}
+            onBreakdownType={breakdownType => change(p => ({ ...p, breakdownType }))} onGridSize={storyboardGridSize => change(p => ({ ...p, storyboardGridSize }))}
+            onPrompt={updateStoryboardGridPrompt} onGenerate={gridId => void startStoryboardGridVideo(gridId)} onRecover={videoId => void recoverGeneration(videoId)} onIncluded={updateStoryboardGridIncluded} />}
+        </div>
+        </>}
         {frameDrawer}
         {manualView && stageDetail !== null && <Modal title={steps[step].name} wide onClose={() => setStageDetail(null)}><div className="unified-detail">
         {project.workflow?.status === 'pausing' && <div className="banner sample" role="status"><LoaderCircle size={16} className="spin" /><span>正在等待当前任务结束。完成后会停止自动推进，并开放编辑。</span></div>}

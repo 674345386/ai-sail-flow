@@ -117,3 +117,5 @@
 
 /* Smaller final mark; wordmark keeps its original size (15px cap height) */
 .landing-brand .scroll-brand { --sb-mark: 20px; --sb-word-scale: .75; }
+.landing-nav .landing-mode-link { border: 0; background: transparent; color: #bfc0c3; font: inherit; font-size: 13px; cursor: pointer; white-space: nowrap; }
+.landing-nav .landing-mode-link:hover { color: #f4f3ef; }

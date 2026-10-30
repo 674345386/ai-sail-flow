@@ -2,10 +2,9 @@ import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { Archive, ArchiveRestore, ArrowLeft, ChevronDown, ChevronRight, Clapperboard, Ellipsis, FolderOpen, MessageSquare, Pencil, Pin, Plus } from 'lucide-react';
 import type { ProjectSummary, WorkspaceProject } from '../shared/domain';
 
-const RECENT_LIMIT = 4;
+const RECENT_LIMIT = 3;
 const MORE_LIST_LIMIT = 20;
 const pinsKey = (projectId: string) => `sop-creative-pins:${projectId}`;
-const recentKey = (projectId: string) => `sop-creative-recent:${projectId}`;
 
 function readIds(key: string): string[] {
   try {
@@ -54,9 +53,9 @@ function CreativeRow({
 }
 
 function MorePopover({
-  creatives, recentOrder, pinnedIds, currentId, busy, onSelect, onTogglePin, onViewAll, onClose, anchorRef,
+  creatives, pinnedIds, currentId, busy, onSelect, onTogglePin, onViewAll, onClose, anchorRef,
 }: {
-  creatives: ProjectSummary[]; recentOrder: string[]; pinnedIds: Set<string>; currentId: string; busy: boolean;
+  creatives: ProjectSummary[]; pinnedIds: Set<string>; currentId: string; busy: boolean;
   onSelect: (id: string) => void; onTogglePin: (id: string) => void; onViewAll: () => void; onClose: () => void;
   anchorRef: RefObject<HTMLButtonElement | null>;
 }) {
@@ -77,20 +76,11 @@ function MorePopover({
     window.addEventListener('scroll', place, true);
     return () => { window.removeEventListener('resize', place); window.removeEventListener('scroll', place, true); };
   }, [anchorRef]);
-  const ranked = useMemo(() => {
-    const rank = new Map(recentOrder.map((id, index) => [id, index]));
-    return [...creatives].sort((a, b) => {
-      const ar = rank.has(a.id) ? rank.get(a.id)! : Number.MAX_SAFE_INTEGER;
-      const br = rank.has(b.id) ? rank.get(b.id)! : Number.MAX_SAFE_INTEGER;
-      if (ar !== br) return ar - br;
-      return b.updatedAt.localeCompare(a.updatedAt);
-    });
-  }, [creatives, recentOrder]);
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const list = q ? ranked.filter(item => item.title.toLowerCase().includes(q)) : ranked;
+    const list = q ? creatives.filter(item => item.title.toLowerCase().includes(q)) : creatives;
     return list.slice(0, MORE_LIST_LIMIT);
-  }, [ranked, query]);
+  }, [creatives, query]);
 
   useEffect(() => {
     const onPointer = (event: MouseEvent) => {
@@ -144,7 +134,6 @@ export default function ProjectNavigation({ groups, creatives, currentId, curren
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [viewAll, setViewAll] = useState<Record<string, boolean>>({});
   const [pinnedByProject, setPinnedByProject] = useState<Record<string, string[]>>({});
-  const [recentByProject, setRecentByProject] = useState<Record<string, string[]>>({});
   const [moreOpenFor, setMoreOpenFor] = useState<string | null>(null);
   const moreButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -152,12 +141,6 @@ export default function ProjectNavigation({ groups, creatives, currentId, curren
 
   useEffect(() => {
     if (!currentParentId || !currentId) return;
-    setRecentByProject(previous => {
-      const existing = previous[currentParentId] || readIds(recentKey(currentParentId));
-      const next = [currentId, ...existing.filter(id => id !== currentId)];
-      writeIds(recentKey(currentParentId), next);
-      return { ...previous, [currentParentId]: next };
-    });
     setPinnedByProject(previous => previous[currentParentId] ? previous : { ...previous, [currentParentId]: readIds(pinsKey(currentParentId)) });
   }, [currentId, currentParentId]);
 
@@ -165,7 +148,6 @@ export default function ProjectNavigation({ groups, creatives, currentId, curren
 
   const ensurePrefs = (projectId: string) => {
     setPinnedByProject(previous => previous[projectId] ? previous : { ...previous, [projectId]: readIds(pinsKey(projectId)) });
-    setRecentByProject(previous => previous[projectId] ? previous : { ...previous, [projectId]: readIds(recentKey(projectId)) });
   };
 
   const togglePin = (projectId: string, creativeId: string) => {
@@ -186,21 +168,15 @@ export default function ProjectNavigation({ groups, creatives, currentId, curren
   return <section className="sidebar-projects" aria-label="项目与创意">
     <div className="nav-section-label recent-label">项目<button className="icon-btn" aria-label="新建项目" title="新建项目" onClick={onNewProject} disabled={busy}><Plus size={16} /></button></div>
     <div className="project-list project-tree">{groups.map(group => {
-      const children = creatives.filter(creative => creative.parentProjectId === group.id && (showArchived ? Boolean(creative.archivedAt) : !creative.archivedAt));
+      const children = creatives.filter(creative => creative.parentProjectId === group.id && (showArchived ? Boolean(creative.archivedAt) : !creative.archivedAt)).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '') || a.id.localeCompare(b.id));
       if (showArchived && !children.length) return null;
       const open = expanded[group.id] ?? false;
       const isCurrentProject = group.id === currentParentId;
-      const useCompact = !showArchived && isCurrentProject && !viewAll[group.id];
+      const useCompact = !showArchived && !viewAll[group.id];
       const pinnedIds = pinnedByProject[group.id] || (isCurrentProject ? readIds(pinsKey(group.id)) : []);
-      const recentOrder = recentByProject[group.id] || (isCurrentProject ? readIds(recentKey(group.id)) : []);
       const pinnedSet = new Set(pinnedIds.filter(id => children.some(creative => creative.id === id)));
-      const favorites = pinnedIds.map(id => children.find(creative => creative.id === id)).filter((item): item is ProjectSummary => !!item);
-      const recentRank = [currentId, ...recentOrder.filter(id => id !== currentId)];
-      const recent = recentRank
-        .map(id => children.find(creative => creative.id === id))
-        .filter((item): item is ProjectSummary => !!item && !pinnedSet.has(item.id))
-        .concat(children.filter(creative => !pinnedSet.has(creative.id) && !recentRank.includes(creative.id)).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)))
-        .slice(0, RECENT_LIMIT);
+      const favorites = pinnedIds.map(id => children.find(creative => creative.id === id)).filter((item): item is ProjectSummary => !!item).slice(0, RECENT_LIMIT);
+      const recent = children.filter(creative => !pinnedSet.has(creative.id)).slice(0, Math.max(0, RECENT_LIMIT - favorites.length));
       const visibleIds = new Set([...favorites, ...recent].map(item => item.id));
       const showMore = useCompact && children.length > visibleIds.size;
 
@@ -236,8 +212,8 @@ export default function ProjectNavigation({ groups, creatives, currentId, curren
                 onTogglePin={id => togglePin(group.id, id)}
               />)}
             </div>}
-            <div className="sidebar-creative-block" aria-label="最近">
-              {!!favorites.length && <div className="sidebar-creative-label"><span>最近</span></div>}
+            <div className="sidebar-creative-block" aria-label="创意">
+              {!!favorites.length && <div className="sidebar-creative-label"><span>创意</span></div>}
               {recent.map(creative => <CreativeRow
                 key={creative.id}
                 creative={creative}
@@ -265,7 +241,6 @@ export default function ProjectNavigation({ groups, creatives, currentId, curren
               ><Ellipsis size={14} /><span>More</span></button>
               {moreOpenFor === group.id && <MorePopover
                 creatives={children}
-                recentOrder={[currentId, ...recentOrder.filter(id => id !== currentId)]}
                 pinnedIds={pinnedSet}
                 currentId={currentId}
                 busy={busy}

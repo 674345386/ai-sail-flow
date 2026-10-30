@@ -50,8 +50,8 @@ const SLIDERS: { group: string; key: NumKey; zh: string; en: string; min: number
 const KEY = 'sail-landing-bg-v1';
 const UI_KEY = 'sail-landing-bg-ui-v1';
 
-function loadConfig(): Config {
-  try { const raw = JSON.parse(localStorage.getItem(KEY) || '{}'); return { ...DEFAULT, ...raw, colors: Array.isArray(raw.colors) && raw.colors.length >= 8 ? raw.colors : [...DEFAULT.colors] }; }
+function loadConfig(storageKey = KEY): Config {
+  try { const raw = JSON.parse(localStorage.getItem(storageKey) || (storageKey !== KEY ? localStorage.getItem(KEY) : null) || '{}'); return { ...DEFAULT, ...raw, colors: Array.isArray(raw.colors) && raw.colors.length >= 8 ? raw.colors : [...DEFAULT.colors] }; }
   catch { return { ...DEFAULT, colors: [...DEFAULT.colors] }; }
 }
 
@@ -67,9 +67,9 @@ function hsl(h: number, s: number, l: number) {
   return `#${f(0)}${f(8)}${f(4)}`;
 }
 
-export default function LandingBackground() {
-  const [cfg, setCfg] = useState<Config>(loadConfig);
-  const [open, setOpen] = useState<boolean>(() => { try { return localStorage.getItem(UI_KEY) === 'open'; } catch { return false; } });
+export default function LandingBackground({ showControls = true, storageKey = KEY, uiStorageKey = UI_KEY }: { showControls?: boolean; storageKey?: string; uiStorageKey?: string } = {}) {
+  const [cfg, setCfg] = useState<Config>(() => loadConfig(storageKey));
+  const [open, setOpen] = useState<boolean>(() => { try { return localStorage.getItem(uiStorageKey) === 'open'; } catch { return false; } });
   const [toast, setToast] = useState('');
   const cfgRef = useRef(cfg);
   const poolsRef = useRef<HTMLDivElement>(null);
@@ -86,7 +86,7 @@ export default function LandingBackground() {
     return () => { cancelAnimationFrame(raf); window.removeEventListener('scroll', onScroll); window.removeEventListener('resize', onScroll); };
   }, []);
 
-  useEffect(() => { cfgRef.current = cfg; try { localStorage.setItem(KEY, JSON.stringify(cfg)); } catch { /* storage unavailable */ } }, [cfg]);
+  useEffect(() => { cfgRef.current = cfg; try { localStorage.setItem(storageKey, JSON.stringify(cfg)); } catch { /* storage unavailable */ } }, [cfg, storageKey]);
   useEffect(() => {
     const page = document.querySelector<HTMLElement>('.landing-page');
     if (!page) return;
@@ -103,7 +103,7 @@ export default function LandingBackground() {
       page.style.removeProperty('--lbg-promo-ink');
     };
   }, [cfg.base, cfg.colors]);
-  useEffect(() => { try { localStorage.setItem(UI_KEY, open ? 'open' : 'closed'); } catch { /* storage unavailable */ } }, [open]);
+  useEffect(() => { try { localStorage.setItem(uiStorageKey, open ? 'open' : 'closed'); } catch { /* storage unavailable */ } }, [open, uiStorageKey]);
   useEffect(() => { if (!toast) return; const id = window.setTimeout(() => setToast(''), 1800); return () => window.clearTimeout(id); }, [toast]);
 
   // One rAF loop drives blob transforms. Time only advances while visible, unpaused and motion is allowed;
@@ -175,7 +175,7 @@ export default function LandingBackground() {
       <div className="lbg-grain" />
     </div>
 
-    <aside ref={panelRef} className={`lbg-panel${open ? '' : ' is-collapsed'}`} style={style} aria-label={plain('背景配置', 'Background settings')}>
+    {showControls && <aside ref={panelRef} className={`lbg-panel${open ? '' : ' is-collapsed'}`} style={style} aria-label={plain('背景配置', 'Background settings')}>
       <button type="button" className="lbg-head" aria-expanded={open} onClick={() => setOpen(o => !o)}>
         <span><i className="lbg-dot" />{bi('背景配置', 'Background')}</span><span className="lbg-chev" aria-hidden="true">▾</span>
       </button>
@@ -197,6 +197,6 @@ export default function LandingBackground() {
         </div>
         <div className="lbg-toast" role="status">{toast}</div>
       </div>}
-    </aside>
+    </aside>}
   </>;
 }
