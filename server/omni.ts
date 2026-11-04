@@ -1,16 +1,21 @@
 import { generationKey, providerRequest } from './veo';
-import { REMIX_MODEL, type RemixSettings } from '../shared/remix';
+import { type RemixSettings } from '../shared/remix';
 
 const endpoint = 'https://gaorui.cc/v1/videos';
 type Progress = (n: number, message: string) => void;
-type OmniVideoSettings = Pick<RemixSettings, 'resolution' | 'aspectRatio'>;
-export function omniRequestBody(prompt: string, settings: OmniVideoSettings, referenceUrl?: string) {
+export type OmniVideoSettings = Pick<RemixSettings, 'resolution' | 'aspectRatio'> & { duration?: 8 | 10; firstLastFrame?: boolean };
+export function omniRequestBody(prompt: string, settings: OmniVideoSettings, referenceUrl?: string | string[]) {
+  const references = typeof referenceUrl === 'string' ? [referenceUrl] : referenceUrl || [];
+  if (!prompt.trim()) throw new Error('请填写视频提示词。');
+  if (!['720p', '1080p'].includes(settings.resolution) || !['16:9', '9:16'].includes(settings.aspectRatio) || ![8, 10].includes(settings.duration ?? 10)) throw new Error('Omni 视频参数无效。');
+  if (references.length > (settings.firstLastFrame ? 2 : 7) || (settings.firstLastFrame && references.length !== 2)) throw new Error('参考图最多 7 张；首尾帧模式必须按顺序提供首帧、尾帧各一张。');
+  if (references.some(value => { try { const url = new URL(value); return url.protocol !== 'https:' || !!url.username || !!url.password; } catch { return true; } })) throw new Error('Omni 参考图需要公网 HTTPS 链接。');
   return {
-    model: REMIX_MODEL, prompt, resolution: settings.resolution, aspect_ratio: settings.aspectRatio,
-    ...(referenceUrl ? { input_reference: [referenceUrl] } : {}), first_last_frame: false,
+    model: settings.duration === 8 ? 'omni_flash_8s' as const : 'omni_flash_10s' as const, prompt, resolution: settings.resolution, aspect_ratio: settings.aspectRatio,
+    ...(references.length ? { input_reference: references } : {}), first_last_frame: settings.firstLastFrame ?? false,
   };
 }
-export async function submitOmni(prompt: string, settings: OmniVideoSettings, referenceUrl: string) {
+export async function submitOmni(prompt: string, settings: OmniVideoSettings, referenceUrl?: string | string[]) {
   const result = await providerRequest(endpoint, generationKey(), omniRequestBody(prompt, settings, referenceUrl), 'Omni');
   if (typeof result?.id !== 'string' || !result.id.trim()) throw new Error('Omni 未返回任务 ID，请核对服务记录后再提交。');
   return result.id as string;
@@ -29,14 +34,13 @@ export async function waitOmni(requestId: string, progress: Progress) {
       if (!url) throw new Error('Omni 已完成，但未返回下载地址；可恢复查询此任务。');
       return url as string;
     }
-    progress(['queued', 'pending', 'unknown', ''].includes(state) ? 30 : 55, ['queued', 'pending', 'unknown', ''].includes(state) ? 'Omni 已排队，正在等待生成…' : 'Omni 正在生成 10 秒视频…');
+    progress(['queued', 'pending', 'unknown', ''].includes(state) ? 30 : 55, ['queued', 'pending', 'unknown', ''].includes(state) ? 'Omni 已排队，正在等待生成…' : 'Omni 正在生成视频…');
     await new Promise(resolve => setTimeout(resolve, 10_000));
   }
   throw new Error('Omni 等待超时，任务 ID 已保存；请恢复查询，避免重复提交。');
 }
-export async function generateOmniVideo(prompt: string, settings: OmniVideoSettings, referenceUrl: string, progress: Progress, submitted: (id: string) => void) {
+export async function generateOmniVideo(prompt: string, settings: OmniVideoSettings, referenceUrl: string | string[] | undefined, progress: Progress, submitted: (id: string) => void) {
   if (!generationKey()) throw new Error('请先配置视频服务 API Key。');
-  if (!prompt.trim() || !referenceUrl || !referenceUrl.startsWith('https://')) throw new Error('Omni 需要提示词和公网 HTTPS 参考图。');
   progress(15, '正在提交 Omni Flash 视频任务…');
   const id = await submitOmni(prompt, settings, referenceUrl);
   submitted(id);

@@ -28,6 +28,9 @@ export type GenerationInput = {
   previewRevision?: number;
   referenceImages?: string[];
   storyboardGridId?: string;
+  canvasTestVideo?: boolean;
+  /** Real Omni generation, independent of the storyboard workflow. */
+  omni?: { duration: 8 | 10; firstLastFrame: boolean; referenceIds?: string[]; referenceMimes?: string[] };
 };
 type Progress = (progress: number, message: string) => void;
 let sessionKey = '';

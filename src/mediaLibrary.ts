@@ -4,12 +4,8 @@ import { api } from './api';
 import { supabase } from './auth';
 
 const bucket = import.meta.env.VITE_SUPABASE_STORAGE_BUCKET?.trim() || 'ai-sail-flow-files';
-const mimeExtensions: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'video/mp4': 'mp4', 'video/quicktime': 'mov', 'video/webm': 'webm' };
 type CloudObject = { name: string; id: string | null; created_at: string | null; metadata: Record<string, unknown> | null };
 export function mediaChanged() { window.dispatchEvent(new Event('media-library-changed')); }
-function encodedName(name: string) {
-  return btoa(String.fromCharCode(...new TextEncoder().encode(name))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
 function cloudTitle(name: string) {
   const encoded = name.match(/^[a-f0-9]{64}--(.+)\.[^.]+$/)?.[1];
   if (encoded) {
@@ -65,20 +61,15 @@ export function syncMediaLibrary(user: User | null): Promise<void> {
   if (!supabase || !user) return Promise.resolve();
   const previous = syncJobs.get(user.id) || Promise.resolve();
   const job = previous.catch(() => {}).then(async () => {
-    const [local, cloud] = await Promise.all([api<LibraryMedia[]>('/api/media-library'), cloudObjects(user)]);
-    const uploaded = new Set(cloud.map(cloudId));
-    for (const item of local) {
-      if (uploaded.has(item.id)) continue;
+    type SyncStatus = { jobId: string; status: 'running' | 'done' | 'error'; error?: string };
+    let result = await api<SyncStatus>('/api/media-library/sync', { method: 'POST' });
+    while (result.status === 'running') {
+      await new Promise(resolve => setTimeout(resolve, 2000));
       const { data: session } = await supabase!.auth.getSession();
       if (session.session?.user.id !== user.id) return;
-      const response = await fetch(item.url);
-      if (!response.ok) throw new Error('读取已上传素材失败。');
-      const file = await response.blob();
-      const filename = `${item.id}--${encodedName(item.name)}.${mimeExtensions[item.mime] || (item.kind === 'image' ? 'jpg' : 'mp4')}`;
-      const { error } = await supabase!.storage.from(bucket).upload(`${user.id}/${filename}`, file, { contentType: item.mime, upsert: false,
-        metadata: { originalName: item.name, mediaKind: item.kind, sourceCreatedAt: item.createdAt } });
-      if (error && String(error.statusCode) !== '409') throw new Error('素材已收录到当前设备，但云端同步未完成，请稍后重试。');
+      result = await api<SyncStatus>(`/api/media-library/sync/${result.jobId}`);
     }
+    if (result.status === 'error') throw new Error(result.error || '云端同步未完成，请稍后重试。');
     mediaChanged();
   });
   syncJobs.set(user.id, job);

@@ -213,7 +213,7 @@ export type ModelRequestSnapshot = {
   recordedAt: string;
 };
 export type GeneratedVideo = {
-  id: string; provider: 'veo-3.1' | 'grok-imagine' | 'omni-flash' | 'local-test'; model: 'veo_3_1' | 'veo_3_1-fl' | 'veo_3_1-components' | 'grok-imagine-video-1.5' | 'omni_flash_10s' | 'local-test'; shotId: string;
+  id: string; provider: 'veo-3.1' | 'grok-imagine' | 'omni-flash' | 'local-test'; model: 'veo_3_1' | 'veo_3_1-fl' | 'veo_3_1-components' | 'grok-imagine-video-1.5' | 'omni_flash_8s' | 'omni_flash_10s' | 'local-test'; shotId: string;
   mode?: 't2v' | 'i2v' | 'r2v'; imageUrls?: string[]; resolution?: '720p' | '1080p' | 'lite';
   unitId?: string; sourceShotIds?: string[]; targetStart?: number; targetEnd?: number; targetDuration?: number;
   requestId?: string; status: 'running' | 'completed' | 'failed'; prompt: string; productionMode?: ProductionMode;
@@ -228,6 +228,7 @@ export type GeneratedVideo = {
   tierGroupId?: string; tierGroupShotIds?: string[];
   /** Stage-3 storyboard-grid mode: one grid = one video unit (no shot keyframes). */
   storyboardGridId?: string; gridId?: string;
+  referenceIds?: string[];
 };
 export type ComposedVideo = {
   id: string; mode: ProductionMode; unitId?: string; sourceVideoIds: string[]; voice: string;
@@ -265,6 +266,11 @@ export type StoryboardGrid = {
 };
 export const defaultWorkspace = { id: 'default', title: '我的工作空间' } as const;
 export type WorkspaceProject = { id: string; workspaceId: string; title: string; createdAt: string; updatedAt: string; revision: number };
+export type AgentImage = {
+  id: string; prompt: string; aspectRatio: '1:1' | '16:9' | '9:16' | '4:5';
+  referenceIds: string[]; status: 'running' | 'completed' | 'failed';
+  createdAt: string; filename?: string; url?: string; model?: string; error?: string;
+};
 // The existing production record and its API retain the Project name for compatibility; each record represents one creative.
 export type Project = {
   id: string; title: string; createdAt: string; updatedAt: string; revision: number; isDemo: boolean;
@@ -284,6 +290,7 @@ export type Project = {
   veoPromptDrafts?: Record<string, { prompt: string; basis: string }>;
   ttsTimingNotice?: TtsTimingNotice;
   remix?: RemixWorkflow;
+  agentImages?: AgentImage[];
 };
 export type ProjectSummary = Pick<Project, 'id' | 'title' | 'parentProjectId' | 'createdAt' | 'updatedAt' | 'isDemo' | 'archivedAt'> & { stage: number; inProgressCount?: number };
 export const emptyProduct: Product = { name: '', category: '家居生活', facts: '', audience: '', price: '', currency: 'USD', offer: '', landingUrl: '' };

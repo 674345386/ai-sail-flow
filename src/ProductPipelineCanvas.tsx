@@ -1,17 +1,22 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
-  Handle, MarkerType, MiniMap, PanOnScrollMode, Position, ReactFlow, SelectionMode, useNodesState,
+  Handle, MarkerType, MiniMap, PanOnScrollMode, Position, ReactFlow, SelectionMode, useNodesState, useUpdateNodeInternals,
   type Edge, type MiniMapNodeProps, type Node, type NodeProps, type OnSelectionChangeParams, type ReactFlowInstance, type Viewport,
 } from '@xyflow/react';
 import {
-  Clapperboard, Hand, LoaderCircle, LocateFixed,
+  Clapperboard, Hand, Image as ImageIcon, LoaderCircle, LocateFixed,
   MousePointer2, LayoutGrid, Settings2, Sparkles, Upload, WandSparkles, X, ZoomIn, ZoomOut,
 } from 'lucide-react';
-import type { Project, Shot, StoryboardGrid } from '../shared/domain';
+import type { GeneratedVideo, Project, Shot, StoryboardGrid } from '../shared/domain';
+import type { CanvasComponent, CanvasComponentInput } from '../shared/agent-canvas-ui';
+import { api } from './api';
 import { StoryboardGridCardBody, gridVideoState } from './StoryboardGridWorkbench';
 import CanvasTimeline from './CanvasTimeline';
+import { layoutCanvasTree } from './canvasTreeLayout';
 import '@xyflow/react/dist/style.css';
 import './product-pipeline.css';
+
+const AgentCanvasUI = lazy(() => import('./AgentCanvasUI'));
 
 const LAYOUT_KEY = (id: string) => `sop-pipeline-canvas-vertical-v1:${id}`;
 const WIRE = '#9bb0c8';
@@ -23,6 +28,8 @@ const emptyGrids: StoryboardGrid[] = [];
 const emptyShots: Shot[] = [];
 
 type Layout = { positions?: Record<string, { x: number; y: number }>; viewport?: Viewport };
+type Ratio = '1:1' | '16:9' | '9:16' | '4:5';
+type ResultEditor = { kind: 'image' | 'video'; id?: string; prompt: string; originalPrompt?: string; ratio: Ratio; gridId?: string; referenceIds: string[]; position?: { x: number; y: number } };
 
 function readLayout(id: string): Layout {
   try {
@@ -40,7 +47,7 @@ function readLayout(id: string): Layout {
   } catch { return {}; }
 }
 
-type PipeKind = 'assetVideo' | 'breakdown' | 'gridCard' | 'shotCard' | 'videoResult' | 'timeline';
+type PipeKind = 'assetVideo' | 'agentImage' | 'breakdown' | 'gridCard' | 'shotCard' | 'videoResult' | 'timeline';
 
 type PipeData = {
   kind: PipeKind;
@@ -49,23 +56,33 @@ type PipeData = {
   ready: boolean;
   content: ReactNode;
   drag?: boolean;
+  videoVertical?: boolean;
+  timelineOutput?: boolean;
+  timelineInputs?: string[];
+  resultId?: string;
+  gridId?: string;
 };
 
 type PipeNode = Node<PipeData, 'pipeline'>;
 
 const PipelineNode = memo(function PipelineNode({ id, data, selected }: NodeProps<PipeNode>) {
+  const updateNodeInternals = useUpdateNodeInternals();
+  const timelineInputKey = data.timelineInputs?.join('|');
+  useEffect(() => { if (data.kind === 'gridCard' || data.kind === 'videoResult' || data.kind === 'timeline') updateNodeInternals(id); }, [id, data.kind, data.videoVertical, data.timelineOutput, timelineInputKey, updateNodeInternals]);
   const isGrid = data.kind === 'gridCard';
   const showOut = data.kind === 'assetVideo' || data.kind === 'breakdown';
-  const showIn = data.kind === 'breakdown' || data.kind === 'gridCard' || data.kind === 'shotCard' || data.kind === 'videoResult';
+  const showIn = data.kind === 'breakdown' || data.kind === 'gridCard' || data.kind === 'shotCard' || data.kind === 'videoResult' && !!data.gridId;
   const showVideoOut = data.kind === 'gridCard';
   return <article className={`pp-node pp-node--${data.kind}${selected ? ' is-selected' : ''}${data.ready ? ' is-ready' : ''}`}>
-    {showIn && <Handle type="target" id="in" position={data.kind === 'videoResult' ? Position.Left : Position.Top} className="pp-port" />}
+    {showIn && <Handle type="target" id="in" position={data.kind === 'videoResult' && !data.videoVertical ? Position.Left : Position.Top} className="pp-port" />}
+    {data.kind === 'timeline' && data.timelineInputs?.map((gridId, index, inputs) => <Handle key={gridId} type="target" id={`timeline-${gridId}`} position={Position.Top} className="pp-port" style={{ left: `${(index + 1) * 100 / (inputs.length + 1)}%` }} />)}
     {!isGrid && <header className="pp-node-drag">
       <span>{data.title}</span>
       <span className={`pp-chip${data.ready ? ' ok' : ''}`}>{data.status}</span>
     </header>}
     <div className={`pp-node-body${!isGrid ? ' nodrag nopan' : ''}`}>{data.content}</div>
-    {showVideoOut && <Handle type="source" id="video-out" position={Position.Right} className="pp-port pp-port--video" />}
+    {showVideoOut && <Handle type="source" id="video-out" position={data.videoVertical ? Position.Bottom : Position.Right} className="pp-port pp-port--video" />}
+    {data.kind === 'videoResult' && data.timelineOutput && <Handle type="source" id="timeline-out" position={Position.Bottom} className="pp-port" />}
     {showOut && <Handle type="source" id="out" position={Position.Bottom} className="pp-port" />}
   </article>;
 });
@@ -97,10 +114,12 @@ function formatDur(seconds?: number) {
 }
 
 export default function ProductPipelineCanvas({
-  project, disabled, onPrompt, onGenerate, onRecover, onIncluded, onUploadVideo,
-  onAnalyze, onOpenMaterials, onOpenAnalysis, onOpenRemixDetail, onSettings, onBreakdownType, onGridSize, onViewportStage, onShowPage, focusStep, focusVersion,
+  project, disabled, agentDynamic = false, onCreateImage, onCreateVideo, onPrompt, onGenerate, onRecover, onIncluded, onUploadVideo,
+  onAnalyze, onOpenMaterials, onOpenAnalysis, onOpenRemixDetail, onSettings, onBreakdownType, onGridSize, onViewportStage, onShowPage, focusStep, focusVersion, canvasComponents = [], onCanvasDraft,
 }: {
-  project: Project; disabled: boolean;
+  project: Project; disabled: boolean; agentDynamic?: boolean;
+  onCreateImage?: (input: { prompt: string; aspectRatio: Ratio; referenceIds: string[] }) => Promise<string>;
+  onCreateVideo?: (input: { prompt: string; aspectRatio: '16:9' | '9:16'; gridId?: string }) => Promise<string>;
   onPrompt: (id: string, prompt: string) => void;
   onGenerate: (gridId: string | string[]) => void;
   onRecover: (videoId: string) => void;
@@ -110,11 +129,16 @@ export default function ProductPipelineCanvas({
   onOpenRemixDetail?: () => void; onSettings: () => void;
   onBreakdownType: (type: 'shot' | 'storyboard-grid') => void; onGridSize: (size: 3 | 4) => void;
   onViewportStage: (stage: number) => void; onShowPage: () => void; focusStep: number; focusVersion: number;
+  canvasComponents?: CanvasComponent[]; onCanvasDraft?: (text: string) => void;
 }) {
   const isGrid = project.breakdownType === 'storyboard-grid';
   const video = useMemo(() => project.assets.find(asset => asset.kind === 'video'), [project.assets]);
   const allGrids = project.storyboardGrids || emptyGrids;
   const includedGrids = useMemo(() => allGrids.filter(grid => grid.included !== false), [allGrids]);
+  const timelineGridIds = useMemo(() => isGrid ? includedGrids.filter(grid => {
+    const clip = gridVideoState(project, grid).completed.at(-1);
+    return !!clip?.url && clip.duration > 0;
+  }).map(grid => grid.id) : [], [isGrid, includedGrids, project]);
   const shots = project.analysis?.shots || emptyShots;
   const excludedShots = project.analysis?.excludedShots || emptyShots;
   const includedShots = shots; // active analysis.shots are the included set
@@ -128,6 +152,11 @@ export default function ProductPipelineCanvas({
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [whisper, setWhisper] = useState(true);
   const [viewMode, setViewMode] = useState<'pipeline' | 'grids'>('pipeline');
+  const [editor, setEditor] = useState<ResultEditor | null>(null);
+  const [canvasUiError, setCanvasUiError] = useState('');
+  const [menu, setMenu] = useState<{ x: number; y: number; position: { x: number; y: number }; node?: PipeNode } | null>(null);
+  const [editorError, setEditorError] = useState('');
+  const [creating, setCreating] = useState(false);
   const flow = useRef<ReactFlowInstance<PipeNode>>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const stageCallback = useRef(onViewportStage);
@@ -161,7 +190,7 @@ export default function ProductPipelineCanvas({
     const saved = defaults.current.positions || {};
 
     const assetNodes: Array<PipeData & { id: string; position: { x: number; y: number } }> = [];
-    assetNodes.push({
+    if (!agentDynamic || video) assetNodes.push({
       id: 'asset-video', kind: 'assetVideo', title: '参考视频',
       status: video ? '已上传' : '待上传', ready: !!video,
       position: saved['asset-video'] || { x: COL.assets, y: STAGE_Y[0] + 60 },
@@ -170,6 +199,20 @@ export default function ProductPipelineCanvas({
         : <button type="button" className="pp-empty" disabled={disabled} onClick={() => actions.current.onUploadVideo()}><Upload size={22} /><strong>上传参考视频</strong><span>MP4 / MOV · 作为流水线输入</span></button>,
     });
 
+
+    if (agentDynamic) (project.agentImages || []).forEach((image, index) => assetNodes.push({
+      id: `agent-image:${image.id}`, kind: 'agentImage', title: '生成图片', resultId: image.id,
+      status: image.status === 'running' ? '生成中' : image.status === 'completed' ? '已完成' : '需核对',
+      ready: image.status === 'completed',
+      position: saved[`agent-image:${image.id}`] || { x: video ? 470 : 100, y: STAGE_Y[0] + 60 + index * 540 },
+      content: <div className={`pp-agent-image ${image.aspectRatio === '16:9' ? 'is-landscape' : image.aspectRatio === '9:16' || image.aspectRatio === '4:5' ? 'is-portrait' : ''}`}>
+        {image.status === 'completed' && image.url ? <img src={image.url} alt={image.prompt} />
+          : image.status === 'running' ? <div className="pp-agent-image-placeholder" role="status"><LoaderCircle size={22} className="spin" /><span>正在生成图片…</span></div>
+            : <div className="pp-agent-image-placeholder is-failed" role="alert"><ImageIcon size={21} /><span>{image.error || '图片生成失败'}</span></div>}
+        <p title={image.prompt}>{image.prompt}</p>
+        <div className="pp-agent-image-meta"><span>{image.aspectRatio}{image.model ? ` · ${image.model}` : ''}</span>{image.url && <a href={image.url} download={image.filename || 'image.png'}>下载图片</a>}</div>
+      </div>,
+    }));
 
     const breakdownRows = isGrid
       ? allGrids.map((grid, index) => {
@@ -252,25 +295,27 @@ export default function ProductPipelineCanvas({
       });
     }
 
+    const videoCard = (item: GeneratedVideo, grid: StoryboardGrid | undefined, order: number, version: number, isLatest: boolean) => {
+      const running = item.status === 'running' && project.job?.status === 'running' && project.job.videoId === item.id;
+      const ready = item.status === 'completed' && !!item.url;
+      const progress = running ? project.job?.progress : undefined;
+      const gridPosition = grid ? saved[`grid:${grid.id}`] || remixUnits.find(unit => unit.id === `grid:${grid.id}`)?.position : undefined;
+      const content = running
+        ? <div className="pp-video-output is-loading" role="status"><div className="pp-video-loading"><LoaderCircle size={20} className="spin" /><strong>{progress != null ? `正在生成视频 · ${progress}%` : '正在生成视频…'}</strong><div className="pp-video-progress"><i style={{ width: `${Math.max(8, progress || 24)}%` }} /></div></div></div>
+        : ready ? <div className="pp-video-output"><video key={item.id} src={item.url} poster={item.thumbnail} controls playsInline preload="metadata" /><div className="pp-video-meta"><strong>{item.filename || '生成视频'}</strong><span>{(item.duration || 0).toFixed(1)} 秒 · {item.model === 'local-test' ? '本地测试视频' : item.provider === 'omni-flash' ? 'Omni Flash' : item.mode || 'r2v'}</span></div></div>
+          : <div className="pp-video-output is-failed"><span>{item.error || '视频生成失败'}</span></div>;
+      const id = `video-result:${item.id}`;
+      return { id, type: 'pipeline' as const, dragHandle: '.pp-node-drag',
+        position: saved[id] || (grid && isLatest ? saved[`video-result:${grid.id}`] : undefined) || (gridPosition ? { x: gridPosition.x + 470 + version * 330, y: gridPosition.y } : { x: 470 + order * 330, y: 100 }),
+        data: { kind: 'videoResult' as const, title: running ? '待生成的视频' : ready ? '生成的视频' : '视频生成结果', status: running ? '生成中' : ready ? '已完成' : '生成失败', ready, content,
+          resultId: item.id, gridId: grid?.id, timelineOutput: !!grid && timelineGridIds.includes(grid.id) && gridVideoState(project, grid).completed.at(-1)?.id === item.id },
+      };
+    };
     const activeGridResults = isGrid ? includedGrids.flatMap((grid, order) => {
-      const state = gridVideoState(project, grid);
-      if (!state.versions.length) return [];
-      const gridId = `grid:${grid.id}`;
-      const gridPosition = saved[gridId] || remixUnits.find(unit => unit.id === gridId)?.position || { x: COL.remix, y: STAGE_Y[2] + 60 + order * GRID_ROW_STEP };
-      const latest = state.completed.at(-1);
-      const title = state.running ? '待生成的视频' : latest ? '生成的视频' : '视频生成结果';
-      const status = state.running ? (state.progress != null ? `生成中 ${state.progress}%` : '生成中') : state.failed ? '生成失败' : '已完成';
-      const content = state.running
-        ? <div className="pp-video-output is-loading" role="status"><div className="pp-video-loading"><LoaderCircle size={20} className="spin" /><strong>{state.progress != null ? `正在生成视频 · ${state.progress}%` : '正在生成视频…'}</strong><div className="pp-video-progress"><i style={{ width: `${Math.max(8, state.progress || 24)}%` }} /></div></div></div>
-        : latest
-          ? <div className="pp-video-output"><video key={latest.id} src={latest.url} poster={latest.thumbnail} controls playsInline preload="metadata" /><div className="pp-video-meta"><strong>{latest.filename || '生成视频'}</strong><span>{(latest.duration || 0).toFixed(1)} 秒 · {latest.model === 'local-test' ? '本地测试视频' : latest.model === 'omni_flash_10s' ? 'Omni Flash' : latest.mode || 'r2v'}</span></div></div>
-          : <div className="pp-video-output is-failed"><span>{state.error || '视频生成失败'}</span></div>;
-      return [{
-        id: `video-result:${grid.id}`, type: 'pipeline' as const, dragHandle: '.pp-node-drag',
-        position: saved[`video-result:${grid.id}`] || { x: gridPosition.x + 470, y: gridPosition.y },
-        data: { kind: 'videoResult' as const, title, status, ready: !!latest && !state.running, content },
-      }];
+      const versions = gridVideoState(project, grid).versions;
+      return versions.map((item, version) => videoCard(item, grid, order, version, version === versions.length - 1));
     }) : [];
+    const standaloneResults = agentDynamic ? project.generatedVideos.filter(item => (item.unitId?.startsWith('canvas-test-') || item.unitId?.startsWith('agent-video-'))).map((item, index) => videoCard(item, undefined, index, 0, true)) : [];
 
     setNodes(previous => {
       const byId = new Map(previous.map(node => [node.id, node]));
@@ -278,15 +323,15 @@ export default function ProductPipelineCanvas({
         ...assetNodes.map(item => ({
           id: item.id, type: 'pipeline' as const, dragHandle: '.pp-node-drag',
           position: byId.get(item.id)?.position || item.position,
-          data: { kind: item.kind, title: item.title, status: item.status, ready: item.ready, content: item.content },
+          data: { kind: item.kind, title: item.title, status: item.status, ready: item.ready, content: item.content, resultId: item.resultId },
           selected: byId.get(item.id)?.selected,
         })),
-        {
+        ...(!agentDynamic || analysisRunning || analysisFailed || analysisReady ? [{
           id: breakdownNode.id, type: 'pipeline', dragHandle: '.pp-node-drag',
           position: byId.get('breakdown')?.position || breakdownNode.position,
           data: { kind: breakdownNode.kind, title: breakdownNode.title, status: breakdownNode.status, ready: breakdownNode.ready, content: breakdownNode.content },
           selected: byId.get('breakdown')?.selected,
-        },
+        } as PipeNode] : []),
         ...remixUnits.map(unit => ({
           id: unit.id, type: 'pipeline' as const,
           dragHandle: unit.data.kind === 'gridCard' ? '.sg-card-drag' : '.pp-node-drag',
@@ -294,17 +339,17 @@ export default function ProductPipelineCanvas({
           data: unit.data,
           selected: byId.get(unit.id)?.selected,
         })),
-        ...activeGridResults.map(unit => ({
+        ...[...activeGridResults, ...standaloneResults].map(unit => ({
           ...unit,
           position: byId.get(unit.id)?.position || unit.position,
           selected: byId.get(unit.id)?.selected,
         })),
-        { id: 'timeline', type: 'pipeline', dragHandle: '.pp-node-drag', position: byId.get('timeline')?.position || saved.timeline || { x: COL.remix, y: timelineY },
-          data: { kind: 'timeline', title: '视频时间轴', status: '片段预览', ready: true, content: <CanvasTimeline project={project} /> }, selected: byId.get('timeline')?.selected },
+        ...(!agentDynamic || project.generatedVideos.length > 0 ? [{ id: 'timeline', type: 'pipeline', dragHandle: '.pp-node-drag', position: byId.get('timeline')?.position || saved.timeline || { x: COL.remix, y: timelineY },
+          data: { kind: 'timeline', title: '视频时间轴', status: '片段预览', ready: true, content: <CanvasTimeline project={project} />, timelineInputs: timelineGridIds }, selected: byId.get('timeline')?.selected } as PipeNode] : []),
       ];
       return built;
     });
-  }, [project, disabled, isGrid, video, allGrids, includedGrids, shots, excludedShots, includedShots, analysisRunning, analysisReady, setNodes, focusStep, timelineY]);
+  }, [project, disabled, agentDynamic, isGrid, video, allGrids, includedGrids, shots, excludedShots, includedShots, analysisRunning, analysisFailed, analysisReady, setNodes, focusStep, timelineY, timelineGridIds]);
 
   const edges = useMemo<Edge[]>(() => {
     const soft = (source: string, target: string, sourceHandle = 'out', targetHandle = 'in'): Edge => ({
@@ -315,38 +360,42 @@ export default function ProductPipelineCanvas({
       focusable: false, interactionWidth: 0,
     });
     const list: Edge[] = [];
-    if (video) list.push(soft('asset-video', 'breakdown'));
+    if (video && (!agentDynamic || analysisRunning || analysisFailed || analysisReady)) list.push(soft('asset-video', 'breakdown'));
     if (isGrid) includedGrids.forEach(grid => {
-      list.push(soft('breakdown', `grid:${grid.id}`));
-      if (gridVideoState(project, grid).versions.length) list.push(soft(`grid:${grid.id}`, `video-result:${grid.id}`, 'video-out', 'in'));
+      if (!agentDynamic || analysisRunning || analysisFailed || analysisReady) list.push(soft('breakdown', `grid:${grid.id}`));
+      const state = gridVideoState(project, grid);
+      state.versions.forEach(item => list.push(soft(`grid:${grid.id}`, `video-result:${item.id}`, 'video-out', 'in')));
+      const latest = state.completed.at(-1);
+      if (latest && timelineGridIds.includes(grid.id)) list.push(soft(`video-result:${latest.id}`, 'timeline', 'timeline-out', `timeline-${grid.id}`));
     });
-    else includedShots.forEach(shot => list.push(soft('breakdown', `shot:${shot.id}`)));
+    else includedShots.forEach(shot => { if (!agentDynamic || analysisRunning || analysisFailed || analysisReady) list.push(soft('breakdown', `shot:${shot.id}`)); });
     return list;
-  }, [video, isGrid, includedGrids, includedShots, project]);
+  }, [video, agentDynamic, analysisRunning, analysisFailed, analysisReady, isGrid, includedGrids, includedShots, project, timelineGridIds]);
+
+  const displayNodes = useMemo(() => {
+    const byId = new Map(nodes.map(node => [node.id, node]));
+    return nodes.map(node => {
+      if (node.data.kind !== 'gridCard' && node.data.kind !== 'videoResult') return node;
+      const gridId = node.data.kind === 'gridCard' ? node.id.slice(5) : node.data.gridId;
+      const grid = gridId ? byId.get(`grid:${gridId}`) : undefined;
+      const result = node.data.kind === 'videoResult' ? node : nodes.filter(item => item.data.kind === 'videoResult' && item.data.gridId === gridId).at(-1);
+      const videoVertical = !!grid && !!result && result.position.y > grid.position.y + 100;
+      return { ...node, data: { ...node.data, videoVertical } };
+    });
+  }, [nodes]);
 
   const fit = () => { void flow.current?.fitView({ padding: .14, maxZoom: 1, duration: 180 }); };
   const resetLayout = () => {
-    try { localStorage.removeItem(LAYOUT_KEY(project.id)); } catch { /* */ }
-    defaults.current = {};
-    const arranged = nodes.map(node => {
-      if (node.id === 'timeline') return { ...node, position: { x: COL.remix, y: timelineY } };
-      if (node.id === 'asset-video') return { ...node, position: { x: COL.assets, y: STAGE_Y[0] + 60 } };
-      if (node.id.startsWith('video-result:')) {
-        const order = includedGrids.findIndex(grid => `video-result:${grid.id}` === node.id);
-        const gridOrder = Math.max(0, order);
-        return { ...node, position: { x: COL.remix + 470, y: STAGE_Y[2] + 60 + gridOrder * GRID_ROW_STEP } };
-      }
-      if (node.id === 'breakdown') return { ...node, position: { x: COL.breakdown, y: STAGE_Y[1] + 60 } };
-      if (node.id.startsWith('grid:')) {
-        const order = includedGrids.findIndex(g => `grid:${g.id}` === node.id);
-        return { ...node, position: { x: COL.remix, y: STAGE_Y[2] + 60 + Math.max(0, order) * GRID_ROW_STEP } };
-      }
-      if (node.id.startsWith('shot:')) {
-        const order = includedShots.findIndex(s => `shot:${s.id}` === node.id);
-        return { ...node, position: { x: COL.remix, y: STAGE_Y[2] + 60 + Math.max(0, order) * 160 } };
-      }
-      return node;
-    });
+    const measured = new Map((flow.current?.getNodes() || nodes).map(node => [node.id, node]));
+    const sizes: Record<PipeKind, { width: number; height: number }> = {
+      assetVideo: { width: 280, height: 260 }, agentImage: { width: 300, height: 500 }, breakdown: { width: 320, height: 360 },
+      gridCard: { width: 400, height: 280 }, shotCard: { width: 280, height: 160 }, videoResult: { width: 300, height: 260 }, timeline: { width: 860, height: 500 },
+    };
+    const positions = layoutCanvasTree(nodes.map(node => ({
+      id: node.id, width: measured.get(node.id)?.measured?.width || sizes[node.data.kind].width,
+      height: measured.get(node.id)?.measured?.height || sizes[node.data.kind].height,
+    })), edges);
+    const arranged = nodes.map(node => ({ ...node, position: positions[node.id] || node.position }));
     setNodes(arranged);
     defaults.current = { positions: Object.fromEntries(arranged.map(node => [node.id, node.position])) };
     try { localStorage.setItem(LAYOUT_KEY(project.id), JSON.stringify({ ...defaults.current, viewport: flow.current?.getViewport() })); } catch { /* storage unavailable */ }
@@ -377,6 +426,62 @@ export default function ProductPipelineCanvas({
 
   const generateSelected = () => onGenerate(selectedEligible);
   const generateAll = () => onGenerate(includedGrids.filter(grid => grid.prompt.trim() && !gridVideoState(project, grid).running).map(grid => grid.id));
+  const openResult = (node: PipeNode, asReference = false) => {
+    setMenu(null); setEditorError('');
+    if (node.data.kind === 'agentImage') {
+      const image = project.agentImages?.find(item => item.id === node.data.resultId);
+      if (!image) return;
+      setEditor({ kind: 'image', id: asReference ? undefined : image.id, prompt: image.prompt || '', originalPrompt: image.prompt,
+        ratio: image.aspectRatio, referenceIds: asReference && image.status === 'completed' ? [image.id] : image.referenceIds || [],
+        position: asReference ? { x: node.position.x + 360, y: node.position.y } : undefined });
+    } else if (node.data.kind === 'videoResult') {
+      const result = project.generatedVideos.find(item => item.id === node.data.resultId);
+      if (!result) return;
+      setEditor({ kind: 'video', id: asReference ? undefined : result.id, prompt: result.prompt || '', originalPrompt: result.prompt,
+        ratio: result.aspectRatio === '16:9' ? '16:9' : '9:16', gridId: result.storyboardGridId || result.gridId, referenceIds: [],
+        position: asReference ? { x: node.position.x + 360, y: node.position.y } : undefined });
+    }
+  };
+  const submitResult = async () => {
+    if (!editor || creating || disabled) return;
+    if (!editor.prompt.trim()) { setEditorError('请填写生成提示词。'); return; }
+    setCreating(true); setEditorError('');
+    try {
+      const id = editor.kind === 'image'
+        ? await onCreateImage?.({ prompt: editor.prompt, aspectRatio: editor.ratio, referenceIds: editor.referenceIds })
+        : await onCreateVideo?.({ prompt: editor.prompt, aspectRatio: editor.ratio === '16:9' ? '16:9' : '9:16', gridId: editor.gridId });
+      if (!id) throw new Error('生成服务当前不可用。');
+      const nodeId = `${editor.kind === 'image' ? 'agent-image' : 'video-result'}:${id}`;
+      const source = editor.id && nodes.find(node => node.data.resultId === editor.id);
+      const position = editor.position || (source ? { x: source.position.x + 360, y: source.position.y } : undefined);
+      if (position) {
+        defaults.current = { ...defaults.current, positions: { ...defaults.current.positions, [nodeId]: position } };
+        setNodes(previous => previous.map(node => node.id === nodeId ? { ...node, position } : node));
+        try {
+          const current = flow.current?.getNodes() || [];
+          localStorage.setItem(LAYOUT_KEY(project.id), JSON.stringify({ positions: { ...defaults.current.positions, ...Object.fromEntries(current.map(node => [node.id, node.position])), [nodeId]: position }, viewport: flow.current?.getViewport() }));
+        } catch { /* storage unavailable */ }
+      }
+      setEditor(null);
+    } catch (error) { setEditorError(error instanceof Error ? error.message : '生成任务未能启动。'); }
+    finally { setCreating(false); }
+  };
+  const openMenu = (event: React.MouseEvent | MouseEvent, node?: PipeNode) => {
+    if (!agentDynamic) return;
+    event.preventDefault();
+    const bounds = viewportRef.current?.getBoundingClientRect();
+    if (!bounds || !flow.current) return;
+    setMenu({ x: Math.max(0, Math.min(event.clientX - bounds.left, bounds.width - 200)), y: Math.max(0, Math.min(event.clientY - bounds.top, bounds.height - 140)),
+      position: flow.current.screenToFlowPosition({ x: event.clientX, y: event.clientY }), node });
+  };
+  const stageAtViewport = (viewport: Viewport) => {
+    const centerY = ((viewportRef.current?.clientHeight || 600) * .4 - viewport.y) / viewport.zoom;
+    const current = flow.current?.getNodes() || [];
+    const breakdownY = current.find(node => node.id === 'breakdown')?.position.y ?? STAGE_Y[1];
+    const unitYs = current.filter(node => node.id.startsWith('grid:') || node.id.startsWith('shot:')).map(node => node.position.y);
+    const remixY = unitYs.length ? Math.min(...unitYs) : current.find(node => node.id === 'timeline')?.position.y ?? STAGE_Y[2];
+    return centerY >= remixY - 60 ? 2 : centerY >= breakdownY - 60 ? 1 : 0;
+  };
 
   return <section className="pp-stage" aria-label="流水线画布">
     <header className="pp-header">
@@ -388,6 +493,7 @@ export default function ProductPipelineCanvas({
         </div>
       </div>
       <div className="pp-header-actions">
+        {agentDynamic && <Suspense fallback={null}><AgentCanvasUI triggerOnly components={[]} grids={allGrids} onUpdate={() => {}} onClose={() => {}} onDraft={() => {}} /></Suspense>}
         <button type="button" className="pp-btn" onClick={onShowPage}>流程页面</button>
         <div className="pp-view-toggle" role="group" aria-label="画布侧重">
           <button type="button" className={viewMode === 'pipeline' ? 'on' : ''} onClick={() => setViewMode('pipeline')}>流水线</button>
@@ -407,27 +513,37 @@ export default function ProductPipelineCanvas({
     </header>
 
     <div className="pp-viewport" ref={viewportRef}>
+      {agentDynamic && <Suspense fallback={null}><AgentCanvasUI panelsOnly components={canvasComponents} grids={allGrids} onDraft={text => onCanvasDraft?.(text)} onUpdate={(id: string, input: Partial<CanvasComponentInput>) => {
+        setCanvasUiError('');
+        void api(`/api/projects/${project.id}/agent/canvas-components/${id}`, { method: 'PATCH', body: JSON.stringify(input) }).catch(error => setCanvasUiError(error instanceof Error ? error.message : '参数保存失败'));
+      }} onClose={id => {
+        setCanvasUiError('');
+        void api(`/api/projects/${project.id}/agent/canvas-components/${id}`, { method: 'DELETE' }).catch(error => setCanvasUiError(error instanceof Error ? error.message : '关闭失败'));
+      }} /></Suspense>}
+      {canvasUiError && <div className="acu-error" role="alert">{canvasUiError}</div>}
       <ReactFlow<PipeNode>
-        nodes={nodes}
+        nodes={displayNodes}
         edges={edges}
         nodeTypes={nodeTypes}
         onNodesChange={onNodesChange}
+        onPaneClick={() => setMenu(null)}
+        onPaneContextMenu={event => openMenu(event)}
+        onNodeContextMenu={(event, node) => openMenu(event, node)}
+        onNodeClick={(event, node) => {
+          if (!agentDynamic || (node.data.kind !== 'agentImage' && node.data.kind !== 'videoResult')) return;
+          if ((event.target as HTMLElement).closest('button, a, video, input, textarea, select')) return;
+          openResult(node);
+        }}
         onNodeDragStop={() => persist()}
         onSelectionChange={onSelectionChange}
         onInit={instance => {
           flow.current = instance;
           if (!layout.viewport) { stageCallback.current(focusStep); window.setTimeout(focusCurrentStep, 80); }
-          else {
-            const centerY = ((viewportRef.current?.clientHeight || 600) * .4 - layout.viewport.y) / layout.viewport.zoom;
-            stageCallback.current(centerY >= STAGE_Y[2] ? 2 : centerY >= STAGE_Y[1] ? 1 : 0);
-          }
+          else stageCallback.current(stageAtViewport(layout.viewport));
         }}
         onMoveEnd={(event, viewport) => {
           setZoom(Math.round(viewport.zoom * 100)); persist(viewport);
-          if (event) {
-            const centerY = ((viewportRef.current?.clientHeight || 600) * .4 - viewport.y) / viewport.zoom;
-            stageCallback.current(centerY >= STAGE_Y[2] ? 2 : centerY >= STAGE_Y[1] ? 1 : 0);
-          }
+          if (event) stageCallback.current(stageAtViewport(viewport));
         }}
         onMoveStart={() => setWhisper(false)}
         onNodeDragStart={() => setWhisper(false)}
@@ -456,6 +572,33 @@ export default function ProductPipelineCanvas({
       >
         <MiniMap className="pp-minimap" ariaLabel="全流程小地图，可拖动查看当前视口之外的节点" pannable zoomable nodeComponent={MiniMapOverviewNode} nodeColor={node => node.id.startsWith('asset-') ? '#cfcfcf' : node.id === 'breakdown' ? '#aebdce' : '#bdbdbd'} nodeStrokeColor="#999999" nodeStrokeWidth={0.7} maskColor="rgba(0, 0, 0, 0.5)" maskStrokeColor="#aebac1" maskStrokeWidth={1.2} bgColor="#15191d" />
       </ReactFlow>
+
+      {menu && <div className="pp-context-menu" style={{ left: menu.x, top: menu.y }} role="menu">
+        {menu.node && (menu.node.data.kind === 'agentImage' || menu.node.data.kind === 'videoResult') && <>
+          <button type="button" role="menuitem" onClick={() => openResult(menu.node!)}>查看生成提示词</button>
+          <button type="button" role="menuitem" onClick={() => openResult(menu.node!, true)}>{menu.node.data.kind === 'agentImage' ? '以此图片为参考新建' : '基于此视频新建'}</button>
+          <hr />
+        </>}
+        <button type="button" role="menuitem" onClick={() => { setEditorError(''); setEditor({ kind: 'image', prompt: '', ratio: '1:1', referenceIds: [], position: menu.position }); setMenu(null); }}><ImageIcon size={15} />新建图片生成</button>
+        <button type="button" role="menuitem" onClick={() => { setEditorError(''); setEditor({ kind: 'video', prompt: '', ratio: project.market.aspectRatio === '16:9' ? '16:9' : '9:16', referenceIds: [], position: menu.position }); setMenu(null); }}><Clapperboard size={15} />新建视频生成</button>
+      </div>}
+      {editor && <aside className="pp-result-editor nodrag nopan nowheel" aria-label={editor.kind === 'image' ? '图片生成提示词' : '视频生成提示词'}>
+        <header><div><strong>{editor.kind === 'image' ? '图片生成' : '视频生成'}</strong><span>{editor.id ? '查看生成记录并继续创作' : '新建生成'}</span></div><button type="button" aria-label="关闭提示词编辑框" title="关闭" onClick={() => setEditor(null)}><X size={18} /></button></header>
+        <div className="pp-result-editor-body">
+          <label htmlFor="pp-result-prompt">{editor.id ? '生成时的 Prompt · 可编辑' : 'Prompt'}</label>
+          {editor.id && !editor.originalPrompt && <p className="pp-result-hint">此历史记录没有保存生成时的 Prompt，可输入新描述继续生成。</p>}
+          <textarea id="pp-result-prompt" value={editor.prompt} placeholder={editor.kind === 'image' ? '描述你想生成的画面…' : '描述画面、动作与镜头…'} onChange={event => setEditor({ ...editor, prompt: event.target.value })} />
+          {!!editor.originalPrompt && editor.prompt !== editor.originalPrompt && <details><summary>查看原始 Prompt</summary><pre>{editor.originalPrompt}</pre></details>}
+          <label htmlFor="pp-result-ratio">画幅</label>
+          <select id="pp-result-ratio" value={editor.ratio} onChange={event => setEditor({ ...editor, ratio: event.target.value as Ratio })}>
+            {(['9:16', '16:9', ...(editor.kind === 'image' ? ['1:1', '4:5'] : [])] as Ratio[]).map(ratio => <option key={ratio} value={ratio}>{ratio}</option>)}
+          </select>
+          {editor.kind === 'video' && <><label htmlFor="pp-result-grid">关联分镜</label><select id="pp-result-grid" value={editor.gridId || ''} onChange={event => setEditor({ ...editor, gridId: event.target.value || undefined })}><option value="">独立视频</option>{includedGrids.map((grid, index) => <option key={grid.id} value={grid.id}>分镜网格 {String(index + 1).padStart(2, '0')}</option>)}</select><p className="pp-result-hint">当前使用本地测试视频，结果不会随 Prompt 改变。</p></>}
+          {editor.kind === 'image' && editor.referenceIds.length > 0 && <p className="pp-result-hint">已沿用 {editor.referenceIds.length} 张参考图</p>}
+          {editorError && <p className="pp-result-error" role="alert">{editorError}</p>}
+        </div>
+        <footer><button type="button" onClick={() => setEditor(null)}>取消</button><button type="button" className="is-primary" disabled={disabled || creating || !editor.prompt.trim() || (editor.kind === 'image' && !!project.agentImages?.some(image => image.status === 'running'))} onClick={() => void submitResult()}>{creating ? '正在提交…' : editor.id ? '生成新版本' : editor.kind === 'image' ? '生成图片' : '生成视频'}</button></footer>
+      </aside>}
 
       {whisper && <div className="pp-whisper">上下滚动浏览流程 · 拖动卡片 · 双指缩放</div>}
 

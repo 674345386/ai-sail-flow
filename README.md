@@ -14,6 +14,12 @@
 
 ## 运行
 
+### Agent mode 内部体验
+
+Agent mode 以一个创意对应一条 Codex app-server 对话。进入创意时打开自由画布：左侧是流式对话和 Prompt，右侧是从项目实际数据生成组件的画布。Agent 调用项目专属 MCP 工具执行拆解、编辑分镜描述和本地测试视频生成；「流程页面」保留原布局和交互，不放 Agent 对话。对话状态保存在 `data/agent-sessions/`，Studio mode 仍使用原流程。
+
+本机需安装 `codex` CLI，并在专用的 Codex 目录登录（例如 `CODEX_HOME="$PWD/data/agent-codex" codex login`），或在运行服务的环境提供可用的模型凭证。专用目录避免创作 Agent 继承开发者 Codex 的其它插件和 MCP 工具。`SOP_AGENT_MODEL` 可指定 `model/list` 返回的模型；未指定时优先选择 GPT 6.1 Terra，再选择其它 GPT 6.1 系列和当前 CLI 提供的 GPT 模型。默认推理强度为 `high`，也可用 `SOP_AGENT_EFFORT` 指定。Agent 模型与 Gemini 分析配置相互独立。公网默认关闭 Agent 内部体验；只在单用户内部环境配置 `SOP_AGENT_ENABLED=true` 和独立的 `SOP_AGENT_CODEX_HOME` 后开放。DeepSeek 等自定义模型后续需先由兼容网关完整支持 Responses 流式和工具调用。
+
 需要 Node.js 22.12+（推荐 24）、npm、FFmpeg / ffprobe。本机配音与字幕模式还需要 macOS 的 `say` 与 `swift`。
 
 首页提供 **自动工作流** 和 **手动工作流** 两个入口，共用同一份项目资料、分镜、Prompt 和执行记录。新建创意时也可选择入口；原有项目默认保留手动方式。
@@ -73,7 +79,7 @@ Agentic 模式在原有 `generateContent` 请求内传输 Base64 视频；视频
 
 ## V1 功能
 
-- 一条参考视频：MP4 / MOV / WebM，最大 250 MB、最长 10 分钟；保留音轨，读取真实时长及分辨率，生成本地封面。上传视频 ≥8 MB（8 × 1024 × 1024 字节）时，服务端使用 `ffmpeg-static` 自带的 FFmpeg 压缩为 H.264/AAC MP4（CRF 27、fast、音频 128k），保存实际压缩后的大小、格式与封面；结果未变小时保留上传文件，失败时提示重试并清理临时文件。8 MB 是触发阈值，不保证输出小于 8 MB；读取视频及其他制作步骤仍使用系统 FFmpeg / ffprobe。
+- 一条参考视频：MP4 / MOV / WebM，最大 250 MB、最长 10 分钟；保留音轨，读取真实时长及分辨率，生成本地封面。上传完成并检查后即可预览、引用，原文件保存在 Sail。登录用户的素材由服务端后台同步到 Supabase，浏览器只查询同步状态，不再下载素材后重新上传。≥8 MB 的视频先生成独立的 H.264/AAC MP4 压缩副本（CRF 27、fast、音频 128k），同步压缩副本；结果未变小或压缩失败时同步原文件。原文件及其内容 ID 保持不变，压缩副本缓存在 `data/media-library-cache/`。同步失败可从素材库重试，关闭网页不影响已启动任务；服务重启后需再次打开素材库或手动同步以补齐未完成素材。8 MB 是触发阈值，不保证输出小于 8 MB；压缩使用 `ffmpeg-static`，读取视频及其他制作步骤仍使用系统 FFmpeg / ffprobe。
 - 最多 3 张产品参考图：JPEG / PNG / WebP，每张最大 10 MB，服务端识别实际文件格式。
 - Gemini 分析：分镜时间段、作用、画面、动作、口播、画面文字、声音、商品展示及不确定项。
 - 模型设置支持 Google 官方 Gemini API，也支持填写网关 API Base URL；视频走 Gemini 原生输入，结果由本地 Schema 和时间轴校验。
@@ -118,3 +124,28 @@ Smoke 检查使用独立临时目录和临时端口，验证项目持久化、�
 原有 `ai-overseas-tool-functions.html` 与 `assets/ai-overseas-tool/` 作为原始功能资料保留。
 
 产品与创意改写承接视频拆解的每个镜头、证据关键帧和分析描述。改写保持原镜头数量、编号与顺序，目标时长按比例缩放；产品资料和必填产品图控制替换商品的事实与外观。生成每个镜头的中文描述、英文视频生成指令和单张复刻关键帧。图片调用配置好的 Images API 多图编辑接口；渠道需支持所选模型的 `/images/edits`。图像失败保留描述；结果未知时阻止同一输入重复提交，确定未提交的错误可在镜头卡重新生成。修改描述或产品资料后提示更新图片。ZIP 包含复刻图片和原镜头对应清单。
+
+
+### 创作 Agent 生成工具
+
+创作 Agent 使用 `sail_creation` MCP：
+
+- `generate_image`：文生图；传入 `referenceIds` 时编辑参考图，沿用当前图片服务。
+- `generate_video`：Omni 文生视频／参考图视频，`referenceIds` 可省略或提供最多 7 个当前创意图片 ID。
+- `generate_first_last_frame_video`：通过 `firstFrameId`、`lastFrameId` 指定首尾帧，按此顺序提交 `input_reference`，并设置 `first_last_frame: true`。
+- `generate_grid_video`：使用已有网格及其提示词调用真实 Omni 服务。旧 Studio 本地测试入口保持独立。
+- `recover_video`：通过项目视频 ID 恢复已有上游任务查询，不重新提交生成。
+
+视频默认 `720p`、10 秒，支持显式选择 `1080p` 或 8 秒；模型分别为 `omni_flash_10s` 和 `omni_flash_8s`。画幅为 `16:9`／`9:16`，默认跟随创意。参考图可来自本次／历史聊天上传、当前创意素材、Agent 已完成图片或分镜网格；服务端校验所属创意后发布为私有存储临时链接。无需先分析视频或创建分镜，即可独立生成。任务及上游 ID、请求参数、结果记录到项目，视频显示在 Agent 画布上。
+
+Omni 接口参数依据：https://gaoruitech.apifox.cn/doc-8842676 。文生图继续使用图片服务配置；720p／1080p 是视频分辨率选项。
+
+### 创作 Agent 动态画布组件
+
+Agent 通过 `show_canvas_component` MCP 工具在执行中发布运镜、调色或分镜选择组件及预设参数。工具调用写入当前创意的 Agent 状态，现有 SSE `/api/projects/:id/agent/events` 立即推送到右侧画布。用户调整参数走 `PATCH /api/projects/:id/agent/canvas-components/:componentId`，关闭走 `DELETE`；`get_creative` 会返回最新参数。点击“把参数填入聊天框”可审阅后交给 Agent，不会自动提交视频生成。
+
+### 原生 OpenUI 聊天基座
+
+Agent 模式使用官方 `@openuidev/react-ui` 的 `AgentInterface`、`@openuidev/react-headless` 的 `ChatLLM`／AG-UI 适配器。右侧 Agent UI 接入 [Thesys Open Intelligent UI](https://github.com/thesysdev/open-intelligent-ui) 的完整基础组件库、59 个响应式函数、动作及生成规则；上游来源和 MIT 许可保存在 `src/intelligent-ui/`。原有 `openuiLibrary` 仍作为独立库保留，`show_openui_ui` 的 `library` 参数可在 `intelligent`（默认）与 `openui` 之间选择，避免两个库同名组件冲突。服务端将智能界面组件规范注入 Codex app server 的 developer instructions；`/api/projects/:id/agent/openui-stream` 把 Codex 文本、MCP 工具活动和生成媒体转换为 AG-UI SSE。左侧保留普通聊天文本和生成媒体，右侧用可关闭、可重新打开的标签页分别显示「视频画布 · 产物」与「Agent UI」。画布标签页展示现有视频画布和图片、视频产物列表；Agent UI 标签页呈现 Agent 在执行中发布的完整 OpenUI Lang 程序。界面动作可继续聊天或复制内容，Query／Mutation 由当前创意的工具适配接口执行；上游的图片搜索和地图路线端点也接到本地服务。组件库预览同时列出两个库及上游交互示例。模型建议来自 Codex `model/list`，自定义模型名仍由底层配置决定。每个创意对应一个持久 Codex 对话。
+
+自定义画布组件在 `src/AgentCanvasUI.tsx` 用 OpenUI 的 `defineComponent` 注册；`canvasLibrary` 从完整内置组件库扩展，`Renderer` 渲染当前控制器。新增画布控制器时同步扩展 `shared/agent-canvas-ui.ts` 的校验和 `server/creative-agent-mcp.ts` 的工具 schema。画布右上角“组件库”可预览自定义控制器、OpenUI 内置示例与组件目录。此适配层不改 Codex app server 调度及 Provider 配置。

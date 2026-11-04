@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode, type InputHTMLAttributes, type TextareaHTMLAttributes } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode, type InputHTMLAttributes, type TextareaHTMLAttributes } from 'react';
 import TierWorkbench, { FrameDrawer, VideoDrawer, tierVideoState, type FrameHandlers, type OpenFrame } from './TierWorkbench';
 import VideoPromptImages, { type VideoPromptImage } from './VideoPromptImages';
 import { tierGroupPrompt, withVideoReferences } from '../shared/tier-video-group';
@@ -41,6 +41,7 @@ import LandingSections from './LandingSections';
 import LandingToc from './LandingToc';
 import LandingBackground from './LandingBackground';
 import WorkflowPage, { workflowSections, type WorkflowSection } from './WorkflowPage';
+import type { CanvasComponent } from '../shared/agent-canvas-ui';
 import { LanguageSwitch, pick, useDict } from './i18n';
 import { AUTH_TEXT, LANDING } from './landing-i18n';
 import { shotReconstructionPrompt } from '../shared/shot-evidence';
@@ -50,6 +51,7 @@ import { editableUnitPrompt, finalVideo, nextWorkflowAction, productionSources, 
 import { appTitle, parseRoute, replaceNextUrl, routePath, stepTitles, studioTitle, useUrlSync, type AppRoute } from './useUrlSync';
 import './unified-workspace.css';
 import StudioShell from './studio/StudioShell';
+const NativeOpenUIAgentWorkspace = lazy(() => import('./NativeOpenUIAgentWorkspace'));
 import { FEATURE_STUDIO } from './studio/studioApi';
 
 const steps = [
@@ -211,6 +213,10 @@ export default function App() {
   const [organizationDialog, setOrganizationDialog] = useState<OrganizationDialog | null>(null);
   const [showArchived, setShowArchived] = useState(false);
   const [project, setProject] = useState<Project | null>(null);
+  const [agentCanvasComponents, setAgentCanvasComponents] = useState<CanvasComponent[]>([]);
+  const [agentCanvasDraft, setAgentCanvasDraft] = useState<{ text: string; version: number } | null>(null);
+  const receiveAgentCanvasState = useCallback((components: CanvasComponent[]) => setAgentCanvasComponents(components), []);
+  useEffect(() => { setAgentCanvasComponents([]); setAgentCanvasDraft(null); }, [project?.id]);
   const [status, setStatus] = useState<Status>({ model: 'gemini-3.8-flash', configured: false, videoGeneration: { provider: 'veo-3.1', models: { t2v: 'veo_3_1', i2v: 'veo_3_1-fl', r2v: 'veo_3_1-components' }, configured: false, duration: 8 } });
   const [step, setStep] = useState(0);
   const workspaceView: 'canvas' = 'canvas';
@@ -219,9 +225,9 @@ export default function App() {
   const [stepsCollapsed, setStepsCollapsed] = useState(false);
   const [visibleStage, setVisibleStage] = useState(0);
   const [visibleSection, setVisibleSection] = useState<WorkflowSection>('source');
-  const [workspacePresentation, setWorkspacePresentation] = useState<'page' | 'canvas'>('page');
+  const [workspacePresentation, setWorkspacePresentation] = useState<'page' | 'canvas'>(() => { try { return localStorage.getItem('sail-experience-mode') === 'agent' ? 'canvas' : 'page'; } catch { return 'page'; } });
   const [experienceMode, setExperienceMode] = useState<'studio' | 'agent'>(() => { try { return localStorage.getItem('sail-experience-mode') === 'studio' ? 'studio' : 'agent'; } catch { return 'agent'; } });
-  const switchExperience = (mode: 'studio' | 'agent') => { setExperienceMode(mode); setStageDetail(null); setShowMediaLibrary(false); try { localStorage.setItem('sail-experience-mode', mode); } catch { /* storage unavailable */ } };
+  const switchExperience = (mode: 'studio' | 'agent') => { setExperienceMode(mode); setStageDetail(null); setShowMediaLibrary(false); if (mode === 'agent') setWorkspacePresentation('canvas'); try { localStorage.setItem('sail-experience-mode', mode); } catch { /* storage unavailable */ } };
   const [stepsWidth, setStepsWidth] = useState(320);
   const workspaceRef = useRef<HTMLDivElement>(null);
   const stepsDrag = useRef<{ x: number; width: number } | null>(null);
@@ -295,6 +301,7 @@ export default function App() {
   const [dragging, setDragging] = useState(false);
 
   const adopt = useCallback((p: Project) => { current.current = p; setProject(p); }, []);
+  const adoptAgentUpdate = useCallback((p: Project) => { if (!unsaved.current && current.current?.id === p.id) { adopt(p); setStep(step => Math.max(step, lastAvailableStep(p))); } }, [adopt]);
   const refreshList = useCallback(async () => {
     const [creatives, groups] = await Promise.all([api<ProjectSummary[]>('/api/projects'), api<WorkspaceProject[]>('/api/workspace/projects')]);
     setProjects(creatives); setProjectGroups(groups);
@@ -521,6 +528,7 @@ export default function App() {
   }, [step, focusTarget, busy, running]);
   const switchProject = (id: string, target?: { step?: number; canvas?: boolean }) => perform('正在打开创意', async () => { setShowMediaLibrary(false); setStageDetail(null);
     await flush(); const p = await api<Project>(`/api/projects/${id}`); adopt(p); setDirty(false); unsaved.current = false;
+    if (experienceMode === 'agent') setWorkspacePresentation('canvas');
     setStep(routeStep(p, target?.step, !!target?.canvas)); if (routeStepNotice(p, target?.step)) setError(routeStepNotice(p, target?.step)); setSelectedShot(0); setSelectedRewrite(0); setSidebarOpen(false); setShowRequiredErrors(false); setFocusTarget(null); setObserving(false);
   });
   const newProject = (demo = false, parentId = current.current?.parentProjectId || projectGroups[0]?.id || '') => {
@@ -544,7 +552,7 @@ export default function App() {
     } else {
       const demo = Boolean(organizationDialog.demo);
       const p = await api<Project>('/api/projects', { method: 'POST', body: JSON.stringify({ demo, parentProjectId: parentId, title }) });
-      adopt(p); setShowMediaLibrary(false); setDirty(false); unsaved.current = false; setStep(demo ? 1 : 0); setSelectedShot(0); setSelectedRewrite(0); setShowRequiredErrors(false); setFocusTarget(null); setObserving(false); setShowArchived(false); await refreshList(); setSidebarOpen(false);
+      adopt(p); setShowMediaLibrary(false); setDirty(false); unsaved.current = false; setStep(demo ? 1 : 0); setWorkspacePresentation(experienceMode === 'agent' ? 'canvas' : 'page'); setSelectedShot(0); setSelectedRewrite(0); setShowRequiredErrors(false); setFocusTarget(null); setObserving(false); setShowArchived(false); await refreshList(); setSidebarOpen(false);
     }
     setOrganizationDialog(null);
   });
@@ -575,7 +583,7 @@ export default function App() {
   };
   const uploadFiles = (files: FileList | File[], kind: 'video' | 'product') => {
     const list = Array.from(files);
-    return perform(kind === 'video' && list.some(file => file.size >= 8 * 1024 * 1024) ? '正在上传并压缩视频' : '正在上传素材', async () => {
+    return perform('正在上传素材', async () => {
       const p = await flush(); if (!p) return;
       if (kind === 'video' && list.length !== 1) throw new Error('每个创意使用一条参考视频。');
       if (kind === 'product' && p.assets.filter(a => a.kind === 'product').length + list.length > 3) throw new Error('最多上传 3 张产品/主体参考图。');
@@ -815,6 +823,24 @@ export default function App() {
   const openVideoPreviewLibrary = (replaceAt: number | null) => { setFrameRefTarget(null); setVideoRefTarget({ replaceAt }); openAssetLibrary('image'); };
   const startTierVideo = (shotId: string) => prepareTierVideo([shotId]);
   const startTierVideoGroup = (shotIds: string[]) => prepareTierVideo(shotIds);
+  const createCanvasImage = async (input: { prompt: string; aspectRatio: '1:1' | '16:9' | '9:16' | '4:5'; referenceIds: string[] }) => {
+    const p = await flush(); if (!p) throw new Error('请先打开一个创意。');
+    const result = await api<{ imageId: string; project: Project }>(`/api/projects/${p.id}/agent/images`, { method: 'POST', body: JSON.stringify(input) });
+    if (current.current?.id === p.id && !unsaved.current) adopt(result.project);
+    return result.imageId;
+  };
+  const createCanvasVideo = async (input: { prompt: string; aspectRatio: '16:9' | '9:16'; gridId?: string }) => {
+    const p = await flush(); if (!p || p.archivedAt) throw new Error('请先打开未归档的创意。');
+    const grid = input.gridId ? p.storyboardGrids?.find(item => item.id === input.gridId && item.included !== false) : undefined;
+    if (input.gridId && !grid) throw new Error('关联的分镜网格不存在或已隐藏。');
+    const updated = await api<Project>(`/api/projects/${p.id}/generations`, { method: 'POST', body: JSON.stringify({
+      prompt: input.prompt, aspectRatio: input.aspectRatio, resolution: '720p', previewRevision: p.revision,
+      ...(grid ? { storyboardGridId: grid.id, mode: 'r2v', referenceImages: [grid.url] } : { canvasTestVideo: true, mode: 't2v' }),
+    }) });
+    if (current.current?.id === p.id && !unsaved.current) adopt(updated);
+    if (!updated.job?.videoId) throw new Error('视频任务未能启动。');
+    return updated.job.videoId;
+  };
   const startStoryboardGridVideo = (gridIds: string | string[]) => perform('正在准备本地测试视频', async () => {
     const initial = await flush(); if (!initial) return;
     let p: Project = initial;
@@ -1049,7 +1075,7 @@ export default function App() {
     focusStage(stage); setVisibleSection(id); setWorkspacePresentation('page');
     setSectionTarget(current => ({ id, version: (current?.version || 0) + 1 }));
   };
-  const remixPanel = <ProductPipelineCanvas key={project.id} project={project} disabled={disabled} onPrompt={updateStoryboardGridPrompt} onGenerate={gridId => void startStoryboardGridVideo(gridId)} onRecover={videoId => void recoverGeneration(videoId)} onIncluded={updateStoryboardGridIncluded} onUploadVideo={() => openAssetLibrary('video')} onAnalyze={() => void startJob('analysis')} onOpenMaterials={() => openStageDetail(0)} onOpenAnalysis={() => openStageDetail(1)} onOpenRemixDetail={() => openStageDetail(2)} onSettings={() => setModal('settings')} onBreakdownType={breakdownType => change(p => ({ ...p, breakdownType }))} onGridSize={storyboardGridSize => change(p => ({ ...p, storyboardGridSize }))} onViewportStage={n => { setVisibleStage(n); if (available[n]) setStep(n); }} onShowPage={() => setWorkspacePresentation('page')} focusStep={step} focusVersion={canvasFocusVersion} />;
+  const remixPanel = <ProductPipelineCanvas key={project.id} project={project} disabled={disabled} agentDynamic canvasComponents={agentCanvasComponents} onCanvasDraft={text => setAgentCanvasDraft(current => ({ text, version: (current?.version || 0) + 1 }))} onCreateImage={createCanvasImage} onCreateVideo={createCanvasVideo} onPrompt={updateStoryboardGridPrompt} onGenerate={gridId => void startStoryboardGridVideo(gridId)} onRecover={videoId => void recoverGeneration(videoId)} onIncluded={updateStoryboardGridIncluded} onUploadVideo={() => openAssetLibrary('video')} onAnalyze={() => void startJob('analysis')} onOpenMaterials={() => openStageDetail(0)} onOpenAnalysis={() => openStageDetail(1)} onOpenRemixDetail={() => openStageDetail(2)} onSettings={() => setModal('settings')} onBreakdownType={breakdownType => change(p => ({ ...p, breakdownType }))} onGridSize={storyboardGridSize => change(p => ({ ...p, storyboardGridSize }))} onViewportStage={n => { setVisibleStage(n); if (available[n]) setStep(n); }} onShowPage={() => setWorkspacePresentation('page')} focusStep={step} focusVersion={canvasFocusVersion} />;
   const market = countries.find(c => c.code === project.market.country)!;
   const platform = platforms.find(p => p.id === project.market.platform)!;
   const shot = project.analysis?.shots[Math.min(selectedShot, project.analysis.shots.length - 1)];
@@ -1293,6 +1319,7 @@ export default function App() {
         </> : <>
         <div className="unified-workspace">
           <div className="workflow-ambient"><LandingBackground storageKey="sail-workspace-bg-v1" uiStorageKey="sail-workspace-bg-ui-v1" /></div>
+          {workspacePresentation === 'canvas' ? <div className="agent-canvas-shell"><Suspense fallback={<div className="agent-chat" aria-label="加载创作 Agent" />}><NativeOpenUIAgentWorkspace key={project.id} project={project} canvas={remixPanel} disabled={disabled} onUploadVideo={() => openAssetLibrary('video')} onUploadImage={() => openAssetLibrary('image')} onOpenLibrary={() => openAssetLibrary('all')} onProjectUpdate={adoptAgentUpdate} onBeforeSend={flush} onCanvasState={receiveAgentCanvasState} canvasDraft={agentCanvasDraft} onCanvasDraftConsumed={() => setAgentCanvasDraft(null)} /></Suspense></div> : <>
           <button className="unified-steps-toggle" aria-expanded={!stepsCollapsed} onClick={() => setStepsCollapsed(value => !value)}>{stepsCollapsed ? '展开步骤' : '收起步骤'}</button>
           <aside className={`unified-steps wizard-panel workflow-toc${stepsCollapsed ? ' is-collapsed' : ''}`} aria-label="创作流程">
             <h2>创作流程</h2>
@@ -1305,11 +1332,12 @@ export default function App() {
               </div>)}
             </nav>
           </aside>
-          {workspacePresentation === 'canvas' ? remixPanel : <WorkflowPage key={project.id} project={project} disabled={disabled} available={available} target={sectionTarget}
+          <WorkflowPage key={project.id} project={project} disabled={disabled} available={available} target={sectionTarget}
             onVisible={(id, stage) => { setVisibleSection(id); setVisibleStage(stage); if (available[stage]) setStep(stage); }} onCanvas={() => setWorkspacePresentation('canvas')}
             onUploadVideo={() => openAssetLibrary('video')} onOpenMaterials={() => openStageDetail(0)} onOpenAnalysis={() => openStageDetail(1)} onOpenRemixDetail={() => openStageDetail(2)} onAnalyze={() => void startJob('analysis')}
             onBreakdownType={breakdownType => change(p => ({ ...p, breakdownType }))} onGridSize={storyboardGridSize => change(p => ({ ...p, storyboardGridSize }))}
-            onPrompt={updateStoryboardGridPrompt} onGenerate={gridId => void startStoryboardGridVideo(gridId)} onRecover={videoId => void recoverGeneration(videoId)} onIncluded={updateStoryboardGridIncluded} />}
+            onPrompt={updateStoryboardGridPrompt} onGenerate={gridId => void startStoryboardGridVideo(gridId)} onRecover={videoId => void recoverGeneration(videoId)} onIncluded={updateStoryboardGridIncluded} />
+          </>}
         </div>
         </>}
         {frameDrawer}

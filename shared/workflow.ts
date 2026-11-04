@@ -43,6 +43,7 @@ export function productionSources(project: Project): (GeneratedVideo | undefined
 }
 
 export function videoCurrent(project: Project, video: GeneratedVideo) {
+  if (video.unitId?.startsWith('agent-video-')) return !video.stale;
   if (video.stale) return false;
   const gridId = video.storyboardGridId || video.gridId;
   if (gridId) return !!(project.storyboardGrids || []).some(grid => grid.id === gridId);

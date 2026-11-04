@@ -58,6 +58,12 @@ for (const filename of fs.readdirSync(recordsDir)) {
     project.storyboardGrids ||= [];
     project.workflowMode ||= 'manual';
     project.jobHistory ||= [];
+    if (project.agentImages?.some(image => image.status === 'running')) {
+      project.agentImages = project.agentImages.map(image => image.status === 'running'
+        ? { ...image, status: 'failed' as const, error: '服务重启；图片请求结果待核对，请勿直接重发。' }
+        : image);
+      project = saveProject(project);
+    }
     if (project.workflow?.status === 'running' || project.workflow?.status === 'pausing') {
       project.workflow = { ...project.workflow, status: 'paused', message: '服务已重启，已保留进度。请点击继续自动制作。' };
       project = saveProject(project);
