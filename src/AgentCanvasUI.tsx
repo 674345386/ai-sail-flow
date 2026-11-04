@@ -4,8 +4,8 @@ import { z } from 'zod/v4';
 import { SlidersHorizontal, X } from 'lucide-react';
 import type { CanvasComponent, CanvasComponentInput } from '../shared/agent-canvas-ui';
 import { canvasComponentLabels } from '../shared/agent-canvas-ui';
-import { creativeOpenUILibrary } from '../shared/openui-creative-library';
 import type { StoryboardGrid } from '../shared/domain';
+import { library as intelligentLibrary } from './intelligent-ui/library';
 import './agent-canvas-ui.css';
 
 const OpenUIBuiltinGallery = lazy(() => import('./OpenUIBuiltinGallery'));
@@ -51,7 +51,7 @@ const StoryboardSelector = defineComponent({
 });
 
 // Add a defineComponent entry here to make a new canvas controller available to OpenUI.
-export const canvasLibrary = creativeOpenUILibrary.extend!({ components: { add: [CameraMotionController, ColorPresetCard, StoryboardSelector] } });
+export const canvasLibrary = intelligentLibrary.extend!({ components: { add: [CameraMotionController, ColorPresetCard, StoryboardSelector] } });
 const examples: CanvasComponentInput[] = [
   { kind: 'camera', duration: 3, strength: 6, direction: 'push', target: '当前片段' },
   { kind: 'color', temperature: 3200, preset: 'warm', intensity: 60, target: '当前片段' },
@@ -60,9 +60,9 @@ const examples: CanvasComponentInput[] = [
 const customNames = { camera: 'CameraMotionController', color: 'ColorPresetCard', storyboard: 'StoryboardSelector' } as const;
 function program(component: CanvasComponentInput) {
   switch (component.kind) {
-    case 'camera': return `root = Stack([CameraMotionController(${component.duration}, ${component.strength}, ${JSON.stringify(component.direction)}, ${JSON.stringify(component.target)})])`;
-    case 'color': return `root = Stack([ColorPresetCard(${component.temperature}, ${JSON.stringify(component.preset)}, ${component.intensity}, ${JSON.stringify(component.target)})])`;
-    case 'storyboard': return `root = Stack([StoryboardSelector(${JSON.stringify(component.selectedGridIds)}, ${JSON.stringify(component.target)})])`;
+    case 'camera': return `root = Col([CameraMotionController(${component.duration}, ${component.strength}, ${JSON.stringify(component.direction)}, ${JSON.stringify(component.target)})])`;
+    case 'color': return `root = Col([ColorPresetCard(${component.temperature}, ${JSON.stringify(component.preset)}, ${component.intensity}, ${JSON.stringify(component.target)})])`;
+    case 'storyboard': return `root = Col([StoryboardSelector(${JSON.stringify(component.selectedGridIds)}, ${JSON.stringify(component.target)})])`;
   }
 }
 function Controller({ component, grids, onUpdate, preview = false }: { component: CanvasComponentInput; grids: StoryboardGrid[]; onUpdate: (input: Partial<CanvasComponentInput>) => void; preview?: boolean }) {
