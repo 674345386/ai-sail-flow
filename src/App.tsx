@@ -435,7 +435,8 @@ export default function App() {
       const failure = callback.error || error;
       applySession(data.session, callback.active && data.session ? '登录成功' : '', failure ? authErrorMessage(failure) : '');
       const requestedRoute = parseRoute(window.location.pathname);
-      if (data.session && !callback.active && !(requestedRoute?.kind === 'landing' && requestedRoute.mode === 'agent')) { replaceNextUrl(); setShowLanding(false); }
+      // Restoring a session must respect both landing URLs, including the root homepage.
+      if (data.session && !callback.active && requestedRoute?.kind !== 'landing') { replaceNextUrl(); setShowLanding(false); }
       if (callback.active) {
         clearAuthCallback();
         if (data.session) { replaceNextUrl(); setProfileSetupPrompt(isNewUserFirstLogin(data.session.user)); setShowLanding(false); setAuthOpen(false); }
