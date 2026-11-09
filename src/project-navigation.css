@@ -1,0 +1,31 @@
+/* Workspace folders own the sidebar; creation stages live in the main view. */
+.app-shell .sidebar-workspaces { --workspace-nav-label-size: 14px; flex: 1 1 auto; min-width: 0; min-height: 0; overflow: hidden; }
+.app-shell[data-agent-theme="compact"] .sidebar-workspaces { --workspace-nav-label-size: 12px; }
+.app-shell .sidebar-workspaces-heading { flex: none; align-items: center; justify-content: space-between; gap: 8px; min-height: 32px; margin: 12px 0 4px; padding: 0 6px; color: var(--muted); font-size: 13px; font-weight: 400; }
+.sidebar-workspaces-actions { display: flex; align-items: center; gap: 2px; }
+.app-shell .sidebar-workspaces-heading .icon-btn { display: grid; place-items: center; width: 28px; height: 28px; padding: 0; }
+.app-shell .sidebar-workspaces .project-list.project-tree { flex: 1 1 auto; min-width: 0; min-height: 0; max-height: none; padding: 0 2px 8px; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
+.app-shell .sidebar-workspaces .project-tree-group + .project-tree-group { margin-top: 12px; }
+.app-shell .sidebar-workspaces .project-tree-heading { min-height: 36px; }
+.app-shell .sidebar-workspaces .project-tree-folder { gap: 8px; min-height: 36px; padding: 7px 6px; font-size: var(--workspace-nav-label-size); font-weight: 400; }
+.app-shell .sidebar-workspaces .project-tree-folder > span:not(.project-tree-indicator) { flex: 1; }
+.app-shell .sidebar-workspaces .project-tree-indicator { position: relative; display: grid; flex: 0 0 18px; width: 18px; height: 18px; place-items: center; overflow: visible; color: var(--muted); }
+.app-shell .sidebar-workspaces .project-tree-heading.current .project-tree-indicator { color: var(--iui-chart-1, var(--accent)); }
+.app-shell .sidebar-workspaces .project-tree-heading > .project-tree-action { display: none; }
+.app-shell .sidebar-workspaces .project-tree-heading:hover > .project-tree-action, .app-shell .sidebar-workspaces .project-tree-heading:focus-within > .project-tree-action { display: grid; }
+.app-shell .sidebar-workspaces .project-tree-new-creative { width: 28px; height: 28px; }
+.sidebar-new-creative-tooltip { position: fixed; z-index: 130; display: flex; align-items: center; gap: 8px; max-width: calc(100vw - 16px); padding: 6px 8px; border: 1px solid; border-radius: 6px; font: 12px/18px var(--sail-font-ui, system-ui, sans-serif); white-space: nowrap; pointer-events: none; }
+.sidebar-new-creative-shortcut { display: inline-flex; align-items: center; gap: 3px; }
+.sidebar-new-creative-shortcut kbd { display: grid; min-width: 19px; height: 19px; padding: 0 4px; place-items: center; border-radius: 4px; background: color-mix(in srgb, currentColor 12%, transparent); font: inherit; line-height: 1; }
+.app-shell .sidebar-workspaces .project-tree-children { margin: 0; padding: 0; border: 0; }
+.app-shell .sidebar-workspaces .project-tree-children .project-row { min-width: 0; min-height: 34px; max-width: 100%; }
+.app-shell .sidebar-workspaces .project-row .project-link { min-height: 34px; padding: 7px 6px 7px 32px; font-size: var(--workspace-nav-label-size); font-weight: 400; }
+.app-shell .sidebar-workspaces .project-link-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.app-shell .sidebar-workspaces .sidebar-creative-block { grid-template-columns: minmax(0, 1fr); gap: 0; min-width: 0; margin-top: 0; }
+.app-shell .sidebar-workspaces .sidebar-creative-label { padding-left: 32px; }
+.app-shell .sidebar-workspaces .sidebar-more-button, .app-shell .sidebar-workspaces .sidebar-compact-toggle, .app-shell .sidebar-workspaces .project-tree-empty { padding-left: 32px; }
+.app-shell .sidebar-workspaces .archive-list-toggle { flex: none; margin-top: 8px; }
+.app-shell .sidebar-workspaces .sidebar-project-rail { flex: 1; min-height: 0; max-height: none; align-content: start; overscroll-behavior: contain; }
+@media (hover: none), (pointer: coarse) {
+  .app-shell .sidebar-workspaces .project-tree-heading > .project-tree-action { display: grid; }
+}

@@ -1,0 +1,83 @@
+/* Navigation and Agent chat share one preference. Keep token overrides scoped
+   to the two shell surfaces so Studio and the video canvas retain their styles. */
+.app-shell[data-agent-theme] .agent-shell-surface {
+  --canvas: var(--iui-canvas);
+  --sidebar: var(--iui-canvas);
+  --panel: var(--iui-canvas);
+  --raised: var(--iui-surface);
+  --input: var(--iui-canvas);
+  --line: var(--iui-border-strong);
+  --line-soft: var(--iui-border);
+  --text: var(--iui-ink);
+  --muted: var(--iui-muted);
+  --subtle: var(--iui-faint);
+  --accent: var(--iui-ink);
+  --accent-strong: var(--iui-ink-hover);
+  --accent-bg: var(--iui-surface-strong);
+  --success: var(--iui-success);
+  color: var(--iui-ink);
+  background: var(--iui-canvas);
+  border-color: var(--iui-border);
+  font-family: var(--iui-font);
+  scrollbar-color: var(--iui-border-strong) transparent;
+}
+.app-shell[data-agent-theme] .agent-shell-surface :is(.nav-item, .sidebar-config, .archive-list-toggle, .sidebar-project-caption, .nav-section-label, .sidebar-current-project, .sidebar-more-button, .sidebar-compact-toggle, .project-tree-action, .project-pin-action, .project-archive-action, .breadcrumbs, .save-status) { color: var(--iui-muted); }
+.app-shell[data-agent-theme] .agent-shell-surface :is(.brand strong, .brand-compact, .sidebar-project-heading strong, .project-tree-folder, .project-link, .sidebar-more-link, .sidebar-more-view-all, .breadcrumb-current, .icon-btn) { color: var(--iui-ink); }
+.app-shell[data-agent-theme] .agent-shell-surface :is(.sidebar-search-create, .workspace-picker, .sidebar-more-search) { color: var(--iui-muted); background: var(--iui-surface); border-color: var(--iui-border-strong); }
+.app-shell[data-agent-theme] .agent-shell-surface .sidebar-search-create kbd { color: var(--iui-muted); background: var(--iui-surface-strong); border-color: var(--iui-border-strong); }
+.app-shell[data-agent-theme] .agent-shell-surface :is(.sidebar-current-project, .project-tree-children, .sidebar-more-toolbar) { border-color: var(--iui-border); }
+.app-shell[data-agent-theme] .agent-shell-surface :is(.nav-item, .sidebar-config, .archive-list-toggle, .sidebar-search-create, .sidebar-more-button, .sidebar-compact-toggle, .project-tree-action, .project-pin-action, .project-archive-action, .icon-btn):hover:not(:disabled) { color: var(--iui-ink); background: var(--iui-hover); border-color: var(--iui-border-strong); }
+.app-shell[data-agent-theme] .agent-shell-surface :is(.nav-item.active, .project-row.selected, .project-row:hover, .project-row:focus-within, .project-tree-heading:hover, .project-tree-heading:focus-within, .sidebar-more-row.selected, .sidebar-more-row:hover, .sidebar-more-row:focus-within, .sidebar-more-button.active) { color: var(--iui-ink); background: var(--iui-surface-strong); border-color: var(--iui-border); }
+.app-shell[data-agent-theme] .agent-shell-surface .nav-item.active svg { color: var(--iui-ink); }
+.app-shell[data-agent-theme] .agent-shell-surface .project-row .project-link { color: var(--iui-ink); background: transparent; }
+.app-shell[data-agent-theme] .agent-shell-surface .sidebar-more-popover { color: var(--iui-ink); background: var(--iui-canvas); border-color: var(--iui-border-strong); box-shadow: var(--iui-shadow); }
+.app-shell[data-agent-theme] .agent-shell-surface .sidebar-more-search input { color: var(--iui-ink); }
+.app-shell[data-agent-theme] .agent-shell-surface .sidebar-more-view-all::before { background: var(--iui-border-strong); }
+.app-shell[data-agent-theme] .agent-shell-surface .brand-icon img { filter: none; }
+.app-shell[data-agent-theme] .agent-shell-surface[data-theme="dark"] .brand-icon img { filter: invert(1); }
+
+.app-shell[data-agent-theme] .agent-shell-surface .breadcrumbs button { color: var(--iui-ink); }
+.app-shell[data-agent-theme] .agent-shell-surface :is(.topbar-divider, .topbar-leading-divider) { background: var(--iui-border-strong); }
+.app-shell[data-agent-theme] .agent-shell-surface :is(.btn, .account-chip, .lang-switch button, .experience-switch) { color: var(--iui-ink); background: var(--iui-surface); border-color: var(--iui-border-strong); }
+.app-shell[data-agent-theme] .agent-shell-surface :is(.btn, .account-chip, .lang-switch button):hover:not(:disabled) { color: var(--iui-ink); background: var(--iui-hover); }
+.app-shell[data-agent-theme] .agent-shell-surface .experience-switch button { color: var(--iui-muted); background: transparent; }
+.app-shell[data-agent-theme] .agent-shell-surface .experience-switch button[aria-pressed="true"] { color: var(--iui-ink); background: var(--iui-surface-strong); box-shadow: var(--iui-shadow-sm); }
+.app-shell[data-agent-theme] .agent-shell-surface :focus-visible { outline-color: var(--iui-focus); }
+.app-shell[data-agent-theme] .agent-shell-surface ::selection { color: var(--iui-ink); background: var(--iui-pressed); }
+
+.app-shell[data-agent-theme="compact"] .agent-shell-surface :is(.nav-item, .project-tree-folder, .project-link, .sidebar-config, .breadcrumbs, .btn.small, .account-chip) { font-size: 12px; }
+.app-shell[data-agent-theme="compact"] .agent-shell-surface :is(.nav-item, .sidebar-search-create) { min-height: 30px; padding-top: 5px; padding-bottom: 5px; border-radius: var(--iui-radius-md); }
+.app-shell[data-agent-theme="compact"] .agent-shell-surface :is(.project-tree-heading, .project-link) { min-height: 28px; }
+
+.app-shell[data-agent-theme] .agent-shell-surface .topbar-task-assets[aria-expanded="true"] { background: var(--iui-surface-strong); }
+@media (max-width: 1000px) {
+  .app-shell .topbar-actions :is(.topbar-assets, .topbar-task-assets) { width: 32px; padding: 0; }
+  :is(.topbar-assets, .topbar-task-assets) > span { display: none; }
+}
+
+/* One animated Background spans the complete Agent shell. Its palette is
+   supplied to each themed surface, so controls cannot retain a white canvas. */
+.app-shell.app-shell[data-agent-background="on"] { position: relative; isolation: isolate; background: var(--iui-canvas); color: var(--iui-ink); }
+.agent-global-background { display: contents; }
+.agent-global-background > .lbg { position: fixed; inset: 0; z-index: 0; overflow: hidden; background: var(--lbg-base); pointer-events: none; contain: strict; }
+.app-shell[data-agent-background="on"] > .sidebar.agent-shell-surface { background: transparent; }
+.app-shell[data-agent-background="on"] > .main-shell { z-index: 1; background: transparent; }
+.app-shell[data-agent-background="on"] .main-shell > .topbar.agent-shell-surface,
+.app-shell[data-agent-background="on"] .main-shell > main,
+.app-shell[data-agent-background="on"] .main-shell .unified-workspace { background: transparent; }
+.app-shell[data-agent-background="on"][data-agent-background-tone="dark"] .brand-icon img { filter: invert(1); }
+.app-shell[data-agent-background="on"][data-agent-background-tone="light"] .brand-icon img { filter: none; }
+.agent-global-background > .lbg-panel { position: fixed; top: 80px; right: 16px; z-index: 80; display: flex; flex-direction: column; width: 296px; max-height: calc(100dvh - 96px); overflow: hidden; pointer-events: auto; color: #e9e8e4; font: 12.5px/1.4 var(--sail-font-ui, Inter, sans-serif); background: rgb(18 18 20 / 90%); border: 1px solid rgb(255 255 255 / 12%); border-radius: 14px; box-shadow: 0 12px 40px rgb(0 0 0 / 30%); }
+.agent-global-background > .lbg-panel.is-collapsed { width: auto; border-radius: 999px; }
+.agent-global-background > .lbg-panel.is-docked,
+.app-shell.workflow-dark .workflow-ambient > .lbg-panel.is-docked { position: fixed; top: 52px; right: 0; bottom: 0; z-index: 90; width: min(336px, 100vw); max-height: none; border: 0; border-left: 1px solid rgb(255 255 255 / 12%); border-radius: 0; box-shadow: -12px 0 36px rgb(0 0 0 / 25%); }
+.lbg-panel.is-docked .lbg-body { flex: 1; min-height: 0; }
+@media (max-width: 780px) {
+  .agent-global-background > .lbg-panel { top: 64px; right: 10px; max-width: calc(100% - 20px); max-height: calc(100dvh - 80px); }
+  .app-shell[data-agent-background="on"] > .sidebar.agent-shell-surface.open { background: var(--iui-canvas); }
+}
+
+/* Filter a separate backdrop layer so fixed sidebar popovers keep their
+   viewport positioning when the sidebar's blur is enabled. */
+.app-shell[data-agent-theme] > .sidebar.agent-shell-surface[data-custom-surface="on"] { background: var(--agent-surface-underlay); }
+.app-shell[data-agent-theme] > .sidebar.agent-shell-surface[data-custom-surface="on"]::before { position: absolute; inset: 0; z-index: -1; background: var(--agent-surface-background); -webkit-backdrop-filter: blur(var(--agent-surface-blur)); backdrop-filter: blur(var(--agent-surface-blur)); pointer-events: none; content: ""; }

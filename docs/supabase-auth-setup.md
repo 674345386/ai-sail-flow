@@ -1,6 +1,39 @@
 # AI-Sail Flow 登录与个人资料
 
-项目通过 Supabase Auth 提供邮箱验证码登录，前端仅使用 anon / publishable key。迁移目标为阿里云自托管实例 `https://supabase-47-254-32-230.sslip.io`。Google、微信等 OAuth 入口已从本次构建移除。生产邮箱登录与文件存储已切换并验证；SMTP 已配置。源库结构已导出核对：唯一 public 表 `health_check` 已按结构迁入为空表，4 条私有文件策略已同步；火山平台内部表与配额触发器不迁入。原用户记录与文件不迁入。
+项目通过 Supabase Auth 提供邮箱验证码和 Google OAuth 登录，前端仅使用 anon / publishable key。认证服务为阿里云自托管实例 `https://supabase-47-254-32-230.sslip.io`。Google 登录入口和 PKCE 回调已接入；2026-11-08 已在认证服务配置 Google OAuth 凭据并启用 provider，邮箱登录同时保持开启。生产邮箱登录与文件存储已切换并验证；SMTP 已配置。源库结构已导出核对：唯一 public 表 `health_check` 已按结构迁入为空表，4 条私有文件策略已同步；火山平台内部表与配额触发器不迁入。原用户记录与文件不迁入。
+
+## Google 登录
+
+当前服务端配置已生效：`supabase-auth` 健康，公开 Auth settings 返回 `external.google: true` 和 `external.email: true`。OAuth 发起接口返回 302 至 Google，已确认客户端 ID 与用户提供的 Web OAuth 凭据一致，回调地址匹配。应用回调白名单包含正式域名和 `http://127.0.0.1:4317/auth/callback`、`http://localhost:4317/auth/callback`。尚需用户在浏览器中完成一次真实账号授权，才能验证登录全流程。本次只更新认证服务，未发布本地前端代码。变更前配置备份保存在服务器 `/home/admin/supabase/pre-google-20261108T090134Z.local/`，凭据仅保存于服务端私密配置。
+
+1. 在 Google Cloud Console 配置 OAuth 同意屏幕，创建类型为「Web 应用」的 OAuth 客户端，仅需基本的邮箱和个人资料权限。若应用处于测试模式，先添加测试用户；对外开放前按 Google 要求发布同意屏幕。
+2. Google 客户端的「已获授权的重定向 URI」填写 `https://lululib.cn/auth/v1/callback`。这是认证服务的品牌域名入口，与下面的应用回调地址不同；原临时域名回调保留用于回退。
+3. 在服务器 `/home/admin/supabase/.env`（权限 0600）中保存 `GOOGLE_CLIENT_ID` 和 `GOOGLE_CLIENT_SECRET`。不要添加到 `VITE_*`、提交到 Git 或发送到聊天中。
+4. 在服务器 `docker-compose.yml` 的 `services.auth.environment` 配置：
+
+   ```yaml
+   GOTRUE_EXTERNAL_GOOGLE_ENABLED: 'true'
+   GOTRUE_EXTERNAL_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+   GOTRUE_EXTERNAL_GOOGLE_SECRET: ${GOOGLE_CLIENT_SECRET}
+   GOTRUE_EXTERNAL_GOOGLE_REDIRECT_URI: https://lululib.cn/auth/v1/callback
+   ```
+
+5. 保留应用回调白名单 `https://lululib.cn/auth/callback` 和 `https://www.lululib.cn/auth/callback`。本地调试时额外添加实际使用的 origin，例如 `http://127.0.0.1:4317/auth/callback`。前端默认返回发起登录的当前 origin，避免丢失 PKCE 校验信息和 Agent 草稿；不要在本地将 `VITE_AUTH_REDIRECT_URL` 指向生产域名。
+6. 备份配置后执行 `docker compose config --quiet` 和 `docker compose up -d --no-deps auth`。通过 `/auth/v1/settings`（使用 publishable key）确认 `external.google` 为 `true`，再由用户完成一次真实 Google 授权验证。
+
+登录弹窗每次打开时检查 provider 状态；点击 Google 按钮时再次检查，然后通过 `signInWithOAuth(provider: 'google')` 进入账号选择页。SDK 使用 PKCE 自动处理 `/auth/callback`，复用原有会话保存、首次登录资料设置和服务端会话同步。邮箱验证码输入和重发流程独立保留。Agent 首页的待创作内容保存在同源 sessionStorage 中，授权返回后继续进入创作流程。
+
+`configure-email.py` 只更新邮箱配置，并保留单独配置的 OAuth providers。Google Client Secret 始终由认证服务保管，前端不需要任何新增密钥。
+
+### OAuth 回调页面与品牌域名
+
+本地服务允许 `GET /auth/callback` 的跨站顶层页面跳转（`Sec-Fetch-Mode: navigate`、`Sec-Fetch-Dest: document`），供 Google 授权返回。此路由只返回前端页面，授权码由浏览器 SDK 使用 PKCE 交换；API、媒体、跨站 fetch 和 POST 不使用此例外。已通过 HTTP 检查确认：回调页面返回 200 HTML，跨站 API、回调 fetch 和回调 POST 仍返回 403。
+
+Google 授权页面此前显示 `sslip.io`，因为 provider 回调使用临时认证域名。2026-11-08 已在生产 Caddy 配置 `https://lululib.cn/auth/v1/callback`，将该路径转发到原认证网关；用户确认已在 Google 客户端追加并保存该地址后，已将认证服务的 `GOTRUE_EXTERNAL_GOOGLE_REDIRECT_URI` 切换至此地址，并仅重启 Auth，服务健康。切换前配置备份为 `/home/admin/supabase/pre-google-branded-20261108T093024Z.local/`，原临时域名仍可用于回退。应用返回地址仍是当前浏览器 origin 下的 `/auth/callback`，无需迁移 Supabase 用户、存储或更换前端 Supabase URL。真实账号授权后的页面显示和登录结果仍需用户验证。
+
+切换后已通过 HTTP 核对：OAuth 发起接口返回 302 至 Google，`redirect_uri` 为 `https://lululib.cn/auth/v1/callback`；Google 和邮箱 provider 同时开启，本地跨站回调页面返回 200 HTML。
+
+若希望授权页显示 `AI-Sail Flow` 品牌名称和 Logo，需要在 Google Auth Platform 的 Branding 中设置，并按 Google 要求完成品牌验证；前端无法直接修改 Google 托管的授权页。
 
 ## 邮箱验证码
 
@@ -28,7 +61,7 @@ Site URL 使用 `https://lululib.cn`，Redirect URLs 保留 `https://lululib.cn/
 
 ## 首次登录欢迎浮窗
 
-仅新账号首次成功完成邮箱验证码登录，且尚无 `user_metadata.profile_completed_at` 时，才在工作台加载完成后弹出欢迎浮窗。已有账号、重新打开首页和恢复已有会话都不会自动弹出；用户仍可从账号资料入口主动编辑。新账号判断基于 Supabase 账号创建时间与首次登录时间接近（15 分钟内）。首次设置名称默认完整邮箱地址，可以直接编辑。提供 14 个本地 SVG 配色头像，也支持上传 JPG、PNG、WebP 图片（最大 5 MB），上传前居中裁成 256 × 256 JPEG。
+仅新账号首次成功完成登录，且尚无 `user_metadata.profile_completed_at` 时，才在工作台加载完成后弹出欢迎浮窗。已有账号、重新打开首页和恢复已有会话都不会自动弹出；用户仍可从账号资料入口主动编辑。新账号判断基于 Supabase 账号创建时间与首次登录时间接近（15 分钟内）。首次设置名称默认完整邮箱地址，可以直接编辑。提供 14 个本地 SVG 配色头像，也支持上传 JPG、PNG、WebP 图片（最大 5 MB），上传前居中裁成 256 × 256 JPEG。
 
 点击“完成，开始创作”后通过 `auth.updateUser` 持久化：
 

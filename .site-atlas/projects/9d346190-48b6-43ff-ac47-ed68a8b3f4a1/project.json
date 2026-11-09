@@ -1,0 +1,5466 @@
+{
+  "schemaVersion": 1,
+  "id": "9d346190-48b6-43ff-ac47-ed68a8b3f4a1",
+  "name": "AI-Sail Flow · 落地页三方案",
+  "mode": "refactor",
+  "root": "/Users/cppeng/sop",
+  "previewOrigin": "http://localhost:4317",
+  "brief": "",
+  "phase": "designing",
+  "revision": 12,
+  "createdAt": "2026-11-08T10:17:40.471Z",
+  "updatedAt": "2026-11-08T14:28:57.309Z",
+  "nodes": [
+    {
+      "id": "page-8a5edab282632443",
+      "parentId": null,
+      "title": "落地页 · Prompt 首屏",
+      "type": "page",
+      "route": "/",
+      "brief": "首屏以单一 Prompt 输入框为中心，包含来自 CapyAI 的模型跑马灯；原有 AI-Sail Flow 品牌视频移为第二屏。交付三套独立 HTML 交互预览，选定之前不改正式首页。",
+      "sourceFiles": [
+        "index.html",
+        "src/App.tsx",
+        "src/LandingHero.tsx",
+        "src/landing-hero.css",
+        "src/landing-background.css"
+      ],
+      "candidates": {
+        "a": {
+          "key": "a",
+          "versions": [
+            {
+              "version": 1,
+              "title": "暖白留白",
+              "description": "跑马灯在上，居中标题与白色输入框；清晰轻盈，接近图 3。",
+              "kind": "authored",
+              "file": "artifacts/page-8a5edab282632443/a/1/index.html",
+              "sha256": "8d5235797051a21b2921be72249c8569ac4e2cbfbef0053f5552647318e7c254",
+              "createdAt": "2026-11-08T10:28:24.971Z"
+            },
+            {
+              "version": 2,
+              "title": "暖白留白",
+              "description": "跑马灯在上，居中标题与白色输入框；清晰轻盈，接近图 3。",
+              "kind": "authored",
+              "file": "artifacts/page-8a5edab282632443/a/2/index.html",
+              "sha256": "8d5235797051a21b2921be72249c8569ac4e2cbfbef0053f5552647318e7c254",
+              "createdAt": "2026-11-08T10:29:43.774Z"
+            },
+            {
+              "version": 3,
+              "title": "居中光场",
+              "description": "按用户选择组合：A 的居中排版、顶部跑马灯与输入框尺寸，搭配 B 的蓝紫与暖橙渐变底色。",
+              "kind": "authored",
+              "file": "artifacts/page-8a5edab282632443/a/3/index.html",
+              "sha256": "25fcb19e05cdc84c37765bcc76bb29dd8a0a5cb20b12fef142d0431dbdf113aa",
+              "createdAt": "2026-11-08T14:28:57.269Z"
+            }
+          ],
+          "current": 3
+        },
+        "b": {
+          "key": "b",
+          "versions": [
+            {
+              "version": 1,
+              "title": "灵感光场",
+              "description": "蓝紫与暖橙光场，左对齐大标题、深色输入框，跑马灯在下；接近图 2。",
+              "kind": "authored",
+              "file": "artifacts/page-8a5edab282632443/b/1/index.html",
+              "sha256": "c51d76b8c672b5bb73765baf5adf83fb7dc3e8127b391b18fcf433b3e64e501e",
+              "createdAt": "2026-11-08T10:28:25.128Z"
+            },
+            {
+              "version": 2,
+              "title": "灵感光场",
+              "description": "蓝紫与暖橙光场，左对齐大标题、深色输入框，跑马灯在下；接近图 2。",
+              "kind": "authored",
+              "file": "artifacts/page-8a5edab282632443/b/2/index.html",
+              "sha256": "c51d76b8c672b5bb73765baf5adf83fb7dc3e8127b391b18fcf433b3e64e501e",
+              "createdAt": "2026-11-08T10:29:43.831Z"
+            }
+          ],
+          "current": 2
+        },
+        "c": {
+          "key": "c",
+          "versions": [
+            {
+              "version": 1,
+              "title": "专注画布",
+              "description": "深色首屏直接以大输入框为中心，浅绿操作按钮，无外部大标题。",
+              "kind": "authored",
+              "file": "artifacts/page-8a5edab282632443/c/1/index.html",
+              "sha256": "4ebf4c0822d88a2f3761f0ec7f324abb2301e094e5084e5a8abed40ec1923ad9",
+              "createdAt": "2026-11-08T10:28:25.215Z"
+            },
+            {
+              "version": 2,
+              "title": "专注画布",
+              "description": "深色首屏直接以大输入框为中心，浅绿操作按钮，无外部大标题。",
+              "kind": "authored",
+              "file": "artifacts/page-8a5edab282632443/c/2/index.html",
+              "sha256": "4ebf4c0822d88a2f3761f0ec7f324abb2301e094e5084e5a8abed40ec1923ad9",
+              "createdAt": "2026-11-08T10:29:43.884Z"
+            }
+          ],
+          "current": 2
+        }
+      },
+      "selection": {
+        "key": "a",
+        "version": 3,
+        "note": "用户在对话中明确选择：a 的排版，b 的底色。",
+        "selectedAt": "2026-11-08T14:28:57.309Z"
+      },
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "c2293d77b0cff0d1",
+      "evidence": "Manually verified conditional landing render in src/App.tsx:1082 and existing LandingHero video component. Scan also included unrelated downloaded references and templates; only this node is in scope.",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-4dcdf383e20f8b80",
+      "parentId": "page-8a5edab282632443",
+      "title": "AI 出海带货工具｜功能说明",
+      "type": "page",
+      "route": "/ai-overseas-tool-functions.html",
+      "brief": "",
+      "sourceFiles": [
+        "ai-overseas-tool-functions.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "39799fbd48522536",
+      "evidence": "HTML document",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-6c9ae41db5852ec4",
+      "parentId": "page-8a5edab282632443",
+      "title": "色卡扇",
+      "type": "page",
+      "route": "/color-card-motion.html",
+      "brief": "",
+      "sourceFiles": [
+        "color-card-motion.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "2314ee30b75680da",
+      "evidence": "HTML document",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-fadc137c49f341f3",
+      "parentId": "page-8a5edab282632443",
+      "title": "组件与触发实验室",
+      "type": "page",
+      "route": "/component-library.html",
+      "brief": "",
+      "sourceFiles": [
+        "component-library.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "0d010f3942d972d8",
+      "evidence": "HTML document",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-bbca449c2b0ccccf",
+      "parentId": "page-8a5edab282632443",
+      "title": "Visualize",
+      "type": "page",
+      "route": "/data/agent-codex/plugins/cache/openai-curated-remote/visualize/1.0.89/skills/visualize/assets/visualize.html",
+      "brief": "",
+      "sourceFiles": [
+        "data/agent-codex/plugins/cache/openai-curated-remote/visualize/1.0.89/skills/visualize/assets/visualize.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "df39736294d31bb8",
+      "evidence": "HTML document",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-670f8f767c5d1f59",
+      "parentId": "page-8a5edab282632443",
+      "title": "阶段完成标记",
+      "type": "page",
+      "route": "/docs/design-previews/completed-stage-indicator.html",
+      "brief": "",
+      "sourceFiles": [
+        "docs/design-previews/completed-stage-indicator.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "2054c34f2e6d0a11",
+      "evidence": "HTML document",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-9adfd0a18d87e732",
+      "parentId": "page-e6b31b49ec58bd38",
+      "title": "Agents",
+      "type": "page",
+      "route": "/docs/elevenlabs-reference/authenticated-rendered.html",
+      "brief": "",
+      "sourceFiles": [
+        "docs/elevenlabs-reference/authenticated-rendered.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "f09a5dabb7e9665c",
+      "evidence": "HTML document",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-e6b31b49ec58bd38",
+      "parentId": "page-8a5edab282632443",
+      "title": "ElevenAgents",
+      "type": "page",
+      "route": "/docs/elevenlabs-reference/",
+      "brief": "",
+      "sourceFiles": [
+        "docs/elevenlabs-reference/index.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "5f360923a62ea163",
+      "evidence": "HTML document",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-5a41bbbbb6464da4",
+      "parentId": "page-e6b31b49ec58bd38",
+      "title": "Templates",
+      "type": "page",
+      "route": "/docs/elevenlabs-reference/local-clone/",
+      "brief": "",
+      "sourceFiles": [
+        "docs/elevenlabs-reference/local-clone/index.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "e1a081a472ed4c84",
+      "evidence": "HTML document",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-d071b828e7947c82",
+      "parentId": "page-8a5edab282632443",
+      "title": "Create AI Image Ads from any URL or Photo",
+      "type": "page",
+      "route": "/docs/studio-redesign/creatify-source/image-ads.html",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "1cf66f760bf6bd01",
+      "evidence": "HTML document",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-76e31e94126e15b6",
+      "parentId": "page-8a5edab282632443",
+      "title": "爆款工作室 landing preview (v3",
+      "type": "page",
+      "route": "/docs/studio-redesign/landing-preview.html",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/landing-preview.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "f66395fcc5e3f00c",
+      "evidence": "HTML document",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-686bee635512deaf",
+      "parentId": "page-8a5edab282632443",
+      "title": "Sail Studio product shell preview",
+      "type": "page",
+      "route": "/docs/studio-redesign/shell-preview.html",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/shell-preview.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "453b031ff7eb4c40",
+      "evidence": "HTML document",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-315effa118307777",
+      "parentId": "page-8a5edab282632443",
+      "title": "Google Flow - AI Creative Studio for Video, Images & Custom Tools",
+      "type": "page",
+      "route": "/flow-google-about-download/",
+      "brief": "",
+      "sourceFiles": [
+        "flow-google-about-download/index.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "760e34c1c7f8cafb",
+      "evidence": "HTML document",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-bdf923dc47ed5060",
+      "parentId": "page-315effa118307777",
+      "title": "Google Flow - AI Creative Studio for Video, Images & Custom Tools",
+      "type": "page",
+      "route": "/flow-google-about-download/index.remote.html",
+      "brief": "",
+      "sourceFiles": [
+        "flow-google-about-download/index.remote.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "c764f58e13f80387",
+      "evidence": "HTML document",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-ebe12a22f7a4c406",
+      "parentId": "page-8a5edab282632443",
+      "title": "产品介绍 - gaoruiapi",
+      "type": "page",
+      "route": "/output/keyframe-grids/omni-provider-docs.html",
+      "brief": "",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "ca79b21ddec74d4a",
+      "evidence": "HTML document",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-44a77a2e0a9490c9",
+      "parentId": "page-8a5edab282632443",
+      "title": "彩色图标候选",
+      "type": "page",
+      "route": "/output/mvp/grain-icons/compare.html",
+      "brief": "",
+      "sourceFiles": [
+        "output/mvp/grain-icons/compare.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "c948854d26c0fb83",
+      "evidence": "HTML document",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-215894e6f6508d55",
+      "parentId": "page-8a5edab282632443",
+      "title": "AI-Sail Flow 登录验证码",
+      "type": "page",
+      "route": "/public/auth-email/code.html",
+      "brief": "",
+      "sourceFiles": [
+        "public/auth-email/code.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "eaf43e0df78d8f63",
+      "evidence": "HTML document",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-33d342a6a9b55a8e",
+      "parentId": "page-8a5edab282632443",
+      "title": "AI-Sail Flow",
+      "type": "page",
+      "route": "/tmp-backup-i18n-202610130358/src/",
+      "brief": "",
+      "sourceFiles": [
+        "tmp-backup-i18n-202610130358/src/index.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "cb610628ea794d5b",
+      "evidence": "HTML document",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-ad60c03e1cc8a94f",
+      "parentId": "page-8a5edab282632443",
+      "title": "Offscreendocument",
+      "type": "page",
+      "route": "/tmp-backup-levels-2026-10-21/chrome-cdp-recent/Default/Extensions/ghbmnnjooekpmoecnnnilnnbdlolhkhi/1.111.1_0/offscreendocument.html",
+      "brief": "",
+      "sourceFiles": [
+        "tmp-backup-levels-2026-10-21/chrome-cdp-recent/Default/Extensions/ghbmnnjooekpmoecnnnilnnbdlolhkhi/1.111.1_0/offscreendocument.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "b9fa2d52a4ffabb4",
+      "evidence": "HTML document",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-02701f3906231315",
+      "parentId": "page-8a5edab282632443",
+      "title": "Craw Window",
+      "type": "page",
+      "route": "/tmp-backup-levels-2026-10-21/chrome-cdp-recent/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/html/craw_window.html",
+      "brief": "",
+      "sourceFiles": [
+        "tmp-backup-levels-2026-10-21/chrome-cdp-recent/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/html/craw_window.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "bb8742615e4cd996",
+      "evidence": "HTML document",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-1b568f56295e3671",
+      "parentId": "page-8a5edab282632443",
+      "title": "Offscreen",
+      "type": "page",
+      "route": "/tmp-backup-levels-2026-10-21/chrome-cdp-recent/WasmTtsEngine/20261005.1/offscreen.html",
+      "brief": "",
+      "sourceFiles": [
+        "tmp-backup-levels-2026-10-21/chrome-cdp-recent/WasmTtsEngine/20261005.1/offscreen.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "90c94c10674d45fc",
+      "evidence": "HTML document",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-1a268661b4bf0cf0",
+      "parentId": "page-8a5edab282632443",
+      "title": "Offscreendocument",
+      "type": "page",
+      "route": "/tmp-backup-levels-2026-10-21/chrome-cdp-recent3/Default/Extensions/ghbmnnjooekpmoecnnnilnnbdlolhkhi/1.111.1_0/offscreendocument.html",
+      "brief": "",
+      "sourceFiles": [
+        "tmp-backup-levels-2026-10-21/chrome-cdp-recent3/Default/Extensions/ghbmnnjooekpmoecnnnilnnbdlolhkhi/1.111.1_0/offscreendocument.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "b9fa2d52a4ffabb4",
+      "evidence": "HTML document",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-d89628da6782fd11",
+      "parentId": "page-8a5edab282632443",
+      "title": "Craw Window",
+      "type": "page",
+      "route": "/tmp-backup-levels-2026-10-21/chrome-cdp-recent3/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/html/craw_window.html",
+      "brief": "",
+      "sourceFiles": [
+        "tmp-backup-levels-2026-10-21/chrome-cdp-recent3/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/html/craw_window.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "bb8742615e4cd996",
+      "evidence": "HTML document",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-13c41904c14025ac",
+      "parentId": "page-8a5edab282632443",
+      "title": "Offscreendocument",
+      "type": "page",
+      "route": "/tmp-backup-levels-2026-10-21/chrome-cdp-recent4/Default/Extensions/ghbmnnjooekpmoecnnnilnnbdlolhkhi/1.111.1_0/offscreendocument.html",
+      "brief": "",
+      "sourceFiles": [
+        "tmp-backup-levels-2026-10-21/chrome-cdp-recent4/Default/Extensions/ghbmnnjooekpmoecnnnilnnbdlolhkhi/1.111.1_0/offscreendocument.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "b9fa2d52a4ffabb4",
+      "evidence": "HTML document",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-87c010bca74344c6",
+      "parentId": "page-8a5edab282632443",
+      "title": "Craw Window",
+      "type": "page",
+      "route": "/tmp-backup-levels-2026-10-21/chrome-cdp-recent4/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/html/craw_window.html",
+      "brief": "",
+      "sourceFiles": [
+        "tmp-backup-levels-2026-10-21/chrome-cdp-recent4/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/html/craw_window.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "bb8742615e4cd996",
+      "evidence": "HTML document",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-3eead30e43bd0a6d",
+      "parentId": "page-8a5edab282632443",
+      "title": "Offscreendocument",
+      "type": "page",
+      "route": "/tmp-backup-levels-2026-10-21/chrome-cdp-recent5/Default/Extensions/ghbmnnjooekpmoecnnnilnnbdlolhkhi/1.111.1_0/offscreendocument.html",
+      "brief": "",
+      "sourceFiles": [
+        "tmp-backup-levels-2026-10-21/chrome-cdp-recent5/Default/Extensions/ghbmnnjooekpmoecnnnilnnbdlolhkhi/1.111.1_0/offscreendocument.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "b9fa2d52a4ffabb4",
+      "evidence": "HTML document",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-51d71d411dd166f4",
+      "parentId": "page-8a5edab282632443",
+      "title": "Craw Window",
+      "type": "page",
+      "route": "/tmp-backup-levels-2026-10-21/chrome-cdp-recent5/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/html/craw_window.html",
+      "brief": "",
+      "sourceFiles": [
+        "tmp-backup-levels-2026-10-21/chrome-cdp-recent5/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/html/craw_window.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "bb8742615e4cd996",
+      "evidence": "HTML document",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-e0fefb782526156b",
+      "parentId": "page-8a5edab282632443",
+      "title": "Offscreendocument",
+      "type": "page",
+      "route": "/tmp-backup-levels-2026-10-21/chrome-cdp/Default/Extensions/ghbmnnjooekpmoecnnnilnnbdlolhkhi/1.111.1_0/offscreendocument.html",
+      "brief": "",
+      "sourceFiles": [
+        "tmp-backup-levels-2026-10-21/chrome-cdp/Default/Extensions/ghbmnnjooekpmoecnnnilnnbdlolhkhi/1.111.1_0/offscreendocument.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "b9fa2d52a4ffabb4",
+      "evidence": "HTML document",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-70502fb5c28dec30",
+      "parentId": "page-8a5edab282632443",
+      "title": "Craw Window",
+      "type": "page",
+      "route": "/tmp-backup-levels-2026-10-21/chrome-cdp/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/html/craw_window.html",
+      "brief": "",
+      "sourceFiles": [
+        "tmp-backup-levels-2026-10-21/chrome-cdp/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/html/craw_window.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "bb8742615e4cd996",
+      "evidence": "HTML document",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-b4931687368b64bb",
+      "parentId": "page-8a5edab282632443",
+      "title": "Offscreendocument",
+      "type": "page",
+      "route": "/tmp-backup-levels-2026-10-21/chrome-cdp10/Default/Extensions/ghbmnnjooekpmoecnnnilnnbdlolhkhi/1.111.1_0/offscreendocument.html",
+      "brief": "",
+      "sourceFiles": [
+        "tmp-backup-levels-2026-10-21/chrome-cdp10/Default/Extensions/ghbmnnjooekpmoecnnnilnnbdlolhkhi/1.111.1_0/offscreendocument.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "b9fa2d52a4ffabb4",
+      "evidence": "HTML document",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-cbfdfa5cc78d269a",
+      "parentId": "page-8a5edab282632443",
+      "title": "Craw Window",
+      "type": "page",
+      "route": "/tmp-backup-levels-2026-10-21/chrome-cdp10/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/html/craw_window.html",
+      "brief": "",
+      "sourceFiles": [
+        "tmp-backup-levels-2026-10-21/chrome-cdp10/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/html/craw_window.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "bb8742615e4cd996",
+      "evidence": "HTML document",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-ebbfbb5022905cd7",
+      "parentId": "page-8a5edab282632443",
+      "title": "Offscreendocument",
+      "type": "page",
+      "route": "/tmp-backup-levels-2026-10-21/chrome-cdp2/Default/Extensions/ghbmnnjooekpmoecnnnilnnbdlolhkhi/1.111.1_0/offscreendocument.html",
+      "brief": "",
+      "sourceFiles": [
+        "tmp-backup-levels-2026-10-21/chrome-cdp2/Default/Extensions/ghbmnnjooekpmoecnnnilnnbdlolhkhi/1.111.1_0/offscreendocument.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "b9fa2d52a4ffabb4",
+      "evidence": "HTML document",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-b6fed939dd31986d",
+      "parentId": "page-8a5edab282632443",
+      "title": "Craw Window",
+      "type": "page",
+      "route": "/tmp-backup-levels-2026-10-21/chrome-cdp2/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/html/craw_window.html",
+      "brief": "",
+      "sourceFiles": [
+        "tmp-backup-levels-2026-10-21/chrome-cdp2/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/html/craw_window.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "bb8742615e4cd996",
+      "evidence": "HTML document",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-d466ae0d2ee81ff3",
+      "parentId": "page-8a5edab282632443",
+      "title": "Offscreendocument",
+      "type": "page",
+      "route": "/tmp-backup-levels-2026-10-21/chrome-cdp3/Default/Extensions/ghbmnnjooekpmoecnnnilnnbdlolhkhi/1.111.1_0/offscreendocument.html",
+      "brief": "",
+      "sourceFiles": [
+        "tmp-backup-levels-2026-10-21/chrome-cdp3/Default/Extensions/ghbmnnjooekpmoecnnnilnnbdlolhkhi/1.111.1_0/offscreendocument.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "b9fa2d52a4ffabb4",
+      "evidence": "HTML document",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-558babd1569cadd4",
+      "parentId": "page-8a5edab282632443",
+      "title": "Craw Window",
+      "type": "page",
+      "route": "/tmp-backup-levels-2026-10-21/chrome-cdp3/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/html/craw_window.html",
+      "brief": "",
+      "sourceFiles": [
+        "tmp-backup-levels-2026-10-21/chrome-cdp3/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/html/craw_window.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "bb8742615e4cd996",
+      "evidence": "HTML document",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-36a4f39a280449c7",
+      "parentId": "page-8a5edab282632443",
+      "title": "Offscreendocument",
+      "type": "page",
+      "route": "/tmp-backup-levels-2026-10-21/chrome-cdp4/Default/Extensions/ghbmnnjooekpmoecnnnilnnbdlolhkhi/1.111.1_0/offscreendocument.html",
+      "brief": "",
+      "sourceFiles": [
+        "tmp-backup-levels-2026-10-21/chrome-cdp4/Default/Extensions/ghbmnnjooekpmoecnnnilnnbdlolhkhi/1.111.1_0/offscreendocument.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "b9fa2d52a4ffabb4",
+      "evidence": "HTML document",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-91b6a729edbc8ffd",
+      "parentId": "page-8a5edab282632443",
+      "title": "Craw Window",
+      "type": "page",
+      "route": "/tmp-backup-levels-2026-10-21/chrome-cdp4/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/html/craw_window.html",
+      "brief": "",
+      "sourceFiles": [
+        "tmp-backup-levels-2026-10-21/chrome-cdp4/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/html/craw_window.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "bb8742615e4cd996",
+      "evidence": "HTML document",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-88c3d66f7f63e725",
+      "parentId": "page-8a5edab282632443",
+      "title": "Offscreendocument",
+      "type": "page",
+      "route": "/tmp-backup-levels-2026-10-21/chrome-cdp5/Default/Extensions/ghbmnnjooekpmoecnnnilnnbdlolhkhi/1.111.1_0/offscreendocument.html",
+      "brief": "",
+      "sourceFiles": [
+        "tmp-backup-levels-2026-10-21/chrome-cdp5/Default/Extensions/ghbmnnjooekpmoecnnnilnnbdlolhkhi/1.111.1_0/offscreendocument.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "b9fa2d52a4ffabb4",
+      "evidence": "HTML document",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-292c61d5c492d2ef",
+      "parentId": "page-8a5edab282632443",
+      "title": "Craw Window",
+      "type": "page",
+      "route": "/tmp-backup-levels-2026-10-21/chrome-cdp5/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/html/craw_window.html",
+      "brief": "",
+      "sourceFiles": [
+        "tmp-backup-levels-2026-10-21/chrome-cdp5/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/html/craw_window.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "bb8742615e4cd996",
+      "evidence": "HTML document",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-6e6ec3596d22ad0d",
+      "parentId": "page-8a5edab282632443",
+      "title": "Offscreendocument",
+      "type": "page",
+      "route": "/tmp-backup-levels-2026-10-21/chrome-cdp6/Default/Extensions/ghbmnnjooekpmoecnnnilnnbdlolhkhi/1.111.1_0/offscreendocument.html",
+      "brief": "",
+      "sourceFiles": [
+        "tmp-backup-levels-2026-10-21/chrome-cdp6/Default/Extensions/ghbmnnjooekpmoecnnnilnnbdlolhkhi/1.111.1_0/offscreendocument.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "b9fa2d52a4ffabb4",
+      "evidence": "HTML document",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-85db31920ed842ce",
+      "parentId": "page-8a5edab282632443",
+      "title": "Craw Window",
+      "type": "page",
+      "route": "/tmp-backup-levels-2026-10-21/chrome-cdp6/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/html/craw_window.html",
+      "brief": "",
+      "sourceFiles": [
+        "tmp-backup-levels-2026-10-21/chrome-cdp6/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/html/craw_window.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "bb8742615e4cd996",
+      "evidence": "HTML document",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-536df7a94badaf51",
+      "parentId": "page-8a5edab282632443",
+      "title": "Offscreendocument",
+      "type": "page",
+      "route": "/tmp-backup-levels-2026-10-21/chrome-cdp7/Default/Extensions/ghbmnnjooekpmoecnnnilnnbdlolhkhi/1.111.1_0/offscreendocument.html",
+      "brief": "",
+      "sourceFiles": [
+        "tmp-backup-levels-2026-10-21/chrome-cdp7/Default/Extensions/ghbmnnjooekpmoecnnnilnnbdlolhkhi/1.111.1_0/offscreendocument.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "b9fa2d52a4ffabb4",
+      "evidence": "HTML document",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-71beef792ad309ee",
+      "parentId": "page-8a5edab282632443",
+      "title": "Craw Window",
+      "type": "page",
+      "route": "/tmp-backup-levels-2026-10-21/chrome-cdp7/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/html/craw_window.html",
+      "brief": "",
+      "sourceFiles": [
+        "tmp-backup-levels-2026-10-21/chrome-cdp7/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/html/craw_window.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "bb8742615e4cd996",
+      "evidence": "HTML document",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-bd024d12363a8748",
+      "parentId": "page-8a5edab282632443",
+      "title": "Offscreendocument",
+      "type": "page",
+      "route": "/tmp-backup-levels-2026-10-21/chrome-cdp8/Default/Extensions/ghbmnnjooekpmoecnnnilnnbdlolhkhi/1.111.1_0/offscreendocument.html",
+      "brief": "",
+      "sourceFiles": [
+        "tmp-backup-levels-2026-10-21/chrome-cdp8/Default/Extensions/ghbmnnjooekpmoecnnnilnnbdlolhkhi/1.111.1_0/offscreendocument.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "b9fa2d52a4ffabb4",
+      "evidence": "HTML document",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-b4f88b7a54f2f85a",
+      "parentId": "page-8a5edab282632443",
+      "title": "Craw Window",
+      "type": "page",
+      "route": "/tmp-backup-levels-2026-10-21/chrome-cdp8/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/html/craw_window.html",
+      "brief": "",
+      "sourceFiles": [
+        "tmp-backup-levels-2026-10-21/chrome-cdp8/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/html/craw_window.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "bb8742615e4cd996",
+      "evidence": "HTML document",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-f8b7a274d0d5ebdc",
+      "parentId": "page-8a5edab282632443",
+      "title": "Offscreendocument",
+      "type": "page",
+      "route": "/tmp-backup-levels-2026-10-21/chrome-cdp9/Default/Extensions/ghbmnnjooekpmoecnnnilnnbdlolhkhi/1.111.1_0/offscreendocument.html",
+      "brief": "",
+      "sourceFiles": [
+        "tmp-backup-levels-2026-10-21/chrome-cdp9/Default/Extensions/ghbmnnjooekpmoecnnnilnnbdlolhkhi/1.111.1_0/offscreendocument.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "b9fa2d52a4ffabb4",
+      "evidence": "HTML document",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-c09f89dd55fd9945",
+      "parentId": "page-8a5edab282632443",
+      "title": "Craw Window",
+      "type": "page",
+      "route": "/tmp-backup-levels-2026-10-21/chrome-cdp9/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/html/craw_window.html",
+      "brief": "",
+      "sourceFiles": [
+        "tmp-backup-levels-2026-10-21/chrome-cdp9/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/html/craw_window.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "bb8742615e4cd996",
+      "evidence": "HTML document",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-5c4a969a5b43abd6",
+      "parentId": "page-8a5edab282632443",
+      "title": "Prototype",
+      "type": "page",
+      "route": "/work/canvas-round-options/prototype.html",
+      "brief": "",
+      "sourceFiles": [
+        "work/canvas-round-options/prototype.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "d975e69c0fe72f8e",
+      "evidence": "HTML document",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-ebf6aeb01625d1d8",
+      "parentId": "page-8a5edab282632443",
+      "title": "CapyAI 创作工作台 - 多模型 AI 图片与视频创作",
+      "type": "page",
+      "route": "/work/capyai-reference/",
+      "brief": "",
+      "sourceFiles": [
+        "work/capyai-reference/index.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "cbfce8bc6363f94b",
+      "evidence": "HTML document",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-673c87298bdad761",
+      "parentId": "page-8a5edab282632443",
+      "title": "Agents",
+      "type": "page",
+      "route": "/app/agents",
+      "brief": "",
+      "sourceFiles": [
+        "docs/elevenlabs-reference/authenticated-rendered.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-a34081941e6d3f5e",
+      "parentId": "page-673c87298bdad761",
+      "title": "Architect",
+      "type": "page",
+      "route": "/app/agents/architect",
+      "brief": "",
+      "sourceFiles": [
+        "docs/elevenlabs-reference/authenticated-rendered.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-d5bf511df1e4aa57",
+      "parentId": "page-673c87298bdad761",
+      "title": "Triage",
+      "type": "page",
+      "route": "/app/agents/triage",
+      "brief": "",
+      "sourceFiles": [
+        "docs/elevenlabs-reference/authenticated-rendered.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-05e84729ca23d56a",
+      "parentId": "page-673c87298bdad761",
+      "title": "Agents",
+      "type": "page",
+      "route": "/app/agents/agents",
+      "brief": "",
+      "sourceFiles": [
+        "docs/elevenlabs-reference/authenticated-rendered.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-b56c1783d4ee36a8",
+      "parentId": "page-05e84729ca23d56a",
+      "title": "Agent 3501m5yr72cmezw8mvstfph3phb2",
+      "type": "page",
+      "route": "/app/agents/agents/agent_3501m5yr72cmezw8mvstfph3phb2",
+      "brief": "",
+      "sourceFiles": [
+        "docs/elevenlabs-reference/authenticated-rendered.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-8c414ec21b6b9162",
+      "parentId": "page-673c87298bdad761",
+      "title": "New",
+      "type": "page",
+      "route": "/app/agents/new",
+      "brief": "",
+      "sourceFiles": [
+        "docs/elevenlabs-reference/authenticated-rendered.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-962b78ae27aea082",
+      "parentId": "page-673c87298bdad761",
+      "title": "Knowledge Base",
+      "type": "page",
+      "route": "/app/agents/knowledge-base",
+      "brief": "",
+      "sourceFiles": [
+        "docs/elevenlabs-reference/authenticated-rendered.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-fca50c5bc1b4466d",
+      "parentId": "page-673c87298bdad761",
+      "title": "Tools",
+      "type": "page",
+      "route": "/app/agents/tools",
+      "brief": "",
+      "sourceFiles": [
+        "docs/elevenlabs-reference/authenticated-rendered.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-dd3bc2b986d67a42",
+      "parentId": "page-673c87298bdad761",
+      "title": "Integrations",
+      "type": "page",
+      "route": "/app/agents/integrations",
+      "brief": "",
+      "sourceFiles": [
+        "docs/elevenlabs-reference/authenticated-rendered.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-ceec1bf9182e2a41",
+      "parentId": "page-673c87298bdad761",
+      "title": "Voice Library",
+      "type": "page",
+      "route": "/app/agents/voice-library",
+      "brief": "",
+      "sourceFiles": [
+        "docs/elevenlabs-reference/authenticated-rendered.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-ea318aff486e2405",
+      "parentId": "page-673c87298bdad761",
+      "title": "History",
+      "type": "page",
+      "route": "/app/agents/history",
+      "brief": "",
+      "sourceFiles": [
+        "docs/elevenlabs-reference/authenticated-rendered.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-f221a9d9188733f4",
+      "parentId": "page-673c87298bdad761",
+      "title": "Users",
+      "type": "page",
+      "route": "/app/agents/users",
+      "brief": "",
+      "sourceFiles": [
+        "docs/elevenlabs-reference/authenticated-rendered.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-7f289df763215fdf",
+      "parentId": "page-673c87298bdad761",
+      "title": "Agent Testing",
+      "type": "page",
+      "route": "/app/agents/agent-testing",
+      "brief": "",
+      "sourceFiles": [
+        "docs/elevenlabs-reference/authenticated-rendered.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-5179e43eea4e8ba0",
+      "parentId": "page-673c87298bdad761",
+      "title": "Channels",
+      "type": "page",
+      "route": "/app/agents/channels",
+      "brief": "",
+      "sourceFiles": [
+        "docs/elevenlabs-reference/authenticated-rendered.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-bfe92fbaae405862",
+      "parentId": "page-673c87298bdad761",
+      "title": "Phone Numbers",
+      "type": "page",
+      "route": "/app/agents/phone-numbers",
+      "brief": "",
+      "sourceFiles": [
+        "docs/elevenlabs-reference/authenticated-rendered.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-f62e46c4303678d1",
+      "parentId": "page-673c87298bdad761",
+      "title": "Whatsapp",
+      "type": "page",
+      "route": "/app/agents/whatsapp",
+      "brief": "",
+      "sourceFiles": [
+        "docs/elevenlabs-reference/authenticated-rendered.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-3ef1616a3c34f9bf",
+      "parentId": "page-673c87298bdad761",
+      "title": "Batch Calling",
+      "type": "page",
+      "route": "/app/agents/batch-calling",
+      "brief": "",
+      "sourceFiles": [
+        "docs/elevenlabs-reference/authenticated-rendered.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-5c1af515df823fc9",
+      "parentId": "page-673c87298bdad761",
+      "title": "Settings",
+      "type": "page",
+      "route": "/app/agents/settings",
+      "brief": "",
+      "sourceFiles": [
+        "docs/elevenlabs-reference/authenticated-rendered.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-7220c0f474728d55",
+      "parentId": "page-8a5edab282632443",
+      "title": "Developers",
+      "type": "page",
+      "route": "/app/developers",
+      "brief": "",
+      "sourceFiles": [
+        "docs/elevenlabs-reference/authenticated-rendered.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-7c759710aca2faf7",
+      "parentId": "page-8a5edab282632443",
+      "title": "Subscription",
+      "type": "page",
+      "route": "/app/subscription",
+      "brief": "",
+      "sourceFiles": [
+        "docs/elevenlabs-reference/authenticated-rendered.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-3e98b63badd1c544",
+      "parentId": "page-673c87298bdad761",
+      "title": "Tmpl 2601kptsp1kqf6ban2f8gk59vycw",
+      "type": "page",
+      "route": "/app/agents/templates/tmpl_2601kptsp1kqf6ban2f8gk59vycw",
+      "brief": "",
+      "sourceFiles": [
+        "docs/elevenlabs-reference/authenticated-rendered.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-1c553d5b11761fba",
+      "parentId": "page-8a5edab282632443",
+      "title": "Ad Agent",
+      "type": "page",
+      "route": "/ad-agent",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-ccef51bfbf5ae39b",
+      "parentId": "page-8a5edab282632443",
+      "title": "New",
+      "type": "page",
+      "route": "/adflow/new",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-55d0bae88789649c",
+      "parentId": "page-de335934359a9058",
+      "title": "Url To Video",
+      "type": "page",
+      "route": "/features/url-to-video",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-d80951e7357ae233",
+      "parentId": "page-de335934359a9058",
+      "title": "Ai Avatar",
+      "type": "page",
+      "route": "/features/ai-avatar",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-d1c8493c37da2b0a",
+      "parentId": "page-de335934359a9058",
+      "title": "Model Playground",
+      "type": "page",
+      "route": "/features/model-playground",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-38849f000b3c185d",
+      "parentId": "page-1b63e95f753d2656",
+      "title": "Image Ads",
+      "type": "page",
+      "route": "/use-cases/image-ads",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-89b6b3f9d16b877e",
+      "parentId": "page-de335934359a9058",
+      "title": "Ad Clone",
+      "type": "page",
+      "route": "/features/ad-clone",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-d1e0bcd688a689d0",
+      "parentId": "page-d3be381b3bcb529a",
+      "title": "Brand",
+      "type": "page",
+      "route": "/tool/creative-insights/brand",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-456cf04b69ed8f47",
+      "parentId": "page-8a5edab282632443",
+      "title": "Inspiration",
+      "type": "page",
+      "route": "/inspiration",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-702acf7c08d3b03b",
+      "parentId": "page-8a5edab282632443",
+      "title": "Api",
+      "type": "page",
+      "route": "/api",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-b4eab78d6975cc5b",
+      "parentId": "page-de335934359a9058",
+      "title": "Mcp",
+      "type": "page",
+      "route": "/features/mcp",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-c8edb52b3f0c220a",
+      "parentId": "page-8a5edab282632443",
+      "title": "Slack",
+      "type": "page",
+      "route": "/slack",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-22a69e662072f633",
+      "parentId": "page-d3be381b3bcb529a",
+      "title": "Choose Launch",
+      "type": "page",
+      "route": "/tool/creative-testing/choose-launch",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-5b0f3f2119e1ad03",
+      "parentId": "page-8a5edab282632443",
+      "title": "Studio",
+      "type": "page",
+      "route": "/studio",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-8caafe4386f95803",
+      "parentId": "page-8a5edab282632443",
+      "title": "Blog",
+      "type": "page",
+      "route": "/blog",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-8e813f011801030d",
+      "parentId": "page-8a5edab282632443",
+      "title": "Case Study",
+      "type": "page",
+      "route": "/case-study",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-5d418ba4a2912ed1",
+      "parentId": "page-8a5edab282632443",
+      "title": "Learning Center",
+      "type": "page",
+      "route": "/learning-center",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-19baf385f9f3a826",
+      "parentId": "page-8a5edab282632443",
+      "title": "Affiliate",
+      "type": "page",
+      "route": "/affiliate",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-013cc6e0ad656a19",
+      "parentId": "page-8a5edab282632443",
+      "title": "Careers",
+      "type": "page",
+      "route": "/careers",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-b6fbaf313e878951",
+      "parentId": "page-8a5edab282632443",
+      "title": "Ai Ethics",
+      "type": "page",
+      "route": "/ai-ethics",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-979bddc4a8caafdd",
+      "parentId": "page-8a5edab282632443",
+      "title": "About",
+      "type": "page",
+      "route": "/about",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-ae3e91c8654dca8b",
+      "parentId": "page-1b63e95f753d2656",
+      "title": "Ugc",
+      "type": "page",
+      "route": "/use-cases/ugc",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-6731d3c92e52dc65",
+      "parentId": "page-1b63e95f753d2656",
+      "title": "Product Videos",
+      "type": "page",
+      "route": "/use-cases/product-videos",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-f8ce52c39476a74e",
+      "parentId": "page-1b63e95f753d2656",
+      "title": "Cinematic",
+      "type": "page",
+      "route": "/use-cases/cinematic",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-16a94df6b2583275",
+      "parentId": "page-1b63e95f753d2656",
+      "title": "Ott Ctv Advertising",
+      "type": "page",
+      "route": "/use-cases/ott-ctv-advertising",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-2d9178e9eccae8db",
+      "parentId": "page-1b63e95f753d2656",
+      "title": "Ecommerce Ads",
+      "type": "page",
+      "route": "/use-cases/ecommerce-ads",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-37a5f0d5f403da6c",
+      "parentId": "page-1b63e95f753d2656",
+      "title": "App Ads",
+      "type": "page",
+      "route": "/use-cases/app-ads",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-88542310ac13e55d",
+      "parentId": "page-1b63e95f753d2656",
+      "title": "Services Ads",
+      "type": "page",
+      "route": "/use-cases/services-ads",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-1b63e95f753d2656",
+      "parentId": "page-8a5edab282632443",
+      "title": "Use Cases",
+      "type": "page",
+      "route": "/use-cases",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-7394a2bb766646ca",
+      "parentId": "page-8a5edab282632443",
+      "title": "Pricing",
+      "type": "page",
+      "route": "/pricing",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-0a0795774070a9dc",
+      "parentId": "page-8a5edab282632443",
+      "title": "Login",
+      "type": "page",
+      "route": "/auth/login",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-9debdd537e08acf3",
+      "parentId": "page-8a5edab282632443",
+      "title": "Contact",
+      "type": "page",
+      "route": "/enterprise/contact",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-17374db511a581bb",
+      "parentId": "page-8e813f011801030d",
+      "title": "Dena",
+      "type": "page",
+      "route": "/case-study/dena",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-7eb76411830a2ece",
+      "parentId": "page-8e813f011801030d",
+      "title": "Designrr",
+      "type": "page",
+      "route": "/case-study/designrr",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-8e68cf57c2414012",
+      "parentId": "page-8e813f011801030d",
+      "title": "Alibaba",
+      "type": "page",
+      "route": "/case-study/alibaba",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-5fb968a65ba5383b",
+      "parentId": "page-8e813f011801030d",
+      "title": "Tec Do 2 0",
+      "type": "page",
+      "route": "/case-study/tec-do-2-0",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-7b8184d4bc3d1e9a",
+      "parentId": "page-8e813f011801030d",
+      "title": "1more",
+      "type": "page",
+      "route": "/case-study/1more",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-a73cf7a43e51070c",
+      "parentId": "page-8e813f011801030d",
+      "title": "Whole Life Pet",
+      "type": "page",
+      "route": "/case-study/whole-life-pet",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-7feefb791cd515f1",
+      "parentId": "page-8e813f011801030d",
+      "title": "Vitals",
+      "type": "page",
+      "route": "/case-study/vitals",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-c35a8ecf6927d170",
+      "parentId": "page-8e813f011801030d",
+      "title": "Adnet",
+      "type": "page",
+      "route": "/case-study/adnet",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-60d6ab919bd27c3b",
+      "parentId": "page-de335934359a9058",
+      "title": "Agent",
+      "type": "page",
+      "route": "/features/agent",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-44071d81ceddcbe3",
+      "parentId": "page-d3be381b3bcb529a",
+      "title": "Adflow Explorer",
+      "type": "page",
+      "route": "/tool/adflow-explorer",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-8c0342aad6f09e22",
+      "parentId": "page-de335934359a9058",
+      "title": "Performance Agent",
+      "type": "page",
+      "route": "/features/performance-agent",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-bc17f4c0ffd59161",
+      "parentId": "page-de335934359a9058",
+      "title": "Product Video",
+      "type": "page",
+      "route": "/features/product-video",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-de335934359a9058",
+      "parentId": "page-8a5edab282632443",
+      "title": "Features",
+      "type": "page",
+      "route": "/features",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-5ebacfd6e944895d",
+      "parentId": "page-de335934359a9058",
+      "title": "Ai Influencer Generator",
+      "type": "page",
+      "route": "/features/ai-influencer-generator",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-3ec870fb8676f205",
+      "parentId": "page-de335934359a9058",
+      "title": "Text To Speech",
+      "type": "page",
+      "route": "/features/text-to-speech",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-73be22ab02836a48",
+      "parentId": "page-de335934359a9058",
+      "title": "Ai Scriptwriter",
+      "type": "page",
+      "route": "/features/ai-scriptwriter",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-cf072c8fd6cc59d6",
+      "parentId": "page-de335934359a9058",
+      "title": "Ai Voice Over",
+      "type": "page",
+      "route": "/features/ai-voice-over",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-d3be381b3bcb529a",
+      "parentId": "page-8a5edab282632443",
+      "title": "Tool",
+      "type": "page",
+      "route": "/tool",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-b2bd94155e216b1d",
+      "parentId": "page-d3be381b3bcb529a",
+      "title": "Ai Text To Video",
+      "type": "page",
+      "route": "/tool/ai-text-to-video",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-fec34e6c322a5d75",
+      "parentId": "page-d3be381b3bcb529a",
+      "title": "Create Your Own Avatar",
+      "type": "page",
+      "route": "/tool/create-your-own-avatar",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-8baf66154c02968e",
+      "parentId": "page-d3be381b3bcb529a",
+      "title": "Digital Advertising Intelligence",
+      "type": "page",
+      "route": "/tool/digital-advertising-intelligence",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-c3a789ea35cfa364",
+      "parentId": "page-d3be381b3bcb529a",
+      "title": "Product Photography",
+      "type": "page",
+      "route": "/tool/product-photography",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-8945c33a260f4ea1",
+      "parentId": "page-de335934359a9058",
+      "title": "Ai Video Generator",
+      "type": "page",
+      "route": "/features/ai-video-generator",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-a597a4aab7457143",
+      "parentId": "page-de335934359a9058",
+      "title": "Image To Video Ai",
+      "type": "page",
+      "route": "/features/image-to-video-ai",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-f4d93e62e1cf3bb9",
+      "parentId": "page-d3be381b3bcb529a",
+      "title": "Ugc Creator",
+      "type": "page",
+      "route": "/tool/ugc-creator",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-351043a802918e59",
+      "parentId": "page-8a5edab282632443",
+      "title": "Boreal",
+      "type": "page",
+      "route": "/ai-models/boreal",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-9ad88a992a15ab0e",
+      "parentId": "page-1b63e95f753d2656",
+      "title": "Ads For Games",
+      "type": "page",
+      "route": "/use-cases/ads-for-games",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-45efab234cc682b3",
+      "parentId": "page-1b63e95f753d2656",
+      "title": "Dtc Ads",
+      "type": "page",
+      "route": "/use-cases/dtc-ads",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-1006ccba27031222",
+      "parentId": "page-1b63e95f753d2656",
+      "title": "Marketing Agencies",
+      "type": "page",
+      "route": "/use-cases/marketing-agencies",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-ef9ee53fba3ff111",
+      "parentId": "page-1b63e95f753d2656",
+      "title": "Tiktok Ads",
+      "type": "page",
+      "route": "/use-cases/tiktok-ads",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-a8d94fe5d3035b07",
+      "parentId": "page-1b63e95f753d2656",
+      "title": "Real Estate Ads",
+      "type": "page",
+      "route": "/use-cases/real-estate-ads",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-87f35ac4806cae7a",
+      "parentId": "page-1b63e95f753d2656",
+      "title": "Instagram Ads",
+      "type": "page",
+      "route": "/use-cases/instagram-ads",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-3c44549abd061efd",
+      "parentId": "page-1b63e95f753d2656",
+      "title": "Facebook Ads",
+      "type": "page",
+      "route": "/use-cases/facebook-ads",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-28bc1a2f9c040f72",
+      "parentId": "page-1b63e95f753d2656",
+      "title": "Youtube Ads",
+      "type": "page",
+      "route": "/use-cases/youtube-ads",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-c4aa834c1bdd3fbc",
+      "parentId": "page-1b63e95f753d2656",
+      "title": "Snap Ads",
+      "type": "page",
+      "route": "/use-cases/snap-ads",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-a8fa814e4f12090c",
+      "parentId": "page-1b63e95f753d2656",
+      "title": "Linkedin Ads",
+      "type": "page",
+      "route": "/use-cases/linkedin-ads",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-68d7fed57516f16c",
+      "parentId": "page-1b63e95f753d2656",
+      "title": "Axon",
+      "type": "page",
+      "route": "/use-cases/axon",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-4eb950636535d637",
+      "parentId": "page-8a5edab282632443",
+      "title": "Contact",
+      "type": "page",
+      "route": "/contact",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-6e9ae4016c5332bc",
+      "parentId": "page-8a5edab282632443",
+      "title": "Product Updates",
+      "type": "page",
+      "route": "/product_updates",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-2dda5c6b8eee51aa",
+      "parentId": "page-8a5edab282632443",
+      "title": "Terms",
+      "type": "page",
+      "route": "/terms",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-0ece7f7c306b4cf6",
+      "parentId": "page-8a5edab282632443",
+      "title": "Privacy",
+      "type": "page",
+      "route": "/privacy",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-970911d4ad4527f7",
+      "parentId": "page-8a5edab282632443",
+      "title": "Moderation Policy",
+      "type": "page",
+      "route": "/moderation-policy",
+      "brief": "",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-ffb86c3b7d4fa4c2",
+      "parentId": "page-8a5edab282632443",
+      "title": "Doc 8059065",
+      "type": "page",
+      "route": "/doc-8059065",
+      "brief": "",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-3b5bc735b5cbdfb1",
+      "parentId": "page-8a5edab282632443",
+      "title": "Doc 8059069",
+      "type": "page",
+      "route": "/doc-8059069",
+      "brief": "",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-02227d8d4684c6a4",
+      "parentId": "page-8a5edab282632443",
+      "title": "Doc 8080690",
+      "type": "page",
+      "route": "/doc-8080690",
+      "brief": "",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-3c00f941ebf560c7",
+      "parentId": "page-8a5edab282632443",
+      "title": "Doc 8981138",
+      "type": "page",
+      "route": "/doc-8981138",
+      "brief": "",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-eb22e2846da48a1d",
+      "parentId": "page-8a5edab282632443",
+      "title": "Doc 8880664",
+      "type": "page",
+      "route": "/doc-8880664",
+      "brief": "",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-cddc944748eb781d",
+      "parentId": "page-8a5edab282632443",
+      "title": "Doc 8842676",
+      "type": "page",
+      "route": "/doc-8842676",
+      "brief": "",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-4acc0a02ab83abd8",
+      "parentId": "page-8a5edab282632443",
+      "title": "Doc 9461225",
+      "type": "page",
+      "route": "/doc-9461225",
+      "brief": "",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-efdbc4ef31f9319d",
+      "parentId": "page-8a5edab282632443",
+      "title": "Doc 9461241",
+      "type": "page",
+      "route": "/doc-9461241",
+      "brief": "",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.254Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-fae8c6d51d1ebc0c",
+      "parentId": "page-8a5edab282632443",
+      "title": "Doc 9461312",
+      "type": "page",
+      "route": "/doc-9461312",
+      "brief": "",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.255Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-c2d492509b9ee385",
+      "parentId": "page-8a5edab282632443",
+      "title": "Doc 9461391",
+      "type": "page",
+      "route": "/doc-9461391",
+      "brief": "",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.255Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-8741baf54d907b63",
+      "parentId": "page-8a5edab282632443",
+      "title": "Doc 9342284",
+      "type": "page",
+      "route": "/doc-9342284",
+      "brief": "",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.255Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-177e9b74bb8db238",
+      "parentId": "page-8a5edab282632443",
+      "title": "Doc 8806456",
+      "type": "page",
+      "route": "/doc-8806456",
+      "brief": "",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.255Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-5c489c119fa594b7",
+      "parentId": "page-8a5edab282632443",
+      "title": "Doc 8806459",
+      "type": "page",
+      "route": "/doc-8806459",
+      "brief": "",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.255Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-7407a578b500aee7",
+      "parentId": "page-8a5edab282632443",
+      "title": "Doc 9326958",
+      "type": "page",
+      "route": "/doc-9326958",
+      "brief": "",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.255Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-01664a1ce8b0045e",
+      "parentId": "page-8a5edab282632443",
+      "title": "Doc 9460690",
+      "type": "page",
+      "route": "/doc-9460690",
+      "brief": "",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.255Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-80e7335caad8d62a",
+      "parentId": "page-8a5edab282632443",
+      "title": "Doc 9342236",
+      "type": "page",
+      "route": "/doc-9342236",
+      "brief": "",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.255Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-d71d80bb5a66fc83",
+      "parentId": "page-8a5edab282632443",
+      "title": "Doc 9342237",
+      "type": "page",
+      "route": "/doc-9342237",
+      "brief": "",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.255Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-cf44c22c60c78f4a",
+      "parentId": "page-8a5edab282632443",
+      "title": "Doc 8149709",
+      "type": "page",
+      "route": "/doc-8149709",
+      "brief": "",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.255Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-d0d4c2b5c6b14cca",
+      "parentId": "page-8a5edab282632443",
+      "title": "Doc 8149711",
+      "type": "page",
+      "route": "/doc-8149711",
+      "brief": "",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.255Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-894e043fa3033a8d",
+      "parentId": "page-8a5edab282632443",
+      "title": "Api 415568235",
+      "type": "page",
+      "route": "/api-415568235",
+      "brief": "",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.255Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-dbdd1a1ea103f036",
+      "parentId": "page-8a5edab282632443",
+      "title": "Api 415706993",
+      "type": "page",
+      "route": "/api-415706993",
+      "brief": "",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.255Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-98fc84b270d319e4",
+      "parentId": "page-8a5edab282632443",
+      "title": "Api 415714292",
+      "type": "page",
+      "route": "/api-415714292",
+      "brief": "",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.255Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-ce98aa30d2eaa507",
+      "parentId": "page-8a5edab282632443",
+      "title": "Api 415714644",
+      "type": "page",
+      "route": "/api-415714644",
+      "brief": "",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.255Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-3a29dcbe0ebdc114",
+      "parentId": "page-8a5edab282632443",
+      "title": "Api 415714940",
+      "type": "page",
+      "route": "/api-415714940",
+      "brief": "",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.255Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-a7ac94392c706984",
+      "parentId": "page-8a5edab282632443",
+      "title": "Api 415715026",
+      "type": "page",
+      "route": "/api-415715026",
+      "brief": "",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.255Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-60a9d5f78dea0420",
+      "parentId": "page-8a5edab282632443",
+      "title": "Api 415715116",
+      "type": "page",
+      "route": "/api-415715116",
+      "brief": "",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.255Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-51bc7052e590960d",
+      "parentId": "page-8a5edab282632443",
+      "title": "Api 415715965",
+      "type": "page",
+      "route": "/api-415715965",
+      "brief": "",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.255Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-9728b43909466e9b",
+      "parentId": "page-8a5edab282632443",
+      "title": "Api 416339633",
+      "type": "page",
+      "route": "/api-416339633",
+      "brief": "",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.255Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-d677c7b387b4f1db",
+      "parentId": "page-8a5edab282632443",
+      "title": "Api 416340123",
+      "type": "page",
+      "route": "/api-416340123",
+      "brief": "",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.255Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-4d513d4df1994a0c",
+      "parentId": "page-8a5edab282632443",
+      "title": "Api 416340715",
+      "type": "page",
+      "route": "/api-416340715",
+      "brief": "",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.255Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-0ce414322dc909d7",
+      "parentId": "page-8a5edab282632443",
+      "title": "Api 416341697",
+      "type": "page",
+      "route": "/api-416341697",
+      "brief": "",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.255Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-74ecb33fa1b80b56",
+      "parentId": "page-8a5edab282632443",
+      "title": "Doc 8178963",
+      "type": "page",
+      "route": "/doc-8178963",
+      "brief": "",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.255Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-f561cf8121f7935b",
+      "parentId": "page-8a5edab282632443",
+      "title": "Doc 8826360",
+      "type": "page",
+      "route": "/doc-8826360",
+      "brief": "",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.255Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-c9700a95a7c72a84",
+      "parentId": "page-8a5edab282632443",
+      "title": "Doc 8786482",
+      "type": "page",
+      "route": "/doc-8786482",
+      "brief": "",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.255Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "page-eb1119ab46acbbe2",
+      "parentId": "page-8a5edab282632443",
+      "title": "Llms",
+      "type": "page",
+      "route": "/llms.txt",
+      "brief": "",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.255Z",
+      "sourceHash": "",
+      "evidence": "Linked route; implementation not resolved in this directory",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "tab-6bdcbd09613bc13f",
+      "parentId": "page-9adfd0a18d87e732",
+      "title": "Workflow",
+      "type": "tab",
+      "route": "/docs/elevenlabs-reference/authenticated-rendered.html#radix-_r_ed_-content-workflow",
+      "brief": "",
+      "sourceFiles": [
+        "docs/elevenlabs-reference/authenticated-rendered.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.255Z",
+      "sourceHash": "f09a5dabb7e9665c",
+      "evidence": "Declared tab in docs/elevenlabs-reference/authenticated-rendered.html",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "tab-eb7957cbbf3530c8",
+      "parentId": "page-9adfd0a18d87e732",
+      "title": "Preview",
+      "type": "tab",
+      "route": "/docs/elevenlabs-reference/authenticated-rendered.html#radix-_r_ed_-content-preview",
+      "brief": "",
+      "sourceFiles": [
+        "docs/elevenlabs-reference/authenticated-rendered.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.255Z",
+      "sourceHash": "f09a5dabb7e9665c",
+      "evidence": "Declared tab in docs/elevenlabs-reference/authenticated-rendered.html",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "tab-77ebf38c62b5564c",
+      "parentId": "page-5a41bbbbb6464da4",
+      "title": "Preview",
+      "type": "tab",
+      "route": "/docs/elevenlabs-reference/local-clone/#preview",
+      "brief": "",
+      "sourceFiles": [
+        "docs/elevenlabs-reference/local-clone/index.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.255Z",
+      "sourceHash": "e1a081a472ed4c84",
+      "evidence": "Declared tab in docs/elevenlabs-reference/local-clone/index.html",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    },
+    {
+      "id": "tab-4f92ba40573d6291",
+      "parentId": "page-5a41bbbbb6464da4",
+      "title": "Workflow",
+      "type": "tab",
+      "route": "/docs/elevenlabs-reference/local-clone/#workflow",
+      "brief": "",
+      "sourceFiles": [
+        "docs/elevenlabs-reference/local-clone/index.html"
+      ],
+      "candidates": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "selection": null,
+      "createdAt": "2026-11-08T10:17:59.255Z",
+      "sourceHash": "e1a081a472ed4c84",
+      "evidence": "Declared tab in docs/elevenlabs-reference/local-clone/index.html",
+      "discovered": true,
+      "missingFromScan": false,
+      "sourceChanged": false
+    }
+  ],
+  "jobs": [
+    {
+      "id": "ecf3a092-b352-4627-bfeb-926f36a477d9",
+      "nodeId": "page-8a5edab282632443",
+      "status": "complete",
+      "feedback": "User requested three interactive landing-page candidates. Preserve the existing video as screen two and include the CapyAI model marquee.",
+      "createdAt": "2026-11-08T10:28:24.910Z",
+      "updatedAt": "2026-11-08T10:28:25.216Z",
+      "candidateKeys": [
+        "a",
+        "b",
+        "c"
+      ],
+      "completedKeys": [
+        "a",
+        "b",
+        "c"
+      ]
+    }
+  ],
+  "scan": {
+    "completedAt": "2026-11-08T10:17:59.253Z",
+    "reviewedFiles": 720,
+    "pageCount": 179,
+    "tabCount": 4,
+    "unresolvedRoutes": [
+      "/app/agents",
+      "/app/agents/architect",
+      "/app/agents/triage",
+      "/app/agents/agents",
+      "/app/agents/agents/agent_3501m5yr72cmezw8mvstfph3phb2",
+      "/app/agents/new",
+      "/app/agents/knowledge-base",
+      "/app/agents/tools",
+      "/app/agents/integrations",
+      "/app/agents/voice-library",
+      "/app/agents/history",
+      "/app/agents/users",
+      "/app/agents/agent-testing",
+      "/app/agents/channels",
+      "/app/agents/phone-numbers",
+      "/app/agents/whatsapp",
+      "/app/agents/batch-calling",
+      "/app/agents/settings",
+      "/app/developers",
+      "/app/subscription",
+      "/app/agents/templates/tmpl_2601kptsp1kqf6ban2f8gk59vycw",
+      "/ad-agent",
+      "/adflow/new",
+      "/features/url-to-video",
+      "/features/ai-avatar",
+      "/features/model-playground",
+      "/use-cases/image-ads",
+      "/features/ad-clone",
+      "/tool/creative-insights/brand",
+      "/inspiration",
+      "/api",
+      "/features/mcp",
+      "/slack",
+      "/tool/creative-testing/choose-launch",
+      "/studio",
+      "/blog",
+      "/case-study",
+      "/learning-center",
+      "/affiliate",
+      "/careers",
+      "/ai-ethics",
+      "/about",
+      "/use-cases/ugc",
+      "/use-cases/product-videos",
+      "/use-cases/cinematic",
+      "/use-cases/ott-ctv-advertising",
+      "/use-cases/ecommerce-ads",
+      "/use-cases/app-ads",
+      "/use-cases/services-ads",
+      "/use-cases",
+      "/pricing",
+      "/auth/login",
+      "/enterprise/contact",
+      "/case-study/dena",
+      "/case-study/designrr",
+      "/case-study/alibaba",
+      "/case-study/tec-do-2-0",
+      "/case-study/1more",
+      "/case-study/whole-life-pet",
+      "/case-study/vitals",
+      "/case-study/adnet",
+      "/features/agent",
+      "/tool/adflow-explorer",
+      "/features/performance-agent",
+      "/features/product-video",
+      "/features",
+      "/features/ai-influencer-generator",
+      "/features/text-to-speech",
+      "/features/ai-scriptwriter",
+      "/features/ai-voice-over",
+      "/tool",
+      "/tool/ai-text-to-video",
+      "/tool/create-your-own-avatar",
+      "/tool/digital-advertising-intelligence",
+      "/tool/product-photography",
+      "/features/ai-video-generator",
+      "/features/image-to-video-ai",
+      "/tool/ugc-creator",
+      "/ai-models/boreal",
+      "/use-cases/ads-for-games",
+      "/use-cases/dtc-ads",
+      "/use-cases/marketing-agencies",
+      "/use-cases/tiktok-ads",
+      "/use-cases/real-estate-ads",
+      "/use-cases/instagram-ads",
+      "/use-cases/facebook-ads",
+      "/use-cases/youtube-ads",
+      "/use-cases/snap-ads",
+      "/use-cases/linkedin-ads",
+      "/use-cases/axon",
+      "/contact",
+      "/product_updates",
+      "/terms",
+      "/privacy",
+      "/moderation-policy",
+      "/doc-8059065",
+      "/doc-8059069",
+      "/doc-8080690",
+      "/doc-8981138",
+      "/doc-8880664",
+      "/doc-8842676",
+      "/doc-9461225",
+      "/doc-9461241",
+      "/doc-9461312",
+      "/doc-9461391",
+      "/doc-9342284",
+      "/doc-8806456",
+      "/doc-8806459",
+      "/doc-9326958",
+      "/doc-9460690",
+      "/doc-9342236",
+      "/doc-9342237",
+      "/doc-8149709",
+      "/doc-8149711",
+      "/api-415568235",
+      "/api-415706993",
+      "/api-415714292",
+      "/api-415714644",
+      "/api-415714940",
+      "/api-415715026",
+      "/api-415715116",
+      "/api-415715965",
+      "/api-416339633",
+      "/api-416340123",
+      "/api-416340715",
+      "/api-416341697",
+      "/doc-8178963",
+      "/doc-8826360",
+      "/doc-8786482",
+      "/llms.txt"
+    ],
+    "warnings": [
+      "The scan reached its file or nesting limit. Narrow the project directory or add missing pages manually.",
+      "1 large source files were skipped.",
+      "Static analysis covers declared routes and HTML tabs. Runtime-generated routes, conditional screens and undeclared states may need to be added manually.",
+      "130 linked routes were included without a resolved implementation. Review these nodes or analyze the wider application directory."
+    ],
+    "coverage": "static"
+  },
+  "links": [
+    {
+      "from": "page-9adfd0a18d87e732",
+      "to": "page-673c87298bdad761"
+    },
+    {
+      "from": "page-9adfd0a18d87e732",
+      "to": "page-673c87298bdad761"
+    },
+    {
+      "from": "page-9adfd0a18d87e732",
+      "to": "page-a34081941e6d3f5e"
+    },
+    {
+      "from": "page-9adfd0a18d87e732",
+      "to": "page-d5bf511df1e4aa57"
+    },
+    {
+      "from": "page-9adfd0a18d87e732",
+      "to": "page-05e84729ca23d56a"
+    },
+    {
+      "from": "page-9adfd0a18d87e732",
+      "to": "page-b56c1783d4ee36a8"
+    },
+    {
+      "from": "page-9adfd0a18d87e732",
+      "to": "page-8c414ec21b6b9162"
+    },
+    {
+      "from": "page-9adfd0a18d87e732",
+      "to": "page-962b78ae27aea082"
+    },
+    {
+      "from": "page-9adfd0a18d87e732",
+      "to": "page-fca50c5bc1b4466d"
+    },
+    {
+      "from": "page-9adfd0a18d87e732",
+      "to": "page-dd3bc2b986d67a42"
+    },
+    {
+      "from": "page-9adfd0a18d87e732",
+      "to": "page-ceec1bf9182e2a41"
+    },
+    {
+      "from": "page-9adfd0a18d87e732",
+      "to": "page-ea318aff486e2405"
+    },
+    {
+      "from": "page-9adfd0a18d87e732",
+      "to": "page-f221a9d9188733f4"
+    },
+    {
+      "from": "page-9adfd0a18d87e732",
+      "to": "page-7f289df763215fdf"
+    },
+    {
+      "from": "page-9adfd0a18d87e732",
+      "to": "page-5179e43eea4e8ba0"
+    },
+    {
+      "from": "page-9adfd0a18d87e732",
+      "to": "page-bfe92fbaae405862"
+    },
+    {
+      "from": "page-9adfd0a18d87e732",
+      "to": "page-f62e46c4303678d1"
+    },
+    {
+      "from": "page-9adfd0a18d87e732",
+      "to": "page-3ef1616a3c34f9bf"
+    },
+    {
+      "from": "page-9adfd0a18d87e732",
+      "to": "page-5c1af515df823fc9"
+    },
+    {
+      "from": "page-9adfd0a18d87e732",
+      "to": "page-7220c0f474728d55"
+    },
+    {
+      "from": "page-9adfd0a18d87e732",
+      "to": "page-673c87298bdad761"
+    },
+    {
+      "from": "page-9adfd0a18d87e732",
+      "to": "page-673c87298bdad761"
+    },
+    {
+      "from": "page-9adfd0a18d87e732",
+      "to": "page-a34081941e6d3f5e"
+    },
+    {
+      "from": "page-9adfd0a18d87e732",
+      "to": "page-d5bf511df1e4aa57"
+    },
+    {
+      "from": "page-9adfd0a18d87e732",
+      "to": "page-05e84729ca23d56a"
+    },
+    {
+      "from": "page-9adfd0a18d87e732",
+      "to": "page-b56c1783d4ee36a8"
+    },
+    {
+      "from": "page-9adfd0a18d87e732",
+      "to": "page-8c414ec21b6b9162"
+    },
+    {
+      "from": "page-9adfd0a18d87e732",
+      "to": "page-962b78ae27aea082"
+    },
+    {
+      "from": "page-9adfd0a18d87e732",
+      "to": "page-fca50c5bc1b4466d"
+    },
+    {
+      "from": "page-9adfd0a18d87e732",
+      "to": "page-dd3bc2b986d67a42"
+    },
+    {
+      "from": "page-9adfd0a18d87e732",
+      "to": "page-ceec1bf9182e2a41"
+    },
+    {
+      "from": "page-9adfd0a18d87e732",
+      "to": "page-ea318aff486e2405"
+    },
+    {
+      "from": "page-9adfd0a18d87e732",
+      "to": "page-f221a9d9188733f4"
+    },
+    {
+      "from": "page-9adfd0a18d87e732",
+      "to": "page-7f289df763215fdf"
+    },
+    {
+      "from": "page-9adfd0a18d87e732",
+      "to": "page-5179e43eea4e8ba0"
+    },
+    {
+      "from": "page-9adfd0a18d87e732",
+      "to": "page-bfe92fbaae405862"
+    },
+    {
+      "from": "page-9adfd0a18d87e732",
+      "to": "page-f62e46c4303678d1"
+    },
+    {
+      "from": "page-9adfd0a18d87e732",
+      "to": "page-3ef1616a3c34f9bf"
+    },
+    {
+      "from": "page-9adfd0a18d87e732",
+      "to": "page-5c1af515df823fc9"
+    },
+    {
+      "from": "page-9adfd0a18d87e732",
+      "to": "page-7220c0f474728d55"
+    },
+    {
+      "from": "page-9adfd0a18d87e732",
+      "to": "page-7c759710aca2faf7"
+    },
+    {
+      "from": "page-9adfd0a18d87e732",
+      "to": "page-3e98b63badd1c544"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-8a5edab282632443"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-1c553d5b11761fba"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-ccef51bfbf5ae39b"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-55d0bae88789649c"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-d80951e7357ae233"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-d1c8493c37da2b0a"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-38849f000b3c185d"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-89b6b3f9d16b877e"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-d1e0bcd688a689d0"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-456cf04b69ed8f47"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-702acf7c08d3b03b"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-b4eab78d6975cc5b"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-c8edb52b3f0c220a"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-22a69e662072f633"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-5b0f3f2119e1ad03"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-8caafe4386f95803"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-8e813f011801030d"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-5d418ba4a2912ed1"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-19baf385f9f3a826"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-013cc6e0ad656a19"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-b6fbaf313e878951"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-979bddc4a8caafdd"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-ae3e91c8654dca8b"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-6731d3c92e52dc65"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-f8ce52c39476a74e"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-16a94df6b2583275"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-2d9178e9eccae8db"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-37a5f0d5f403da6c"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-88542310ac13e55d"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-1b63e95f753d2656"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-7394a2bb766646ca"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-0a0795774070a9dc"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-9debdd537e08acf3"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-8a5edab282632443"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-1c553d5b11761fba"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-ccef51bfbf5ae39b"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-55d0bae88789649c"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-d80951e7357ae233"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-d1c8493c37da2b0a"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-38849f000b3c185d"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-89b6b3f9d16b877e"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-d1e0bcd688a689d0"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-456cf04b69ed8f47"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-702acf7c08d3b03b"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-b4eab78d6975cc5b"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-c8edb52b3f0c220a"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-22a69e662072f633"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-5b0f3f2119e1ad03"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-8caafe4386f95803"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-8e813f011801030d"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-5d418ba4a2912ed1"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-19baf385f9f3a826"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-013cc6e0ad656a19"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-b6fbaf313e878951"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-979bddc4a8caafdd"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-1b63e95f753d2656"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-ae3e91c8654dca8b"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-6731d3c92e52dc65"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-f8ce52c39476a74e"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-16a94df6b2583275"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-2d9178e9eccae8db"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-37a5f0d5f403da6c"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-88542310ac13e55d"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-7394a2bb766646ca"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-0a0795774070a9dc"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-9debdd537e08acf3"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-b6fbaf313e878951"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-17374db511a581bb"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-7eb76411830a2ece"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-8e68cf57c2414012"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-5fb968a65ba5383b"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-8e813f011801030d"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-7b8184d4bc3d1e9a"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-a73cf7a43e51070c"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-7feefb791cd515f1"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-c35a8ecf6927d170"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-55d0bae88789649c"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-60d6ab919bd27c3b"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-d80951e7357ae233"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-44071d81ceddcbe3"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-8c0342aad6f09e22"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-d1c8493c37da2b0a"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-38849f000b3c185d"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-bc17f4c0ffd59161"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-89b6b3f9d16b877e"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-55d0bae88789649c"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-60d6ab919bd27c3b"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-d80951e7357ae233"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-44071d81ceddcbe3"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-8c0342aad6f09e22"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-d1c8493c37da2b0a"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-38849f000b3c185d"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-bc17f4c0ffd59161"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-89b6b3f9d16b877e"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-55d0bae88789649c"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-60d6ab919bd27c3b"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-d80951e7357ae233"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-44071d81ceddcbe3"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-8c0342aad6f09e22"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-d1c8493c37da2b0a"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-38849f000b3c185d"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-bc17f4c0ffd59161"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-89b6b3f9d16b877e"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-55d0bae88789649c"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-60d6ab919bd27c3b"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-d80951e7357ae233"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-44071d81ceddcbe3"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-8c0342aad6f09e22"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-d1c8493c37da2b0a"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-38849f000b3c185d"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-bc17f4c0ffd59161"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-89b6b3f9d16b877e"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-de335934359a9058"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-60d6ab919bd27c3b"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-8c0342aad6f09e22"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-ccef51bfbf5ae39b"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-d1c8493c37da2b0a"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-d80951e7357ae233"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-55d0bae88789649c"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-89b6b3f9d16b877e"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-bc17f4c0ffd59161"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-702acf7c08d3b03b"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-5ebacfd6e944895d"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-3ec870fb8676f205"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-73be22ab02836a48"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-cf072c8fd6cc59d6"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-d3be381b3bcb529a"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-d80951e7357ae233"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-bc17f4c0ffd59161"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-b2bd94155e216b1d"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-fec34e6c322a5d75"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-8baf66154c02968e"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-c3a789ea35cfa364"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-8945c33a260f4ea1"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-a597a4aab7457143"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-f4d93e62e1cf3bb9"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-351043a802918e59"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-1b63e95f753d2656"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-2d9178e9eccae8db"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-37a5f0d5f403da6c"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-9ad88a992a15ab0e"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-45efab234cc682b3"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-1006ccba27031222"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-ae3e91c8654dca8b"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-ef9ee53fba3ff111"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-a8d94fe5d3035b07"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-87f35ac4806cae7a"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-3c44549abd061efd"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-28bc1a2f9c040f72"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-c4aa834c1bdd3fbc"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-a8fa814e4f12090c"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-16a94df6b2583275"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-88542310ac13e55d"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-f8ce52c39476a74e"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-68d7fed57516f16c"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-8caafe4386f95803"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-7394a2bb766646ca"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-8e813f011801030d"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-5d418ba4a2912ed1"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-19baf385f9f3a826"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-013cc6e0ad656a19"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-b6fbaf313e878951"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-979bddc4a8caafdd"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-4eb950636535d637"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-6e9ae4016c5332bc"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-2dda5c6b8eee51aa"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-0ece7f7c306b4cf6"
+    },
+    {
+      "from": "page-d071b828e7947c82",
+      "to": "page-970911d4ad4527f7"
+    },
+    {
+      "from": "page-ebe12a22f7a4c406",
+      "to": "page-8a5edab282632443"
+    },
+    {
+      "from": "page-ebe12a22f7a4c406",
+      "to": "page-ffb86c3b7d4fa4c2"
+    },
+    {
+      "from": "page-ebe12a22f7a4c406",
+      "to": "page-3b5bc735b5cbdfb1"
+    },
+    {
+      "from": "page-ebe12a22f7a4c406",
+      "to": "page-02227d8d4684c6a4"
+    },
+    {
+      "from": "page-ebe12a22f7a4c406",
+      "to": "page-3c00f941ebf560c7"
+    },
+    {
+      "from": "page-ebe12a22f7a4c406",
+      "to": "page-eb22e2846da48a1d"
+    },
+    {
+      "from": "page-ebe12a22f7a4c406",
+      "to": "page-cddc944748eb781d"
+    },
+    {
+      "from": "page-ebe12a22f7a4c406",
+      "to": "page-4acc0a02ab83abd8"
+    },
+    {
+      "from": "page-ebe12a22f7a4c406",
+      "to": "page-efdbc4ef31f9319d"
+    },
+    {
+      "from": "page-ebe12a22f7a4c406",
+      "to": "page-fae8c6d51d1ebc0c"
+    },
+    {
+      "from": "page-ebe12a22f7a4c406",
+      "to": "page-c2d492509b9ee385"
+    },
+    {
+      "from": "page-ebe12a22f7a4c406",
+      "to": "page-8741baf54d907b63"
+    },
+    {
+      "from": "page-ebe12a22f7a4c406",
+      "to": "page-177e9b74bb8db238"
+    },
+    {
+      "from": "page-ebe12a22f7a4c406",
+      "to": "page-5c489c119fa594b7"
+    },
+    {
+      "from": "page-ebe12a22f7a4c406",
+      "to": "page-7407a578b500aee7"
+    },
+    {
+      "from": "page-ebe12a22f7a4c406",
+      "to": "page-01664a1ce8b0045e"
+    },
+    {
+      "from": "page-ebe12a22f7a4c406",
+      "to": "page-80e7335caad8d62a"
+    },
+    {
+      "from": "page-ebe12a22f7a4c406",
+      "to": "page-d71d80bb5a66fc83"
+    },
+    {
+      "from": "page-ebe12a22f7a4c406",
+      "to": "page-cf44c22c60c78f4a"
+    },
+    {
+      "from": "page-ebe12a22f7a4c406",
+      "to": "page-d0d4c2b5c6b14cca"
+    },
+    {
+      "from": "page-ebe12a22f7a4c406",
+      "to": "page-894e043fa3033a8d"
+    },
+    {
+      "from": "page-ebe12a22f7a4c406",
+      "to": "page-dbdd1a1ea103f036"
+    },
+    {
+      "from": "page-ebe12a22f7a4c406",
+      "to": "page-98fc84b270d319e4"
+    },
+    {
+      "from": "page-ebe12a22f7a4c406",
+      "to": "page-ce98aa30d2eaa507"
+    },
+    {
+      "from": "page-ebe12a22f7a4c406",
+      "to": "page-3a29dcbe0ebdc114"
+    },
+    {
+      "from": "page-ebe12a22f7a4c406",
+      "to": "page-a7ac94392c706984"
+    },
+    {
+      "from": "page-ebe12a22f7a4c406",
+      "to": "page-60a9d5f78dea0420"
+    },
+    {
+      "from": "page-ebe12a22f7a4c406",
+      "to": "page-51bc7052e590960d"
+    },
+    {
+      "from": "page-ebe12a22f7a4c406",
+      "to": "page-9728b43909466e9b"
+    },
+    {
+      "from": "page-ebe12a22f7a4c406",
+      "to": "page-d677c7b387b4f1db"
+    },
+    {
+      "from": "page-ebe12a22f7a4c406",
+      "to": "page-4d513d4df1994a0c"
+    },
+    {
+      "from": "page-ebe12a22f7a4c406",
+      "to": "page-0ce414322dc909d7"
+    },
+    {
+      "from": "page-ebe12a22f7a4c406",
+      "to": "page-74ecb33fa1b80b56"
+    },
+    {
+      "from": "page-ebe12a22f7a4c406",
+      "to": "page-f561cf8121f7935b"
+    },
+    {
+      "from": "page-ebe12a22f7a4c406",
+      "to": "page-c9700a95a7c72a84"
+    },
+    {
+      "from": "page-ebe12a22f7a4c406",
+      "to": "page-3b5bc735b5cbdfb1"
+    },
+    {
+      "from": "page-ebe12a22f7a4c406",
+      "to": "page-eb1119ab46acbbe2"
+    }
+  ]
+}

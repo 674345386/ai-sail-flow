@@ -22,6 +22,13 @@ export function webUrl(value: unknown): string | null {
   return protocol === "http:" || protocol === "https:" ? value.trim() : null;
 }
 
+/** App media is stored locally; accept its scoped route alongside remote URLs. */
+export function mediaUrl(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const url = value.trim();
+  return /^\/media\/[\w-][\w.-]*$/.test(url) ? url : webUrl(url);
+}
+
 // Shared prop schemas
 /** Children slot: any component, or a list of them (from @Each). Printed as `Node[]`. */
 const node = z.any();

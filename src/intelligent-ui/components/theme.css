@@ -1,13 +1,23 @@
-/* Design tokens for the component library. Neutrals (font, text, surfaces,
-   borders) follow the OpenUI theme tokens, so components match the Agent
-   Interface in light and dark; the dark block only retunes status, chart and
-   map colors. */
-.native-openui-intelligent,
-.native-openui-intelligent[data-theme="light"] {
+/* Canonical Open Intelligent UI palettes, typography, spacing and radii.
+   Agent theme preferences live in ../theme.ts; controls only consume these
+   variables, including inside panels with independently selected themes. */
+.intelligent-ui-surface,
+.intelligent-ui-surface[data-theme="light"] {
   color-scheme: light;
-  --iui-font: var(--openui-font-body, "Inter", sans-serif);
+  --iui-font: var(--sail-font-ui, "Inter", system-ui, sans-serif);
+  --iui-body-size: 14px;
+  --iui-body-leading: 1.4285714286;
+  --iui-text-sm-size: 14px;
+  --iui-text-md-size: 16px;
+  --iui-prose-leading: 1.65;
+  --iui-card-padding: 20px;
+  --iui-card-nested-padding: 16px;
+  --iui-panel-padding: 24px;
+  --iui-result-padding: clamp(18px, 3vw, 42px);
+  --iui-conversation-gap: 24px;
+  --iui-bubble-padding: 10px 15px;
   --iui-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  --iui-canvas: var(--openui-foreground, #ffffff);
+  --iui-canvas: #ffffff;
   /* Greys are ink at an alpha, so they stack on any surface (cards, tints, sunk
      areas) and flip with the theme: track 4-6%, hover 5%, pressed or selected 8%,
      borders 8-10%. */
@@ -16,11 +26,11 @@
   --iui-surface: color-mix(in srgb, var(--iui-ink) 4%, transparent);
   --iui-surface-hover: color-mix(in srgb, var(--iui-ink) 8%, transparent);
   --iui-surface-strong: color-mix(in srgb, var(--iui-ink) 8%, transparent);
-  --iui-ink: var(--openui-text-neutral-primary, #0d0d0d);
+  --iui-ink: #0d0d0d;
   --iui-ink-hover: color-mix(in oklch, var(--iui-ink) 82%, var(--iui-canvas));
-  --iui-on-ink: var(--openui-foreground, #ffffff);
-  --iui-muted: var(--openui-text-neutral-secondary, rgb(0 0 0 / 60%));
-  --iui-faint: var(--openui-text-neutral-secondary, rgb(0 0 0 / 60%));
+  --iui-on-ink: #ffffff;
+  --iui-muted: rgb(0 0 0 / 60%);
+  --iui-faint: rgb(0 0 0 / 60%);
   --iui-border: color-mix(in srgb, var(--iui-ink) 8%, transparent);
   --iui-border-strong: color-mix(in srgb, var(--iui-ink) 10%, transparent);
   --iui-range-track: color-mix(in srgb, var(--iui-ink) 6%, transparent);
@@ -82,10 +92,25 @@
   --iui-radius-2xl: 20px;
   --iui-photo-empty: var(--iui-surface);
   --iui-photo-empty-icon: var(--iui-border-strong);
+  --iui-on-status: #ffffff;
+  --iui-segmented-selected: var(--iui-canvas);
+  --iui-map-icon-filter: none;
+  --iui-checkmark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='white' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2.5 6.2l2.3 2.3 4.7-5'/%3E%3C/svg%3E");
+  --iui-select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23676767' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
 }
 
-.native-openui-intelligent[data-theme="dark"] {
+.intelligent-ui-surface[data-theme="dark"] {
   color-scheme: dark;
+  --iui-canvas: #171717;
+  --iui-ink: #ededed;
+  --iui-on-ink: #171717;
+  --iui-muted: #a6a6a6;
+  --iui-faint: #a6a6a6;
+  --iui-on-status: #121212;
+  --iui-segmented-selected: var(--iui-surface-strong);
+  --iui-map-icon-filter: invert(1);
+  --iui-checkmark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='%23171717' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2.5 6.2l2.3 2.3 4.7-5'/%3E%3C/svg%3E");
+  --iui-select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23ababab' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
   --iui-shadow: 0 4px 20px rgb(0 0 0 / 35%);
   --iui-shadow-sm: 0 1px 3px rgb(0 0 0 / 30%);
   --iui-info: var(--iui-ink);
@@ -124,4 +149,49 @@
   --iui-ring: var(--iui-ink);
   --iui-photo-empty: var(--iui-surface);
   --iui-photo-empty-icon: var(--iui-border-strong);
+}
+
+.intelligent-ui-surface[data-theme="warm"] {
+  --iui-canvas: #fbf7ef;
+  --iui-ink: #332c25;
+  --iui-on-ink: #fbf7ef;
+  --iui-muted: #685b4d;
+  --iui-faint: #685b4d;
+  --iui-body-size: 15px;
+  --iui-body-leading: 1.8;
+  --iui-text-sm-size: 15px;
+  --iui-prose-leading: 1.8;
+  --iui-card-padding: 22px;
+  --iui-space-section: 28px;
+  --iui-conversation-gap: 28px;
+}
+
+.intelligent-ui-surface[data-theme="compact"] {
+  --iui-canvas: #fafafa;
+  --iui-ink: #202020;
+  --iui-on-ink: #fafafa;
+  --iui-body-size: 13px;
+  --iui-body-leading: 1.5;
+  --iui-text-sm-size: 13px;
+  --iui-text-md-size: 14px;
+  --iui-prose-leading: 1.55;
+  --iui-card-padding: 14px;
+  --iui-card-nested-padding: 12px;
+  --iui-panel-padding: 16px;
+  --iui-result-padding: 20px;
+  --iui-conversation-gap: 16px;
+  --iui-bubble-padding: 8px 12px;
+  --iui-space-tight: 3px;
+  --iui-space-inner: 6px;
+  --iui-space-group: 8px;
+  --iui-space-group-lg: 12px;
+  --iui-space-section: 16px;
+  --iui-control-gap: 6px;
+  --iui-field-gap: 16px;
+  --iui-action-gap: 24px;
+  --iui-radius-sm: 4px;
+  --iui-radius-md: 6px;
+  --iui-radius-lg: 8px;
+  --iui-radius-xl: 10px;
+  --iui-radius-2xl: 12px;
 }

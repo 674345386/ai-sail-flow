@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import type { GeneratedVideo, Project, Shot, StoryboardGrid } from '../shared/domain';
 import type { CanvasComponent, CanvasComponentInput } from '../shared/agent-canvas-ui';
+import type { ImageGenerationOptions, ImageQuality } from '../shared/image-generation-options';
 import { api } from './api';
 import { StoryboardGridCardBody, gridVideoState } from './StoryboardGridWorkbench';
 import CanvasTimeline from './CanvasTimeline';
@@ -28,8 +29,7 @@ const emptyGrids: StoryboardGrid[] = [];
 const emptyShots: Shot[] = [];
 
 type Layout = { positions?: Record<string, { x: number; y: number }>; viewport?: Viewport };
-type Ratio = '1:1' | '16:9' | '9:16' | '4:5';
-type ResultEditor = { kind: 'image' | 'video'; id?: string; prompt: string; originalPrompt?: string; ratio: Ratio; gridId?: string; referenceIds: string[]; position?: { x: number; y: number } };
+type ResultEditor = { kind: 'image' | 'video'; id?: string; prompt: string; originalPrompt?: string; ratio: string; size?: string; quality?: ImageQuality; gridId?: string; referenceIds: string[]; position?: { x: number; y: number } };
 
 function readLayout(id: string): Layout {
   try {
@@ -118,7 +118,7 @@ export default function ProductPipelineCanvas({
   onAnalyze, onOpenMaterials, onOpenAnalysis, onOpenRemixDetail, onSettings, onBreakdownType, onGridSize, onViewportStage, onShowPage, focusStep, focusVersion, canvasComponents = [], onCanvasDraft,
 }: {
   project: Project; disabled: boolean; agentDynamic?: boolean;
-  onCreateImage?: (input: { prompt: string; aspectRatio: Ratio; referenceIds: string[] }) => Promise<string>;
+  onCreateImage?: (input: ImageGenerationOptions & { prompt: string; referenceIds: string[] }) => Promise<string>;
   onCreateVideo?: (input: { prompt: string; aspectRatio: '16:9' | '9:16'; gridId?: string }) => Promise<string>;
   onPrompt: (id: string, prompt: string) => void;
   onGenerate: (gridId: string | string[]) => void;
@@ -302,7 +302,7 @@ export default function ProductPipelineCanvas({
       const gridPosition = grid ? saved[`grid:${grid.id}`] || remixUnits.find(unit => unit.id === `grid:${grid.id}`)?.position : undefined;
       const content = running
         ? <div className="pp-video-output is-loading" role="status"><div className="pp-video-loading"><LoaderCircle size={20} className="spin" /><strong>{progress != null ? `正在生成视频 · ${progress}%` : '正在生成视频…'}</strong><div className="pp-video-progress"><i style={{ width: `${Math.max(8, progress || 24)}%` }} /></div></div></div>
-        : ready ? <div className="pp-video-output"><video key={item.id} src={item.url} poster={item.thumbnail} controls playsInline preload="metadata" /><div className="pp-video-meta"><strong>{item.filename || '生成视频'}</strong><span>{(item.duration || 0).toFixed(1)} 秒 · {item.model === 'local-test' ? '本地测试视频' : item.provider === 'omni-flash' ? 'Omni Flash' : item.mode || 'r2v'}</span></div></div>
+        : ready ? <div className="pp-video-output"><video key={item.id} src={item.url} poster={item.thumbnail} controls playsInline preload="metadata" /><div className="pp-video-meta"><strong>{item.filename || '生成视频'}</strong><span>{(item.duration || 0).toFixed(1)} 秒 · {item.model === 'local-test' ? '本地测试视频' : item.provider === 'omni-flash' ? 'Omni Flash' : item.provider === 'minimax-h3' ? `MiniMax · ${item.model}` : item.mode || 'r2v'}</span></div></div>
           : <div className="pp-video-output is-failed"><span>{item.error || '视频生成失败'}</span></div>;
       const id = `video-result:${item.id}`;
       return { id, type: 'pipeline' as const, dragHandle: '.pp-node-drag',
@@ -432,7 +432,7 @@ export default function ProductPipelineCanvas({
       const image = project.agentImages?.find(item => item.id === node.data.resultId);
       if (!image) return;
       setEditor({ kind: 'image', id: asReference ? undefined : image.id, prompt: image.prompt || '', originalPrompt: image.prompt,
-        ratio: image.aspectRatio, referenceIds: asReference && image.status === 'completed' ? [image.id] : image.referenceIds || [],
+        ratio: image.aspectRatio || '', size: image.size, quality: image.quality, referenceIds: asReference && image.status === 'completed' ? [image.id] : image.referenceIds || [],
         position: asReference ? { x: node.position.x + 360, y: node.position.y } : undefined });
     } else if (node.data.kind === 'videoResult') {
       const result = project.generatedVideos.find(item => item.id === node.data.resultId);
@@ -448,7 +448,7 @@ export default function ProductPipelineCanvas({
     setCreating(true); setEditorError('');
     try {
       const id = editor.kind === 'image'
-        ? await onCreateImage?.({ prompt: editor.prompt, aspectRatio: editor.ratio, referenceIds: editor.referenceIds })
+        ? await onCreateImage?.({ prompt: editor.prompt, aspectRatio: editor.ratio || undefined, size: editor.size, quality: editor.quality, referenceIds: editor.referenceIds })
         : await onCreateVideo?.({ prompt: editor.prompt, aspectRatio: editor.ratio === '16:9' ? '16:9' : '9:16', gridId: editor.gridId });
       if (!id) throw new Error('生成服务当前不可用。');
       const nodeId = `${editor.kind === 'image' ? 'agent-image' : 'video-result'}:${id}`;
@@ -579,7 +579,7 @@ export default function ProductPipelineCanvas({
           <button type="button" role="menuitem" onClick={() => openResult(menu.node!, true)}>{menu.node.data.kind === 'agentImage' ? '以此图片为参考新建' : '基于此视频新建'}</button>
           <hr />
         </>}
-        <button type="button" role="menuitem" onClick={() => { setEditorError(''); setEditor({ kind: 'image', prompt: '', ratio: '1:1', referenceIds: [], position: menu.position }); setMenu(null); }}><ImageIcon size={15} />新建图片生成</button>
+        <button type="button" role="menuitem" onClick={() => { setEditorError(''); setEditor({ kind: 'image', prompt: '', ratio: '', referenceIds: [], position: menu.position }); setMenu(null); }}><ImageIcon size={15} />新建图片生成</button>
         <button type="button" role="menuitem" onClick={() => { setEditorError(''); setEditor({ kind: 'video', prompt: '', ratio: project.market.aspectRatio === '16:9' ? '16:9' : '9:16', referenceIds: [], position: menu.position }); setMenu(null); }}><Clapperboard size={15} />新建视频生成</button>
       </div>}
       {editor && <aside className="pp-result-editor nodrag nopan nowheel" aria-label={editor.kind === 'image' ? '图片生成提示词' : '视频生成提示词'}>
@@ -590,9 +590,11 @@ export default function ProductPipelineCanvas({
           <textarea id="pp-result-prompt" value={editor.prompt} placeholder={editor.kind === 'image' ? '描述你想生成的画面…' : '描述画面、动作与镜头…'} onChange={event => setEditor({ ...editor, prompt: event.target.value })} />
           {!!editor.originalPrompt && editor.prompt !== editor.originalPrompt && <details><summary>查看原始 Prompt</summary><pre>{editor.originalPrompt}</pre></details>}
           <label htmlFor="pp-result-ratio">画幅</label>
-          <select id="pp-result-ratio" value={editor.ratio} onChange={event => setEditor({ ...editor, ratio: event.target.value as Ratio })}>
-            {(['9:16', '16:9', ...(editor.kind === 'image' ? ['1:1', '4:5'] : [])] as Ratio[]).map(ratio => <option key={ratio} value={ratio}>{ratio}</option>)}
+          <select id="pp-result-ratio" value={editor.ratio} onChange={event => setEditor({ ...editor, ratio: event.target.value, size: undefined })}>
+            {editor.kind === 'image' && <option value="">自动 · 由模型决定</option>}
+            {['9:16', '16:9', ...(editor.kind === 'image' ? ['1:1', '4:5', '3:2', '2:3'] : []), ...(editor.kind === 'image' && editor.ratio && !['9:16', '16:9', '1:1', '4:5', '3:2', '2:3'].includes(editor.ratio) ? [editor.ratio] : [])].map(ratio => <option key={ratio} value={ratio}>{ratio}</option>)}
           </select>
+          {editor.kind === 'image' && <><label htmlFor="pp-result-size">像素尺寸 · 可选</label><input id="pp-result-size" value={editor.size || ''} placeholder="自动，或输入 1536x864" onChange={event => setEditor({ ...editor, size: event.target.value || undefined })} />{editor.id && project.agentImages?.find(image => image.id === editor.id)?.warning && <p className="pp-result-hint" role="status">{project.agentImages.find(image => image.id === editor.id)?.warning}</p>}</>}
           {editor.kind === 'video' && <><label htmlFor="pp-result-grid">关联分镜</label><select id="pp-result-grid" value={editor.gridId || ''} onChange={event => setEditor({ ...editor, gridId: event.target.value || undefined })}><option value="">独立视频</option>{includedGrids.map((grid, index) => <option key={grid.id} value={grid.id}>分镜网格 {String(index + 1).padStart(2, '0')}</option>)}</select><p className="pp-result-hint">当前使用本地测试视频，结果不会随 Prompt 改变。</p></>}
           {editor.kind === 'image' && editor.referenceIds.length > 0 && <p className="pp-result-hint">已沿用 {editor.referenceIds.length} 张参考图</p>}
           {editorError && <p className="pp-result-error" role="alert">{editorError}</p>}

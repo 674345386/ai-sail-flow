@@ -2,18 +2,8 @@
   position: relative;
   isolation: isolate;
   width: 100%;
-  color: var(--lbg-promo-ink, #fff);
-  background: linear-gradient(105deg, var(--lbg-promo-start, #2346ab) 0%, var(--lbg-promo-middle, #5544a1) 54%, var(--lbg-promo-end, #1357b3) 100%);
-}
-
-.landing-announcement::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  opacity: .15;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='128' height='128'%3E%3Cfilter id='grain'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Cpath fill='%23fff' filter='url(%23grain)' d='M0 0h128v128H0z'/%3E%3C/svg%3E");
+  color: var(--announcement-ink, #fff);
+  background: var(--announcement-background, #800020);
 }
 
 .landing-announcement-inner {
@@ -22,9 +12,9 @@
   justify-content: center;
   gap: 14px;
   max-width: 1220px;
-  min-height: 46px;
+  min-height: var(--announcement-height, 46px);
   margin: 0 auto;
-  padding: 8px 56px;
+  padding: min(8px, max(0px, calc((var(--announcement-height, 46px) - 32px) / 2))) 56px;
   font-size: 14px;
   font-weight: 500;
   line-height: 1.5;
@@ -75,9 +65,35 @@
 .landing-announcement-close:hover { background: #ffffff18; }
 .landing-announcement-link:focus-visible, .landing-announcement-button:focus-visible, .landing-announcement-close:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
 
+.landing-page > .landing-announcement--omni {
+  color: var(--announcement-ink, #18220d);
+  background: var(--announcement-background, #d8fa69);
+}
+.landing-announcement--omni::before { content: none; }
+.landing-announcement--omni .landing-announcement-inner { gap: 24px; min-height: var(--announcement-height, 48px); }
+.landing-announcement--omni .landing-announcement-marquee { flex: 1; }
+.landing-announcement--omni .landing-announcement-track { gap: 0; animation-duration: 26s; }
+.landing-announcement--omni:hover .landing-announcement-track,
+.landing-announcement--omni:focus-within .landing-announcement-track { animation-play-state: paused; }
+.landing-announcement--omni .landing-announcement-message { display: flex; align-items: center; gap: 18px; padding-inline-end: 64px; }
+.landing-announcement--omni .landing-announcement-message strong { font-weight: 750; }
+.landing-announcement--omni .landing-announcement-button {
+  flex-shrink: 0;
+  min-height: 30px;
+  padding: 4px 12px;
+  border-color: var(--announcement-ink, #18220d);
+  background: var(--announcement-ink, #18220d);
+  color: var(--announcement-background, #d8fa69);
+}
+.landing-announcement--omni .landing-announcement-button:hover { opacity: .8; }
+.landing-announcement--omni .landing-announcement-button:focus-visible { outline-color: var(--announcement-ink, #18220d); }
+.landing-announcement-close:hover { background: color-mix(in srgb, currentColor 8%, transparent); }
+.landing-announcement ::selection { color: var(--announcement-background, #800020); background: var(--announcement-ink, #fff); }
+
 @media (prefers-reduced-motion: reduce) {
   .landing-announcement-track { width: 100%; justify-content: center; animation: none; }
   .landing-announcement-message[aria-hidden="true"] { display: none; }
+  .landing-announcement--omni .landing-announcement-message { max-width: 100%; flex-wrap: wrap; justify-content: center; gap: 2px 12px; padding-inline-end: 0; white-space: normal; }
 }
 
 @media (max-width: 680px) {
@@ -86,4 +102,12 @@
   .landing-announcement-actions { gap: 14px; }
   .landing-announcement-button { min-height: 32px; }
   .landing-announcement-close { top: 4px; right: 4px; width: 40px; height: 40px; transform: none; }
+  .landing-announcement--omni .landing-announcement-inner { flex-direction: row; gap: 12px; padding: 8px 48px 8px 16px; text-align: start; }
+  .landing-announcement--omni .landing-announcement-marquee { flex: 1; width: auto; }
+  .landing-announcement--omni .landing-announcement-message { gap: 14px; padding-inline-end: 40px; }
+  .landing-announcement--omni .landing-announcement-close { top: 50%; right: 4px; transform: translateY(-50%); }
+}
+
+@media (max-width: 680px) and (prefers-reduced-motion: reduce) {
+  .landing-announcement--omni .landing-announcement-message { justify-content: flex-start; gap: 2px; padding-inline-end: 0; }
 }

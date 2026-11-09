@@ -59,14 +59,14 @@ export function authEmail(user: User | null) {
   return user?.email || '';
 }
 
-export type AuthAvailability = { email: boolean | null; signup: boolean | null };
-export const unknownAuthAvailability: AuthAvailability = { email: null, signup: null };
+export type AuthAvailability = { email: boolean | null; google: boolean | null; signup: boolean | null };
+export const unknownAuthAvailability: AuthAvailability = { email: null, google: null, signup: null };
 export async function loadAuthAvailability(): Promise<AuthAvailability> {
-  if (!supabaseConfigured) return { email: false, signup: false };
+  if (!supabaseConfigured) return { email: false, google: false, signup: false };
   const response = await fetch(`${supabaseUrl}/auth/v1/settings`, { headers: { apikey: publishableKey }, signal: AbortSignal.timeout(8000) });
   if (!response.ok) throw new Error('登录服务暂时无法连接，请稍后重试。');
   const settings = await response.json();
-  return { email: settings.external?.email === true, signup: settings.disable_signup !== true };
+  return { email: settings.external?.email === true, google: settings.external?.google === true, signup: settings.disable_signup !== true };
 }
 
 export const AUTH_REQUEST_TIMEOUT_MS = 15000;
@@ -89,6 +89,7 @@ export function authErrorMessage(error: unknown) {
   if (value?.status === 429 || /over_.*rate_limit|rate_limit/.test(value?.code || '') || /too many|rate limit|after \d+ seconds/i.test(text)) return m.rate;
   if (value?.code === 'otp_expired' || /token.*expired|token.*invalid|otp.*expired/i.test(text)) return m.otp;
   if (value?.code === 'email_address_invalid' || /invalid.*email/i.test(text)) return m.email;
+  if (value?.code === 'google_unavailable' || /unsupported provider|provider.*not enabled/i.test(text)) return m.googleUnavailable;
   if (/signups?.*not allowed|signup.*disabled/i.test(text)) return m.signup;
   if (/sending.*email|smtp|email.*send/i.test(text)) return m.smtp;
   if (/pkce|code verifier|flow state/i.test(text)) return m.pkce;

@@ -5,6 +5,8 @@ export type AgentMedia =
   | { kind: 'image'; value: AgentImage; at: string }
   | { kind: 'video'; value: GeneratedVideo; at: string };
 
+// These results predate the first user turn. Render them before the conversation,
+// never as a footer that would keep moving past every newly appended reply.
 export const UNASSIGNED_MEDIA = '__unassigned_media__';
 
 export function groupAgentMedia(messages: AgentMessage[], images: AgentImage[], videos: GeneratedVideo[]): Map<string, AgentMedia[]> {

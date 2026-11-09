@@ -1,0 +1,59 @@
+/* Translucent, softly blended colour pools on a light canvas. */
+.lbg-light { position: absolute; inset: 0; overflow: hidden; }
+.lbg-light-pools { position: absolute; inset: -18%; isolation: isolate; filter: blur(var(--lbg-light-blur)) saturate(var(--lbg-light-sat)); opacity: var(--lbg-light-opacity); }
+.lbg-light-pool { position: absolute; display: block; border-radius: 50%; mix-blend-mode: var(--lbg-light-blend); transform: translate(-50%, -50%); animation: lbg-light-flow 30s ease-in-out infinite; }
+.lbg-light.is-paused .lbg-light-pool { animation-play-state: paused; }
+@keyframes lbg-light-flow {
+  0%, 100% { transform: translate(-50%, -50%) rotate(0deg) scale(1); }
+  35% { transform: translate(calc(-50% + var(--lbg-flow-x)), calc(-50% + var(--lbg-flow-y))) rotate(var(--lbg-flow-turn)) scale(var(--lbg-light-grow)); }
+  70% { transform: translate(calc(-50% - var(--lbg-flow-y)), calc(-50% - var(--lbg-flow-x))) rotate(calc(0deg - var(--lbg-flow-turn))) scale(var(--lbg-light-shrink)); }
+}
+@media (prefers-reduced-motion: reduce) { .lbg-light-pool { animation: none; } }
+
+/* Only the selected light type changes homepage ink; the ambient theme keeps its existing rules. */
+.landing-page.landing-light { color: #272923; }
+.landing-page.landing-light > .landing-nav { color: #272923; background: color-mix(in srgb, var(--lbg-page-base, #fff) 92%, transparent); }
+.landing-light .landing-nav :is(.landing-brand, .landing-social) { color: #272923; }
+.landing-page.landing-light .landing-nav .landing-links :is(a, button) { color: #62655d; }
+.landing-page.landing-light .landing-nav .landing-links :is(a, button):hover { color: #272923; }
+.landing-light .landing-brand .landing-brand-logo { filter: none; }
+.landing-page.landing-light :is(.ls-section, .ls-cta) {
+  --ls-ink: #272923; --ls-ink-2: #62655d; --ls-ink-3: #72766d; --ls-line: rgb(39 41 35 / 12%);
+  --ls-paper: transparent; --ls-panel: rgb(255 255 255 / 72%);
+}
+.landing-light .ls-media { background: #eef0eb; }
+.landing-light :is(.ls-btn-solid, .ls-btn-light) { background: #272923; color: #fff; }
+.landing-light :is(.ls-btn-solid, .ls-btn-light):hover { background: #41453a; }
+.landing-light .ls-btn-ghost { border-color: rgb(39 41 35 / 22%); color: #272923; }
+.landing-light .ls-btn-ghost:hover { border-color: #272923; background: rgb(39 41 35 / 4%); }
+.landing-light .ls-btn-outline-light { color: #272923; border-color: rgb(39 41 35 / 28%); }
+.landing-light .ls-btn-outline-light:hover { border-color: #272923; }
+.landing-light .ls-cta h2 { color: #272923; }
+.landing-light .ls-section .ls-tool-label { color: #41453a; }
+.landing-light .ls-section .ls-tool-body { color: #62655d; }
+.landing-light .ls-tool-actions button { background: #eef0eb; color: #272923; }
+.landing-light .ls-tool-actions button:hover { background: #e3e7de; }
+.landing-light .ls-tool-actions button.is-primary { background: #272923; color: #fff; }
+.landing-light .ls-models svg path[fill="#0f0f10"] { fill: #272923; }
+.landing-light .landing-toc-title { color: #41453a; }
+.landing-light .landing-toc ol { border-left-color: rgb(39 41 35 / 16%); }
+.landing-light .landing-toc a { color: #72766d; }
+.landing-light .landing-toc a:hover { color: #272923; }
+.landing-light .landing-toc a.is-active { border-left-color: #272923; background: rgb(39 41 35 / 5%); color: #272923; }
+.landing-light .gf-plan-grid article { background: rgb(255 255 255 / 76%); border-color: rgb(39 41 35 / 14%); }
+.landing-light .gf-plan-grid article.active { border-color: rgb(39 41 35 / 55%); }
+.landing-light :is(.gf-pricing, .gf-faq) { color: #272923; }
+.landing-light .gf-plan-price { border-color: rgb(39 41 35 / 14%); }
+.landing-light .gf-small-outline, .landing-light .gf-plan-grid article > button { color: #272923; border-color: rgb(39 41 35 / 28%); }
+.landing-light .gf-plan-grid article.active > button { color: #fff; border-color: #272923; background: #272923; }
+.landing-light .gf-plan-grid article > small, .landing-light .gf-plan-grid li, .landing-light .gf-centered-heading p, .landing-light .gf-pricing-note { color: #62655d; }
+.landing-light .gf-plan-grid li { border-top-color: rgb(39 41 35 / 10%); }
+.landing-light .gf-faq details { border-color: rgb(39 41 35 / 14%); }
+.landing-light .gf-faq summary { color: #272923; }
+.landing-light .gf-faq details p { color: #62655d; }
+.landing-light .gf-footer, .landing-light .gf-footer :is(a, button) { color: #62655d; }
+@media (max-width: 1679px) {
+  .landing-light .landing-toc a::before { background: rgb(39 41 35 / 30%); }
+  .landing-light .landing-toc :is(a.is-active, a:hover)::before { background: #272923; }
+  .landing-light .landing-toc a::after { background: #272923; color: #fff; }
+}

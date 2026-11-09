@@ -1,0 +1,100 @@
+import assert from 'node:assert/strict';
+import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { randomUUID } from 'node:crypto';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { Image, Video } from '../src/intelligent-ui/components/media';
+import { mediaUrl } from '../src/intelligent-ui/components/style';
+import { AgentArtifactPreview, AgentTaskAssets, collectAgentArtifacts } from '../src/intelligent-ui/AgentArtifacts';
+import { applyExperimentOperation, emptyExperiment } from '../shared/experiment';
+import { recreateVideoDraft, videoGenerationFields } from '../src/intelligent-ui/video-artifact';
+
+// File publication and real component rendering; no browser, model or paid API.
+const temporary = await mkdtemp(path.join(os.tmpdir(), 'sop-agent-media-'));
+process.env.SOP_DATA_DIR = temporary;
+try {
+  const { createProject, saveProject, uploadDir } = await import('../server/store');
+  const { experimentWorkspace, publishExperimentFile } = await import('../server/experiment-runtime');
+  const { getAgentImageReferences, setAgentExperiment } = await import('../server/creative-agent');
+  const project = createProject();
+  project.assets = [{ id: 'source-video', kind: 'video', name: '原视频', filename: 'source.mp4', url: '/media/source.mp4', mime: 'video/mp4', size: 1, duration: 10 }];
+  const workspace = experimentWorkspace(project.id);
+  await mkdir(workspace, { recursive: true });
+  const bytes = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jh30AAAAASUVORK5CYII=', 'base64');
+  await writeFile(path.join(workspace, 'frame.png'), bytes);
+  let graph = applyExperimentOperation(emptyExperiment(), { op: 'upsert', nodes: [{ id: 'extract', kind: 'step', title: '截取参考画面', inputs: [], status: 'completed', prompt: '', content: '', description: '', method: '' }] }, randomUUID);
+  const published = await publishExperimentFile(graph, project, { stepId: 'extract', path: 'frame.png', title: '产品 · 0.5 秒', purpose: 'context', sourceId: 'source-video', sourceTime: .5 });
+  graph = published.graph;
+  setAgentExperiment(project.id, graph);
+  assert.deepEqual(await readFile(path.join(uploadDir, published.file.filename)), bytes);
+  assert.equal(getAgentImageReferences(project.id)[0].id, published.file.id);
+  assert.equal(published.file.sourceTime, .5);
+  assert.equal(published.file.storage, 'local');
+  // Even old auto-collected Agent entries must stay out of the upload library.
+  const generatedFilename = 'agent-image-library-check.png';
+  await writeFile(path.join(uploadDir, generatedFilename), bytes);
+  const catalogRecord = { id: 'a'.repeat(64), kind: 'image', name: '误收录的任务图片', mime: 'image/png', size: bytes.length, createdAt: new Date().toISOString(), filename: generatedFilename, url: `/media/${generatedFilename}` };
+  await writeFile(path.join(temporary, 'media-library.json'), JSON.stringify([catalogRecord, { ...catalogRecord, id: 'b'.repeat(64), filename: published.file.filename, url: published.file.url }]));
+  const { collectUploadedAsset, initializeMediaLibrary, listLibraryMedia } = await import('../server/media-library');
+  assert.equal(listLibraryMedia().length, 0, 'old task entries must not enter the library or sync list');
+  assert.deepEqual(JSON.parse(await readFile(path.join(temporary, 'media-library.json'), 'utf8')), []);
+  assert.deepEqual(await readFile(path.join(uploadDir, generatedFilename)), bytes, 'index cleanup must preserve task files');
+  const taskAsset = { id: 'task-image', kind: 'product' as const, name: published.file.title, filename: published.file.filename, url: published.file.url, mime: 'image/png', size: bytes.length };
+  await assert.rejects(collectUploadedAsset(taskAsset), /不能自动收录/);
+  // Explicitly uploading even the same image bytes is still a user upload.
+  const uploadFilename = 'c'.repeat(32);
+  await writeFile(path.join(uploadDir, uploadFilename), bytes);
+  const upload = await collectUploadedAsset({ ...taskAsset, id: 'user-image', filename: uploadFilename, url: `/media/${uploadFilename}` });
+  assert.equal(upload.origin, 'user-upload');
+  await initializeMediaLibrary();
+  assert.equal(listLibraryMedia().length, 1, 'startup recovery must only collect user uploads');
+  assert.equal(listLibraryMedia()[0].filename, uploadFilename);
+  await assert.rejects(publishExperimentFile(graph, project, { stepId: 'extract', path: 'frame.png', sourceId: 'another-creative' }));
+  project.generatedVideos = [{ id: 'result', provider: 'minimax-h3', model: 'h3-video-flex', shotId: 'result', unitId: 'agent-video-result', productionMode: 'veo-native', prompt: '参考图生成结果', status: 'completed', mode: 'r2v', resolution: '480p', aspectRatio: '16:9', duration: 6, startedAt: new Date().toISOString(), requestId: 'upstream-result', referenceIds: [published.file.id] }];
+  const legacyGraph = { ...graph, files: [{ ...published.file, createdAt: undefined, purpose: undefined, sourceId: undefined, sourceTime: undefined }] };
+  assert.equal(collectAgentArtifacts(project, [], undefined, legacyGraph).filter(item => item.origin === 'process').length, 1, 'legacy process files must be restored without migration');
+  const artifacts = collectAgentArtifacts(project, [], undefined, graph);
+  const frame = artifacts.find(item => item.sourceId === published.file.id)!;
+  assert.equal(frame.origin, 'process');
+  assert.equal(frame.stepTitle, '截取参考画面'); assert.equal(frame.sourceTitle, '原视频');
+  assert.equal(frame.usedBy?.[0].id, 'video:result');
+  const imageMarkup = renderToStaticMarkup(createElement(Image.component, { props: { src: frame.url!, alt: frame.title }, renderNode: () => null }));
+  assert(imageMarkup.includes(`src="${frame.url}"`), 'OpenUI Image must render the real local file');
+  assert(imageMarkup.includes('data-iui-media'), 'images need an accessible full-size link');
+  const videoMarkup = renderToStaticMarkup(createElement(Video.component, { props: { src: '/media/result.mp4' }, renderNode: () => null }));
+  assert(videoMarkup.includes('src="/media/result.mp4"'));
+  const gallery = renderToStaticMarkup(createElement(AgentTaskAssets, { artifacts, onOpen: () => {} }));
+  assert(gallery.includes(frame.title)); assert(gallery.includes('过程素材')); assert(gallery.includes('已用于生成'));
+  const preview = renderToStaticMarkup(createElement(AgentArtifactPreview, { artifact: frame }));
+  assert(preview.includes('src="' + frame.url + '"')); assert(preview.includes('原视频')); assert(preview.includes('0.5 秒'));
+  const { minimaxTaskDetails } = await import('../server/minimax-video');
+  const generation = project.generatedVideos[0];
+  generation.url = '/media/result.mp4'; generation.filename = 'result.mp4';
+  generation.minimax = { idempotencyKey: 'old-provider-key', requestKey: 'old-operation', credits: { held: '20', charged: '20' },
+    request: { model: 'h3-video-flex', prompt: '完整提示词，不应被标题截断。'.repeat(40), inputs: [{ asset_id: 'reference', role: 'reference_image' }], parameters: { duration: 6, resolution: '480p', aspect_ratio: '16:9', generate_audio: false }, optimize_prompt: false },
+    details: minimaxTaskDetails({ id: 'fixture', status: 'succeeded', created_at: '2026-11-07T12:47:06.146Z', completed_at: '2026-11-07T12:50:11.873Z', parameters: { output_count: 1, generate_audio: false, mute_reference_video: false } }),
+  };
+  const fields = videoGenerationFields(generation);
+  assert.equal(fields.length, 12);
+  for (const label of ['生成音频', '静音参考视频', '提示词优化']) assert.equal(fields.find(field => field.label === label)?.value, '关闭');
+  assert.equal(fields.find(field => field.label === '消耗积分')?.value, '20');
+  assert.equal(fields.find(field => field.label === '总耗时')?.value, '3 分 6 秒');
+  assert.equal(fields.find(field => field.label === '模型运行耗时')?.value, '服务端未提供');
+  const videoArtifact = collectAgentArtifacts(project, [], undefined, graph).find(artifact => artifact.id === 'video:result')!;
+  const videoPage = renderToStaticMarkup(createElement(AgentArtifactPreview, { artifact: videoArtifact, onRecreate: () => {} }));
+  for (const field of fields) assert(videoPage.includes(field.label));
+  assert(videoPage.includes(generation.minimax.request!.prompt));
+  assert(videoPage.includes(published.file.filename)); assert(videoPage.includes('再次创作')); assert(videoPage.includes('下载视频'));
+  const draft = recreateVideoDraft(generation);
+  assert(draft.includes(published.file.id)); assert(draft.includes('"generateAudio": false'));
+  assert(!draft.includes('old-provider-key') && !draft.includes('old-operation'), 'a new version must not reuse an old idempotency key');
+  generation.referenceMedia = [{ id: published.file.id, name: published.file.title, filename: published.file.filename, url: published.file.url, mime: 'image/png', role: 'reference_image' }];
+  saveProject(project);
+  setAgentExperiment(project.id, { ...graph, files: [] });
+  assert(getAgentImageReferences(project.id).some(image => image.id === published.file.id), 'stored submission references must remain reusable after the working list changes');
+  for (const url of ['/media/frame.png', '/media/frame.jpg', '/media/frame.webp', 'https://example.com/image.jpg']) assert.equal(mediaUrl(url), url);
+  for (const url of ['javascript:alert(1)', 'data:text/html,test', '//example.com/image.jpg', '/media/../secret', '/other/secret']) assert.equal(mediaUrl(url), null);
+  console.log('Agent media check passed: task-local storage, library/sync exclusion, legacy index cleanup without deleting files, explicit user uploads, provenance, model references, real Image/Video markup, gallery, preview and URL validation.');
+} finally { await rm(temporary, { recursive: true, force: true }); }

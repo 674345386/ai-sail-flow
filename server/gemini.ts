@@ -626,7 +626,7 @@ export async function generateKeyframe(project: Project, request: NonNullable<Re
     if (!['image/png', 'image/jpeg', 'image/webp'].includes(asset.mime)) throw new Error('商品参考图格式必须为 PNG、JPEG 或 WebP。');
     references.push({ data: await readFile(path.join(uploadDir, path.basename(asset.filename))), mime: asset.mime as ImageReference['mime'], filename: `product-${index + 1}.${asset.mime === 'image/jpeg' ? 'jpg' : asset.mime === 'image/webp' ? 'webp' : 'png'}` });
   }
-  const image = await generateImage({ idempotencyKey: request.attemptId || randomUUID(), prompt: request.prompt, aspectRatio: project.market.aspectRatio, prefix: 'recreation', model: request.model as ImageModel, references });
+  const image = await generateImage({ idempotencyKey: request.attemptId || randomUUID(), prompt: request.prompt, aspectRatio: project.market.aspectRatio, prefix: 'recreation', model: request.model as ImageModel, references, projectId: project.id, taskId: project.job?.kind === 'keyframe' ? project.job.id : undefined, label: '复刻关键帧' });
   return { keyframe: { ...request, ...image, status: 'completed' as const, error: undefined }, usage: { input: 0, output: 0 } };
 }
 
@@ -636,7 +636,7 @@ export async function generateRemixCharacter(project: Project, settings: RemixSe
     `Character description: ${settings.character}`,
     'Single person, full body with head and shoes visible, front-facing relaxed pose, natural hands, neutral simple clothing, clean white studio, soft even lighting, sharp facial details. No collage, text, logos or watermark. This image establishes the same identity across costume changes.',
   ].join('\n');
-  const image = await generateImage({ idempotencyKey: jobId, prompt, aspectRatio: settings.aspectRatio, prefix: 'remix-character' });
+  const image = await generateImage({ idempotencyKey: jobId, prompt, aspectRatio: settings.aspectRatio, prefix: 'remix-character', projectId: project.id, label: '人物参考图' });
   return { character: { ...image, prompt, basis: characterBasis(project) }, usage: { input: 0, output: 0 } };
 }
 
@@ -804,6 +804,6 @@ export async function generateTierSubjectImage(project: Project, subjectId: stri
     'Single subject, clean simple background, sharp details. No collage, no extra text, no watermark.',
   ].join('\n');
   const references = base ? [{ data: await readFile(path.join(uploadDir, path.basename(base.filename))), mime: 'image/jpeg' as const, filename: base.filename }] : [];
-  const image = await generateImage({ idempotencyKey: jobId, prompt, prefix: 'tier-subject-gen', references });
+  const image = await generateImage({ idempotencyKey: jobId, prompt, prefix: 'tier-subject-gen', references, projectId: project.id, label: '主体参考图' });
   return { filename: image.filename, url: image.url, mime: image.mime, name: '生成新参考图', generated: true };
 }

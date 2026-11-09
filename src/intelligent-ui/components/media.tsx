@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { z } from "zod/v4";
 import { withBase } from "../base-path";
 import { Glyph } from "./glyph";
-import { color, cx, fg, radius, radiusSchema, webUrl } from "./style";
+import { color, cx, fg, mediaUrl, radius, radiusSchema, webUrl } from "./style";
 
 const ICON_SIZE = { sm: 14, md: 18, lg: 24, xl: 32 } as const;
 
@@ -76,15 +76,15 @@ function useImageSearch(query: string | null): string[] | undefined {
   return query && result?.query === query ? result.images : undefined;
 }
 
-type PhotoProps = { query: string; src?: string | null; aspectRatio?: number | null; radius?: unknown; fit?: string | null };
+type PhotoProps = { query: string; src?: string | null; aspectRatio?: number | null; radius?: unknown; fit?: string | null; search?: boolean };
 
-/** A photo from src, or, without one or when it fails, the best search result for query. */
+/** Exact supplied media, or an explicit SearchImage lookup. Never substitute a reference image. */
 function Photo(props: PhotoProps) {
   const alt = typeof props.query === "string" ? props.query.trim() : "";
-  const src = webUrl(props.src);
+  const src = mediaUrl(props.src);
   const [failed, setFailed] = useState<string[]>([]);
   const [loaded, setLoaded] = useState<string | null>(null);
-  const needSearch = (!src || failed.includes(src)) && alt.length > 2;
+  const needSearch = props.search === true && (!src || failed.includes(src)) && alt.length > 2;
   const found = useImageSearch(needSearch ? alt : null);
   const current = [src, ...(found ?? [])].find((url): url is string => !!url && !failed.includes(url));
   const settled = !current && (!needSearch || found !== undefined);
@@ -97,6 +97,7 @@ function Photo(props: PhotoProps) {
       aria-label={current ? undefined : alt}
     >
       {current ? (
+        <a className="iui-image-link" data-iui-media href={current} target="_blank" rel="noreferrer" aria-label={`查看大图：${alt}`}>
         <img
           key={current}
           src={current}
@@ -106,8 +107,9 @@ function Photo(props: PhotoProps) {
           onLoad={() => setLoaded(current)}
           onError={() => setFailed((list) => [...list, current])}
         />
+        </a>
       ) : settled ? (
-        <ImageIcon aria-hidden className="iui-image-empty" strokeWidth={1.5} />
+        <div className="iui-image-error"><ImageIcon aria-hidden className="iui-image-empty" strokeWidth={1.5} /><span>图片暂时无法显示</span>{src && <button type="button" onClick={() => setFailed(list => list.filter(url => url !== src))}>重试</button>}</div>
       ) : null}
     </div>
   );
@@ -120,12 +122,20 @@ export const SearchImage = defineComponent({
   props: z.object({ query: z.string(), aspectRatio: z.number().optional(), radius: radiusSchema.optional(), fit }),
   description:
     'A real photo the app finds for query; it needs no URL and no tool. Name the exact thing in 2 to 4 words: "Belém Tower Lisbon", "iPhone 17", "pastel de nata". Use one for every place, dish, product or thing with a look.',
-  component: ({ props }) => <Photo {...props} />,
+  component: ({ props }) => <Photo {...props} search />,
 });
 
 export const Image = defineComponent({
   name: "Image",
   props: z.object({ src: z.string(), alt: z.string(), aspectRatio: z.number().optional(), radius: radiusSchema.optional(), fit }),
-  description: "Photo from a URL the user or a tool gave; if it fails, a photo is found for alt.",
+  description: "Display the exact image URL supplied by a user or tool, including local /media/ URLs. Failed images show a retry control; they are never replaced by search results.",
   component: ({ props }) => <Photo query={props.alt} src={props.src} aspectRatio={props.aspectRatio} radius={props.radius} fit={props.fit} />,
+});
+
+// Sail creation results use real media URLs, alongside the upstream photos.
+export const Video = defineComponent({
+  name: 'Video',
+  props: z.object({ src: z.string(), title: z.string().optional(), poster: z.string().optional() }),
+  description: 'Play a real video URL returned by a creative tool; never invent a URL.',
+  component: ({ props }) => <figure className="iui-video"><video src={mediaUrl(props.src) || undefined} poster={mediaUrl(props.poster) || undefined} aria-label={props.title || '视频'} controls playsInline preload="metadata" />{props.title && <figcaption className="iui-caption">{props.title}</figcaption>}</figure>,
 });

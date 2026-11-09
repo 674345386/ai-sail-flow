@@ -7,6 +7,7 @@ import {
   ImagePlus,
   LayoutGrid,
   LoaderCircle,
+  ListChecks,
   Radar,
   Sparkles,
 } from 'lucide-react';
@@ -86,11 +87,13 @@ export default function StudioShell({
   onNavigate,
   onLeave,
   onBackWorkspace,
+  onOpenTasks,
 }: {
   route: Extract<AppRoute, { kind: 'studio' }>;
   onNavigate: (section: StudioSection, id?: string) => void;
   onLeave: () => void;
   onBackWorkspace: () => void;
+  onOpenTasks: () => void;
 }) {
   const fallback = <div className="studio-empty"><LoaderCircle className="spin" size={18} /> 正在打开模块…</div>;
   const openRemakeFromTrend = (item: TrendItem) => onNavigate('remake', item.id);
@@ -129,6 +132,9 @@ export default function StudioShell({
             </button>
           );
         })}
+        <button type="button" className="studio-nav-item" onClick={onOpenTasks}>
+          <ListChecks size={16} /><span>任务进度</span>
+        </button>
         <button type="button" className="studio-nav-item" onClick={() => onNavigate('welcome')}>
           <Home size={16} /><span>工作室介绍</span>
         </button>

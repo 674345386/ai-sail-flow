@@ -3,7 +3,9 @@ import { readAuthCallback, supabase } from './auth';
 
 // Lightweight client routing: keeps location.pathname and the App view state in sync.
 //   /                              landing
+//   /agent                         Agent landing
 //   /library                       所有媒体
+//   /jobs                          图片与视频任务进度
 //   /creative/<id>                 creative, default step (normalized to a step URL)
 //   /creative/<id>/upload          step 0 · 上传素材
 //   /creative/<id>/analysis        step 1 · 视频拆解
@@ -21,8 +23,9 @@ import { readAuthCallback, supabase } from './auth';
 export type StudioSection = 'home' | 'welcome' | 'creatives' | 'radar' | 'tvc' | 'remake' | 'project';
 
 export type AppRoute =
-  | { kind: 'landing' }
+  | { kind: 'landing'; mode?: 'agent' | 'studio' }
   | { kind: 'library' }
+  | { kind: 'jobs' }
   | { kind: 'creative'; id: string; step?: number; canvas?: boolean }
   | { kind: 'studio'; section: StudioSection; id?: string };
 
@@ -36,7 +39,9 @@ const studioSections = new Set<string>(['welcome', 'home', 'creatives', 'radar',
 export function parseRoute(pathname: string): AppRoute | null {
   const parts = pathname.split('/').filter(Boolean).map(part => { try { return decodeURIComponent(part); } catch { return part; } });
   if (!parts.length) return { kind: 'landing' };
+  if (parts[0] === 'agent' && parts.length === 1) return { kind: 'landing', mode: 'agent' };
   if (parts[0] === 'library' && parts.length === 1) return { kind: 'library' };
+  if (parts[0] === 'jobs' && parts.length === 1) return { kind: 'jobs' };
   if (parts[0] === 'studio') {
     if (parts.length === 1) return { kind: 'studio', section: 'welcome' };
     const section = parts[1]?.toLowerCase();
@@ -67,8 +72,9 @@ export function parseRoute(pathname: string): AppRoute | null {
 }
 
 export function routePath(route: AppRoute): string {
-  if (route.kind === 'landing') return '/';
+  if (route.kind === 'landing') return route.mode === 'agent' ? '/agent' : '/';
   if (route.kind === 'library') return '/library';
+  if (route.kind === 'jobs') return '/jobs';
   if (route.kind === 'studio') {
     if (route.section === 'welcome') return '/studio';
     if (route.section === 'home') return '/studio/home';

@@ -1,0 +1,2408 @@
+{
+  "schemaVersion": 1,
+  "projectId": "9d346190-48b6-43ff-ac47-ed68a8b3f4a1",
+  "name": "AI-Sail Flow · 落地页三方案",
+  "mode": "refactor",
+  "root": "/Users/cppeng/sop",
+  "brief": "",
+  "exportedAt": "2026-11-08T14:52:29.606Z",
+  "projectRevision": 12,
+  "pages": [
+    {
+      "id": "page-8a5edab282632443",
+      "parentId": null,
+      "title": "落地页 · Prompt 首屏",
+      "type": "page",
+      "route": "/",
+      "sourceFiles": [
+        "index.html",
+        "src/App.tsx",
+        "src/LandingHero.tsx",
+        "src/landing-hero.css",
+        "src/landing-background.css"
+      ],
+      "sourceChanged": false,
+      "selection": {
+        "key": "a",
+        "version": 3,
+        "note": "用户在对话中明确选择：a 的排版，b 的底色。",
+        "selectedAt": "2026-11-08T14:28:57.309Z"
+      },
+      "selectedArtifact": {
+        "version": 3,
+        "title": "居中光场",
+        "description": "按用户选择组合：A 的居中排版、顶部跑马灯与输入框尺寸，搭配 B 的蓝紫与暖橙渐变底色。",
+        "kind": "authored",
+        "file": "artifacts/page-8a5edab282632443/a/3/index.html",
+        "sha256": "25fcb19e05cdc84c37765bcc76bb29dd8a0a5cb20b12fef142d0431dbdf113aa",
+        "createdAt": "2026-11-08T14:28:57.269Z"
+      }
+    },
+    {
+      "id": "page-4dcdf383e20f8b80",
+      "parentId": "page-8a5edab282632443",
+      "title": "AI 出海带货工具｜功能说明",
+      "type": "page",
+      "route": "/ai-overseas-tool-functions.html",
+      "sourceFiles": [
+        "ai-overseas-tool-functions.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-6c9ae41db5852ec4",
+      "parentId": "page-8a5edab282632443",
+      "title": "色卡扇",
+      "type": "page",
+      "route": "/color-card-motion.html",
+      "sourceFiles": [
+        "color-card-motion.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-fadc137c49f341f3",
+      "parentId": "page-8a5edab282632443",
+      "title": "组件与触发实验室",
+      "type": "page",
+      "route": "/component-library.html",
+      "sourceFiles": [
+        "component-library.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-bbca449c2b0ccccf",
+      "parentId": "page-8a5edab282632443",
+      "title": "Visualize",
+      "type": "page",
+      "route": "/data/agent-codex/plugins/cache/openai-curated-remote/visualize/1.0.89/skills/visualize/assets/visualize.html",
+      "sourceFiles": [
+        "data/agent-codex/plugins/cache/openai-curated-remote/visualize/1.0.89/skills/visualize/assets/visualize.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-670f8f767c5d1f59",
+      "parentId": "page-8a5edab282632443",
+      "title": "阶段完成标记",
+      "type": "page",
+      "route": "/docs/design-previews/completed-stage-indicator.html",
+      "sourceFiles": [
+        "docs/design-previews/completed-stage-indicator.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-9adfd0a18d87e732",
+      "parentId": "page-e6b31b49ec58bd38",
+      "title": "Agents",
+      "type": "page",
+      "route": "/docs/elevenlabs-reference/authenticated-rendered.html",
+      "sourceFiles": [
+        "docs/elevenlabs-reference/authenticated-rendered.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-e6b31b49ec58bd38",
+      "parentId": "page-8a5edab282632443",
+      "title": "ElevenAgents",
+      "type": "page",
+      "route": "/docs/elevenlabs-reference/",
+      "sourceFiles": [
+        "docs/elevenlabs-reference/index.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-5a41bbbbb6464da4",
+      "parentId": "page-e6b31b49ec58bd38",
+      "title": "Templates",
+      "type": "page",
+      "route": "/docs/elevenlabs-reference/local-clone/",
+      "sourceFiles": [
+        "docs/elevenlabs-reference/local-clone/index.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-d071b828e7947c82",
+      "parentId": "page-8a5edab282632443",
+      "title": "Create AI Image Ads from any URL or Photo",
+      "type": "page",
+      "route": "/docs/studio-redesign/creatify-source/image-ads.html",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-76e31e94126e15b6",
+      "parentId": "page-8a5edab282632443",
+      "title": "爆款工作室 landing preview (v3",
+      "type": "page",
+      "route": "/docs/studio-redesign/landing-preview.html",
+      "sourceFiles": [
+        "docs/studio-redesign/landing-preview.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-686bee635512deaf",
+      "parentId": "page-8a5edab282632443",
+      "title": "Sail Studio product shell preview",
+      "type": "page",
+      "route": "/docs/studio-redesign/shell-preview.html",
+      "sourceFiles": [
+        "docs/studio-redesign/shell-preview.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-315effa118307777",
+      "parentId": "page-8a5edab282632443",
+      "title": "Google Flow - AI Creative Studio for Video, Images & Custom Tools",
+      "type": "page",
+      "route": "/flow-google-about-download/",
+      "sourceFiles": [
+        "flow-google-about-download/index.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-bdf923dc47ed5060",
+      "parentId": "page-315effa118307777",
+      "title": "Google Flow - AI Creative Studio for Video, Images & Custom Tools",
+      "type": "page",
+      "route": "/flow-google-about-download/index.remote.html",
+      "sourceFiles": [
+        "flow-google-about-download/index.remote.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-ebe12a22f7a4c406",
+      "parentId": "page-8a5edab282632443",
+      "title": "产品介绍 - gaoruiapi",
+      "type": "page",
+      "route": "/output/keyframe-grids/omni-provider-docs.html",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-44a77a2e0a9490c9",
+      "parentId": "page-8a5edab282632443",
+      "title": "彩色图标候选",
+      "type": "page",
+      "route": "/output/mvp/grain-icons/compare.html",
+      "sourceFiles": [
+        "output/mvp/grain-icons/compare.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-215894e6f6508d55",
+      "parentId": "page-8a5edab282632443",
+      "title": "AI-Sail Flow 登录验证码",
+      "type": "page",
+      "route": "/public/auth-email/code.html",
+      "sourceFiles": [
+        "public/auth-email/code.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-33d342a6a9b55a8e",
+      "parentId": "page-8a5edab282632443",
+      "title": "AI-Sail Flow",
+      "type": "page",
+      "route": "/tmp-backup-i18n-202610130358/src/",
+      "sourceFiles": [
+        "tmp-backup-i18n-202610130358/src/index.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-ad60c03e1cc8a94f",
+      "parentId": "page-8a5edab282632443",
+      "title": "Offscreendocument",
+      "type": "page",
+      "route": "/tmp-backup-levels-2026-10-21/chrome-cdp-recent/Default/Extensions/ghbmnnjooekpmoecnnnilnnbdlolhkhi/1.111.1_0/offscreendocument.html",
+      "sourceFiles": [
+        "tmp-backup-levels-2026-10-21/chrome-cdp-recent/Default/Extensions/ghbmnnjooekpmoecnnnilnnbdlolhkhi/1.111.1_0/offscreendocument.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-02701f3906231315",
+      "parentId": "page-8a5edab282632443",
+      "title": "Craw Window",
+      "type": "page",
+      "route": "/tmp-backup-levels-2026-10-21/chrome-cdp-recent/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/html/craw_window.html",
+      "sourceFiles": [
+        "tmp-backup-levels-2026-10-21/chrome-cdp-recent/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/html/craw_window.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-1b568f56295e3671",
+      "parentId": "page-8a5edab282632443",
+      "title": "Offscreen",
+      "type": "page",
+      "route": "/tmp-backup-levels-2026-10-21/chrome-cdp-recent/WasmTtsEngine/20261005.1/offscreen.html",
+      "sourceFiles": [
+        "tmp-backup-levels-2026-10-21/chrome-cdp-recent/WasmTtsEngine/20261005.1/offscreen.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-1a268661b4bf0cf0",
+      "parentId": "page-8a5edab282632443",
+      "title": "Offscreendocument",
+      "type": "page",
+      "route": "/tmp-backup-levels-2026-10-21/chrome-cdp-recent3/Default/Extensions/ghbmnnjooekpmoecnnnilnnbdlolhkhi/1.111.1_0/offscreendocument.html",
+      "sourceFiles": [
+        "tmp-backup-levels-2026-10-21/chrome-cdp-recent3/Default/Extensions/ghbmnnjooekpmoecnnnilnnbdlolhkhi/1.111.1_0/offscreendocument.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-d89628da6782fd11",
+      "parentId": "page-8a5edab282632443",
+      "title": "Craw Window",
+      "type": "page",
+      "route": "/tmp-backup-levels-2026-10-21/chrome-cdp-recent3/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/html/craw_window.html",
+      "sourceFiles": [
+        "tmp-backup-levels-2026-10-21/chrome-cdp-recent3/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/html/craw_window.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-13c41904c14025ac",
+      "parentId": "page-8a5edab282632443",
+      "title": "Offscreendocument",
+      "type": "page",
+      "route": "/tmp-backup-levels-2026-10-21/chrome-cdp-recent4/Default/Extensions/ghbmnnjooekpmoecnnnilnnbdlolhkhi/1.111.1_0/offscreendocument.html",
+      "sourceFiles": [
+        "tmp-backup-levels-2026-10-21/chrome-cdp-recent4/Default/Extensions/ghbmnnjooekpmoecnnnilnnbdlolhkhi/1.111.1_0/offscreendocument.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-87c010bca74344c6",
+      "parentId": "page-8a5edab282632443",
+      "title": "Craw Window",
+      "type": "page",
+      "route": "/tmp-backup-levels-2026-10-21/chrome-cdp-recent4/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/html/craw_window.html",
+      "sourceFiles": [
+        "tmp-backup-levels-2026-10-21/chrome-cdp-recent4/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/html/craw_window.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-3eead30e43bd0a6d",
+      "parentId": "page-8a5edab282632443",
+      "title": "Offscreendocument",
+      "type": "page",
+      "route": "/tmp-backup-levels-2026-10-21/chrome-cdp-recent5/Default/Extensions/ghbmnnjooekpmoecnnnilnnbdlolhkhi/1.111.1_0/offscreendocument.html",
+      "sourceFiles": [
+        "tmp-backup-levels-2026-10-21/chrome-cdp-recent5/Default/Extensions/ghbmnnjooekpmoecnnnilnnbdlolhkhi/1.111.1_0/offscreendocument.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-51d71d411dd166f4",
+      "parentId": "page-8a5edab282632443",
+      "title": "Craw Window",
+      "type": "page",
+      "route": "/tmp-backup-levels-2026-10-21/chrome-cdp-recent5/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/html/craw_window.html",
+      "sourceFiles": [
+        "tmp-backup-levels-2026-10-21/chrome-cdp-recent5/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/html/craw_window.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-e0fefb782526156b",
+      "parentId": "page-8a5edab282632443",
+      "title": "Offscreendocument",
+      "type": "page",
+      "route": "/tmp-backup-levels-2026-10-21/chrome-cdp/Default/Extensions/ghbmnnjooekpmoecnnnilnnbdlolhkhi/1.111.1_0/offscreendocument.html",
+      "sourceFiles": [
+        "tmp-backup-levels-2026-10-21/chrome-cdp/Default/Extensions/ghbmnnjooekpmoecnnnilnnbdlolhkhi/1.111.1_0/offscreendocument.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-70502fb5c28dec30",
+      "parentId": "page-8a5edab282632443",
+      "title": "Craw Window",
+      "type": "page",
+      "route": "/tmp-backup-levels-2026-10-21/chrome-cdp/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/html/craw_window.html",
+      "sourceFiles": [
+        "tmp-backup-levels-2026-10-21/chrome-cdp/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/html/craw_window.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-b4931687368b64bb",
+      "parentId": "page-8a5edab282632443",
+      "title": "Offscreendocument",
+      "type": "page",
+      "route": "/tmp-backup-levels-2026-10-21/chrome-cdp10/Default/Extensions/ghbmnnjooekpmoecnnnilnnbdlolhkhi/1.111.1_0/offscreendocument.html",
+      "sourceFiles": [
+        "tmp-backup-levels-2026-10-21/chrome-cdp10/Default/Extensions/ghbmnnjooekpmoecnnnilnnbdlolhkhi/1.111.1_0/offscreendocument.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-cbfdfa5cc78d269a",
+      "parentId": "page-8a5edab282632443",
+      "title": "Craw Window",
+      "type": "page",
+      "route": "/tmp-backup-levels-2026-10-21/chrome-cdp10/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/html/craw_window.html",
+      "sourceFiles": [
+        "tmp-backup-levels-2026-10-21/chrome-cdp10/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/html/craw_window.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-ebbfbb5022905cd7",
+      "parentId": "page-8a5edab282632443",
+      "title": "Offscreendocument",
+      "type": "page",
+      "route": "/tmp-backup-levels-2026-10-21/chrome-cdp2/Default/Extensions/ghbmnnjooekpmoecnnnilnnbdlolhkhi/1.111.1_0/offscreendocument.html",
+      "sourceFiles": [
+        "tmp-backup-levels-2026-10-21/chrome-cdp2/Default/Extensions/ghbmnnjooekpmoecnnnilnnbdlolhkhi/1.111.1_0/offscreendocument.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-b6fed939dd31986d",
+      "parentId": "page-8a5edab282632443",
+      "title": "Craw Window",
+      "type": "page",
+      "route": "/tmp-backup-levels-2026-10-21/chrome-cdp2/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/html/craw_window.html",
+      "sourceFiles": [
+        "tmp-backup-levels-2026-10-21/chrome-cdp2/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/html/craw_window.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-d466ae0d2ee81ff3",
+      "parentId": "page-8a5edab282632443",
+      "title": "Offscreendocument",
+      "type": "page",
+      "route": "/tmp-backup-levels-2026-10-21/chrome-cdp3/Default/Extensions/ghbmnnjooekpmoecnnnilnnbdlolhkhi/1.111.1_0/offscreendocument.html",
+      "sourceFiles": [
+        "tmp-backup-levels-2026-10-21/chrome-cdp3/Default/Extensions/ghbmnnjooekpmoecnnnilnnbdlolhkhi/1.111.1_0/offscreendocument.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-558babd1569cadd4",
+      "parentId": "page-8a5edab282632443",
+      "title": "Craw Window",
+      "type": "page",
+      "route": "/tmp-backup-levels-2026-10-21/chrome-cdp3/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/html/craw_window.html",
+      "sourceFiles": [
+        "tmp-backup-levels-2026-10-21/chrome-cdp3/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/html/craw_window.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-36a4f39a280449c7",
+      "parentId": "page-8a5edab282632443",
+      "title": "Offscreendocument",
+      "type": "page",
+      "route": "/tmp-backup-levels-2026-10-21/chrome-cdp4/Default/Extensions/ghbmnnjooekpmoecnnnilnnbdlolhkhi/1.111.1_0/offscreendocument.html",
+      "sourceFiles": [
+        "tmp-backup-levels-2026-10-21/chrome-cdp4/Default/Extensions/ghbmnnjooekpmoecnnnilnnbdlolhkhi/1.111.1_0/offscreendocument.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-91b6a729edbc8ffd",
+      "parentId": "page-8a5edab282632443",
+      "title": "Craw Window",
+      "type": "page",
+      "route": "/tmp-backup-levels-2026-10-21/chrome-cdp4/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/html/craw_window.html",
+      "sourceFiles": [
+        "tmp-backup-levels-2026-10-21/chrome-cdp4/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/html/craw_window.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-88c3d66f7f63e725",
+      "parentId": "page-8a5edab282632443",
+      "title": "Offscreendocument",
+      "type": "page",
+      "route": "/tmp-backup-levels-2026-10-21/chrome-cdp5/Default/Extensions/ghbmnnjooekpmoecnnnilnnbdlolhkhi/1.111.1_0/offscreendocument.html",
+      "sourceFiles": [
+        "tmp-backup-levels-2026-10-21/chrome-cdp5/Default/Extensions/ghbmnnjooekpmoecnnnilnnbdlolhkhi/1.111.1_0/offscreendocument.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-292c61d5c492d2ef",
+      "parentId": "page-8a5edab282632443",
+      "title": "Craw Window",
+      "type": "page",
+      "route": "/tmp-backup-levels-2026-10-21/chrome-cdp5/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/html/craw_window.html",
+      "sourceFiles": [
+        "tmp-backup-levels-2026-10-21/chrome-cdp5/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/html/craw_window.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-6e6ec3596d22ad0d",
+      "parentId": "page-8a5edab282632443",
+      "title": "Offscreendocument",
+      "type": "page",
+      "route": "/tmp-backup-levels-2026-10-21/chrome-cdp6/Default/Extensions/ghbmnnjooekpmoecnnnilnnbdlolhkhi/1.111.1_0/offscreendocument.html",
+      "sourceFiles": [
+        "tmp-backup-levels-2026-10-21/chrome-cdp6/Default/Extensions/ghbmnnjooekpmoecnnnilnnbdlolhkhi/1.111.1_0/offscreendocument.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-85db31920ed842ce",
+      "parentId": "page-8a5edab282632443",
+      "title": "Craw Window",
+      "type": "page",
+      "route": "/tmp-backup-levels-2026-10-21/chrome-cdp6/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/html/craw_window.html",
+      "sourceFiles": [
+        "tmp-backup-levels-2026-10-21/chrome-cdp6/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/html/craw_window.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-536df7a94badaf51",
+      "parentId": "page-8a5edab282632443",
+      "title": "Offscreendocument",
+      "type": "page",
+      "route": "/tmp-backup-levels-2026-10-21/chrome-cdp7/Default/Extensions/ghbmnnjooekpmoecnnnilnnbdlolhkhi/1.111.1_0/offscreendocument.html",
+      "sourceFiles": [
+        "tmp-backup-levels-2026-10-21/chrome-cdp7/Default/Extensions/ghbmnnjooekpmoecnnnilnnbdlolhkhi/1.111.1_0/offscreendocument.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-71beef792ad309ee",
+      "parentId": "page-8a5edab282632443",
+      "title": "Craw Window",
+      "type": "page",
+      "route": "/tmp-backup-levels-2026-10-21/chrome-cdp7/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/html/craw_window.html",
+      "sourceFiles": [
+        "tmp-backup-levels-2026-10-21/chrome-cdp7/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/html/craw_window.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-bd024d12363a8748",
+      "parentId": "page-8a5edab282632443",
+      "title": "Offscreendocument",
+      "type": "page",
+      "route": "/tmp-backup-levels-2026-10-21/chrome-cdp8/Default/Extensions/ghbmnnjooekpmoecnnnilnnbdlolhkhi/1.111.1_0/offscreendocument.html",
+      "sourceFiles": [
+        "tmp-backup-levels-2026-10-21/chrome-cdp8/Default/Extensions/ghbmnnjooekpmoecnnnilnnbdlolhkhi/1.111.1_0/offscreendocument.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-b4f88b7a54f2f85a",
+      "parentId": "page-8a5edab282632443",
+      "title": "Craw Window",
+      "type": "page",
+      "route": "/tmp-backup-levels-2026-10-21/chrome-cdp8/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/html/craw_window.html",
+      "sourceFiles": [
+        "tmp-backup-levels-2026-10-21/chrome-cdp8/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/html/craw_window.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-f8b7a274d0d5ebdc",
+      "parentId": "page-8a5edab282632443",
+      "title": "Offscreendocument",
+      "type": "page",
+      "route": "/tmp-backup-levels-2026-10-21/chrome-cdp9/Default/Extensions/ghbmnnjooekpmoecnnnilnnbdlolhkhi/1.111.1_0/offscreendocument.html",
+      "sourceFiles": [
+        "tmp-backup-levels-2026-10-21/chrome-cdp9/Default/Extensions/ghbmnnjooekpmoecnnnilnnbdlolhkhi/1.111.1_0/offscreendocument.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-c09f89dd55fd9945",
+      "parentId": "page-8a5edab282632443",
+      "title": "Craw Window",
+      "type": "page",
+      "route": "/tmp-backup-levels-2026-10-21/chrome-cdp9/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/html/craw_window.html",
+      "sourceFiles": [
+        "tmp-backup-levels-2026-10-21/chrome-cdp9/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/html/craw_window.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-5c4a969a5b43abd6",
+      "parentId": "page-8a5edab282632443",
+      "title": "Prototype",
+      "type": "page",
+      "route": "/work/canvas-round-options/prototype.html",
+      "sourceFiles": [
+        "work/canvas-round-options/prototype.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-ebf6aeb01625d1d8",
+      "parentId": "page-8a5edab282632443",
+      "title": "CapyAI 创作工作台 - 多模型 AI 图片与视频创作",
+      "type": "page",
+      "route": "/work/capyai-reference/",
+      "sourceFiles": [
+        "work/capyai-reference/index.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-673c87298bdad761",
+      "parentId": "page-8a5edab282632443",
+      "title": "Agents",
+      "type": "page",
+      "route": "/app/agents",
+      "sourceFiles": [
+        "docs/elevenlabs-reference/authenticated-rendered.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-a34081941e6d3f5e",
+      "parentId": "page-673c87298bdad761",
+      "title": "Architect",
+      "type": "page",
+      "route": "/app/agents/architect",
+      "sourceFiles": [
+        "docs/elevenlabs-reference/authenticated-rendered.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-d5bf511df1e4aa57",
+      "parentId": "page-673c87298bdad761",
+      "title": "Triage",
+      "type": "page",
+      "route": "/app/agents/triage",
+      "sourceFiles": [
+        "docs/elevenlabs-reference/authenticated-rendered.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-05e84729ca23d56a",
+      "parentId": "page-673c87298bdad761",
+      "title": "Agents",
+      "type": "page",
+      "route": "/app/agents/agents",
+      "sourceFiles": [
+        "docs/elevenlabs-reference/authenticated-rendered.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-b56c1783d4ee36a8",
+      "parentId": "page-05e84729ca23d56a",
+      "title": "Agent 3501m5yr72cmezw8mvstfph3phb2",
+      "type": "page",
+      "route": "/app/agents/agents/agent_3501m5yr72cmezw8mvstfph3phb2",
+      "sourceFiles": [
+        "docs/elevenlabs-reference/authenticated-rendered.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-8c414ec21b6b9162",
+      "parentId": "page-673c87298bdad761",
+      "title": "New",
+      "type": "page",
+      "route": "/app/agents/new",
+      "sourceFiles": [
+        "docs/elevenlabs-reference/authenticated-rendered.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-962b78ae27aea082",
+      "parentId": "page-673c87298bdad761",
+      "title": "Knowledge Base",
+      "type": "page",
+      "route": "/app/agents/knowledge-base",
+      "sourceFiles": [
+        "docs/elevenlabs-reference/authenticated-rendered.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-fca50c5bc1b4466d",
+      "parentId": "page-673c87298bdad761",
+      "title": "Tools",
+      "type": "page",
+      "route": "/app/agents/tools",
+      "sourceFiles": [
+        "docs/elevenlabs-reference/authenticated-rendered.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-dd3bc2b986d67a42",
+      "parentId": "page-673c87298bdad761",
+      "title": "Integrations",
+      "type": "page",
+      "route": "/app/agents/integrations",
+      "sourceFiles": [
+        "docs/elevenlabs-reference/authenticated-rendered.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-ceec1bf9182e2a41",
+      "parentId": "page-673c87298bdad761",
+      "title": "Voice Library",
+      "type": "page",
+      "route": "/app/agents/voice-library",
+      "sourceFiles": [
+        "docs/elevenlabs-reference/authenticated-rendered.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-ea318aff486e2405",
+      "parentId": "page-673c87298bdad761",
+      "title": "History",
+      "type": "page",
+      "route": "/app/agents/history",
+      "sourceFiles": [
+        "docs/elevenlabs-reference/authenticated-rendered.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-f221a9d9188733f4",
+      "parentId": "page-673c87298bdad761",
+      "title": "Users",
+      "type": "page",
+      "route": "/app/agents/users",
+      "sourceFiles": [
+        "docs/elevenlabs-reference/authenticated-rendered.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-7f289df763215fdf",
+      "parentId": "page-673c87298bdad761",
+      "title": "Agent Testing",
+      "type": "page",
+      "route": "/app/agents/agent-testing",
+      "sourceFiles": [
+        "docs/elevenlabs-reference/authenticated-rendered.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-5179e43eea4e8ba0",
+      "parentId": "page-673c87298bdad761",
+      "title": "Channels",
+      "type": "page",
+      "route": "/app/agents/channels",
+      "sourceFiles": [
+        "docs/elevenlabs-reference/authenticated-rendered.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-bfe92fbaae405862",
+      "parentId": "page-673c87298bdad761",
+      "title": "Phone Numbers",
+      "type": "page",
+      "route": "/app/agents/phone-numbers",
+      "sourceFiles": [
+        "docs/elevenlabs-reference/authenticated-rendered.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-f62e46c4303678d1",
+      "parentId": "page-673c87298bdad761",
+      "title": "Whatsapp",
+      "type": "page",
+      "route": "/app/agents/whatsapp",
+      "sourceFiles": [
+        "docs/elevenlabs-reference/authenticated-rendered.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-3ef1616a3c34f9bf",
+      "parentId": "page-673c87298bdad761",
+      "title": "Batch Calling",
+      "type": "page",
+      "route": "/app/agents/batch-calling",
+      "sourceFiles": [
+        "docs/elevenlabs-reference/authenticated-rendered.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-5c1af515df823fc9",
+      "parentId": "page-673c87298bdad761",
+      "title": "Settings",
+      "type": "page",
+      "route": "/app/agents/settings",
+      "sourceFiles": [
+        "docs/elevenlabs-reference/authenticated-rendered.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-7220c0f474728d55",
+      "parentId": "page-8a5edab282632443",
+      "title": "Developers",
+      "type": "page",
+      "route": "/app/developers",
+      "sourceFiles": [
+        "docs/elevenlabs-reference/authenticated-rendered.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-7c759710aca2faf7",
+      "parentId": "page-8a5edab282632443",
+      "title": "Subscription",
+      "type": "page",
+      "route": "/app/subscription",
+      "sourceFiles": [
+        "docs/elevenlabs-reference/authenticated-rendered.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-3e98b63badd1c544",
+      "parentId": "page-673c87298bdad761",
+      "title": "Tmpl 2601kptsp1kqf6ban2f8gk59vycw",
+      "type": "page",
+      "route": "/app/agents/templates/tmpl_2601kptsp1kqf6ban2f8gk59vycw",
+      "sourceFiles": [
+        "docs/elevenlabs-reference/authenticated-rendered.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-1c553d5b11761fba",
+      "parentId": "page-8a5edab282632443",
+      "title": "Ad Agent",
+      "type": "page",
+      "route": "/ad-agent",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-ccef51bfbf5ae39b",
+      "parentId": "page-8a5edab282632443",
+      "title": "New",
+      "type": "page",
+      "route": "/adflow/new",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-55d0bae88789649c",
+      "parentId": "page-de335934359a9058",
+      "title": "Url To Video",
+      "type": "page",
+      "route": "/features/url-to-video",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-d80951e7357ae233",
+      "parentId": "page-de335934359a9058",
+      "title": "Ai Avatar",
+      "type": "page",
+      "route": "/features/ai-avatar",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-d1c8493c37da2b0a",
+      "parentId": "page-de335934359a9058",
+      "title": "Model Playground",
+      "type": "page",
+      "route": "/features/model-playground",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-38849f000b3c185d",
+      "parentId": "page-1b63e95f753d2656",
+      "title": "Image Ads",
+      "type": "page",
+      "route": "/use-cases/image-ads",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-89b6b3f9d16b877e",
+      "parentId": "page-de335934359a9058",
+      "title": "Ad Clone",
+      "type": "page",
+      "route": "/features/ad-clone",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-d1e0bcd688a689d0",
+      "parentId": "page-d3be381b3bcb529a",
+      "title": "Brand",
+      "type": "page",
+      "route": "/tool/creative-insights/brand",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-456cf04b69ed8f47",
+      "parentId": "page-8a5edab282632443",
+      "title": "Inspiration",
+      "type": "page",
+      "route": "/inspiration",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-702acf7c08d3b03b",
+      "parentId": "page-8a5edab282632443",
+      "title": "Api",
+      "type": "page",
+      "route": "/api",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-b4eab78d6975cc5b",
+      "parentId": "page-de335934359a9058",
+      "title": "Mcp",
+      "type": "page",
+      "route": "/features/mcp",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-c8edb52b3f0c220a",
+      "parentId": "page-8a5edab282632443",
+      "title": "Slack",
+      "type": "page",
+      "route": "/slack",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-22a69e662072f633",
+      "parentId": "page-d3be381b3bcb529a",
+      "title": "Choose Launch",
+      "type": "page",
+      "route": "/tool/creative-testing/choose-launch",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-5b0f3f2119e1ad03",
+      "parentId": "page-8a5edab282632443",
+      "title": "Studio",
+      "type": "page",
+      "route": "/studio",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-8caafe4386f95803",
+      "parentId": "page-8a5edab282632443",
+      "title": "Blog",
+      "type": "page",
+      "route": "/blog",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-8e813f011801030d",
+      "parentId": "page-8a5edab282632443",
+      "title": "Case Study",
+      "type": "page",
+      "route": "/case-study",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-5d418ba4a2912ed1",
+      "parentId": "page-8a5edab282632443",
+      "title": "Learning Center",
+      "type": "page",
+      "route": "/learning-center",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-19baf385f9f3a826",
+      "parentId": "page-8a5edab282632443",
+      "title": "Affiliate",
+      "type": "page",
+      "route": "/affiliate",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-013cc6e0ad656a19",
+      "parentId": "page-8a5edab282632443",
+      "title": "Careers",
+      "type": "page",
+      "route": "/careers",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-b6fbaf313e878951",
+      "parentId": "page-8a5edab282632443",
+      "title": "Ai Ethics",
+      "type": "page",
+      "route": "/ai-ethics",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-979bddc4a8caafdd",
+      "parentId": "page-8a5edab282632443",
+      "title": "About",
+      "type": "page",
+      "route": "/about",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-ae3e91c8654dca8b",
+      "parentId": "page-1b63e95f753d2656",
+      "title": "Ugc",
+      "type": "page",
+      "route": "/use-cases/ugc",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-6731d3c92e52dc65",
+      "parentId": "page-1b63e95f753d2656",
+      "title": "Product Videos",
+      "type": "page",
+      "route": "/use-cases/product-videos",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-f8ce52c39476a74e",
+      "parentId": "page-1b63e95f753d2656",
+      "title": "Cinematic",
+      "type": "page",
+      "route": "/use-cases/cinematic",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-16a94df6b2583275",
+      "parentId": "page-1b63e95f753d2656",
+      "title": "Ott Ctv Advertising",
+      "type": "page",
+      "route": "/use-cases/ott-ctv-advertising",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-2d9178e9eccae8db",
+      "parentId": "page-1b63e95f753d2656",
+      "title": "Ecommerce Ads",
+      "type": "page",
+      "route": "/use-cases/ecommerce-ads",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-37a5f0d5f403da6c",
+      "parentId": "page-1b63e95f753d2656",
+      "title": "App Ads",
+      "type": "page",
+      "route": "/use-cases/app-ads",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-88542310ac13e55d",
+      "parentId": "page-1b63e95f753d2656",
+      "title": "Services Ads",
+      "type": "page",
+      "route": "/use-cases/services-ads",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-1b63e95f753d2656",
+      "parentId": "page-8a5edab282632443",
+      "title": "Use Cases",
+      "type": "page",
+      "route": "/use-cases",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-7394a2bb766646ca",
+      "parentId": "page-8a5edab282632443",
+      "title": "Pricing",
+      "type": "page",
+      "route": "/pricing",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-0a0795774070a9dc",
+      "parentId": "page-8a5edab282632443",
+      "title": "Login",
+      "type": "page",
+      "route": "/auth/login",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-9debdd537e08acf3",
+      "parentId": "page-8a5edab282632443",
+      "title": "Contact",
+      "type": "page",
+      "route": "/enterprise/contact",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-17374db511a581bb",
+      "parentId": "page-8e813f011801030d",
+      "title": "Dena",
+      "type": "page",
+      "route": "/case-study/dena",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-7eb76411830a2ece",
+      "parentId": "page-8e813f011801030d",
+      "title": "Designrr",
+      "type": "page",
+      "route": "/case-study/designrr",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-8e68cf57c2414012",
+      "parentId": "page-8e813f011801030d",
+      "title": "Alibaba",
+      "type": "page",
+      "route": "/case-study/alibaba",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-5fb968a65ba5383b",
+      "parentId": "page-8e813f011801030d",
+      "title": "Tec Do 2 0",
+      "type": "page",
+      "route": "/case-study/tec-do-2-0",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-7b8184d4bc3d1e9a",
+      "parentId": "page-8e813f011801030d",
+      "title": "1more",
+      "type": "page",
+      "route": "/case-study/1more",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-a73cf7a43e51070c",
+      "parentId": "page-8e813f011801030d",
+      "title": "Whole Life Pet",
+      "type": "page",
+      "route": "/case-study/whole-life-pet",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-7feefb791cd515f1",
+      "parentId": "page-8e813f011801030d",
+      "title": "Vitals",
+      "type": "page",
+      "route": "/case-study/vitals",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-c35a8ecf6927d170",
+      "parentId": "page-8e813f011801030d",
+      "title": "Adnet",
+      "type": "page",
+      "route": "/case-study/adnet",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-60d6ab919bd27c3b",
+      "parentId": "page-de335934359a9058",
+      "title": "Agent",
+      "type": "page",
+      "route": "/features/agent",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-44071d81ceddcbe3",
+      "parentId": "page-d3be381b3bcb529a",
+      "title": "Adflow Explorer",
+      "type": "page",
+      "route": "/tool/adflow-explorer",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-8c0342aad6f09e22",
+      "parentId": "page-de335934359a9058",
+      "title": "Performance Agent",
+      "type": "page",
+      "route": "/features/performance-agent",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-bc17f4c0ffd59161",
+      "parentId": "page-de335934359a9058",
+      "title": "Product Video",
+      "type": "page",
+      "route": "/features/product-video",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-de335934359a9058",
+      "parentId": "page-8a5edab282632443",
+      "title": "Features",
+      "type": "page",
+      "route": "/features",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-5ebacfd6e944895d",
+      "parentId": "page-de335934359a9058",
+      "title": "Ai Influencer Generator",
+      "type": "page",
+      "route": "/features/ai-influencer-generator",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-3ec870fb8676f205",
+      "parentId": "page-de335934359a9058",
+      "title": "Text To Speech",
+      "type": "page",
+      "route": "/features/text-to-speech",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-73be22ab02836a48",
+      "parentId": "page-de335934359a9058",
+      "title": "Ai Scriptwriter",
+      "type": "page",
+      "route": "/features/ai-scriptwriter",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-cf072c8fd6cc59d6",
+      "parentId": "page-de335934359a9058",
+      "title": "Ai Voice Over",
+      "type": "page",
+      "route": "/features/ai-voice-over",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-d3be381b3bcb529a",
+      "parentId": "page-8a5edab282632443",
+      "title": "Tool",
+      "type": "page",
+      "route": "/tool",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-b2bd94155e216b1d",
+      "parentId": "page-d3be381b3bcb529a",
+      "title": "Ai Text To Video",
+      "type": "page",
+      "route": "/tool/ai-text-to-video",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-fec34e6c322a5d75",
+      "parentId": "page-d3be381b3bcb529a",
+      "title": "Create Your Own Avatar",
+      "type": "page",
+      "route": "/tool/create-your-own-avatar",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-8baf66154c02968e",
+      "parentId": "page-d3be381b3bcb529a",
+      "title": "Digital Advertising Intelligence",
+      "type": "page",
+      "route": "/tool/digital-advertising-intelligence",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-c3a789ea35cfa364",
+      "parentId": "page-d3be381b3bcb529a",
+      "title": "Product Photography",
+      "type": "page",
+      "route": "/tool/product-photography",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-8945c33a260f4ea1",
+      "parentId": "page-de335934359a9058",
+      "title": "Ai Video Generator",
+      "type": "page",
+      "route": "/features/ai-video-generator",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-a597a4aab7457143",
+      "parentId": "page-de335934359a9058",
+      "title": "Image To Video Ai",
+      "type": "page",
+      "route": "/features/image-to-video-ai",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-f4d93e62e1cf3bb9",
+      "parentId": "page-d3be381b3bcb529a",
+      "title": "Ugc Creator",
+      "type": "page",
+      "route": "/tool/ugc-creator",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-351043a802918e59",
+      "parentId": "page-8a5edab282632443",
+      "title": "Boreal",
+      "type": "page",
+      "route": "/ai-models/boreal",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-9ad88a992a15ab0e",
+      "parentId": "page-1b63e95f753d2656",
+      "title": "Ads For Games",
+      "type": "page",
+      "route": "/use-cases/ads-for-games",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-45efab234cc682b3",
+      "parentId": "page-1b63e95f753d2656",
+      "title": "Dtc Ads",
+      "type": "page",
+      "route": "/use-cases/dtc-ads",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-1006ccba27031222",
+      "parentId": "page-1b63e95f753d2656",
+      "title": "Marketing Agencies",
+      "type": "page",
+      "route": "/use-cases/marketing-agencies",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-ef9ee53fba3ff111",
+      "parentId": "page-1b63e95f753d2656",
+      "title": "Tiktok Ads",
+      "type": "page",
+      "route": "/use-cases/tiktok-ads",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-a8d94fe5d3035b07",
+      "parentId": "page-1b63e95f753d2656",
+      "title": "Real Estate Ads",
+      "type": "page",
+      "route": "/use-cases/real-estate-ads",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-87f35ac4806cae7a",
+      "parentId": "page-1b63e95f753d2656",
+      "title": "Instagram Ads",
+      "type": "page",
+      "route": "/use-cases/instagram-ads",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-3c44549abd061efd",
+      "parentId": "page-1b63e95f753d2656",
+      "title": "Facebook Ads",
+      "type": "page",
+      "route": "/use-cases/facebook-ads",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-28bc1a2f9c040f72",
+      "parentId": "page-1b63e95f753d2656",
+      "title": "Youtube Ads",
+      "type": "page",
+      "route": "/use-cases/youtube-ads",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-c4aa834c1bdd3fbc",
+      "parentId": "page-1b63e95f753d2656",
+      "title": "Snap Ads",
+      "type": "page",
+      "route": "/use-cases/snap-ads",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-a8fa814e4f12090c",
+      "parentId": "page-1b63e95f753d2656",
+      "title": "Linkedin Ads",
+      "type": "page",
+      "route": "/use-cases/linkedin-ads",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-68d7fed57516f16c",
+      "parentId": "page-1b63e95f753d2656",
+      "title": "Axon",
+      "type": "page",
+      "route": "/use-cases/axon",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-4eb950636535d637",
+      "parentId": "page-8a5edab282632443",
+      "title": "Contact",
+      "type": "page",
+      "route": "/contact",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-6e9ae4016c5332bc",
+      "parentId": "page-8a5edab282632443",
+      "title": "Product Updates",
+      "type": "page",
+      "route": "/product_updates",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-2dda5c6b8eee51aa",
+      "parentId": "page-8a5edab282632443",
+      "title": "Terms",
+      "type": "page",
+      "route": "/terms",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-0ece7f7c306b4cf6",
+      "parentId": "page-8a5edab282632443",
+      "title": "Privacy",
+      "type": "page",
+      "route": "/privacy",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-970911d4ad4527f7",
+      "parentId": "page-8a5edab282632443",
+      "title": "Moderation Policy",
+      "type": "page",
+      "route": "/moderation-policy",
+      "sourceFiles": [
+        "docs/studio-redesign/creatify-source/image-ads.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-ffb86c3b7d4fa4c2",
+      "parentId": "page-8a5edab282632443",
+      "title": "Doc 8059065",
+      "type": "page",
+      "route": "/doc-8059065",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-3b5bc735b5cbdfb1",
+      "parentId": "page-8a5edab282632443",
+      "title": "Doc 8059069",
+      "type": "page",
+      "route": "/doc-8059069",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-02227d8d4684c6a4",
+      "parentId": "page-8a5edab282632443",
+      "title": "Doc 8080690",
+      "type": "page",
+      "route": "/doc-8080690",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-3c00f941ebf560c7",
+      "parentId": "page-8a5edab282632443",
+      "title": "Doc 8981138",
+      "type": "page",
+      "route": "/doc-8981138",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-eb22e2846da48a1d",
+      "parentId": "page-8a5edab282632443",
+      "title": "Doc 8880664",
+      "type": "page",
+      "route": "/doc-8880664",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-cddc944748eb781d",
+      "parentId": "page-8a5edab282632443",
+      "title": "Doc 8842676",
+      "type": "page",
+      "route": "/doc-8842676",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-4acc0a02ab83abd8",
+      "parentId": "page-8a5edab282632443",
+      "title": "Doc 9461225",
+      "type": "page",
+      "route": "/doc-9461225",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-efdbc4ef31f9319d",
+      "parentId": "page-8a5edab282632443",
+      "title": "Doc 9461241",
+      "type": "page",
+      "route": "/doc-9461241",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-fae8c6d51d1ebc0c",
+      "parentId": "page-8a5edab282632443",
+      "title": "Doc 9461312",
+      "type": "page",
+      "route": "/doc-9461312",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-c2d492509b9ee385",
+      "parentId": "page-8a5edab282632443",
+      "title": "Doc 9461391",
+      "type": "page",
+      "route": "/doc-9461391",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-8741baf54d907b63",
+      "parentId": "page-8a5edab282632443",
+      "title": "Doc 9342284",
+      "type": "page",
+      "route": "/doc-9342284",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-177e9b74bb8db238",
+      "parentId": "page-8a5edab282632443",
+      "title": "Doc 8806456",
+      "type": "page",
+      "route": "/doc-8806456",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-5c489c119fa594b7",
+      "parentId": "page-8a5edab282632443",
+      "title": "Doc 8806459",
+      "type": "page",
+      "route": "/doc-8806459",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-7407a578b500aee7",
+      "parentId": "page-8a5edab282632443",
+      "title": "Doc 9326958",
+      "type": "page",
+      "route": "/doc-9326958",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-01664a1ce8b0045e",
+      "parentId": "page-8a5edab282632443",
+      "title": "Doc 9460690",
+      "type": "page",
+      "route": "/doc-9460690",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-80e7335caad8d62a",
+      "parentId": "page-8a5edab282632443",
+      "title": "Doc 9342236",
+      "type": "page",
+      "route": "/doc-9342236",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-d71d80bb5a66fc83",
+      "parentId": "page-8a5edab282632443",
+      "title": "Doc 9342237",
+      "type": "page",
+      "route": "/doc-9342237",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-cf44c22c60c78f4a",
+      "parentId": "page-8a5edab282632443",
+      "title": "Doc 8149709",
+      "type": "page",
+      "route": "/doc-8149709",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-d0d4c2b5c6b14cca",
+      "parentId": "page-8a5edab282632443",
+      "title": "Doc 8149711",
+      "type": "page",
+      "route": "/doc-8149711",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-894e043fa3033a8d",
+      "parentId": "page-8a5edab282632443",
+      "title": "Api 415568235",
+      "type": "page",
+      "route": "/api-415568235",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-dbdd1a1ea103f036",
+      "parentId": "page-8a5edab282632443",
+      "title": "Api 415706993",
+      "type": "page",
+      "route": "/api-415706993",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-98fc84b270d319e4",
+      "parentId": "page-8a5edab282632443",
+      "title": "Api 415714292",
+      "type": "page",
+      "route": "/api-415714292",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-ce98aa30d2eaa507",
+      "parentId": "page-8a5edab282632443",
+      "title": "Api 415714644",
+      "type": "page",
+      "route": "/api-415714644",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-3a29dcbe0ebdc114",
+      "parentId": "page-8a5edab282632443",
+      "title": "Api 415714940",
+      "type": "page",
+      "route": "/api-415714940",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-a7ac94392c706984",
+      "parentId": "page-8a5edab282632443",
+      "title": "Api 415715026",
+      "type": "page",
+      "route": "/api-415715026",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-60a9d5f78dea0420",
+      "parentId": "page-8a5edab282632443",
+      "title": "Api 415715116",
+      "type": "page",
+      "route": "/api-415715116",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-51bc7052e590960d",
+      "parentId": "page-8a5edab282632443",
+      "title": "Api 415715965",
+      "type": "page",
+      "route": "/api-415715965",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-9728b43909466e9b",
+      "parentId": "page-8a5edab282632443",
+      "title": "Api 416339633",
+      "type": "page",
+      "route": "/api-416339633",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-d677c7b387b4f1db",
+      "parentId": "page-8a5edab282632443",
+      "title": "Api 416340123",
+      "type": "page",
+      "route": "/api-416340123",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-4d513d4df1994a0c",
+      "parentId": "page-8a5edab282632443",
+      "title": "Api 416340715",
+      "type": "page",
+      "route": "/api-416340715",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-0ce414322dc909d7",
+      "parentId": "page-8a5edab282632443",
+      "title": "Api 416341697",
+      "type": "page",
+      "route": "/api-416341697",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-74ecb33fa1b80b56",
+      "parentId": "page-8a5edab282632443",
+      "title": "Doc 8178963",
+      "type": "page",
+      "route": "/doc-8178963",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-f561cf8121f7935b",
+      "parentId": "page-8a5edab282632443",
+      "title": "Doc 8826360",
+      "type": "page",
+      "route": "/doc-8826360",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-c9700a95a7c72a84",
+      "parentId": "page-8a5edab282632443",
+      "title": "Doc 8786482",
+      "type": "page",
+      "route": "/doc-8786482",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "page-eb1119ab46acbbe2",
+      "parentId": "page-8a5edab282632443",
+      "title": "Llms",
+      "type": "page",
+      "route": "/llms.txt",
+      "sourceFiles": [
+        "output/keyframe-grids/omni-provider-docs.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "tab-6bdcbd09613bc13f",
+      "parentId": "page-9adfd0a18d87e732",
+      "title": "Workflow",
+      "type": "tab",
+      "route": "/docs/elevenlabs-reference/authenticated-rendered.html#radix-_r_ed_-content-workflow",
+      "sourceFiles": [
+        "docs/elevenlabs-reference/authenticated-rendered.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "tab-eb7957cbbf3530c8",
+      "parentId": "page-9adfd0a18d87e732",
+      "title": "Preview",
+      "type": "tab",
+      "route": "/docs/elevenlabs-reference/authenticated-rendered.html#radix-_r_ed_-content-preview",
+      "sourceFiles": [
+        "docs/elevenlabs-reference/authenticated-rendered.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "tab-77ebf38c62b5564c",
+      "parentId": "page-5a41bbbbb6464da4",
+      "title": "Preview",
+      "type": "tab",
+      "route": "/docs/elevenlabs-reference/local-clone/#preview",
+      "sourceFiles": [
+        "docs/elevenlabs-reference/local-clone/index.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    },
+    {
+      "id": "tab-4f92ba40573d6291",
+      "parentId": "page-5a41bbbbb6464da4",
+      "title": "Workflow",
+      "type": "tab",
+      "route": "/docs/elevenlabs-reference/local-clone/#workflow",
+      "sourceFiles": [
+        "docs/elevenlabs-reference/local-clone/index.html"
+      ],
+      "sourceChanged": false,
+      "selection": null,
+      "selectedArtifact": null
+    }
+  ]
+}

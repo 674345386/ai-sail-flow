@@ -1,0 +1,11 @@
+{
+  "key": "a",
+  "name": "居中光场",
+  "layout": "a",
+  "background": "b",
+  "version": 3,
+  "selectedAt": "2026-11-08T14:28:57.313791+00:00",
+  "projectId": "9d346190-48b6-43ff-ac47-ed68a8b3f4a1",
+  "nodeId": "page-8a5edab282632443",
+  "source": "User explicitly chose A layout and B background in chat."
+}

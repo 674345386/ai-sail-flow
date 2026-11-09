@@ -4,6 +4,8 @@
 
 ## 项目与创意
 
+视频创作实验台入口：本机启动后打开 `/lab`，或在创作 Agent 右侧选择「创作实验台」。支持动态制作路径、固定版本的 GitHub Skill、输入与阶段产物关联、备选方案、过期提示和流程配方。本机程序化创作使用每个创意独立的代码工作目录；完整产品方案、操作与能力边界见 [视频创作实验台](docs/video-experiment-workbench.md)。
+
 当前默认一个「我的工作空间」，工作空间下有多个项目，每个项目可创建多个创意。例如「夏装」项目下创建「色卡夏装换装上」「青少年夏装」两个创意。项目负责归类；参考视频、产品资料、分析、Prompt、生成任务与成片都独立保存在各自创意中。
 
 左侧「项目」旁的加号创建项目，项目行的加号在该项目下创建创意；展开项目后切换创意。顶部路径显示「我的工作空间 → 项目 → 创意」；点击项目名可重命名，点击创意名可修改名称和所属项目。归档与恢复作用于单个创意。
@@ -67,7 +69,11 @@ Veo 3.1 视频生成使用独立的 `SOP_VEO_API_KEY`（或模型设置中的 Ve
 
 以下私有图片存储供后续视频生成接入使用；当前关键帧生成无需配置。私有图片存储复用现有 Supabase 项目。可以在「模型连接」填写项目 URL、服务端 Secret Key（或旧版 service_role key）及私有桶名称；页面填写的密钥只留在服务器内存。也可在 `.env` 设置 `SUPABASE_SECRET_KEY` 和可选的 `SOP_KEYFRAME_BUCKET`（默认 `sop-keyframes`）；项目 URL 默认复用 `VITE_SUPABASE_URL`。此服务端密钥不能使用前端 publishable / anon key 代替，也不能放进 `VITE_*`。桶不存在时自动创建私有桶；已存在的公开桶会被拒绝。[Supabase 私有桶与临时链接](https://supabase.com/docs/guides/storage/buckets/fundamentals)。
 
-新人物参考图使用独立的 OpenAI 兼容 Images API（`POST /images/generations`，非流式）；复刻关键帧将原片抽帧作为第一张参考图、商品图作为后续参考图，走同一渠道的 `POST /images/edits` 多图编辑接口。可在「模型连接」填写图片渠道 Key、Base URL 和模型，或通过服务端 `SOP_IMAGE_API_KEY`、`SOP_IMAGE_BASE_URL`、`SOP_IMAGE_MODEL` 配置。默认地址为 `https://api.qzftech.top/v1`，模型选择顺序为 `gpt-image-2.5-flare`、`gpt-image-2.5-sunburst`、`gpt-image-2`，默认选 Flare；请求失败不会自动切换模型。每个图片任务在调用前记录到 `data/image-attempts/`，只发一次 POST、禁用自动重试。超时、断线或网关错误视为结果未知，同一任务或同一镜头输入不会自动再次提交；`X-Client-Request-Id` 仅用于追踪，不能替代服务端任务去重。连接配置保存在服务端私有文件 `data/.image-generation.json`，不会返回 API Key。文本分析与改写继续使用 Gemini；关键帧图片不再调用 Gemini 图像模型。
+新人物参考图使用独立的 OpenAI 兼容 Images API（`POST /images/generations`，非流式）；复刻关键帧将原片抽帧作为第一张参考图、商品图作为后续参考图，走同一渠道的 `POST /images/edits` 多图编辑接口。可在「模型连接」填写图片渠道 Key、Base URL 和模型，或通过服务端 `SOP_IMAGE_API_KEY`、`SOP_IMAGE_BASE_URL`、`SOP_IMAGE_MODEL` 配置。默认地址为 `https://api.qzftech.top/v1`，模型选择顺序为 `gpt-image-2.6-flare`、`gpt-image-2.6-sunburst`，默认选 Flare；请求失败不会自动切换模型。每个图片任务在调用前记录到 `data/image-attempts/`，只发一次 POST、禁用自动重试。超时、断线或网关错误视为结果未知，同一任务或同一镜头输入不会自动再次提交；`X-Client-Request-Id` 仅用于追踪，不能替代服务端任务去重。连接配置保存在服务端私有文件 `data/.image-generation.json`，不会返回 API Key。文本分析与改写继续使用 Gemini；关键帧图片不再调用 Gemini 图像模型。
+
+图片比例与尺寸沿用当前 Images API 适配器的约束，参考 [OpenAI 图片生成文档](https://developers.openai.com/api/docs/guides/image-generation#size-and-quality-options)：支持自定义 `WIDTHxHEIGHT`，每边须为 16 的倍数且不超过 3840，长短边之比不超过 3:1，总像素为 655,360–8,294,400；超过 3,686,400 像素属于实验范围。`16:9` 精确转换为 `1536x864`，`9:16` 为 `864x1536`，`4:5` 为 `1024x1280`，`1:1` 为 `1024x1024`。工具也接受显式 `size`，与同时指定的比例冲突时直接报错，不自动取整、缩放或换比例。未指定尺寸和比例时使用官方 `size: auto`；未指定质量时使用 `quality: auto`，也可明确选择支持的质量。第三方网关不接受参数时原样报错，不切换尺寸或模型。
+
+生成适配器原样转发最终 Prompt 和参考图片，保留上游返回的 PNG 字节，并记录实际宽高及尺寸不一致警告；不通过裁切、补边、拉伸、扩图或重新生成来掩盖差异。分帧生成不再近似替换源比例或裁切结果，上传帧保留原文件及格式。参考图若超过接口大小限制会明确拒绝，不再在分帧提交时偷偷降采样或重编码。
 
 默认视频拆解使用 Gemini 3.8 Flash 静态模式；兼容中转通过原生 `streamGenerateContent` 流式接收结果，视频和音频仍作为完整视频输入。可显式设置 `SOP_VIDEO_ANALYSIS_MODE=agentic` 让模型动态检查时间线、画面和音轨，或设置 `SOP_VIDEO_ANALYSIS_MODE=frames` 使用无音轨抽帧模式。文字改写在兼容网关模式下继续使用 `/v1/chat/completions`。
 
@@ -132,20 +138,54 @@ Smoke 检查使用独立临时目录和临时端口，验证项目持久化、�
 
 - `generate_image`：文生图；传入 `referenceIds` 时编辑参考图，沿用当前图片服务。
 - `generate_video`：Omni 文生视频／参考图视频，`referenceIds` 可省略或提供最多 7 个当前创意图片 ID。
+- `generate_minimax_video`：独立的 MiniMax H3 视频工具，支持文生视频、最多 9 张参考图，以及单首帧、单尾帧或首尾帧生成。
 - `generate_first_last_frame_video`：通过 `firstFrameId`、`lastFrameId` 指定首尾帧，按此顺序提交 `input_reference`，并设置 `first_last_frame: true`。
 - `generate_grid_video`：使用已有网格及其提示词调用真实 Omni 服务。旧 Studio 本地测试入口保持独立。
 - `recover_video`：通过项目视频 ID 恢复已有上游任务查询，不重新提交生成。
+
+生成 Prompt 尽可能忠实于用户表达的意图：已有完整 Prompt 时优先直接复用，用户要求优化、翻译或修改时再对应调整；用户明确要求逐字保留时遵守原文。只有简略想法时才组织生成所需的描述，避免增加无关创作设定；迭代只改用户指定内容及为保持一致所必需的关联细节，其余已确定内容保持不变。Agent 可以结合对话指代并将明确参数映射到工具选项，优先做最少必要调整，保留主体、动作、构图、明确指定的风格与参考、配色、画幅及排除项，避免自行换风格、加入冲突细节或追加惯用模板。因模型／provider 限制必须实质改变要求时，应说明变化；普通整理不额外增加预览或确认步骤。聊天入口保留用户原文，生成接口和 provider 适配器将最终工具 Prompt 原样传递（包括首尾空白），空白校验不会修改内容。画布生成记录中的 `prompt` 就是提交给 provider 的文本。图片请求另在 `data/image-attempts/<imageId>.json` 保存 Prompt、模型、请求 ID、接口地址、尺寸和提交时间，不保存 API Key；这是应用发往所配置服务的请求记录，不能据此判断第三方服务内部是否另作处理。
 
 视频默认 `720p`、10 秒，支持显式选择 `1080p` 或 8 秒；模型分别为 `omni_flash_10s` 和 `omni_flash_8s`。画幅为 `16:9`／`9:16`，默认跟随创意。参考图可来自本次／历史聊天上传、当前创意素材、Agent 已完成图片或分镜网格；服务端校验所属创意后发布为私有存储临时链接。无需先分析视频或创建分镜，即可独立生成。任务及上游 ID、请求参数、结果记录到项目，视频显示在 Agent 画布上。
 
 Omni 接口参数依据：https://gaoruitech.apifox.cn/doc-8842676 。文生图继续使用图片服务配置；720p／1080p 是视频分辨率选项。
 
+### MiniMax H3 独立生成服务
+
+按 [Hi/SparkCine 开发文档](https://hi.hi.run/developers) 接入。文档提供原生 `/api/open/v1`、OpenAI 兼容 `/api/openai/v1`、H3 兼容 `/api/h3` 三种协议入口；本实现使用原生接口，直接上传平台参考图，并以 `Idempotency-Key` 防止重复创建任务。默认 Omni/Veo 入口保持各自配置，MiniMax 作为额外生成方式供 Agent 按需选择。
+
+服务端 `.env` 配置 `SOP_MINIMAX_API_KEY`，可用 `SOP_MINIMAX_BASE_URL` 覆盖默认 `https://hi.hi.run/api/open/v1`。密钥不进入前端、工具参数或项目记录。`get_creative.minimaxVideoGeneration` 提供配置状态、模型、画幅和分辨率；`/api/status` 也包含该状态。参考图通过原生 uploads 接口上传，不依赖 Supabase 私有参考图存储。
+
+Agent 调用示例：
+
+```json
+{
+  "name": "generate_minimax_video",
+  "arguments": {
+    "prompt": "雨夜便利店门口，一位穿黄色雨衣的女孩收起雨伞。",
+    "model": "h3-video",
+    "duration": 6,
+    "resolution": "768p",
+    "aspectRatio": "9:16"
+  }
+}
+```
+
+默认模型 `h3-video`、6 秒、768p，画幅跟随创意，未支持的创意画幅默认使用 9:16。支持 480p／720p／768p／960p／1080p，以及 16:9、9:16、21:9、4:3、1:1、3:4；720p 仅限 16:9 和 9:16。H3 Video 为 4–30 整数秒，768p 21:9 最长 20 秒，960p／1080p 最长 15 秒。`h3-video-flex` 最长 15 秒，其中 1080p 21:9 最长 10 秒。`h3-video-frames` 为 4–15 秒，传 `firstFrameId` 和／或 `lastFrameId`，不能混入普通 `referenceIds`。普通参考图 ID 来自当前创意的 `imageReferences` 或 `grids`。当前平台工具开放图片参考；底层客户端的素材输入类型也支持音视频角色。
+
+`generateAudio` 默认 true；`optimizePrompt` 默认 false，原样提交提示词。只有明确要求上游改写时才启用优化，会按官方规则另收积分。模型实时能力和价格可通过独立客户端 `listModels()` 查询。
+
+代码分为三层：`shared/minimax-video.ts` 定义参数与 MCP tool；`server/minimax-h3.ts` 提供无项目状态依赖的 `MinimaxH3Client`（上传、提交、查询、轮询、下载）；`server/minimax-video.ts` 负责项目任务、参考图归属校验和结果入库。HTTP 路由只负责转接，不向旧 `tasks.ts` 或 Omni/Veo 适配器增加分支。独立函数 `startMinimaxVideo`、`recoverMinimaxVideo` 可供其他服务端入口复用。
+
+请求体和幂等键在付费提交前写入项目，上游 ID 返回后立即保存。`recover_video` 根据 provider 分派：已有 ID 时仅恢复查询；提交响应丢失时使用原请求体和原幂等键恢复，避免重复生成。`get_creative.videos[].recoverable` 标识可恢复记录。轮询约 5 秒一次，长任务降至 15 秒；工具等待结束后后台继续执行，勿因 pending 重发任务。成功结果校验下载长度后保存至本地 `/media/minimax-<id>.mp4`，不把上游临时链接作为永久素材地址。结果进入现有 `generatedVideos`、画布和实验台步骤绑定。
+
 ### 创作 Agent 动态画布组件
 
 Agent 通过 `show_canvas_component` MCP 工具在执行中发布运镜、调色或分镜选择组件及预设参数。工具调用写入当前创意的 Agent 状态，现有 SSE `/api/projects/:id/agent/events` 立即推送到右侧画布。用户调整参数走 `PATCH /api/projects/:id/agent/canvas-components/:componentId`，关闭走 `DELETE`；`get_creative` 会返回最新参数。点击“把参数填入聊天框”可审阅后交给 Agent，不会自动提交视频生成。
 
-### 原生 OpenUI 聊天基座
+### Open Intelligent UI
 
-Agent 模式使用官方 `@openuidev/react-ui` 的 `AgentInterface`、`@openuidev/react-headless` 的 `ChatLLM`／AG-UI 适配器。右侧 Agent UI 接入 [Thesys Open Intelligent UI](https://github.com/thesysdev/open-intelligent-ui) 的完整基础组件库、59 个响应式函数、动作及生成规则；上游来源和 MIT 许可保存在 `src/intelligent-ui/`。原有 `openuiLibrary` 仍作为独立库保留，`show_openui_ui` 的 `library` 参数可在 `intelligent`（默认）与 `openui` 之间选择，避免两个库同名组件冲突。服务端将智能界面组件规范注入 Codex app server 的 developer instructions；`/api/projects/:id/agent/openui-stream` 把 Codex 文本、MCP 工具活动和生成媒体转换为 AG-UI SSE。左侧保留普通聊天文本和生成媒体，右侧用可关闭、可重新打开的标签页分别显示「视频画布 · 产物」与「Agent UI」。画布标签页展示现有视频画布和图片、视频产物列表；Agent UI 标签页呈现 Agent 在执行中发布的完整 OpenUI Lang 程序。界面动作可继续聊天或复制内容，Query／Mutation 由当前创意的工具适配接口执行；上游的图片搜索和地图路线端点也接到本地服务。组件库预览同时列出两个库及上游交互示例。模型建议来自 Codex `model/list`，自定义模型名仍由底层配置决定。每个创意对应一个持久 Codex 对话。
+Agent 工具栏的「主题」支持官方浅色、中性深色、暖白阅读、紧凑工作台与跟随系统，可整体切换，也可分别设置左侧聊天栏和右侧结果区；项目侧边栏和顶部导航跟随左侧聊天栏，共用工作区级别的主题状态。暖白阅读使用米白与暖灰色并放宽行距；紧凑工作台缩小字体、间距、卡片内边距和圆角。默认均为官方浅色，并开启「应用 Background 背景」：复用工作区原有动态底图，Background 面板调整会直接透过 Agent 的面板底色显示，卡片、菜单和输入框保留实色表面；关闭此选项可恢复纯色主题。主题和背景开关按浏览器保存并跨标签页同步。模式、默认值及存储键统一在 `src/intelligent-ui/theme.ts`，颜色、字体、圆角和间距统一在 `src/intelligent-ui/components/theme.css`；组件读取主题变量，不再各自判断深色祖先。切换只更新呈现，不重新调用模型或重置卡片交互。
 
-自定义画布组件在 `src/AgentCanvasUI.tsx` 用 OpenUI 的 `defineComponent` 注册；`canvasLibrary` 从完整内置组件库扩展，`Renderer` 渲染当前控制器。新增画布控制器时同步扩展 `shared/agent-canvas-ui.ts` 的校验和 `server/creative-agent-mcp.ts` 的工具 schema。画布右上角“组件库”可预览自定义控制器、OpenUI 内置示例与组件目录。此适配层不改 Codex app server 调度及 Provider 配置。
+Agent 模式直接接入 [Thesys Open Intelligent UI](https://github.com/thesysdev/open-intelligent-ui) 的基础组件、59 个响应式函数、动作及生成规则，上游 MIT 许可保存在 `src/intelligent-ui/`。只保留其必需的 `@openuidev/react-lang` / `lang-core` 解析与渲染依赖；旧 OpenUI `AgentInterface`、AG-UI 适配层、旧组件库及 Markdown 右侧兜底已移除。模型以 `root =` 开头直接输出界面程序，通过 `/api/projects/:id/agent/events` 实时推送；Renderer 在程序未完整时即开始渲染，并在生成期间禁用表单交互。普通文字留在聊天区。`show_intelligent_ui` 可在长任务前发布完整的中间面板。右侧保留可关闭、重开的「视频画布 · 产物」和「Intelligent UI」标签页，图片、视频、地图、图表及响应式输入均使用同一组件库；Sail 的 `Video` 是媒体扩展。UI 的 `@ToAssistant` 动作带表单值回到创意对话。旧会话下一次提问会按指令版本自动升级，保留全部可见聊天记录并带入最近对话上下文。
+
+自定义画布组件在 `src/AgentCanvasUI.tsx` 用 Open Intelligent UI 的 `defineComponent` 注册；`canvasLibrary` 从完整内置组件库扩展，`Renderer` 渲染当前控制器。新增画布控制器时同步扩展 `shared/agent-canvas-ui.ts` 的校验和 `server/creative-agent-mcp.ts` 的工具 schema。画布右上角“组件库”可预览自定义控制器、Open Intelligent UI 上游示例与组件目录。此适配层不改 Codex app server 调度及 Provider 配置。

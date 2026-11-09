@@ -1,0 +1,42 @@
+import assert from 'node:assert/strict';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { agentPanelId, htmlPageTitle, parseAgentAnswer } from '../shared/agent-answer';
+import { demoProject } from '../shared/demo';
+import { collectAgentArtifacts } from '../src/intelligent-ui/AgentArtifacts';
+import { SandboxedHtml } from '../src/intelligent-ui/components/html-view';
+
+const ui = 'root = Col([Title("Repository")])';
+const html = '<!doctype html><html><head><title>项目说明</title></head><body><h1>完整结果</h1><script>window.ready = true;</script></body></html>';
+assert.deepEqual(parseAgentAnswer('普通回答'), { conversation: '普通回答', panels: [] });
+assert.equal(parseAgentAnswer(ui).panels[0].format, 'openui');
+assert.equal(parseAgentAnswer(html).panels[0].source, html);
+assert.equal(parseAgentAnswer(html.slice(0, -7)).panels[0].complete, false);
+const mixed = `前面的说明\n\n\`\`\`openui\n${ui}\n\`\`\`\n\n中间的说明\n\n\`\`\`html\n${html}\n\`\`\`\n\n后面的说明`;
+const parsed = parseAgentAnswer(mixed);
+assert.deepEqual(parsed.panels.map(panel => panel.format), ['openui', 'html']);
+assert(parsed.panels.every(panel => panel.complete));
+assert(parsed.conversation.includes('前面的说明') && parsed.conversation.includes('中间的说明') && parsed.conversation.includes('后面的说明'));
+assert(!parsed.conversation.includes('<script>'));
+assert.equal(parseAgentAnswer(`说明\n\`\`\`html\n${html}`).panels[0].complete, false);
+assert.equal(parseAgentAnswer(`~~~~markdown\n\`\`\`html\n${html}\n\`\`\`\n~~~~`).panels.length, 0);
+assert.equal(parseAgentAnswer(`~~~~html\n${html}\n~~~~`).panels[0].complete, true);
+assert.equal(parseAgentAnswer(`\`\`\`js\nconst html = "<html></html>";\n\`\`\``).panels.length, 0);
+assert.equal(htmlPageTitle(html), '项目说明');
+
+const artifacts = collectAgentArtifacts(demoProject('presentation-check'), [{ id: 'answer', role: 'assistant', text: mixed, createdAt: '2026-11-06T18:00:00Z' }]);
+const panels = artifacts.filter(artifact => artifact.kind === 'ui');
+assert.equal(panels.length, 2);
+assert.equal(panels[0].id, agentPanelId('answer', 0));
+assert.equal(panels[1].id, agentPanelId('answer', 1));
+assert.equal(panels[1].source, html);
+assert.equal(panels[1].title, '项目说明');
+
+const rendered = renderToStaticMarkup(createElement(SandboxedHtml, { html, title: '项目说明' }));
+assert(rendered.includes('sandbox="allow-scripts"'));
+assert(!rendered.includes('allow-same-origin'));
+assert(rendered.includes('Content-Security-Policy'));
+assert(rendered.includes('srcDoc=') || rendered.includes('srcdoc='));
+const streaming = renderToStaticMarkup(createElement(SandboxedHtml, { html, streaming: true }));
+assert(!streaming.includes('<iframe'), 'streaming HTML must not execute');
+console.log('Agent presentation check passed: raw/fenced HTML, mixed output, streaming, artifact recovery and isolated rendering.');

@@ -1,0 +1,89 @@
+@import "./typography.css";
+@import "./markdown.css";
+
+.app-shell,
+.app-shell .intelligent-agent {
+  font-family: var(--sail-font-ui);
+  font-size: 14px;
+  line-height: 20px;
+  font-kerning: normal;
+  font-optical-sizing: none;
+  font-variation-settings: "opsz" 16;
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  letter-spacing: 0;
+  word-spacing: 0;
+}
+
+.app-shell .iua-generated {
+  font-family: var(--sail-font-prose);
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 24px;
+  letter-spacing: 0;
+  word-spacing: 0;
+  font-variant-numeric: normal;
+}
+
+/* Generated answers contain their own text components and cards, so they need
+   the prose tokens as well as the surrounding conversation's font stack. */
+.app-shell .iua-generated {
+  --iui-font: var(--sail-font-prose);
+  --iui-body-size: 16px;
+  --iui-body-leading: 1.5;
+  --iui-text-sm-size: 16px;
+  --iui-text-md-size: 16px;
+  --iui-prose-leading: 1.5;
+}
+
+.app-shell .iua-generated .iui-card {
+  font-size: var(--iui-body-size);
+}
+
+.app-shell .intelligent-agent .iua-generated :is(.iui-title, strong, b, .iui-weight-medium, .iui-weight-semibold) {
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.app-shell .iua-generated .iui-weight-normal {
+  font-weight: 400;
+}
+
+.app-shell .iua-generated [class*="iui-"] {
+  font-optical-sizing: none;
+  font-variation-settings: "opsz" 16;
+}
+
+.app-shell .iua-generated :is(button, input, textarea, select, .iui-label, .iui-badge, svg) {
+  --iui-font: var(--sail-font-ui);
+  font-family: var(--sail-font-ui);
+}
+
+.app-shell .iua-message-assistant :is(button, .iua-message-note),
+.app-shell .iua-message-user,
+.app-shell .iua-composer,
+.app-shell .iua-model-picker > button {
+  font-family: var(--sail-font-ui);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+/* Give the wordmark the serif display hierarchy of the Claude reference. */
+.app-shell .sidebar-brand-row .brand strong,
+.app-shell .sidebar-brand-row .brand-compact {
+  font-family: var(--sail-font-ui);
+  font-weight: 600;
+  font-kerning: normal;
+  font-optical-sizing: none;
+  letter-spacing: 0;
+  word-spacing: 0;
+}
+.app-shell .sidebar-brand-row .brand strong {
+  font-family: var(--sail-font-prose);
+  font-size: 22px;
+  font-weight: 500;
+  line-height: 28px;
+  font-variation-settings: "opsz" 22;
+  white-space: nowrap;
+}

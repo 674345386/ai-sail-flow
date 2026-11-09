@@ -1,0 +1,66 @@
+{
+  "project": "AI-Sail Flow",
+  "task": "Landing page prompt-first design options",
+  "preview": "http://127.0.0.1:4319/",
+  "atlas": "http://127.0.0.1:8147",
+  "atlasProjectId": "9d346190-48b6-43ff-ac47-ed68a8b3f4a1",
+  "atlasNodeId": "page-8a5edab282632443",
+  "sourceFiles": [
+    "src/App.tsx",
+    "src/LandingHero.tsx",
+    "src/landing-hero.css",
+    "src/landing-background.css"
+  ],
+  "candidates": {
+    "a": "居中光场",
+    "b": "灵感光场",
+    "c": "专注画布"
+  },
+  "selection": {
+    "key": "a",
+    "name": "居中光场",
+    "layout": "a",
+    "background": "b",
+    "version": 3,
+    "selectedAt": "2026-11-08T14:28:57.313791+00:00",
+    "projectId": "9d346190-48b6-43ff-ac47-ed68a8b3f4a1",
+    "nodeId": "page-8a5edab282632443",
+    "source": "User explicitly chose A layout and B background in chat."
+  },
+  "scope": "Selected hybrid applied to the existing local landing page. Original content follows in its existing order.",
+  "verification": [
+    "JavaScript syntax",
+    "Python syntax",
+    "Local HTML and CSS asset references",
+    "HTTP readiness for preview pages, scripts, video, selection read endpoint and Atlas workspace"
+  ],
+  "visualInspection": "No automated browser or computer use. Preview delivered for user review.",
+  "designNotes": [
+    "The user explicitly required the animated marquee; it pauses on hover/focus and respects reduced-motion.",
+    "The purple color field in B follows supplied screenshot 2.",
+    "Existing local Inter fonts, logo, video and poster reused. Global DESIGN.md was preserved.",
+    "Model names and SVG paths were extracted from CapyAI and do not imply live service availability.",
+    "User selected A layout with B background. A updated without changing its heading alignment, input dimensions or top marquee position."
+  ],
+  "provenance": "sources/provenance.json",
+  "implementation": {
+    "status": "applied-locally",
+    "url": "http://127.0.0.1:4317/",
+    "preview": "http://127.0.0.1:4319/?v=home-1#a",
+    "component": "src/LandingPromptHero.tsx",
+    "styles": "src/landing-prompt-hero.css",
+    "assets": "public/assets/landing/prompt-models",
+    "sectionOrder": [
+      "Selected A layout / B background prompt hero",
+      "Existing brand video hero",
+      "All existing LandingSections",
+      "Existing pricing, FAQ and footer"
+    ],
+    "entry": "Existing startAgentEntry preserves prompt and uploads reference files to the new creative.",
+    "validation": [
+      "npm run check passed",
+      "Vite served new component, stylesheet and model SVG assets successfully"
+    ],
+    "browserAutomation": false
+  }
+}

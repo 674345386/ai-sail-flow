@@ -2,16 +2,31 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import { dataDir, uploadDir } from './store';
+import { IMAGE_MODELS, IMAGE_QUALITIES, imageRequestSize, type ImageQuality } from '../shared/image-generation-options';
 
-export const IMAGE_MODELS = ['gpt-image-2.5-flare', 'gpt-image-2.5-sunburst', 'gpt-image-2'] as const;
+export { IMAGE_MODELS };
 export type ImageModel = typeof IMAGE_MODELS[number];
 type Connection = { apiKey: string; baseUrl: string; model: ImageModel };
-type ImageResult = { filename: string; url: string; mime: 'image/png' | 'image/jpeg' | 'image/webp'; generatedAt: string; model: ImageModel };
-type Attempt = { key: string; status: 'submitting' | 'completed' | 'rejected' | 'unknown'; model: ImageModel; prompt: string; fingerprint?: string; requestId: string; result?: ImageResult; error?: string; references?: { filename: string; bytes: number }[] };
+type ImageResult = { filename: string; url: string; mime: 'image/png' | 'image/jpeg' | 'image/webp'; generatedAt: string; model: ImageModel; width?: number; height?: number; warning?: string };
+export type ImageAttempt = { key: string; status: 'submitting' | 'completed' | 'rejected' | 'unknown'; model: ImageModel; prompt: string; fingerprint?: string; requestId: string; endpoint?: string; size?: string; quality?: ImageQuality; aspectRatio?: string; submittedAt?: string; result?: ImageResult; error?: string; references?: { filename: string; bytes: number }[];
+  projectId?: string; taskId?: string; label?: string; phase?: 'submitting' | 'processing' | 'saving'; updatedAt?: string; finishedAt?: string;
+};
+type Attempt = ImageAttempt;
 export type ImageReference = { data: Buffer; mime: 'image/png' | 'image/jpeg' | 'image/webp'; filename: string };
 const connectionFile = path.join(dataDir, '.image-generation.json');
 const attemptDir = path.join(dataDir, 'image-attempts');
 fs.mkdirSync(attemptDir, { recursive: true, mode: 0o700 });
+const attempts = new Map<string, Attempt>();
+const activeAttempts = new Set<string>();
+for (const filename of fs.readdirSync(attemptDir)) {
+  if (!/^[a-f\d-]{36}\.json$/.test(filename)) continue;
+  try {
+    const attempt: Attempt = JSON.parse(fs.readFileSync(path.join(attemptDir, filename), 'utf8'));
+    if (attempt.key && attempt.status && attempt.prompt) attempts.set(attempt.key, attempt);
+  } catch { /* One damaged legacy record must not hide the remaining history. */ }
+}
+export function listImageAttempts() { return [...attempts.values()]; }
+export function imageAttemptActive(key: string) { return activeAttempts.has(key); }
 const defaultBaseUrl = 'https://api.qzftech.top/v1';
 function savedConnection(): Partial<Connection> {
   try { return JSON.parse(fs.readFileSync(connectionFile, 'utf8')); } catch { return {}; }
@@ -44,17 +59,20 @@ function attemptPath(key: string) { return path.join(attemptDir, `${key}.json`);
 function saveAttempt(attempt: Attempt) {
   const dest = attemptPath(attempt.key);
   const temporary = `${dest}.${randomUUID()}.tmp`;
-  try { fs.writeFileSync(temporary, JSON.stringify(attempt), { mode: 0o600, flag: 'wx' }); fs.renameSync(temporary, dest); }
+  try { fs.writeFileSync(temporary, JSON.stringify(attempt), { mode: 0o600, flag: 'wx' }); fs.renameSync(temporary, dest); attempts.set(attempt.key, attempt); }
   catch (error) { fs.rmSync(temporary, { force: true }); throw error; }
 }
-export async function generateImage(input: { idempotencyKey: string; prompt: string; aspectRatio?: string; prefix: string; model?: ImageModel; references?: ImageReference[] }): Promise<ImageResult> {
+export async function generateImage(input: { idempotencyKey: string; prompt: string; aspectRatio?: string; size?: string; quality?: ImageQuality; prefix: string; model?: ImageModel; references?: ImageReference[]; projectId?: string; taskId?: string; label?: string }): Promise<ImageResult> {
   if (!/^[a-f\d-]{36}$/.test(input.idempotencyKey) || !/^[a-z][a-z-]*$/.test(input.prefix)) throw new Error('图片任务标识无效。');
   if (!session.apiKey) throw new Error('请先连接图片生成服务。');
   const references = input.references || [];
   if (references.length > 16 || references.some(ref => !ref.data.length || ref.data.length > 20 * 1024 * 1024 || !/^[\w.-]{1,100}$/.test(ref.filename)) || references.reduce((sum, ref) => sum + ref.data.length, 0) > 50 * 1024 * 1024) throw new Error('参考图数量或大小超过图片接口限制。');
   const model = input.model || session.model;
   if (!IMAGE_MODELS.includes(model)) throw new Error('图片模型无效。');
-  const fingerprint = createHash('sha256').update(JSON.stringify([model, input.prompt, input.aspectRatio, references.map(ref => [ref.filename, ref.mime, createHash('sha256').update(ref.data).digest('hex')])])).digest('hex');
+  const size = imageRequestSize(input.aspectRatio, input.size);
+  const quality = input.quality ?? 'auto';
+  if (!IMAGE_QUALITIES.includes(quality)) throw new Error(`图片模型 ${model} 不支持质量参数 ${quality}；不会自动替换。`);
+  const fingerprint = createHash('sha256').update(JSON.stringify([model, input.prompt, input.aspectRatio, size, quality, references.map(ref => [ref.filename, ref.mime, createHash('sha256').update(ref.data).digest('hex')])])).digest('hex');
   const existing = attemptPath(input.idempotencyKey);
   if (fs.existsSync(existing)) {
     const prior = JSON.parse(fs.readFileSync(existing, 'utf8')) as Attempt;
@@ -64,36 +82,44 @@ export async function generateImage(input: { idempotencyKey: string; prompt: str
     throw new Error('该图片任务已提交，结果待核对；为避免重复生成和扣费，不会自动重发。');
   }
   const requestId = randomUUID();
-  const attempt: Attempt = { key: input.idempotencyKey, status: 'submitting', model, prompt: input.prompt, fingerprint, requestId, references: references.map(ref => ({ filename: ref.filename, bytes: ref.data.length })) };
+  const endpoint = `${session.baseUrl}/images/${references.length ? 'edits' : 'generations'}`;
+  // Keep the exact submitted text and destination for request-level debugging.
+  // Prompt authoring belongs to the user/Agent; this adapter never rewrites it.
+  const now = new Date().toISOString();
+  const attempt: Attempt = { key: input.idempotencyKey, status: 'submitting', model, prompt: input.prompt, fingerprint, requestId, endpoint, size, quality, aspectRatio: input.aspectRatio, submittedAt: now, updatedAt: now, phase: 'submitting', projectId: input.projectId, taskId: input.taskId, label: input.label || input.prefix, references: references.map(ref => ({ filename: ref.filename, bytes: ref.data.length })) };
   // Reserve before submitting, including across multiple server processes.
   try { fs.writeFileSync(existing, JSON.stringify(attempt), { mode: 0o600, flag: 'wx' }); }
   catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'EEXIST') throw new Error('该图片任务已提交，结果待核对；不会重复生成。');
     throw error;
   }
+  attempts.set(attempt.key, attempt);
+  activeAttempts.add(attempt.key);
   let rejected = false;
   try {
-    const size = input.aspectRatio === '16:9' ? '1536x1024' : ['9:16', '4:5'].includes(input.aspectRatio || '') ? '1024x1536' : '1024x1024';
     const form = new FormData();
     if (references.length) {
-      form.set('model', model); form.set('prompt', input.prompt); form.set('n', '1'); form.set('size', size);
-      form.set('quality', 'medium'); form.set('output_format', 'png');
+      form.set('model', model); form.set('prompt', input.prompt); form.set('n', '1');
+      if (size !== undefined) form.set('size', size);
+      form.set('quality', quality); form.set('output_format', 'png');
       for (const reference of references) form.append('image[]', new Blob([new Uint8Array(reference.data)], { type: reference.mime }), reference.filename);
     }
     // 150 s per request. Never resend after a drop: the gateway may already be generating (and billing) it.
-    const send = () => fetch(`${session.baseUrl}/images/${references.length ? 'edits' : 'generations'}`, {
+    const send = () => fetch(endpoint, {
       method: 'POST', redirect: 'manual', signal: AbortSignal.timeout(150_000),
       headers: { Authorization: `Bearer ${session.apiKey}`, ...(references.length ? {} : { 'Content-Type': 'application/json' }), 'X-Client-Request-Id': requestId },
-      body: references.length ? form : JSON.stringify({ model, prompt: input.prompt, n: 1, size, quality: 'medium', output_format: 'png' }),
+      body: references.length ? form : JSON.stringify({ model, prompt: input.prompt, n: 1, size, quality, output_format: 'png' }),
     });
     type NetError = Error & { cause?: { code?: string; message?: string } };
     const reason = (error: NetError) => error.name === 'TimeoutError' ? '超过 150 秒' : error.cause?.code || error.cause?.message || error.message;
+    attempt.phase = 'processing'; attempt.updatedAt = new Date().toISOString(); saveAttempt(attempt);
     const response = await send().catch((error: NetError) => { throw new Error(`图片接口连接失败（${reason(error)}）；任务结果待核对。`); });
     const body = await response.json();
     if (!response.ok) {
       rejected = [400, 401, 403, 404, 422, 429].includes(response.status);
       throw new Error(`图片接口 HTTP ${response.status}：${String(body?.error?.message || '请求未完成').slice(0, 300)}`);
     }
+    attempt.phase = 'saving'; attempt.updatedAt = new Date().toISOString(); saveAttempt(attempt);
     const encoded = body?.data?.[0]?.b64_json, link = body?.data?.[0]?.url;
     let bytes: Buffer;
     if (typeof encoded === 'string' && encoded) bytes = Buffer.from(encoded, 'base64');
@@ -108,14 +134,20 @@ export async function generateImage(input: { idempotencyKey: string; prompt: str
       if (!file.ok) throw new Error(`图片下载失败 HTTP ${file.status}；任务结果待核对。`);
       bytes = Buffer.from(await file.arrayBuffer());
     } else throw new Error('图片接口未返回图片数据；任务结果待核对。');
-    if (bytes.length < 8 || !bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) throw new Error('图片接口未返回有效 PNG；任务结果待核对。');
+    if (bytes.length < 24 || !bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])) || bytes.toString('ascii', 12, 16) !== 'IHDR') throw new Error('图片接口未返回有效 PNG；任务结果待核对。');
+    const width = bytes.readUInt32BE(16), height = bytes.readUInt32BE(20);
+    if (!width || !height) throw new Error('图片接口返回的 PNG 尺寸无效；任务结果待核对。');
+    const warning = size !== 'auto' && size !== `${width}x${height}`
+      ? `图片服务实际返回 ${width}x${height}，与请求尺寸 ${size} 不同；已保留原始结果，未裁切、拉伸、补边或重新生成。`
+      : undefined;
     const filename = `${input.prefix}-${randomUUID()}.png`;
     fs.writeFileSync(path.join(uploadDir, filename), bytes, { mode: 0o600, flag: 'wx' });
-    const result: ImageResult = { filename, url: `/media/${filename}`, mime: 'image/png', generatedAt: new Date().toISOString(), model };
-    saveAttempt({ ...attempt, status: 'completed', result });
+    const result: ImageResult = { filename, url: `/media/${filename}`, mime: 'image/png', generatedAt: new Date().toISOString(), model, width, height, ...(warning ? { warning } : {}) };
+    saveAttempt({ ...attempt, status: 'completed', result, updatedAt: result.generatedAt, finishedAt: result.generatedAt });
     return result;
   } catch (error) {
-    saveAttempt({ ...attempt, status: rejected ? 'rejected' : 'unknown', error: error instanceof Error ? error.message : String(error) });
+    const finishedAt = new Date().toISOString();
+    saveAttempt({ ...attempt, status: rejected ? 'rejected' : 'unknown', error: error instanceof Error ? error.message : String(error), updatedAt: finishedAt, finishedAt });
     throw error;
-  }
+  } finally { activeAttempts.delete(attempt.key); }
 }

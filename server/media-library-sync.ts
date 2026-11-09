@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import type { LibraryMedia } from '../shared/media-library';
 import { dataDir, uploadDir } from './store';
-import { listLibraryMedia } from './media-library';
+import { isUserUploadFilename, listLibraryMedia, removeLibraryMedia } from './media-library';
 import { compressUploadedVideo } from './video-compression';
 
 const extensions: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'video/mp4': 'mp4', 'video/quicktime': 'mov', 'video/webm': 'webm' };
@@ -63,6 +63,7 @@ async function synchronize(session: Awaited<ReturnType<typeof storageSession>>) 
     if (data.length < 100) break;
   }
   for (const item of listLibraryMedia()) {
+    if (item.origin !== 'user-upload' || !isUserUploadFilename(item.filename)) continue;
     if (uploaded.has(item.id)) continue;
     const file = await cloudFile(item);
     const name = Buffer.from(item.name).toString('base64url');
@@ -72,7 +73,7 @@ async function synchronize(session: Awaited<ReturnType<typeof storageSession>>) 
     try {
       const { error } = await session.storage.upload(`${session.userId}/${filename}`, stream, {
         contentType: file.mime, upsert: false, duplex: 'half',
-        metadata: { originalName: item.name, mediaKind: item.kind, sourceCreatedAt: item.createdAt, sourceId: item.id },
+        metadata: { originalName: item.name, mediaKind: item.kind, sourceCreatedAt: item.createdAt, sourceId: item.id, origin: 'user-upload', associations: item.associations || [] },
       });
       if (error && String(error.statusCode) !== '409') throw error;
     } finally { stream.destroy(); }
@@ -108,6 +109,46 @@ export async function startMediaSync(token: string): Promise<SyncStatus> {
     }
   });
   return mediaSyncStatus(job.jobId)!;
+}
+
+async function selectedCloudPaths(session: Awaited<ReturnType<typeof storageSession>>, ids: Set<string>) {
+  const paths: string[] = [];
+  for (let offset = 0; ; offset += 100) {
+    const { data, error } = await session.storage.list(session.userId, { limit: 100, offset });
+    if (error) throw new Error('云端素材暂时无法读取，删除未完成，请重试。');
+    for (const entry of data) {
+      const id = entry.name.match(/^([a-f0-9]{64})--/)?.[1] || `cloud:${entry.name}`;
+      if (ids.has(id)) paths.push(`${session.userId}/${entry.name}`);
+    }
+    if (data.length < 100) return paths;
+  }
+}
+
+export async function deleteMediaLibraryItems(ids: string[], token: string) {
+  const cloudConfigured = Boolean(process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL);
+  if (!token && (cloudConfigured || ids.some(id => id.startsWith('cloud:')))) {
+    throw new Error('请先登录后删除素材，以便同时清理 Supabase 中的对应文件。');
+  }
+  const session = token ? await storageSession(token) : null;
+  // Serialize with uploads so an in-flight sync cannot recreate a deleted object.
+  const deletion = worker.catch(() => {}).then(async () => {
+    if (session) {
+      const selected = new Set(ids);
+      const paths = await selectedCloudPaths(session, selected);
+      for (let offset = 0; offset < paths.length; offset += 100) {
+        const { error } = await session.storage.remove(paths.slice(offset, offset + 100));
+        if (error) throw new Error('云端素材删除未完成，请重试。');
+      }
+      // Storage RLS can silently skip objects even when remove returns no error.
+      if (paths.length && (await selectedCloudPaths(session, selected)).length) {
+        throw new Error('Supabase 中的对应文件仍存在，请检查存储删除权限后重试。');
+      }
+    }
+    removeLibraryMedia(ids);
+    return { deletedIds: ids };
+  });
+  worker = deletion.then(() => {}, () => {});
+  return deletion;
 }
 
 export function queueMediaSync(token: string) {

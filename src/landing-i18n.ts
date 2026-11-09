@@ -4,6 +4,7 @@ import type { Dict } from './i18n';
 const zh = {
   nav: { home: '回到首页', aria: '首页导航', overview: '概览', models: '拆解', tools: '工具', creator: 'Flow 创作营', pricing: '价格', more: '更多选项', signIn: '登录' },
   announcement: { aria: '产品公告', message: '限时优惠：订阅享 8 折，活动截至 11 月 30 日', details: '了解功能', action: '立即体验', close: '关闭促销公告' },
+  omniAnnouncement: { aria: 'Omni 1.2 新模型发布公告', title: 'Omni 1.2 全新登场！', message: '最新视频模型现已加入 Flow，画质更清晰、参考控制更精准、视频更长。', action: '立即体验', close: '关闭 Omni 1.2 公告' },
   hero: {
     kicker: '为电商出海而创作',
     lead: '您的专属 AI 出海创意视频工作室，', lead2: '从真实视频与市场洞察出发，让好创意走向全球。',
@@ -115,6 +116,7 @@ export type LandingMessages = typeof zh;
 const en: LandingMessages = {
   nav: { home: 'Back to home', aria: 'Main navigation', overview: 'Overview', models: 'Breakdown', tools: 'Tools', creator: 'Flow Studio', pricing: 'Pricing', more: 'More options', signIn: 'Sign in' },
   announcement: { aria: 'Announcement', message: 'Limited-time offer: 20% off subscriptions, through November 30', details: 'See features', action: 'Try it now', close: 'Dismiss promotion' },
+  omniAnnouncement: { aria: 'Omni 1.2 model launch announcement', title: 'Introducing Omni 1.2!', message: 'Our latest video model, now in Flow. Better quality. More control. Longer clips.', action: 'Try it now', close: 'Dismiss Omni 1.2 announcement' },
   hero: {
     kicker: 'Made for cross-border e-commerce',
     lead: 'Your own AI studio for global creative video — ', lead2: 'built on real videos and market insight, so great ideas travel worldwide.',
@@ -227,13 +229,14 @@ const authZh = {
   close: '关闭账号窗口', account: '我的账号', avatar: '我的头像', method: (m: string) => `${m}登录`,
   methods: { Google: 'Google', email: '邮箱', account: '账号' },
   kept: '登录状态会在此浏览器中保留，你可以使用自己的私有云端素材。', editProfile: '编辑个人资料', signOut: '退出登录',
-  codeTitle: '输入邮箱验证码', title: '登录 AI-Sail Flow', sentTo: '验证码已发送至 ', intro: '使用邮箱验证码，进入你的创意工作区。',
+  codeTitle: '输入邮箱验证码', title: '登录 AI-Sail Flow', sentTo: '验证码已发送至 ', intro: '登录账号，进入你的创意工作区。',
+  google: '使用 Google 登录', emailDivider: '或使用邮箱验证码', googleOff: 'Google 登录暂未开通，请使用邮箱验证码。',
   notConnected: '登录服务尚未连接，请联系管理员。', emailLabel: '邮箱地址', emailPlaceholder: '输入邮箱地址', emailOff: '邮箱登录暂未开通，请稍后再试。',
   codeLabel: '邮箱中的数字验证码', codePlaceholder: '输入验证码', changeEmail: '更换邮箱', resendIn: (s: number) => `${s} 秒后重新发送`, resend: '重新发送验证码',
   spam: '没有收到邮件时，可以检查垃圾邮件文件夹。', openMail: (name: string) => `打开 ${name}`, newTab: '（在新标签页打开）', verify: '验证并登录', sendIn: (s: number) => `${s} 秒后可再次发送`, send: '发送邮箱验证码',
   noPassword: '无需设置密码。', autoCreate: '首次验证成功后会自动创建账号。',
-  status: { invalidEmail: '请填写有效的邮箱地址。', sending: '正在发送验证码…', sent: '验证码已发送，请检查邮箱。', verifying: '正在验证…', incomplete: '登录未完成', success: '登录成功', signingOut: '正在退出…', signedOut: '已退出登录' },
-  errors: { network: '网络连接暂时失败，请稍后重试。', rate: '请求太频繁，请稍后再试。', otp: '验证码已失效或不正确，请检查验证码，或重新发送。', email: '请填写有效的邮箱地址。', signup: '当前暂不开放新账号注册，请使用已有账号登录。', smtp: '验证码邮件暂时无法发送，请稍后重试。', pkce: '登录授权已失效，请在当前浏览器重新开始登录。', denied: '已取消 Google 授权，你可以重新登录或使用邮箱验证码。', generic: '登录未完成，请重试。' },
+  status: { invalidEmail: '请填写有效的邮箱地址。', sending: '正在发送验证码…', sent: '验证码已发送，请检查邮箱。', verifying: '正在验证…', google: '正在前往 Google…', incomplete: '登录未完成', success: '登录成功', signingOut: '正在退出…', signedOut: '已退出登录' },
+  errors: { network: '网络连接暂时失败，请稍后重试。', rate: '请求太频繁，请稍后再试。', otp: '验证码已失效或不正确，请检查验证码，或重新发送。', email: '请填写有效的邮箱地址。', googleUnavailable: 'Google 登录暂未开通，请使用邮箱验证码。', signup: '当前暂不开放新账号注册，请使用已有账号登录。', smtp: '验证码邮件暂时无法发送，请稍后重试。', pkce: '登录授权已失效，请在当前浏览器重新开始登录。', denied: '已取消 Google 授权，你可以重新登录或使用邮箱验证码。', generic: '登录未完成，请重试。' },
   defaultUser: 'AI-Sail 用户',
 };
 export type AuthMessages = typeof authZh;
@@ -241,13 +244,14 @@ const authEn: AuthMessages = {
   close: 'Close account window', account: 'My account', avatar: 'My avatar', method: m => `Signed in with ${m}`,
   methods: { Google: 'Google', email: 'email', account: 'account' },
   kept: 'You’ll stay signed in on this browser and can use your own private cloud assets.', editProfile: 'Edit profile', signOut: 'Sign out',
-  codeTitle: 'Enter your email code', title: 'Sign in to AI-Sail Flow', sentTo: 'We sent a code to ', intro: 'Use a one-time email code to enter your creative workspace.',
+  codeTitle: 'Enter your email code', title: 'Sign in to AI-Sail Flow', sentTo: 'We sent a code to ', intro: 'Sign in to enter your creative workspace.',
+  google: 'Sign in with Google', emailDivider: 'or use an email code', googleOff: 'Google sign-in is not available yet. Please use an email code.',
   notConnected: 'The sign-in service isn’t connected yet. Please contact your administrator.', emailLabel: 'Email address', emailPlaceholder: 'Enter your email', emailOff: 'Email sign-in isn’t available yet. Please try again later.',
   codeLabel: 'Numeric code from the email', codePlaceholder: 'Enter code', changeEmail: 'Use a different email', resendIn: s => `Resend in ${s}s`, resend: 'Resend code',
   spam: 'Didn’t get it? Check your spam folder.', openMail: name => `Open ${name}`, newTab: '(opens in a new tab)', verify: 'Verify and sign in', sendIn: s => `Send again in ${s}s`, send: 'Send email code',
   noPassword: 'No password needed. ', autoCreate: 'Your account is created automatically the first time you verify.',
-  status: { invalidEmail: 'Please enter a valid email address.', sending: 'Sending code…', sent: 'Code sent — check your inbox.', verifying: 'Verifying…', incomplete: 'Sign-in not completed', success: 'Signed in', signingOut: 'Signing out…', signedOut: 'Signed out' },
-  errors: { network: 'Network connection failed. Please try again shortly.', rate: 'Too many requests. Please try again later.', otp: 'That code has expired or is incorrect. Check it, or send a new one.', email: 'Please enter a valid email address.', signup: 'New sign-ups are currently closed. Please sign in with an existing account.', smtp: 'We couldn’t send the code email right now. Please try again shortly.', pkce: 'Your sign-in session expired. Please start again in this browser.', denied: 'Google authorisation was cancelled. You can try again or use an email code.', generic: 'Sign-in didn’t complete. Please try again.' },
+  status: { invalidEmail: 'Please enter a valid email address.', sending: 'Sending code…', sent: 'Code sent — check your inbox.', verifying: 'Verifying…', google: 'Redirecting to Google…', incomplete: 'Sign-in not completed', success: 'Signed in', signingOut: 'Signing out…', signedOut: 'Signed out' },
+  errors: { network: 'Network connection failed. Please try again shortly.', rate: 'Too many requests. Please try again later.', otp: 'That code has expired or is incorrect. Check it, or send a new one.', email: 'Please enter a valid email address.', googleUnavailable: 'Google sign-in is not available yet. Please use an email code.', signup: 'New sign-ups are currently closed. Please sign in with an existing account.', smtp: 'We couldn’t send the code email right now. Please try again shortly.', pkce: 'Your sign-in session expired. Please start again in this browser.', denied: 'Google authorisation was cancelled. You can try again or use an email code.', generic: 'Sign-in didn’t complete. Please try again.' },
   defaultUser: 'AI-Sail user',
 };
 export const AUTH_TEXT: Dict<AuthMessages> = { en: authEn, 'zh-CN': authZh };

@@ -1,4 +1,9 @@
 lululib.cn, www.lululib.cn, 47-254-32-230.sslip.io {
 	encode zstd gzip
-	reverse_proxy 127.0.0.1:4317
+	handle /auth/v1/callback {
+		reverse_proxy 127.0.0.1:18000
+	}
+	handle {
+		reverse_proxy 127.0.0.1:4317
+	}
 }

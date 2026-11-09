@@ -1,0 +1,309 @@
+<div id="canvas-round-options">
+  <style>
+    #canvas-round-options .round-design {
+      --lab-bg: light-dark(#f6f8f5, #14201b);
+      --lab-panel: light-dark(#ffffff, #1c2922);
+      --lab-ink: light-dark(#243b2e, #e2ece5);
+      --lab-muted: light-dark(#607468, #a6bbae);
+      --lab-line: light-dark(#dce5dd, #3b5143);
+      --lab-accent: light-dark(#386c50, #a2d6b6);
+      --lab-active: light-dark(#e6f0e8, #304a39);
+      --lab-warn: light-dark(#896039, #dfbc91);
+      --stage-gap: 30px;
+      color: var(--lab-ink); background: var(--lab-bg); border: 1px solid var(--lab-line); border-radius: 12px;
+      min-height: 710px; overflow: hidden; font: 14px/1.5 var(--sail-font-ui, -apple-system, BlinkMacSystemFont, "PingFang SC", system-ui, sans-serif);
+    }
+    #canvas-round-options .round-design * { box-sizing: border-box; }
+    #canvas-round-options .round-design h2, #canvas-round-options .round-design h3, #canvas-round-options .round-design p { margin: 0; font: inherit; }
+    #canvas-round-options .round-design h2 { font-size: 18px; font-weight: 500; }
+    #canvas-round-options .round-design h3, #canvas-round-options .round-design strong { font-weight: 500; }
+    #canvas-round-options .round-design button, #canvas-round-options .round-design select { color: inherit; font: inherit; }
+    #canvas-round-options .round-design button { cursor: pointer; }
+    #canvas-round-options .round-design button:focus-visible { outline: 2px solid var(--lab-accent); outline-offset: 3px; }
+    #canvas-round-options .product-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 18px 20px; background: var(--lab-panel); border-bottom: 1px solid var(--lab-line); }
+    #canvas-round-options .title-line { display: flex; align-items: center; gap: 9px; }
+    #canvas-round-options .subtle { color: var(--lab-muted); font-size: 12px; }
+    #canvas-round-options .header-meta { margin-top: 4px; color: var(--lab-muted); font-size: 12px; }
+    #canvas-round-options .task-picker { display: flex; align-items: center; gap: 8px; color: var(--lab-muted); font-size: 12px; }
+    #canvas-round-options .task-picker select { min-width: 0; max-width: 200px; min-height: 32px; padding: 4px 7px; border: 1px solid var(--lab-line); border-radius: 6px; background: var(--lab-panel); color: var(--lab-ink); font: inherit; }
+    #canvas-round-options .quiet-button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 32px; padding: 5px 10px; border: 1px solid var(--lab-line); border-radius: 6px; background: var(--lab-panel); white-space: nowrap; }
+    #canvas-round-options .quiet-button:hover { background: var(--lab-active); }
+    #canvas-round-options .body-grid { display: grid; grid-template-columns: 176px minmax(0, 1fr); min-height: 620px; }
+    #canvas-round-options .record-rail { padding: 18px 10px; background: var(--lab-panel); border-right: 1px solid var(--lab-line); }
+    #canvas-round-options .rail-title { padding: 0 8px 12px; font-size: 12px; color: var(--lab-muted); }
+    #canvas-round-options .record-button { display: flex; flex-direction: column; gap: 6px; width: 100%; padding: 12px 10px; margin-bottom: 6px; text-align: left; border: 0; border-radius: 7px; background: transparent; }
+    #canvas-round-options .record-button:hover, #canvas-round-options .record-button[aria-pressed="true"] { background: var(--lab-active); }
+    #canvas-round-options .record-button > span { overflow-wrap: anywhere; }
+    #canvas-round-options .record-meta { display: flex; flex-wrap: wrap; gap: 6px; font-size: 11px; color: var(--lab-muted); }
+    #canvas-round-options .workspace-main { min-width: 0; padding: 18px; }
+    #canvas-round-options .workspace-heading { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
+    #canvas-round-options .workspace-heading h3 { margin-bottom: 4px; }
+    #canvas-round-options .status { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--lab-muted); white-space: nowrap; }
+    #canvas-round-options .status.current { color: var(--lab-accent); }
+    #canvas-round-options .status.history-error { color: var(--lab-warn); }
+    #canvas-round-options .flow { position: relative; padding: 14px 0; }
+    #canvas-round-options .flow-grid { display: grid; grid-template-columns: repeat(var(--columns), minmax(0, 1fr)); gap: var(--stage-gap); align-items: center; position: relative; z-index: 1; }
+    #canvas-round-options .flow[data-count="1"] { max-width: 250px; margin-inline: auto; }
+    #canvas-round-options .flow-edges { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; color: var(--lab-muted); }
+    #canvas-round-options .stage-card { display: flex; flex-direction: column; align-items: stretch; gap: 10px; min-width: 0; min-height: 178px; width: 100%; padding: 12px; border: 1px solid var(--lab-line); border-radius: 12px; background: var(--lab-panel); text-align: left; }
+    #canvas-round-options .stage-card[aria-pressed="true"] { border-color: var(--lab-accent); }
+    #canvas-round-options .stage-card:hover { background: var(--lab-active); }
+    #canvas-round-options .stage-top { display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 12px; color: var(--lab-muted); }
+    #canvas-round-options .stage-name { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 40px; overflow-wrap: anywhere; }
+    #canvas-round-options .stage-note { color: var(--lab-muted); font-size: 11px; overflow-wrap: anywhere; }
+    #canvas-round-options .thumb-strip { display: flex; gap: 3px; width: 100%; height: 68px; }
+    #canvas-round-options .thumb-strip img { min-width: 0; width: 0; flex: 1; height: 100%; object-fit: cover; border-radius: 4px; }
+    #canvas-round-options .file-mark { display: flex; align-items: center; justify-content: center; min-height: 60px; gap: 6px; color: var(--lab-muted); background: var(--lab-bg); border-radius: 5px; font-size: 12px; }
+    #canvas-round-options .stage-description { color: var(--lab-muted); font-size: 11px; }
+    #canvas-round-options .inspector { margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--lab-line); }
+    #canvas-round-options .inspector-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; font-size: 12px; }
+    #canvas-round-options .node-choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; margin-bottom: 12px; }
+    #canvas-round-options .node-choice { display: block; width: 100%; min-width: 0; padding: 6px 8px; border: 0; border-radius: 5px; background: transparent; text-align: left; font-size: 12px !important; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    #canvas-round-options .node-choice:hover, #canvas-round-options .node-choice[aria-pressed="true"] { background: var(--lab-active); }
+    #canvas-round-options .node-detail { padding: 12px; border: 1px solid var(--lab-line); border-radius: 8px; background: var(--lab-panel); }
+    #canvas-round-options .node-detail strong { display: block; margin-bottom: 8px; overflow-wrap: anywhere; }
+    #canvas-round-options .node-detail p { margin-top: 8px; font-size: 12px; color: var(--lab-muted); overflow-wrap: anywhere; }
+    #canvas-round-options .input-list { display: flex; flex-wrap: wrap; gap: 4px 6px; margin-top: 6px; }
+    #canvas-round-options .input-chip { padding: 3px 6px; font-size: 11px; background: var(--lab-bg); border-radius: 4px; }
+    #canvas-round-options .product-footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-top: 20px; padding-top: 12px; border-top: 1px solid var(--lab-line); color: var(--lab-muted); font-size: 11px; }
+    #canvas-round-options .lanes-main { padding: 16px 20px; }
+    #canvas-round-options .lane { padding-block: 8px 16px; border-bottom: 1px solid var(--lab-line); }
+    #canvas-round-options .lane-heading { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 0; border: 0; background: transparent; text-align: left; }
+    #canvas-round-options .lane-heading .status { margin-left: auto; }
+    #canvas-round-options .lane-heading .lane-count { color: var(--lab-muted); font-size: 12px; }
+    #canvas-round-options .lane .stage-card { min-height: 142px; }
+    #canvas-round-options .lane .thumb-strip { height: 50px; }
+    #canvas-round-options .axis-labels { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--stage-gap); margin-block: 8px; color: var(--lab-muted); font-size: 12px; }
+    #canvas-round-options .result-layout { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(230px, 1fr); gap: 20px; align-items: start; }
+    #canvas-round-options .result-preview { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+    #canvas-round-options .result-preview > img { display: block; width: 100%; aspect-ratio: 16 / 10; object-fit: cover; border-radius: 9px; }
+    #canvas-round-options .result-caption { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px; font-size: 12px; }
+    #canvas-round-options .trace-stack { display: grid; gap: calc(var(--stage-gap) * .5); }
+    #canvas-round-options .trace-button { display: flex; align-items: center; gap: 10px; width: 100%; padding: 12px; border: 1px solid var(--lab-line); border-radius: 8px; background: var(--lab-panel); text-align: left; }
+    #canvas-round-options .trace-button[aria-pressed="true"], #canvas-round-options .trace-button:hover { background: var(--lab-active); }
+    #canvas-round-options .trace-button > span { flex: 1; min-width: 0; }
+    #canvas-round-options .trace-button small { display: block; margin-top: 4px; color: var(--lab-muted); font-size: 11px; }
+    #canvas-round-options .stage-records { margin-top: 16px; font-size: 12px; }
+    #canvas-round-options .stage-records summary { cursor: pointer; padding: 8px; color: var(--lab-muted); }
+    #canvas-round-options .text-preview { display: grid; place-content: center; gap: 12px; min-height: 200px; padding: 20px; background: var(--lab-panel); border: 1px solid var(--lab-line); border-radius: 9px; overflow-wrap: anywhere; }
+    #canvas-round-options .empty-canvas { padding: 32px 12px; color: var(--lab-muted); text-align: center; }
+    #canvas-round-options .round-design [hidden] { display: none !important; }
+    @media (max-width: 820px) {
+      #canvas-round-options .body-grid { grid-template-columns: minmax(0, 1fr); }
+      #canvas-round-options .record-rail { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; padding: 10px; border-right: 0; border-bottom: 1px solid var(--lab-line); }
+      #canvas-round-options .rail-title { grid-column: 1 / -1; padding: 0 4px 4px; }
+      #canvas-round-options .record-button { margin: 0; padding: 8px; }
+      #canvas-round-options .record-rail .stage-records { grid-column: 1 / -1; margin-top: 4px; }
+    }
+    @media (max-width: 620px) {
+      #canvas-round-options .round-design { min-height: 1120px; }
+      #canvas-round-options .product-header, #canvas-round-options .lanes-main { padding: 14px; }
+      #canvas-round-options .workspace-main { padding: 14px; }
+      #canvas-round-options .record-rail { grid-template-columns: minmax(0, 1fr); }
+      #canvas-round-options .record-button { flex-direction: row; align-items: center; justify-content: space-between; }
+      #canvas-round-options .record-button > span { max-width: 64%; }
+      #canvas-round-options .flow { padding-right: 24px; }
+      #canvas-round-options .flow-grid { grid-template-columns: minmax(0, 1fr); gap: calc(var(--stage-gap) * .6); }
+      #canvas-round-options .stage-card, #canvas-round-options .lane .stage-card { min-height: 0; gap: 8px; }
+      #canvas-round-options .stage-name { min-height: 0; }
+      #canvas-round-options .thumb-strip { height: 76px; }
+      #canvas-round-options .node-choices { grid-template-columns: minmax(0, 1fr); }
+      #canvas-round-options .axis-labels { display: none; }
+      #canvas-round-options .result-layout { grid-template-columns: minmax(0, 1fr); }
+      #canvas-round-options .lane-heading { flex-wrap: wrap; }
+      #canvas-round-options .lane-heading .status { margin-left: 0; }
+    }
+    @media (pointer: coarse) { #canvas-round-options .round-design button, #canvas-round-options .stage-records summary { min-height: 44px; } }
+  </style>
+  <div class="viz-carousel" aria-label="适用于所有任务类型的三种画布视图" data-previous-label="上一个方案" data-next-label="下一个方案">
+    <section class="round-design" data-variant="任务快照" data-design="snapshots" aria-label="任务快照：一次只显示一个执行尝试">
+      <div data-content></div>
+    </section>
+    <section class="round-design" data-variant="执行泳道" data-design="lanes" aria-label="执行泳道：各次尝试分行独立排列" hidden>
+      <div data-content></div>
+    </section>
+    <section class="round-design" data-variant="产物追溯" data-design="results" aria-label="产物追溯：从任意成果反查依赖与执行记录" hidden>
+      <div data-content></div>
+    </section>
+  </div>
+  <script id="canvas-round-source" type="application/json">__CANVAS_DATA__</script>
+  <script>
+    (() => {
+      const root = document.getElementById('canvas-round-options');
+      const source = JSON.parse(root.querySelector('#canvas-round-source').textContent);
+      const catalog = source.scenarios || [{ id: 'video-remix', label: '视频复刻 · 真实数据', model: source }];
+      let data = catalog[0].model;
+      let byId = new Map(data.nodes.map(node => [node.id, node]));
+      let current = data.runs.find(run => run.current);
+      const labels = ['输入与上下文', '执行步骤', '任务产物'];
+      const icons = ['files', 'workflow', 'package'];
+      const statusLabel = { completed: '已完成', stale: '需要更新', failed: '执行失败', running: '执行中', planned: '待执行', cancelled: '已取消', skipped: '已跳过', waiting: '等待输入' };
+      const defaultStates = () => ({
+        snapshots: { run: current.id, stage: 1, node: '', gap: 30, descriptions: false },
+        lanes: { opened: [current.id], run: current.id, stage: 1, node: '', gap: 30, descriptions: false, inspected: false },
+        results: { result: data.nodes.find(node => current.ids.includes(node.id) && node.stage === 2)?.id || current.ids[0] || '', stage: 1, node: '', gap: 30, descriptions: false, inspected: false, fullAttempt: false },
+      });
+      const states = defaultStates();
+      const escape = value => String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+      const icon = name => `<i data-lucide="${name}" aria-hidden="true"></i>`;
+      const groupsFor = ids => [0, 1, 2].map(index => ({ index, ids: ids.filter(id => byId.get(id).stage === index) })).filter(group => group.ids.length);
+      const aggregateEdges = ids => [...new Set(ids.flatMap(id => byId.get(id).inputs.filter(input => ids.includes(input) && byId.get(input).stage !== byId.get(id).stage).map(input => `${byId.get(input).stage}-${byId.get(id).stage}`)))].map(value => value.split('-').map(Number));
+      function ancestors(id) { const seen = new Set(); const visit = key => { if (seen.has(key)) return; seen.add(key); byId.get(key).inputs.forEach(visit); }; visit(id); return [...seen]; }
+      const runFor = id => data.runs.find(run => run.ids.includes(id));
+      const status = run => {
+        const symbol = run.historicalError ? 'circle-alert' : run.outcome === 'completed' || run.status === '已完成' ? 'circle-check' : run.outcome === 'running' || run.status === '执行中' ? 'loader-circle' : run.current ? 'circle' : 'history';
+        return `<span class="status ${run.historicalError ? 'history-error' : run.current ? 'current' : ''}">${icon(symbol)}${escape(run.status)}</span>`;
+      };
+      const title = (subtitle, action = '') => `<header class="product-header"><div><div class="title-line">${icon('workflow')}<h2>任务画布</h2></div><div class="header-meta">${escape(data.title)} · ${subtitle}</div></div><label class="task-picker">任务示例<select data-task-select aria-label="切换预览任务类型">${catalog.map(item => `<option value="${item.id}" ${item.model.id === data.id ? 'selected' : ''}>${item.label}</option>`).join('')}</select></label>${action}</header>`;
+      const footer = text => `<footer class="product-footer"><span>${text}</span><span>${data.grouping === 'inferred-from-dependencies' ? '历史归属：依赖结构推断' : '示例场景 · 任务与尝试显式归属'} · v${data.revision}</span></footer>`;
+      function records(selected) {
+        return `<aside class="record-rail"><div class="rail-title">任务尝试</div>${data.runs.map(run => `<button type="button" class="record-button" data-action="run" data-id="${run.id}" aria-pressed="${selected === run.id}"><span>${escape(run.label)}</span><span class="record-meta">${status(run)}<span>${run.ids.length} 个节点</span></span></button>`).join('')}</aside>`;
+      }
+      function imageStrip(ids) {
+        const images = [...new Set(ids.map(id => byId.get(id).image).filter(Boolean))].slice(0, 3);
+        return images.length ? `<div class="thumb-strip">${images.map((image, index) => `<img src="${image}" alt="${escape(byId.get(ids.find(id => byId.get(id).image === image))?.title || '素材预览')}" />`).join('')}</div>` : '';
+      }
+      function stageCard(group, state) {
+        const members = group.ids.map(id => byId.get(id)), images = imageStrip(group.ids);
+        const name = group.index === 0 ? data.inputLabel || '任务输入与上下文'
+          : group.index === 1 ? (members.length === 1 ? members[0].title : '执行步骤与中间产物') : members.length > 1 ? `${members.length} 项交付结果` : members[0].title;
+        return `<button type="button" class="stage-card" data-stage="${group.index}" data-action="stage" aria-pressed="${state.stage === group.index}">
+          <span class="stage-top"><span>${labels[group.index]}</span><span>${members.length} 项</span></span>
+          <strong class="stage-name">${escape(name)}</strong>${images || `<span class="file-mark">${icon(icons[group.index])}<span>${group.index === 1 ? '步骤与执行记录' : '资源 / 参数 / 文本'}</span></span>`}
+          <span class="stage-note">${group.index === 0 ? '资源与输入版本独立记录' : group.index === 1 ? '展开查看分支、步骤与输入' : statusLabel[members[0].status]}</span>
+          ${state.descriptions ? `<span class="stage-description">${escape(members[0].detail.slice(0, 80))}</span>` : ''}
+        </button>`;
+      }
+      function flow(ids, state, runId) {
+        const groups = groupsFor(ids), edges = aggregateEdges(ids);
+        if (!groups.length) return '<div class="empty-canvas" role="status">尚无执行节点 · 等待输入或开始执行</div>';
+        return `<div class="flow" data-flow data-run="${runId}" data-count="${groups.length}" data-edges='${JSON.stringify(edges)}'>
+          <svg class="flow-edges" aria-hidden="true"></svg><div class="flow-grid" style="--columns:${groups.length}">${groups.map(group => stageCard(group, state)).join('')}</div>
+        </div>`;
+      }
+      function inspector(ids, state) {
+        const groups = groupsFor(ids), group = groups.find(item => item.index === state.stage) || groups[0];
+        if (!group) return '';
+        const node = byId.get(state.node) && group.ids.includes(state.node) ? byId.get(state.node) : byId.get(group.ids[0]);
+        return `<section class="inspector" aria-live="polite"><div class="inspector-header"><span>${labels[group.index]} · ${group.ids.length} 个原始节点</span><span class="subtle">查看输入 / 输出</span></div>
+          ${group.ids.length > 1 ? `<div class="node-choices">${group.ids.map(id => `<button type="button" class="node-choice" data-action="node" data-id="${id}" data-tooltip="${escape(byId.get(id).title)}" aria-pressed="${node.id === id}">${escape(byId.get(id).title)}</button>`).join('')}</div>` : ''}
+          <div class="node-detail"><strong>${escape(node.title)}</strong><span class="status">当前图状态：${statusLabel[node.status]}</span>
+            ${node.executionStatus ? `<p>执行结果：${statusLabel[node.executionStatus] || escape(node.executionStatus)}</p>` : ''}
+            <p>直接依赖 · ${node.inputs.length} 项</p><div class="input-list">${node.inputs.length ? node.inputs.map(id => `<span class="input-chip">${escape(byId.get(id).title)}</span>`).join('') : '<span class="subtle">独立输入 / 尚未绑定上游</span>'}</div>
+            ${node.resourceRefs?.length ? `<p>固定资源版本：${node.resourceRefs.map(reference => `${escape(reference.id)} @ ${escape(reference.version)}`).join('、')}</p>` : ''}
+            ${node.historicalError ? `<p>保留错误：${escape(node.error || '历史描述包含错误记录')}</p>` : node.method ? `<p>执行方法：${escape(node.method)}</p>` : ''}
+            ${node.validity ? `<p>依赖有效性：${node.validity === 'superseded' ? '历史版本保留' : '当前版本'}${node.renderer === 'generic' ? ' · 自定义类型使用通用卡片' : ''}</p>` : ''}
+          </div></section>`;
+      }
+      function snapshot(state) {
+        const run = data.runs.find(run => run.id === state.run) || current;
+        return `${title('任务快照 · 一次只看一个尝试', `<button class="quiet-button" type="button" data-action="current">${icon('locate-fixed')}当前尝试</button>`)}
+          <div class="body-grid">${records(run.id)}<main class="workspace-main"><div class="workspace-heading"><div><h3>${escape(run.label)}</h3><p class="subtle">${escape(run.sub)}</p></div>${status(run)}</div>
+          ${flow(run.ids, state, run.id)}${inspector(run.ids, state)}${footer(run.current ? `本次 ${run.ids.length} 个原始节点 · 历史 ${data.nodes.length - run.ids.length} 个节点单独保留` : '历史状态独立保留 · 可检查已完成部分和失败原因')}</main></div>`;
+      }
+      function lanes(state) {
+        const inspectedRun = data.runs.find(run => run.id === state.run) || current;
+        return `${title('执行泳道 · 每个尝试各走一行', `<button type="button" class="quiet-button" data-action="fold">${icon('fold-vertical')}收起历史</button>`)}<main class="lanes-main">
+          <div class="axis-labels"><span>输入与上下文</span><span>执行步骤与分支</span><span>任务产物</span></div>
+          ${data.runs.map(run => `<section class="lane"><button type="button" class="lane-heading" data-action="lane" data-id="${run.id}" aria-expanded="${state.opened.includes(run.id)}">${icon(state.opened.includes(run.id) ? 'chevron-down' : 'chevron-right')}<strong>${escape(run.label)}</strong><span class="lane-count">${run.ids.length} 个节点</span>${status(run)}</button>${state.opened.includes(run.id) ? flow(run.ids, { ...state, stage: state.run === run.id ? state.stage : -1 }, run.id) : ''}</section>`).join('')}
+          ${state.inspected ? inspector(inspectedRun.ids, state) : ''}${footer('不跨尝试误连 · 共用资源通过版本引用复用')}</main>`;
+      }
+      function results(state) {
+        const result = byId.get(state.result), run = result ? runFor(result.id) : current, ids = state.fullAttempt || !result ? run.ids : ancestors(result.id);
+        const finals = data.nodes.filter(node => node.stage === 2), intermediate = data.nodes.filter(node => node.kind === 'artifact' && node.stage !== 2);
+        const unfinished = data.runs.filter(item => item.historicalError || !data.nodes.some(node => node.stage === 2 && item.ids.includes(node.id)));
+        return `${title('产物追溯 · 从任意成果反查执行链')}<div class="body-grid"><aside class="record-rail"><div class="rail-title">任务成果</div>
+          ${finals.sort((a, b) => Number(runFor(b.id).current) - Number(runFor(a.id).current)).map(node => `<button type="button" class="record-button" data-action="result" data-id="${node.id}" aria-pressed="${result?.id === node.id}"><span>${escape(node.title.slice(0, 38))}</span><span class="record-meta">${status(runFor(node.id))}</span></button>`).join('')}
+          <details class="stage-records"><summary>阶段产物 · ${intermediate.length}</summary>${intermediate.map(node => `<button type="button" class="node-choice" data-action="result" data-id="${node.id}" data-tooltip="${escape(node.title)}">${escape(node.title)}</button>`).join('')}</details>
+          ${unfinished.filter(attempt => attempt.ids.length).map(attempt => { const failed = attempt.ids.find(id => byId.get(id).historicalError) || attempt.ids.at(-1); return `<button type="button" class="record-button" data-action="attempt-record" data-id="${failed}" aria-pressed="${state.fullAttempt && result?.id === failed}"><span>${escape(attempt.label)}</span><span class="record-meta">失败 / 未完成记录 · ${attempt.ids.length} 项</span></button>`; }).join('')}</aside>
+          <main class="workspace-main"><div class="workspace-heading"><h3>${escape(result?.title.slice(0, 65) || '当前尝试尚无产物')}</h3>${status(run)}</div><div class="result-layout"><div class="result-preview">
+          ${!result ? '<div class="empty-canvas" role="status">尚无执行节点 · 等待输入或开始执行</div>' : result.image ? `<img src="${result.image}" alt="${escape(result.title)}的预览" />` : `<div class="text-preview">${icon(result.historicalError ? 'circle-alert' : 'file-text')}<span>${result.historicalError ? escape(result.error || '保留历史错误') : escape(result.artifactType || '文本 / 暂无可用媒体预览')}</span><p class="subtle">${escape(result.detail.slice(0, 110))}</p></div>`}
+          <div class="result-caption"><span>所属尝试：${escape(run.label)}</span><span>${ids.length} 个相关节点</span></div><button type="button" class="quiet-button" data-action="whole-attempt">${icon('list-tree')}查看本次全部节点</button>${state.descriptions && result ? `<p class="subtle">${escape(result.detail.slice(0, 120))}</p>` : ''}</div>
+          <div class="trace-stack">${groupsFor(ids).map(group => `<button type="button" class="trace-button" data-action="stage" data-stage="${group.index}" aria-pressed="${state.inspected && state.stage === group.index}">${icon(icons[group.index])}<span>${labels[group.index]}<small>${group.ids.length} 项 · 点击查看真实依赖</small></span>${icon('chevron-right')}</button>`).join('')}</div></div>
+          ${state.inspected ? inspector(ids, state) : ''}${footer(state.fullAttempt ? '完整尝试记录 · 包含未完成分支与中间产物' : '按产物追溯 · 当前结果以外的分支按需查看')}</main></div>`;
+      }
+      function route(source, target, width) {
+        if (target.left > source.right) { const x = (source.right + target.left) / 2; return [[source.right, source.cy], [x, source.cy], [x, target.cy], [target.left, target.cy]]; }
+        const x = width - 7;
+        return [[source.right, source.cy], [x, source.cy], [x, target.cy], [target.right, target.cy]];
+      }
+      function drawFlow(element) {
+        const rect = element.getBoundingClientRect(); if (!rect.width || !rect.height) return;
+        const svg = element.querySelector('.flow-edges'), boxes = new Map();
+        element.querySelectorAll('[data-stage]').forEach(card => { const b = card.getBoundingClientRect(); boxes.set(Number(card.dataset.stage), { left: b.left - rect.left, right: b.right - rect.left, cy: b.top - rect.top + b.height / 2 }); });
+        const marker = `arrow-${element.closest('[data-design]').dataset.design}-${element.dataset.run}`;
+        svg.setAttribute('viewBox', `0 0 ${rect.width} ${rect.height}`);
+        svg.innerHTML = `<defs><marker id="${marker}" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0 0L6 3L0 6Z" fill="currentColor" /></marker></defs>` + JSON.parse(element.dataset.edges).map(([a, b]) => {
+          const points = route(boxes.get(a), boxes.get(b), rect.width);
+          return `<path d="${points.map((point, index) => `${index ? 'L' : 'M'}${point[0]},${point[1]}`).join(' ')}" fill="none" stroke="currentColor" stroke-width="1.3" marker-end="url(#${marker})" />`;
+        }).join('');
+      }
+      const observer = new ResizeObserver(entries => entries.forEach(entry => drawFlow(entry.target)));
+      const renderers = { snapshots: snapshot, lanes, results };
+      function render(name) {
+        const element = root.querySelector(`[data-design="${name}"]`), state = states[name];
+        element.style.setProperty('--stage-gap', `${state.gap}px`);
+        element.querySelector('[data-content]').innerHTML = renderers[name](state);
+        if (globalThis.lucide) lucide.createIcons({ attrs: { width: 16, height: 16 } });
+        observer.disconnect(); root.querySelectorAll('[data-flow]').forEach(flow => observer.observe(flow));
+        requestAnimationFrame(() => root.querySelectorAll('[data-flow]').forEach(drawFlow));
+      }
+      function remember() {
+        window.openai?.setWidgetState?.({ modelContent: { task: data.title, taskType: data.type, snapshot: data.runs.find(run => run.id === states.snapshots.run)?.label, expandedLanes: states.lanes.opened.map(id => data.runs.find(run => run.id === id)?.label), selectedResult: byId.get(states.results.result)?.title }, privateContent: { taskId: data.id, views: states } })?.catch?.(() => {});
+      }
+      function selectTask(id, shouldRender = true) {
+        const selected = catalog.find(item => item.id === id);
+        if (!selected) return false;
+        data = selected.model;
+        byId = new Map(data.nodes.map(node => [node.id, node]));
+        current = data.runs.find(run => run.current);
+        const defaults = defaultStates();
+        for (const name of Object.keys(states)) {
+          const { gap, descriptions } = states[name];
+          Object.assign(states[name], defaults[name], { gap, descriptions });
+        }
+        if (shouldRender) Object.keys(states).forEach(render);
+        return true;
+      }
+      function restore(saved) {
+        if (!saved || typeof saved !== 'object') return;
+        if (saved.taskId && saved.taskId !== data.id) selectTask(saved.taskId, false);
+        const views = saved.views || saved;
+        for (const name of Object.keys(states)) if (views[name] && typeof views[name] === 'object') {
+          const patch = views[name];
+          if (data.runs.some(run => run.id === patch.run)) states[name].run = patch.run;
+          if (name === 'results' && byId.has(patch.result)) states[name].result = patch.result;
+          if (name === 'lanes' && Array.isArray(patch.opened)) states[name].opened = patch.opened.filter(id => data.runs.some(run => run.id === id));
+          if ([0, 1, 2].includes(patch.stage)) states[name].stage = patch.stage;
+          if (byId.has(patch.node)) states[name].node = patch.node;
+          if (Number.isFinite(patch.gap)) states[name].gap = Math.min(44, Math.max(20, patch.gap));
+          for (const key of ['descriptions', 'inspected', 'fullAttempt']) if (key in states[name] && typeof patch[key] === 'boolean') states[name][key] = patch[key];
+        }
+      }
+      restore(window.openai?.widgetState?.privateContent);
+      root.addEventListener('click', event => {
+        const trigger = event.target.closest('[data-action]'); if (!trigger) return;
+        const element = trigger.closest('[data-design]'), name = element.dataset.design, state = states[name], action = trigger.dataset.action;
+        if (action === 'run') { state.run = trigger.dataset.id; state.stage = 1; state.node = ''; }
+        if (action === 'current') { state.run = current.id; state.stage = 1; state.node = ''; }
+        if (action === 'fold') { state.opened = [current.id]; state.inspected = false; }
+        if (action === 'lane') { const id = trigger.dataset.id; state.opened = state.opened.includes(id) ? state.opened.filter(value => value !== id) : [...state.opened, id]; }
+        if (action === 'stage') { state.stage = Number(trigger.dataset.stage); state.node = ''; state.inspected = true; if (trigger.closest('[data-flow]')) state.run = trigger.closest('[data-flow]').dataset.run; }
+        if (action === 'node') state.node = trigger.dataset.id;
+        if (action === 'result') { state.result = trigger.dataset.id; state.node = ''; state.inspected = false; state.fullAttempt = false; }
+        if (action === 'attempt-record') { state.result = trigger.dataset.id; state.stage = byId.get(state.result).stage; state.node = state.result; state.inspected = true; state.fullAttempt = true; }
+        if (action === 'whole-attempt') { state.fullAttempt = true; state.node = ''; state.inspected = true; }
+        render(name); remember();
+      });
+      root.addEventListener('change', event => {
+        if (event.target.matches('[data-task-select]') && selectTask(event.target.value)) remember();
+      });
+      for (const name of Object.keys(states)) {
+        render(name);
+        if (globalThis.Tweak) { const tweak = new Tweak({ container: root.querySelector(`[data-design="${name}"]`), onChange: () => render(name) }); tweak.addSlider(states[name], 'gap', { label: '阶段间距', min: 20, max: 44, unit: 'px' }); tweak.addToggle(states[name], 'descriptions', { label: '显示节点说明' }); }
+      }
+      window.addEventListener('openai:set_globals', event => { if (event.detail?.globals?.widgetState) { restore(event.detail.globals.widgetState.privateContent); Object.keys(states).forEach(render); } });
+      globalThis.CanvasRoundDesign = { get data() { return data; }, catalog, selectTask, groupsFor, aggregateEdges, ancestors, route, states, renderers };
+    })();
+  </script>
+</div>

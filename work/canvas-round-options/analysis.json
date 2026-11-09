@@ -1,0 +1,90 @@
+{
+  "graphRevision": 90,
+  "sourceSha256": "ea41898e9882e71416b7918419cd0a3539d08b86c8e64127aa810525b0890b64",
+  "nodeCount": 24,
+  "edgeCount": 21,
+  "states": {
+    "stale": 16,
+    "completed": 8
+  },
+  "dependencyGroupSizes": [
+    8,
+    15,
+    1
+  ],
+  "nodesWithRoundOwnership": 0,
+  "sharedAssetGroups": 5,
+  "checks": {
+    "allNodesCovered": true,
+    "invalidInputIds": 0,
+    "crossGroupEdges": 0,
+    "latestDefaultNodes": 8,
+    "unrelatedHistoricalNodesInDefault": 0,
+    "latestAggregatedNodes": 3,
+    "latestAggregatedEdges": 2,
+    "resultTracingCoverage": 24
+  },
+  "caveat": "The current schema has no per-node round ownership. Prototype histories are dependency groups, not reconstructed immutable execution snapshots.",
+  "universalScenarios": [
+    {
+      "type": "image.edit",
+      "attempts": 2,
+      "nodes": 8,
+      "selectedAttemptNodes": 5,
+      "unrelatedNodesInSelectedAttempt": 0,
+      "genericFallbackNodes": 0,
+      "failedExecutionPreserved": true,
+      "parallelJoins": 2,
+      "finalOutputs": 1,
+      "loopGroups": 0
+    },
+    {
+      "type": "code.change",
+      "attempts": 2,
+      "nodes": 11,
+      "selectedAttemptNodes": 7,
+      "unrelatedNodesInSelectedAttempt": 0,
+      "genericFallbackNodes": 0,
+      "failedExecutionPreserved": true,
+      "parallelJoins": 3,
+      "finalOutputs": 2,
+      "loopGroups": 0
+    },
+    {
+      "type": "document.author",
+      "attempts": 2,
+      "nodes": 10,
+      "selectedAttemptNodes": 6,
+      "unrelatedNodesInSelectedAttempt": 0,
+      "genericFallbackNodes": 0,
+      "failedExecutionPreserved": true,
+      "parallelJoins": 1,
+      "finalOutputs": 2,
+      "loopGroups": 0
+    },
+    {
+      "type": "research.analysis",
+      "attempts": 2,
+      "nodes": 9,
+      "selectedAttemptNodes": 6,
+      "unrelatedNodesInSelectedAttempt": 0,
+      "genericFallbackNodes": 0,
+      "failedExecutionPreserved": true,
+      "parallelJoins": 1,
+      "finalOutputs": 2,
+      "loopGroups": 1
+    },
+    {
+      "type": "vendor.unregistered-task",
+      "attempts": 2,
+      "nodes": 5,
+      "selectedAttemptNodes": 3,
+      "unrelatedNodesInSelectedAttempt": 0,
+      "genericFallbackNodes": 2,
+      "failedExecutionPreserved": true,
+      "parallelJoins": 0,
+      "finalOutputs": 1,
+      "loopGroups": 0
+    }
+  ]
+}

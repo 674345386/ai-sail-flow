@@ -1,0 +1,39 @@
+{
+  "source_url": "https://www.capyai.cc/",
+  "html_bytes": 5857,
+  "scripts": [
+    "https://www.capyai.cc/assets/index-Dvmd0tmq.js"
+  ],
+  "styles": [
+    "https://www.capyai.cc/assets/index-f7sY7_53.css"
+  ],
+  "visible_text": [
+    "CapyAI 创作工作台 - 多模型 AI 图片与视频创作"
+  ],
+  "downloaded_assets": [
+    {
+      "url": "https://www.capyai.cc/assets/index-Dvmd0tmq.js",
+      "path": "/Users/cppeng/sop/work/capyai-reference/assets/index-Dvmd0tmq.js",
+      "bytes": 293859,
+      "sha256": "33a1c7e7934ef538e8c17184259bd803763d4afb951f1a763eea41ca41128591"
+    },
+    {
+      "url": "https://www.capyai.cc/assets/index-f7sY7_53.css",
+      "path": "/Users/cppeng/sop/work/capyai-reference/assets/index-f7sY7_53.css",
+      "bytes": 127550,
+      "sha256": "ae395632d29a2e6ea9d4e37b70332be08992a508088ef2a9d0b719a303876707"
+    },
+    {
+      "url": "https://www.capyai.cc/assets/HomePage-CsLapLL2.js",
+      "path": "/Users/cppeng/sop/work/capyai-reference/assets/HomePage-CsLapLL2.js",
+      "bytes": 53601,
+      "sha256": "9cdea867a6c5011100931f6202064f9f4e5073c9ce6e3cae779734b90002df09"
+    },
+    {
+      "url": "https://www.capyai.cc/assets/MobileHomePage-BXap23JO.js",
+      "path": "/Users/cppeng/sop/work/capyai-reference/assets/MobileHomePage-BXap23JO.js",
+      "bytes": 10395,
+      "sha256": "43648b6e9ed05deab4157a5504caec4ad2b2909f1915a8b1da2f6dab139f70b2"
+    }
+  ]
+}

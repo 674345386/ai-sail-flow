@@ -37,6 +37,46 @@ function documentFor(html: string, scheme: "light" | "dark") {
   return `<!doctype html><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${CSP}"><meta name="viewport" content="width=device-width,initial-scale=1"><style>:root{color-scheme:${scheme}}html,body{margin:0}body{font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}</style>${REPORTER}${html}`;
 }
 
+export function SandboxedHtml({ html, height: requestedHeight, title, streaming = false }: {
+  html: string;
+  height?: number;
+  title?: string;
+  streaming?: boolean;
+}) {
+  const frame = useRef<HTMLIFrameElement>(null);
+  const box = useRef<HTMLDivElement>(null);
+  const scheme = useColorScheme(box);
+  const fixed = typeof requestedHeight === "number" && requestedHeight > 0 ? Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, requestedHeight)) : null;
+  const [measured, setMeasured] = useState<number | null>(null);
+  const srcDoc = useMemo(() => documentFor(html, scheme), [html, scheme]);
+
+  useEffect(() => {
+    if (fixed) return;
+    const onMessage = (event: MessageEvent) => {
+      if (event.source !== frame.current?.contentWindow) return;
+      const data = event.data as { type?: unknown; height?: unknown };
+      if (data?.type === "iui-html-view-height" && typeof data.height === "number" && Number.isFinite(data.height)) {
+        setMeasured(Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, data.height)));
+      }
+    };
+    window.addEventListener("message", onMessage);
+    frame.current?.contentWindow?.postMessage("iui-html-view-measure", "*");
+    return () => window.removeEventListener("message", onMessage);
+  }, [fixed]);
+
+  // A page that is still streaming would reload on every chunk; it runs once complete.
+  const height = fixed ?? measured ?? AUTO_START;
+  return (
+    <div ref={box} className="iui-html-view" style={{ height }}>
+      {streaming ? (
+        <div className="iui-html-view-wait">正在生成 HTML 页面…</div>
+      ) : (
+        <iframe ref={frame} title={title || "Interactive view"} sandbox="allow-scripts" srcDoc={srcDoc} referrerPolicy="no-referrer" loading="lazy" />
+      )}
+    </div>
+  );
+}
+
 export const HtmlView = defineComponent({
   name: "HtmlView",
   props: z.object({
@@ -44,41 +84,9 @@ export const HtmlView = defineComponent({
     height: z.number().optional(),
     title: z.string().optional(),
   }),
-  description: "Sandboxed HTML page with inline JS, for games and canvas. No network except script CDNs. Fits its content unless height is set.",
+  description: "Sandboxed HTML page with inline JS. Use for any result that benefits from freely authored layout or interaction. No network except script CDNs. Fits its content unless height is set.",
   component: function HtmlViewView({ props }) {
     const streaming = useIsStreaming();
-    const frame = useRef<HTMLIFrameElement>(null);
-    const box = useRef<HTMLDivElement>(null);
-    const scheme = useColorScheme(box);
-    const fixed = typeof props.height === "number" && props.height > 0 ? Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, props.height)) : null;
-    const [measured, setMeasured] = useState<number | null>(null);
-    const html = typeof props.html === "string" ? props.html : "";
-    const srcDoc = useMemo(() => documentFor(html, scheme), [html, scheme]);
-
-    useEffect(() => {
-      if (fixed) return;
-      const onMessage = (event: MessageEvent) => {
-        if (event.source !== frame.current?.contentWindow) return;
-        const data = event.data as { type?: unknown; height?: unknown };
-        if (data?.type === "iui-html-view-height" && typeof data.height === "number" && Number.isFinite(data.height)) {
-          setMeasured(Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, data.height)));
-        }
-      };
-      window.addEventListener("message", onMessage);
-      frame.current?.contentWindow?.postMessage("iui-html-view-measure", "*");
-      return () => window.removeEventListener("message", onMessage);
-    }, [fixed]);
-
-    // A page that is still streaming would reload on every chunk; it runs once complete.
-    const height = fixed ?? measured ?? AUTO_START;
-    return (
-      <div ref={box} className="iui-html-view" style={{ height }}>
-        {streaming ? (
-          <div className="iui-html-view-wait">Preparing the interactive view…</div>
-        ) : (
-          <iframe ref={frame} title={props.title || "Interactive view"} sandbox="allow-scripts" srcDoc={srcDoc} referrerPolicy="no-referrer" loading="lazy" />
-        )}
-      </div>
-    );
+    return <SandboxedHtml {...props} streaming={streaming} />;
   },
 });

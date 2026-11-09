@@ -213,11 +213,11 @@ export type ModelRequestSnapshot = {
   recordedAt: string;
 };
 export type GeneratedVideo = {
-  id: string; provider: 'veo-3.1' | 'grok-imagine' | 'omni-flash' | 'local-test'; model: 'veo_3_1' | 'veo_3_1-fl' | 'veo_3_1-components' | 'grok-imagine-video-1.5' | 'omni_flash_8s' | 'omni_flash_10s' | 'local-test'; shotId: string;
-  mode?: 't2v' | 'i2v' | 'r2v'; imageUrls?: string[]; resolution?: '720p' | '1080p' | 'lite';
+  id: string; provider: 'veo-3.1' | 'grok-imagine' | 'omni-flash' | 'minimax-h3' | 'local-test'; model: 'veo_3_1' | 'veo_3_1-fl' | 'veo_3_1-components' | 'grok-imagine-video-1.5' | 'omni_flash_8s' | 'omni_flash_10s' | 'h3-video' | 'h3-video-flex' | 'h3-video-frames' | 'local-test'; shotId: string;
+  mode?: 't2v' | 'i2v' | 'r2v'; imageUrls?: string[]; resolution?: '480p' | '720p' | '768p' | '960p' | '1080p' | 'lite';
   unitId?: string; sourceShotIds?: string[]; targetStart?: number; targetEnd?: number; targetDuration?: number;
   requestId?: string; status: 'running' | 'completed' | 'failed'; prompt: string; productionMode?: ProductionMode;
-  duration: number; aspectRatio: Market['aspectRatio'] | '16:9'; startedAt: string; finishedAt?: string;
+  duration: number; aspectRatio: Market['aspectRatio'] | '21:9' | '4:3' | '3:4'; startedAt: string; finishedAt?: string;
   filename?: string; url?: string; mime?: string; size?: number; width?: number; height?: number;
   hasAudio?: boolean; thumbnail?: string; stale?: boolean; error?: string;
   defaultPrompt?: string; providerRequest?: { model: string; prompt: string; resolution: string; aspect_ratio: string; images?: string[]; input_reference?: string[]; first_last_frame?: boolean };
@@ -229,6 +229,8 @@ export type GeneratedVideo = {
   /** Stage-3 storyboard-grid mode: one grid = one video unit (no shot keyframes). */
   storyboardGridId?: string; gridId?: string;
   referenceIds?: string[];
+  referenceMedia?: { id: string; name: string; filename: string; url: string; mime?: string; role?: string }[];
+  minimax?: { idempotencyKey: string; requestKey?: string; requestFingerprint?: string; generateAudio?: boolean; optimizePrompt?: boolean; request?: import('./minimax-video').MinimaxGenerationRequest; details?: import('./minimax-video').MinimaxGenerationDetails; upstreamStatus?: 'succeeded'; outputAssetId?: string; optimizedPrompt?: string; credits?: { held: string; charged: string } };
 };
 export type ComposedVideo = {
   id: string; mode: ProductionMode; unitId?: string; sourceVideoIds: string[]; voice: string;
@@ -267,9 +269,11 @@ export type StoryboardGrid = {
 export const defaultWorkspace = { id: 'default', title: '我的工作空间' } as const;
 export type WorkspaceProject = { id: string; workspaceId: string; title: string; createdAt: string; updatedAt: string; revision: number };
 export type AgentImage = {
-  id: string; prompt: string; aspectRatio: '1:1' | '16:9' | '9:16' | '4:5';
+  id: string; prompt: string; aspectRatio?: string; size?: string;
+  quality?: 'auto' | 'low' | 'medium' | 'high' | 'xhigh' | 'max';
   referenceIds: string[]; status: 'running' | 'completed' | 'failed';
   createdAt: string; filename?: string; url?: string; model?: string; error?: string;
+  width?: number; height?: number; warning?: string;
 };
 // The existing production record and its API retain the Project name for compatibility; each record represents one creative.
 export type Project = {

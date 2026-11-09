@@ -38,16 +38,16 @@ export default function WorkspaceSearchPalette({ creatives, groups, busy, onChoo
 
   return <div className="workspace-search-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}>
     <section className="workspace-search-palette" role="dialog" aria-modal="true" aria-label="搜索与创建">
-      <label className="workspace-search-input"><Search size={18} aria-hidden="true" /><input ref={inputRef} value={query} onChange={event => { setQuery(event.target.value); setActive(0); }} onKeyDown={onInputKeyDown} placeholder="搜索创意或项目…" /><kbd>ESC</kbd></label>
+      <label className="workspace-search-input"><Search size={18} aria-hidden="true" /><input ref={inputRef} value={query} onChange={event => { setQuery(event.target.value); setActive(0); }} onKeyDown={onInputKeyDown} placeholder="搜索创意或工作空间…" /><kbd>ESC</kbd></label>
       <div className="workspace-search-results">
         {matches.map((creative, index) => <button key={creative.id} type="button" className={`workspace-search-result${active === index ? ' is-active' : ''}`} disabled={busy} onMouseEnter={() => setActive(index)} onClick={() => chooseActive(index)}>
           <span className="workspace-search-result-icon"><Clapperboard size={16} /></span><span className="workspace-search-copy"><strong>{creative.title}</strong><small>{groups.find(group => group.id === creative.parentProjectId)?.title || '默认项目'}</small></span>{creative.archivedAt && <span className="workspace-search-archived"><Archive size={13} />已归档</span>}
         </button>)}
-        {!matches.length && normalized && <p className="workspace-search-empty">没有找到匹配的创意或项目</p>}
+        {!matches.length && normalized && <p className="workspace-search-empty">没有找到匹配的创意或工作空间</p>}
       </div>
       <div className="workspace-search-actions">
-        <button type="button" className={`workspace-search-result${active === matches.length ? ' is-active' : ''}`} disabled={busy} onMouseEnter={() => setActive(matches.length)} onClick={() => chooseActive(matches.length)}><span className="workspace-search-result-icon"><Plus size={16} /></span><span className="workspace-search-copy"><strong>新建创意</strong><small>在当前项目中创建</small></span></button>
-        <button type="button" className={`workspace-search-result${active === matches.length + 1 ? ' is-active' : ''}`} disabled={busy} onMouseEnter={() => setActive(matches.length + 1)} onClick={() => chooseActive(matches.length + 1)}><span className="workspace-search-result-icon"><FolderOpen size={16} /></span><span className="workspace-search-copy"><strong>新建项目</strong><small>创建项目并添加创意</small></span></button>
+        <button type="button" className={`workspace-search-result${active === matches.length ? ' is-active' : ''}`} disabled={busy} onMouseEnter={() => setActive(matches.length)} onClick={() => chooseActive(matches.length)}><span className="workspace-search-result-icon"><Plus size={16} /></span><span className="workspace-search-copy"><strong>新建创意</strong><small>在当前工作空间中创建</small></span></button>
+        <button type="button" className={`workspace-search-result${active === matches.length + 1 ? ' is-active' : ''}`} disabled={busy} onMouseEnter={() => setActive(matches.length + 1)} onClick={() => chooseActive(matches.length + 1)}><span className="workspace-search-result-icon"><FolderOpen size={16} /></span><span className="workspace-search-copy"><strong>新建工作空间</strong><small>创建工作空间并添加创意</small></span></button>
       </div>
       <footer className="workspace-search-footer"><span><kbd>↑</kbd><kbd>↓</kbd> 选择</span><span><kbd>↵</kbd> 打开</span><span><kbd>⌘</kbd><kbd>K</kbd> 搜索与创建</span></footer>
     </section>

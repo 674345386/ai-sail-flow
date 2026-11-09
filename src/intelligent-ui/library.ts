@@ -20,7 +20,7 @@ import {
 import { HtmlView } from "./components/html-view";
 import { Box, Card, Col, Divider, Form, Grid, Row, Spacer } from "./components/layout";
 import { MapMarker, MapView } from "./components/map/map";
-import { Icon, Image, SearchImage } from "./components/media";
+import { Icon, Image, SearchImage, Video } from "./components/media";
 import { svgComponents } from "./components/svg";
 import { Table } from "./components/table";
 import { Badge, Caption, Label, Link, List, ListItem, Markdown, Text, Title } from "./components/text";
@@ -35,7 +35,7 @@ export const baseComponents = [
     Col, Row, Box, Grid, Card, Carousel, Popover, Divider, Spacer,
     Title, Text, Caption, Label, Badge, Link, List, ListItem, Markdown, Quote, Code, MathBlock,
     Button, IconButton, Pressable, Input, TextArea, Select, SegmentedControl, Slider, Checkbox, RadioGroup, DatePicker, Timer, Form,
-    SearchImage, Image, Icon, Table, Chart, MapView, MapMarker, YouTube,
+    SearchImage, Image, Video, Icon, Table, Chart, MapView, MapMarker, YouTube,
     Flashcard, Celebration,
     ...svgComponents, HtmlView,
 ];
@@ -58,7 +58,7 @@ export const baseComponentGroups = [
         '- Every input either changes something shown on the page, or sits in a Form whose submit Button sends a short first-person @ToAssistant ("Help me choose a bike"); the form values go with it. No dead inputs.',
       ],
     },
-    { name: "Media and data", components: ["SearchImage", "Image", "Icon", "Table", "Chart", "Map", "MapMarker", "YouTube"] },
+    { name: "Media and data", components: ["SearchImage", "Image", "Video", "Icon", "Table", "Chart", "Map", "MapMarker", "YouTube"] },
     { name: "Play", components: ["Flashcard", "Celebration"] },
     { name: "Drawing", components: ["Svg", "G", "Circle", "Ellipse", "Rect", "Line", "Path", "Polyline", "Polygon", "SvgText", "HtmlView"] },
 ];
@@ -69,6 +69,15 @@ export const library = createLibrary({
   functions,
   actions,
   componentGroups: baseComponentGroups,
+});
+
+// The component-only presentation does not advertise the HTML escape hatch.
+export const componentOnlyLibrary = createLibrary({
+  root: "Col",
+  components: baseComponents.filter(component => component !== HtmlView),
+  functions,
+  actions,
+  componentGroups: baseComponentGroups.map(group => ({ ...group, components: group.components.filter(name => name !== 'HtmlView') })),
 });
 
 const parser = createParser(library.toJSONSchema());

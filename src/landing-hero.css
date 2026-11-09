@@ -66,7 +66,7 @@
 }
 .commerce-hero-copy { width: min(760px, 100%); padding: 60px 24px; text-align: center; }
 .commerce-hero-kicker { display: block; margin-bottom: 23px; color: #f3f3ef; font-size: 13px; font-weight: 400; letter-spacing: .035em; }
-.commerce-hero-copy h1 { margin: 0; color: #fafaf8; font-size: clamp(46px, 5.2vw, 82px); font-weight: 450; line-height: 1.1; letter-spacing: -.065em; }
+.commerce-hero-copy :is(h1, h2) { margin: 0; color: #fafaf8; font-size: clamp(46px, 5.2vw, 82px); font-weight: 450; line-height: 1.1; letter-spacing: -.065em; }
 .commerce-hero-copy p { margin: 24px auto 0; color: #f8f8f3; font-size: clamp(16px, 1.2vw, 20px); font-weight: 400; line-height: 1.65; text-wrap: balance; }
 .commerce-hero-actions { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 27px; }
 .commerce-hero-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 13px; min-height: 44px; padding: 10px 17px; border-radius: 8px; font-size: 14px; font-weight: 500; line-height: 1.4; transition: background .18s, transform .18s; }
@@ -97,7 +97,7 @@
   .commerce-hero-stage { height: clamp(540px, calc(100dvh - 100px), 720px); border-radius: 10px; }
   .commerce-hero-copy { padding: 48px 20px; }
   .commerce-hero-kicker { margin-bottom: 20px; font-size: 12px; }
-  .commerce-hero-copy h1 { font-size: clamp(42px, 11vw, 66px); }
+  .commerce-hero-copy :is(h1, h2) { font-size: clamp(42px, 11vw, 66px); }
   .commerce-hero-copy p { max-width: 340px; margin-top: 22px; font-size: 15px; line-height: 1.75; }
   .commerce-hero-linebreak { display: none; }
   .commerce-hero-actions { flex-direction: column; gap: 10px; margin-top: 24px; }

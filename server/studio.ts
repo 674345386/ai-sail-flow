@@ -7,6 +7,7 @@ import { fileTypeFromFile } from 'file-type';
 import { z } from 'zod';
 import { dataDir, uploadDir } from './store';
 import { generateImage, imageGenerationStatus, type ImageReference } from './image-generation';
+import type { GenerationTask } from '../shared/generation-task';
 
 /** FEATURE_STUDIO defaults true; set FEATURE_STUDIO=0|false to disable API. */
 export const FEATURE_STUDIO = !['0', 'false', 'off'].includes(String(process.env.FEATURE_STUDIO || 'true').toLowerCase());
@@ -186,6 +187,23 @@ for (const [jobId, job] of jobs) {
   }
 }
 
+export function studioGenerationTasks(): GenerationTask[] {
+  if (!FEATURE_STUDIO) return [];
+  const images = new Map<string, { asset: CreativeAsset; projectId: string; referenceCount: number }>();
+  for (const job of jobs.values()) for (const asset of job.assets) images.set(asset.id, { asset, projectId: job.projectId, referenceCount: job.productRefs?.length || 0 });
+  for (const project of projects.values()) for (const asset of project.creatives || []) if (!images.has(asset.id)) images.set(asset.id, { asset, projectId: project.id, referenceCount: project.productRefs?.length || 0 });
+  return [...images.values()].map(({ asset, projectId, referenceCount }) => ({
+    id: `image:${asset.id}`, kind: 'image', studioProjectId: projectId, creativeTitle: projects.get(projectId)?.title || '商品套图', projectTitle: '爆款工作室',
+    source: `商品套图 · ${KIND_LABELS[asset.kind].zh}`, model: asset.status === 'queued' || asset.status === 'running' ? imageGenerationStatus().model : '图片生成',
+    prompt: asset.prompt, status: asset.status === 'running' ? 'submitting' : asset.status === 'failed' && /重启|中断|未知|待核对/.test(asset.error || '') ? 'needs-attention' : asset.status,
+    stage: asset.status === 'completed' ? 'save' : 'prepare',
+    message: asset.error || (asset.status === 'queued' ? '已加入商品套图队列，等待前面的图片完成。' : asset.status === 'completed' ? '图片已保存，可以预览和下载。' : '正在准备图片请求…'),
+    createdAt: asset.createdAt, updatedAt: asset.updatedAt, finishedAt: asset.status === 'completed' || asset.status === 'failed' ? asset.updatedAt : undefined,
+    aspectRatio: KIND_ASPECT[asset.kind], referenceCount, error: asset.error,
+    outputs: asset.url ? [{ id: asset.id, url: asset.url, filename: asset.filename }] : [],
+  }));
+}
+
 function saveProject(project: StudioProject) {
   const updated = { ...project, updatedAt: new Date().toISOString() };
   writeJson(projectsDir, updated.id, updated);
@@ -330,6 +348,7 @@ async function runCreativeJob(jobId: string) {
           prompt: asset.prompt,
           aspectRatio: KIND_ASPECT[asset.kind],
           prefix: KIND_PREFIX[asset.kind],
+          label: `商品套图 · ${label}`,
           references: references.length ? references : undefined,
         });
         assets = (jobs.get(jobId) || job).assets.map((item, i) => i === index ? {

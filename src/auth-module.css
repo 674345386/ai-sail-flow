@@ -1,132 +1,310 @@
 .auth-screen.sail-auth-dialog {
   z-index: 1250;
-  outline: 0;
   padding: 24px;
   align-items: safe center;
-  color: #161616;
+  outline: 0;
+  color: #26251f;
   color-scheme: light;
-  background: rgba(20, 23, 26, .42);
+  background: rgb(24 27 25 / 48%);
   -webkit-backdrop-filter: blur(6px);
   backdrop-filter: blur(6px);
 }
 .auth-screen.sail-auth-dialog::before { display: none; }
 .sail-auth-dialog .auth-modal-card {
   position: relative;
-  width: min(100%, 510px);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  width: min(100%, 1120px);
   max-height: calc(100dvh - 48px);
-  overflow-y: auto;
+  overflow: hidden auto;
   overscroll-behavior: contain;
-  padding: 40px 44px 32px;
-  border: 1px solid rgba(255, 255, 255, .8);
   border-radius: 24px;
   outline: none;
   background: #fff;
-  box-shadow: 0 24px 80px rgba(0, 0, 0, .22), 0 4px 16px rgba(0, 0, 0, .06);
+  box-shadow: 0 28px 100px rgb(13 23 17 / 22%);
+  scrollbar-width: thin;
+  scrollbar-color: #cbc9c2 #fff;
 }
-.sail-auth-dialog .auth-screen-content { width: 100%; padding: 0; }
-.sail-auth-dialog .auth-screen-intro { width: 100%; margin-top: 0; }
+.sail-auth-dialog ::selection { color: #26251f; background: #e3e9cc; }
+.sail-auth-dialog .auth-artwork {
+  position: relative;
+  isolation: isolate;
+  display: block;
+  min-width: 0;
+  min-height: min(640px, calc(100dvh - 48px));
+  overflow: hidden;
+  background: #dce1cf;
+}
+.sail-auth-dialog .auth-artwork-images,
+.sail-auth-dialog .auth-artwork-image { position: absolute; inset: 0; width: 100%; height: 100%; }
+.sail-auth-dialog .auth-artwork-image {
+  display: block;
+  object-fit: cover;
+  object-position: center;
+  opacity: 0;
+  transition: opacity 650ms ease;
+}
+.sail-auth-dialog .auth-artwork-image.is-active { opacity: 1; }
+.sail-auth-dialog .auth-artwork::after {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  content: '';
+  pointer-events: none;
+  background: linear-gradient(180deg, transparent 42%, rgb(24 33 24 / 8%) 56%, rgb(20 28 21 / 78%) 100%);
+}
+.sail-auth-dialog .auth-artwork-caption {
+  position: absolute;
+  z-index: 2;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: grid;
+  gap: 20px;
+  padding: 38px 36px 28px;
+  color: #fff;
+}
+.sail-auth-dialog .auth-artwork-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 29px;
+  padding: 4px 10px;
+  border: 1px solid rgb(255 255 255 / 38%);
+  border-radius: 999px;
+  color: #fff;
+  background: rgb(255 255 255 / 12%);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+.sail-auth-dialog .auth-artwork-tag svg { color: #dceda3; }
+.sail-auth-dialog .auth-artwork h2 {
+  max-width: 400px;
+  margin: 14px 0 0;
+  color: #fff;
+  font-size: clamp(27px, 2.6vw, 34px);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -.035em;
+  text-wrap: balance;
+}
+.sail-auth-dialog .auth-artwork-controls { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.sail-auth-dialog .auth-artwork-pagination { display: flex; align-items: center; gap: 7px; }
+.sail-auth-dialog .auth-artwork-page {
+  display: grid;
+  align-items: center;
+  width: 37px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  cursor: pointer;
+}
+.sail-auth-dialog .auth-artwork-page > span { width: 100%; height: 3px; border-radius: 2px; background: rgb(255 255 255 / 46%); }
+.sail-auth-dialog .auth-artwork-page:hover > span { background: rgb(255 255 255 / 80%); }
+.sail-auth-dialog .auth-artwork-page.is-active > span { background: #ddf09a; }
+.sail-auth-dialog .auth-artwork-play {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid rgb(255 255 255 / 32%);
+  border-radius: 50%;
+  color: #fff;
+  background: transparent;
+  cursor: pointer;
+}
+.sail-auth-dialog .auth-artwork-play:hover { background: rgb(255 255 255 / 16%); }
+.sail-auth-dialog .auth-form-panel {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  padding: 72px 64px;
+}
+.sail-auth-dialog .auth-screen-content { width: 100%; min-width: 0; padding: 0; align-items: stretch; }
+.sail-auth-dialog .auth-login-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 32px; color: #26251f; font-size: 15px; font-weight: 600; letter-spacing: -.025em; }
+.sail-auth-dialog .auth-login-brand img { display: block; width: 32px; height: 32px; }
+.sail-auth-dialog .auth-screen-intro { width: 100%; margin: 0; text-align: left; }
 .sail-auth-dialog .auth-screen-intro h1 {
   margin: 0;
-  color: #161616;
-  font-size: clamp(26px, 4vw, 32px);
-  font-weight: 550;
-  letter-spacing: -.04em;
-  line-height: 1.25;
+  color: #26251f;
+  font-size: clamp(28px, 2.6vw, 34px);
+  font-weight: 600;
+  letter-spacing: -.035em;
+  line-height: 1.2;
+  text-wrap: balance;
 }
-.sail-auth-dialog .auth-screen-intro p { max-width: 100%; margin: 12px auto 0; color: #777; font-size: 14px; line-height: 1.6; }
-.sail-auth-dialog .auth-screen-intro p strong { color: #333; font-weight: 500; overflow-wrap: anywhere; }
-.sail-auth-dialog .auth-screen-form { margin-top: 28px; }
-.sail-auth-dialog .auth-social-google {
-  min-height: 44px;
-  border: 1px solid #dedede;
+.sail-auth-dialog .auth-screen-intro p { max-width: 100%; margin: 12px 0 0; color: #706e67; font-size: 14px; line-height: 1.65; }
+.sail-auth-dialog .auth-screen-intro p strong { color: #39382f; font-weight: 500; overflow-wrap: anywhere; }
+.sail-auth-dialog .auth-screen-form { width: 100%; margin-top: 32px; }
+.sail-auth-dialog .auth-google-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 50px;
+  padding: 11px 18px;
+  border: 1px solid #d8d6cf;
   border-radius: 999px;
-  color: #161616;
+  color: #26251f;
   background: #fff;
-  font-size: 15px;
+  font: inherit;
+  font-size: 14px;
   font-weight: 500;
+  line-height: 1.5;
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease;
 }
-.sail-auth-dialog .auth-social-google:hover:not(:disabled) { border-color: #b7b7b7; background: #fafafa; transform: none; }
-.sail-auth-dialog .auth-social-google small { color: #888; font-size: 11px; font-weight: 400; }
-.sail-auth-dialog .auth-social-button:disabled { opacity: .65; cursor: not-allowed; }
-.sail-auth-dialog .auth-divider { gap: 16px; margin: 23px 0; color: #888; font-size: 12px; }
-.sail-auth-dialog .auth-divider::before, .sail-auth-dialog .auth-divider::after { background: #efefef; }
-.sail-auth-dialog .auth-input-label { position: relative; gap: 0; }
-.sail-auth-dialog .auth-input-label > span {
-  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
-  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
-}
+.sail-auth-dialog .auth-google-button > svg { flex: none; }
+.sail-auth-dialog .auth-google-button:hover:not(:disabled) { border-color: #bcbfb1; background: #fafaf8; }
+.sail-auth-dialog .auth-google-button:disabled { opacity: .55; cursor: not-allowed; }
+.sail-auth-dialog .auth-provider-hint { margin: 10px 0 0; color: #706e67; font-size: 12px; line-height: 1.6; text-align: center; }
+.sail-auth-dialog .auth-email-divider { display: flex; align-items: center; gap: 14px; margin: 22px 0; color: #757269; font-size: 12px; line-height: 1.5; }
+.sail-auth-dialog .auth-email-divider::before,
+.sail-auth-dialog .auth-email-divider::after { flex: 1; height: 1px; background: #e9e7e1; content: ''; }
+.sail-auth-dialog .auth-input-label { display: flex; flex-direction: column; gap: 9px; color: #333229; font-size: 13px; font-weight: 500; line-height: 1.5; }
+.sail-auth-dialog .auth-input-control { position: relative; display: block; width: 100%; }
+.sail-auth-dialog .auth-input-control > svg { position: absolute; top: 50%; left: 16px; z-index: 1; color: #86847d; transform: translateY(-50%); pointer-events: none; }
 .sail-auth-dialog .auth-input-label .input {
-  height: 48px;
-  padding: 0 16px;
-  border: 1px solid transparent;
-  border-radius: 14px;
-  color: #161616;
-  background: #f1f1f1;
+  width: 100%;
+  height: 50px;
+  padding: 0 16px 0 46px;
+  border: 1px solid #e4e2db;
+  border-radius: 11px;
+  color: #26251f;
+  background: #fafaf8;
+  caret-color: #42513a;
   font-size: 15px;
   font-weight: 400;
   box-shadow: none;
 }
-.sail-auth-dialog .auth-input-label .input::placeholder { color: #858585; opacity: 1; }
-.sail-auth-dialog .auth-input-label .input:hover { border-color: #dedede; }
-.sail-auth-dialog .auth-input-label .input:focus { border-color: #a7a7a7; background: #f6f6f6; outline: none; box-shadow: 0 0 0 3px #00000008; }
+.sail-auth-dialog .auth-input-label .input::placeholder { color: #79776f; opacity: 1; }
+.sail-auth-dialog .auth-input-label .input:hover:not(:disabled) { border-color: #bcbfb1; }
+.sail-auth-dialog .auth-input-label .input:focus { border-color: #7c8970 !important; outline: 2px solid #e6eadc; outline-offset: 1px; background: #fff; box-shadow: none; }
+.sail-auth-dialog .auth-input-label .input:disabled { cursor: not-allowed; opacity: .65; }
 .sail-auth-dialog .auth-continue-button {
-  min-height: 44px;
-  margin-top: 16px;
-  border: 1px solid #161616;
+  min-height: 50px;
+  margin-top: 20px;
+  padding: 11px 18px;
+  border: 1px solid #26251f;
   border-radius: 999px;
   color: #fff;
-  background: #161616;
+  background: #26251f;
   font-size: 14px;
   font-weight: 550;
+  line-height: 1.5;
 }
-.sail-auth-dialog .auth-continue-button:hover:not(:disabled) { background: #303030; border-color: #303030; transform: none; }
-.sail-auth-dialog .auth-continue-button:disabled { color: #fff; background: #161616; border-color: #161616; opacity: .5; cursor: not-allowed; }
-.sail-auth-dialog .auth-legal { margin: 13px auto 0; color: #858585; font-size: 12px; line-height: 1.7; }
-.sail-auth-dialog .auth-screen-close, .sail-auth-dialog .auth-change-email { color: #777; }
+.sail-auth-dialog .auth-continue-button:hover:not(:disabled) { border-color: #44463a; background: #44463a; transform: none; }
+.sail-auth-dialog .auth-continue-button:disabled { border-color: #26251f; color: #fff; background: #26251f; opacity: .48; cursor: not-allowed; }
+.sail-auth-dialog .auth-legal { margin: 16px 0 0; color: #757269; font-size: 12px; line-height: 1.7; text-align: left; }
+.sail-auth-dialog .auth-screen-close, .sail-auth-dialog .auth-change-email { color: #716f67; }
 .sail-auth-dialog .auth-screen-close {
-  top: 14px; right: 14px; display: grid; place-items: center;
-  width: 32px; height: 32px; padding: 0; border: 0; border-radius: 50%; background: transparent;
+  top: 16px;
+  right: 16px;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  color: #716f67;
+  background: #fff;
+  cursor: pointer;
 }
-.sail-auth-dialog .auth-screen-close:hover:not(:disabled) { background: #f2f2f2; }
-.sail-auth-dialog .auth-screen-close:hover, .sail-auth-dialog .auth-change-email:hover:not(:disabled) { color: #161616; }
-.sail-auth-dialog button:focus-visible { outline: 2px solid #777; outline-offset: 3px; }
-.sail-auth-dialog .auth-code-input { font-size: 20px; letter-spacing: .2em; }
-.auth-code-actions { display: flex; justify-content: space-between; gap: 12px; }
-.auth-code-actions .auth-change-email { margin: 13px 0 0; }
-.auth-delivery-hint { margin: 14px 0 0; color: #858585; font-size: 12px; }
-.auth-method-label { padding: 4px 9px; border-radius: 7px; background: #f1f1f1; font-size: 11px; }
+.sail-auth-dialog .auth-screen-close:hover:not(:disabled) { color: #26251f; background: #f0f0eb; }
+.sail-auth-dialog .auth-screen-close:disabled { cursor: not-allowed; opacity: .5; }
+.sail-auth-dialog .auth-change-email:hover:not(:disabled) { color: #26251f; text-decoration: underline; text-underline-offset: 3px; }
+.sail-auth-dialog button:focus-visible, .sail-auth-dialog a:focus-visible { outline: 2px solid #6d7b5e; outline-offset: 3px; }
+.sail-auth-dialog .auth-artwork button:focus-visible { outline-color: #ddf09a; }
+.sail-auth-dialog .auth-input-label .auth-code-input { font-size: 19px; letter-spacing: .2em; }
+.sail-auth-dialog .auth-code-input::placeholder { font-size: 15px; letter-spacing: normal; }
+.sail-auth-dialog .auth-code-actions { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px 12px; margin-top: 13px; }
+.sail-auth-dialog .auth-code-actions .auth-change-email { margin: 0; padding: 0; font-size: 12px; line-height: 1.6; }
+.sail-auth-dialog .auth-delivery-hint { margin: 14px 0 0; color: #757269; font-size: 12px; line-height: 1.6; }
+.sail-auth-dialog .auth-webmail-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  width: 100%;
+  min-height: 44px;
+  margin-top: 12px;
+  padding: 10px 14px;
+  border: 1px solid #e4e2db;
+  border-radius: 11px;
+  color: #39382f;
+  background: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
+  text-decoration: none;
+}
+.sail-auth-dialog .auth-webmail-link:hover { border-color: #bcbfb1; background: #fafaf8; }
+.sail-auth-dialog .auth-webmail-link > svg:last-of-type { color: #757269; }
+.webmail-icon { flex: none; width: 18px; height: 18px; }
+.webmail-mark { display: inline-grid; place-items: center; border-radius: 5px; color: #fff; font-size: 8.5px; font-weight: 700; letter-spacing: -.02em; line-height: 1; }
+.sail-auth-dialog .auth-warning { margin: 0 0 16px; border-color: #ecdfbd; color: #795a20; background: #fff9eb; }
+.sail-auth-dialog .auth-error { border-color: #efcfca; color: #a13e32; background: #fff4f1; }
+.sail-auth-dialog .auth-modal-card--account { display: block; width: min(100%, 460px); }
+.sail-auth-dialog .auth-modal-card--account .auth-form-panel { padding: 48px 40px 36px; }
 .sail-auth-dialog .auth-account-view { width: 100%; padding-top: 0; }
-.sail-auth-dialog .auth-account-view h1 { margin: 0 0 22px; color: #161616; font-size: 28px; }
-.sail-auth-dialog .auth-account-view strong { color: #161616; overflow-wrap: anywhere; }
-.sail-auth-dialog .auth-account-view > span, .sail-auth-dialog .auth-account-view small { color: #777; overflow-wrap: anywhere; }
-.sail-auth-dialog .auth-account-view .btn { color: #161616; background: #fff; border-color: #dedede; }
-.sail-auth-dialog .auth-account-view .btn:hover:not(:disabled) { background: #f5f5f5; }
-.sail-auth-dialog .auth-account-icon { overflow: hidden; width: 64px; height: 64px; border: 0; background: #f1f1f1; }
+.sail-auth-dialog .auth-account-view h1 { margin: 0 0 22px; color: #26251f; font-size: 28px; }
+.sail-auth-dialog .auth-account-view strong { color: #26251f; overflow-wrap: anywhere; }
+.sail-auth-dialog .auth-account-view > span, .sail-auth-dialog .auth-account-view small { color: #706e67; overflow-wrap: anywhere; }
+.sail-auth-dialog .auth-account-view .btn { border-color: #e4e2db; color: #26251f; background: #fff; }
+.sail-auth-dialog .auth-account-view .btn:hover:not(:disabled) { background: #fafaf8; }
+.sail-auth-dialog .auth-account-icon { width: 64px; height: 64px; overflow: hidden; border: 0; background: #f2f2ec; }
 .sail-auth-dialog .auth-account-icon img { width: 100%; height: 100%; object-fit: cover; }
-.sail-auth-dialog .auth-warning { border-color: #ecdfbd; color: #866527; background: #fff9eb; }
-.sail-auth-dialog .auth-error { border-color: #efcfca; color: #a84337; background: #fff4f1; }
+.sail-auth-dialog .auth-method-label { padding: 4px 9px; border-radius: 7px; background: #f2f2ec; font-size: 11px; }
 .account-chip > span { overflow: hidden; }
 .account-chip > span img { width: 100%; height: 100%; object-fit: cover; }
 .landing-account { display: inline-flex; align-items: center; gap: 7px; }
 .landing-account img { width: 20px; height: 20px; border-radius: 50%; object-fit: cover; }
-@media (max-width: 540px) {
+
+@media (max-width: 1000px) {
+  .sail-auth-dialog .auth-form-panel { padding: 64px 36px; }
+  .sail-auth-dialog .auth-artwork-caption { padding-right: 28px; padding-left: 28px; }
+}
+@media (max-width: 760px) {
   .auth-screen.sail-auth-dialog { padding: 16px; }
-  .sail-auth-dialog .auth-modal-card { padding: 32px 24px 24px; max-height: calc(100dvh - 32px); border-radius: 20px; }
-  .sail-auth-dialog .auth-screen-intro { margin-top: 0; }
-  .sail-auth-dialog .auth-screen-intro h1 { font-size: 26px; }
-  .sail-auth-dialog .auth-screen-form { margin-top: 24px; }
+  .sail-auth-dialog .auth-modal-card { grid-template-columns: minmax(0, 1fr); width: min(100%, 480px); max-height: calc(100dvh - 32px); border-radius: 20px; }
+  .sail-auth-dialog .auth-artwork { min-height: 0; height: 190px; }
+  .sail-auth-dialog .auth-artwork-image { object-position: center 38%; }
+  .sail-auth-dialog .auth-artwork::after { background: linear-gradient(180deg, rgb(20 28 21 / 2%) 10%, rgb(20 28 21 / 76%) 100%); }
+  .sail-auth-dialog .auth-artwork-caption { gap: 5px; padding: 20px 24px 12px; }
+  .sail-auth-dialog .auth-artwork-tag { display: none; }
+  .sail-auth-dialog .auth-artwork h2 { max-width: 85%; margin: 0; font-size: 23px; }
+  .sail-auth-dialog .auth-artwork-page { width: 30px; }
+  .sail-auth-dialog .auth-form-panel { padding: 30px 28px 32px; }
+  .sail-auth-dialog .auth-login-brand { margin-bottom: 24px; font-size: 14px; }
+  .sail-auth-dialog .auth-login-brand img { width: 29px; height: 29px; }
+  .sail-auth-dialog .auth-screen-intro h1 { font-size: 28px; }
+  .sail-auth-dialog .auth-screen-intro p { margin-top: 10px; font-size: 13px; }
+  .sail-auth-dialog .auth-screen-form { margin-top: 26px; }
+  .sail-auth-dialog .auth-input-label .input { font-size: 16px; }
+  .sail-auth-dialog .auth-screen-close { top: 12px; right: 12px; }
+  .sail-auth-dialog .auth-modal-card--account .auth-form-panel { padding: 44px 28px 28px; }
+}
+@media (max-width: 380px) {
+  .auth-screen.sail-auth-dialog { padding: 12px; }
+  .sail-auth-dialog .auth-modal-card { max-height: calc(100dvh - 24px); }
+  .sail-auth-dialog .auth-form-panel { padding-right: 22px; padding-left: 22px; }
+  .sail-auth-dialog .auth-artwork h2 { font-size: 21px; }
+}
+@media (max-width: 760px) and (max-height: 650px) {
+  .sail-auth-dialog .auth-artwork { display: none; }
+  .sail-auth-dialog .auth-form-panel { padding-top: 44px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sail-auth-dialog .auth-artwork-image, .sail-auth-dialog .auth-continue-button, .sail-auth-dialog .auth-google-button { transition: none; }
 }
 @media (prefers-reduced-transparency: reduce) {
-  .auth-screen.sail-auth-dialog { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(20, 23, 26, .6); }
+  .auth-screen.sail-auth-dialog { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgb(20 23 26 / 65%); }
 }
-
-.sail-auth-dialog .auth-screen-brand-mark { width: 44px; height: 44px; margin: 0 auto 18px; }
-.sail-auth-dialog .auth-screen-brand-mark img { width: 44px; height: 44px; }
-
-/* Code step: open the user's webmail (secondary to "Verify and sign in"). */
-.auth-webmail-link { display: flex; align-items: center; justify-content: center; gap: 9px; width: 100%; min-height: 42px; margin-top: 14px; padding: 9px 14px; border: 1px solid #e3e3e0; border-radius: 10px; background: #fff; color: #1d1d1f; font-size: 14px; font-weight: 500; line-height: 1.2; text-decoration: none; box-shadow: 0 1px 2px #0000000a; transition: background .15s, border-color .15s, box-shadow .15s; }
-.auth-webmail-link:hover { background: #f7f7f5; border-color: #d2d2ce; box-shadow: 0 2px 6px #0000000f; }
-.auth-webmail-link:focus-visible { outline: 2px solid #1d1d1f; outline-offset: 2px; }
-.auth-webmail-link > svg:last-of-type { color: #8a8a87; }
-.webmail-icon { flex: none; width: 18px; height: 18px; }
-.webmail-mark { display: inline-grid; place-items: center; border-radius: 5px; color: #fff; font-size: 8.5px; font-weight: 700; letter-spacing: -.02em; line-height: 1; }

@@ -34,10 +34,12 @@ function Kinetic({ text, start = 0 }: { text: string; start?: number }) {
   return <>{parts.map((part, i) => /^\s+$/.test(part) ? part : <span key={i} className="hx-k" style={{ animationDelay: `${(n++) * 55}ms` }}>{part}</span>)}</>;
 }
 
-export default function LandingHero({ authRequired, onEnter }: {
+export default function LandingHero({ authRequired, onEnter, headingLevel = 1 }: {
   authRequired: boolean;
   onEnter: (mode: WorkflowMode) => void;
+  headingLevel?: 1 | 2;
 }) {
+  const Title = headingLevel === 1 ? 'h1' : 'h2';
   const landing = useDict(LANDING);
   const t = landing.hero;
   const alt = landing.heroAlt;
@@ -106,7 +108,7 @@ export default function LandingHero({ authRequired, onEnter }: {
   return <main className="commerce-hero" id="overview">
     <section ref={stageRef} className="commerce-hero-stage" data-hero={variant} data-motion={reducedMotion ? 'reduced' : 'full'} aria-labelledby="commerce-hero-title">
       <div className="commerce-hero-media" aria-hidden="true">
-        <img src={poster} alt="" fetchPriority="high" />
+        <img src={poster} alt="" loading={headingLevel === 2 ? 'lazy' : undefined} fetchPriority={headingLevel === 2 ? 'auto' : 'high'} />
         {!reducedMotion && !failed && <video
           ref={videoRef}
           src={enabled ? heroVideo : undefined}
@@ -125,22 +127,22 @@ export default function LandingHero({ authRequired, onEnter }: {
       <div className="commerce-hero-scrim" aria-hidden="true" />
       {variant === 'default' && <div className="commerce-hero-copy">
         <span className="commerce-hero-kicker">{t.kicker}</span>
-        <h1 id="commerce-hero-title">AI-Sail Flow</h1>
+        <Title id="commerce-hero-title">AI-Sail Flow</Title>
         <p>{t.lead}<br className="commerce-hero-linebreak" />{t.lead2}</p>
         {actions}
         {note}
       </div>}
       {variant === 'a' && <div className="hx-copy hx-a">
         <span className="hx-a-eyebrow"><span className="hx-dot" />{alt.a.eyebrow}</span>
-        <h1 id="commerce-hero-title"><span className="hx-a-brand"><Kinetic text="AI-Sail Flow" /></span>
-          <span className="hx-a-line">{alt.a.pre} <Rotator words={alt.a.markets} reduced={reducedMotion} />{alt.a.post}</span></h1>
+        <Title id="commerce-hero-title"><span className="hx-a-brand"><Kinetic text="AI-Sail Flow" /></span>
+          <span className="hx-a-line">{alt.a.pre} <Rotator words={alt.a.markets} reduced={reducedMotion} />{alt.a.post}</span></Title>
         <p>{t.lead}{t.lead2}</p>
         {actions}
         {note}
       </div>}
       {variant === 'b' && <div className="hx-copy hx-b">
         <span className="hx-b-kicker">AI-Sail Flow · {t.kicker}</span>
-        <h1 id="commerce-hero-title"><span><Kinetic text={alt.b.title[0]} /></span><span className="hx-b-grad"><Kinetic text={alt.b.title[1]} start={4} /></span></h1>
+        <Title id="commerce-hero-title"><span><Kinetic text={alt.b.title[0]} /></span><span className="hx-b-grad"><Kinetic text={alt.b.title[1]} start={4} /></span></Title>
         <p className="hx-b-uses">{alt.b.pre}<Rotator words={alt.b.uses} reduced={reducedMotion} interval={2400} />{alt.b.post}</p>
         {actions}
         {authRequired && <ul className="hx-b-trust">{t.note.split(' · ').map(item => <li key={item}><ShieldCheck size={13} />{item}</li>)}</ul>}
@@ -148,7 +150,7 @@ export default function LandingHero({ authRequired, onEnter }: {
       {variant === 'c' && <div className="hx-copy hx-c">
         <div className="hx-c-card">
           <span className="hx-c-badge">{alt.c.badge}</span>
-          <h1 id="commerce-hero-title">AI-Sail Flow</h1>
+          <Title id="commerce-hero-title">AI-Sail Flow</Title>
           <p className="hx-c-kicker">{t.kicker}</p>
           <p>{t.lead}{t.lead2}</p>
           <ol className="hx-c-steps" aria-label={alt.c.stepsAria}>{alt.c.steps.map((step, i) => <li key={step} style={{ animationDelay: `${i * 0.9}s` }}><span>{i + 1}</span>{step}</li>)}</ol>

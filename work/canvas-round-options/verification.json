@@ -1,0 +1,214 @@
+{
+  "sourceNodes": 24,
+  "designs": 3,
+  "scenarios": [
+    {
+      "type": "video.remix",
+      "nodesInspectable": 24,
+      "attemptsIsolated": 3,
+      "failedRecordRetained": true,
+      "finalOutputs": 2
+    },
+    {
+      "type": "image.edit",
+      "nodesInspectable": 8,
+      "attemptsIsolated": 2,
+      "failedRecordRetained": true,
+      "finalOutputs": 1
+    },
+    {
+      "type": "code.change",
+      "nodesInspectable": 11,
+      "attemptsIsolated": 2,
+      "failedRecordRetained": true,
+      "finalOutputs": 2
+    },
+    {
+      "type": "document.author",
+      "nodesInspectable": 10,
+      "attemptsIsolated": 2,
+      "failedRecordRetained": true,
+      "finalOutputs": 2
+    },
+    {
+      "type": "research.analysis",
+      "nodesInspectable": 9,
+      "attemptsIsolated": 2,
+      "failedRecordRetained": true,
+      "finalOutputs": 2
+    },
+    {
+      "type": "vendor.unregistered-task",
+      "nodesInspectable": 5,
+      "attemptsIsolated": 2,
+      "failedRecordRetained": true,
+      "finalOutputs": 1
+    }
+  ],
+  "sceneRenderingAndInteractions": "passed in a lightweight DOM stub",
+  "historyIsolation": "passed",
+  "failedRecordRetention": "passed",
+  "inputBundleExpansion": "passed",
+  "realSourceResultCoverage": 24,
+  "defaultConnectorCount": 2,
+  "syntheticRouteGeometry": [
+    {
+      "task": "video.remix",
+      "width": 320,
+      "crossings": 0
+    },
+    {
+      "task": "video.remix",
+      "width": 736,
+      "crossings": 0
+    },
+    {
+      "task": "video.remix",
+      "width": 1024,
+      "crossings": 0
+    },
+    {
+      "task": "image.edit",
+      "width": 320,
+      "crossings": 0
+    },
+    {
+      "task": "image.edit",
+      "width": 736,
+      "crossings": 0
+    },
+    {
+      "task": "image.edit",
+      "width": 1024,
+      "crossings": 0
+    },
+    {
+      "task": "code.change",
+      "width": 320,
+      "crossings": 0
+    },
+    {
+      "task": "code.change",
+      "width": 736,
+      "crossings": 0
+    },
+    {
+      "task": "code.change",
+      "width": 1024,
+      "crossings": 0
+    },
+    {
+      "task": "document.author",
+      "width": 320,
+      "crossings": 0
+    },
+    {
+      "task": "document.author",
+      "width": 736,
+      "crossings": 0
+    },
+    {
+      "task": "document.author",
+      "width": 1024,
+      "crossings": 0
+    },
+    {
+      "task": "research.analysis",
+      "width": 320,
+      "crossings": 0
+    },
+    {
+      "task": "research.analysis",
+      "width": 736,
+      "crossings": 0
+    },
+    {
+      "task": "research.analysis",
+      "width": 1024,
+      "crossings": 0
+    },
+    {
+      "task": "vendor.unregistered-task",
+      "width": 320,
+      "crossings": 0
+    },
+    {
+      "task": "vendor.unregistered-task",
+      "width": 736,
+      "crossings": 0
+    },
+    {
+      "task": "vendor.unregistered-task",
+      "width": 1024,
+      "crossings": 0
+    }
+  ],
+  "contractChecks": [
+    {
+      "type": "image.edit",
+      "attempts": 2,
+      "nodes": 8,
+      "selectedAttemptNodes": 5,
+      "unrelatedNodesInSelectedAttempt": 0,
+      "genericFallbackNodes": 0,
+      "failedExecutionPreserved": true,
+      "parallelJoins": 2,
+      "finalOutputs": 1,
+      "loopGroups": 0
+    },
+    {
+      "type": "code.change",
+      "attempts": 2,
+      "nodes": 11,
+      "selectedAttemptNodes": 7,
+      "unrelatedNodesInSelectedAttempt": 0,
+      "genericFallbackNodes": 0,
+      "failedExecutionPreserved": true,
+      "parallelJoins": 3,
+      "finalOutputs": 2,
+      "loopGroups": 0
+    },
+    {
+      "type": "document.author",
+      "attempts": 2,
+      "nodes": 10,
+      "selectedAttemptNodes": 6,
+      "unrelatedNodesInSelectedAttempt": 0,
+      "genericFallbackNodes": 0,
+      "failedExecutionPreserved": true,
+      "parallelJoins": 1,
+      "finalOutputs": 2,
+      "loopGroups": 0
+    },
+    {
+      "type": "research.analysis",
+      "attempts": 2,
+      "nodes": 9,
+      "selectedAttemptNodes": 6,
+      "unrelatedNodesInSelectedAttempt": 0,
+      "genericFallbackNodes": 0,
+      "failedExecutionPreserved": true,
+      "parallelJoins": 1,
+      "finalOutputs": 2,
+      "loopGroups": 1
+    },
+    {
+      "type": "vendor.unregistered-task",
+      "attempts": 2,
+      "nodes": 5,
+      "selectedAttemptNodes": 3,
+      "unrelatedNodesInSelectedAttempt": 0,
+      "genericFallbackNodes": 2,
+      "failedExecutionPreserved": true,
+      "parallelJoins": 0,
+      "finalOutputs": 1,
+      "loopGroups": 0
+    }
+  ],
+  "statePersistence": "passed",
+  "emptyTaskState": "passed",
+  "rejectedCrossAttemptEdges": true,
+  "rejectedUnversionedResourceReuse": true,
+  "cssAndJavaScript": "passed",
+  "browserInspected": false
+}

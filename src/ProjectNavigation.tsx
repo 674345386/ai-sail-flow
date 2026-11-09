@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
-import { Archive, ArchiveRestore, ArrowLeft, ChevronDown, ChevronRight, Clapperboard, Ellipsis, FolderOpen, MessageSquare, Pencil, Pin, Plus } from 'lucide-react';
+import { useEffect, useId, useMemo, useRef, useState, type RefObject } from 'react';
+import { createPortal } from 'react-dom';
+import { Archive, ArchiveRestore, ArrowLeft, Ellipsis, FolderOpen, FolderPlus, MessageCirclePlus, MessageSquare, Pencil, Pin, Plus, Search } from 'lucide-react';
 import type { ProjectSummary, WorkspaceProject } from '../shared/domain';
 
 const RECENT_LIMIT = 3;
@@ -26,6 +27,39 @@ function TaskBadge({ count, showZero = false }: { count: number; showZero?: bool
   </span>;
 }
 
+function NewCreativeButton({ group, current, busy, onCreate }: {
+  group: WorkspaceProject; current: boolean; busy: boolean; onCreate: (parentId: string) => void;
+}) {
+  const tooltipId = useId();
+  const [tooltip, setTooltip] = useState<{ top: number; right: number; background: string; color: string; borderColor: string } | null>(null);
+  const modifier = /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl';
+  const showTooltip = (button: HTMLButtonElement) => {
+    const rect = button.getBoundingClientRect();
+    const style = getComputedStyle(button);
+    const canvas = style.getPropertyValue('--iui-canvas').trim() || style.getPropertyValue('--panel').trim() || 'Canvas';
+    const color = style.getPropertyValue('--iui-ink').trim() || style.color;
+    setTooltip({ top: rect.bottom + 44 > window.innerHeight ? rect.top - 38 : rect.bottom + 6, right: Math.max(8, window.innerWidth - rect.right), background: `color-mix(in srgb, ${canvas} 88%, ${color})`, color, borderColor: style.getPropertyValue('--iui-border-strong').trim() || style.getPropertyValue('--line').trim() || color });
+  };
+  useEffect(() => {
+    if (!tooltip) return;
+    const hide = () => setTooltip(null);
+    window.addEventListener('scroll', hide, true);
+    window.addEventListener('resize', hide);
+    return () => { window.removeEventListener('scroll', hide, true); window.removeEventListener('resize', hide); };
+  }, [tooltip]);
+  return <>
+    <button type="button" className="project-tree-action project-tree-new-creative" aria-label={`在${group.title}下新建创意`}
+      aria-describedby={tooltip ? tooltipId : undefined} aria-keyshortcuts={current ? 'Meta+N Control+N' : undefined} disabled={busy}
+      onMouseEnter={event => showTooltip(event.currentTarget)} onMouseLeave={() => setTooltip(null)}
+      onFocus={event => showTooltip(event.currentTarget)} onBlur={() => setTooltip(null)}
+      onKeyDown={event => { if (event.key === 'Escape') { event.stopPropagation(); setTooltip(null); } }}
+      onClick={() => { setTooltip(null); onCreate(group.id); }}><MessageCirclePlus size={17} strokeWidth={1.6} aria-hidden="true" /></button>
+    {tooltip && createPortal(<div id={tooltipId} role="tooltip" className="sidebar-new-creative-tooltip" style={tooltip}>
+      <span>新建创意</span>{current && <span className="sidebar-new-creative-shortcut" aria-hidden="true"><kbd>{modifier}</kbd><kbd>N</kbd></span>}
+    </div>, document.body)}
+  </>;
+}
+
 function CreativeRow({
   creative, selected, busy, running, showArchived, badge, pinned, onSelect, onArchive, onTogglePin, pinVisible = false,
 }: {
@@ -35,7 +69,7 @@ function CreativeRow({
 }) {
   return <div className={`project-row ${selected ? 'selected' : ''}${pinned ? ' is-pinned' : ''}`}>
     <button className={`project-link ${selected ? 'selected' : ''}`} aria-current={selected ? 'page' : undefined} onClick={() => onSelect(creative.id)} disabled={busy} title={creative.title}>
-      <Clapperboard size={14} /><span>{creative.title}</span>
+      <span className="project-link-title">{creative.title}</span>
       {creative.isDemo && <small>示例</small>}
       <TaskBadge count={badge} />
     </button>
@@ -125,17 +159,29 @@ function MorePopover({
   </div>;
 }
 
-export default function ProjectNavigation({ groups, creatives, currentId, currentParentId, busy, running, showArchived, onShowArchived, onNewProject, onRenameProject, onNewCreative, onSelect, onArchive, collapsed = false, onExpand }: {
+export default function ProjectNavigation({ groups, creatives, currentId, currentParentId, busy, running, showArchived, onShowArchived, onNewProject, onRenameProject, onNewCreative, onSelect, onArchive, onSearch, collapsed = false, onExpand }: {
   groups: WorkspaceProject[]; creatives: ProjectSummary[]; currentId: string; currentParentId?: string; busy: boolean; running: boolean; showArchived: boolean;
   onShowArchived: (value: boolean) => void; onNewProject: () => void; onRenameProject: (group: WorkspaceProject) => void;
   onNewCreative: (parentId: string) => void; onSelect: (id: string) => void; onArchive: (id: string, archived: boolean) => void;
   collapsed?: boolean; onExpand?: () => void;
+  onSearch: () => void;
 }) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [viewAll, setViewAll] = useState<Record<string, boolean>>({});
   const [pinnedByProject, setPinnedByProject] = useState<Record<string, string[]>>({});
   const [moreOpenFor, setMoreOpenFor] = useState<string | null>(null);
   const moreButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    const createShortcut = (event: KeyboardEvent) => {
+      if (busy || !currentParentId || event.defaultPrevented || event.repeat || !(event.metaKey || event.ctrlKey) || event.shiftKey || event.altKey || event.key.toLowerCase() !== 'n') return;
+      if (document.querySelector('dialog[open], [role="dialog"], [aria-modal="true"]')) return;
+      event.preventDefault();
+      onNewCreative(currentParentId);
+    };
+    window.addEventListener('keydown', createShortcut);
+    return () => window.removeEventListener('keydown', createShortcut);
+  }, [busy, currentParentId, onNewCreative]);
 
   useEffect(() => { if (currentParentId) setExpanded(previous => ({ ...previous, [currentParentId]: true })); }, [currentId, currentParentId, showArchived]);
 
@@ -159,14 +205,15 @@ export default function ProjectNavigation({ groups, creatives, currentId, curren
     });
   };
 
-  if (collapsed) return <section className="sidebar-projects sidebar-projects-compact" aria-label="项目与创意">
-    <button className="sidebar-rail-button" aria-label="新建项目" title="新建项目" disabled={busy} onClick={onNewProject}><Plus size={17} /></button>
-    <div className="sidebar-project-rail">{groups.filter(group => !showArchived || creatives.some(creative => creative.parentProjectId === group.id && creative.archivedAt)).map(group => <button key={group.id} className={`sidebar-rail-button ${group.id === currentParentId ? 'active' : ''}`} title={group.title} aria-label={`打开项目：${group.title}`} onClick={() => { setExpanded(previous => ({ ...previous, [group.id]: true })); onExpand?.(); }}><FolderOpen size={17} /></button>)}</div>
+  if (collapsed) return <section className="sidebar-projects sidebar-workspaces sidebar-projects-compact" aria-label="工作空间与创意">
+    <button type="button" className="sidebar-rail-button" aria-label="搜索工作空间与创意" title="搜索工作空间与创意（⌘K）" onClick={onSearch}><Search size={17} /></button>
+    <button className="sidebar-rail-button" aria-label="新建工作空间" title="新建工作空间" disabled={busy} onClick={onNewProject}><FolderPlus size={17} /></button>
+    <div className="sidebar-project-rail">{groups.filter(group => !showArchived || creatives.some(creative => creative.parentProjectId === group.id && creative.archivedAt)).map(group => <button key={group.id} className={`sidebar-rail-button ${group.id === currentParentId ? 'active' : ''}`} title={group.title} aria-label={`打开工作空间：${group.title}`} onClick={() => { setExpanded(previous => ({ ...previous, [group.id]: true })); onExpand?.(); }}><FolderOpen size={17} /></button>)}</div>
     <button className={`sidebar-rail-button ${showArchived ? 'active' : ''}`} aria-label={showArchived ? '返回全部创意' : `已归档创意：${archivedCount}`} title={showArchived ? '返回全部创意' : `已归档创意（${archivedCount}）`} aria-pressed={showArchived} onClick={() => { onShowArchived(!showArchived); onExpand?.(); }}>{showArchived ? <ArrowLeft size={17} /> : <Archive size={17} />}</button>
   </section>;
 
-  return <section className="sidebar-projects" aria-label="项目与创意">
-    <div className="nav-section-label recent-label">项目<button className="icon-btn" aria-label="新建项目" title="新建项目" onClick={onNewProject} disabled={busy}><Plus size={16} /></button></div>
+  return <section className="sidebar-projects sidebar-workspaces" aria-label="工作空间与创意">
+    <div className="nav-section-label recent-label sidebar-workspaces-heading"><span>Workspaces</span><div className="sidebar-workspaces-actions"><button type="button" className="icon-btn" aria-label="搜索工作空间与创意" title="搜索工作空间与创意（⌘K）" onClick={onSearch}><Search size={16} /></button><button type="button" className="icon-btn" aria-label="新建工作空间" title="新建工作空间" onClick={onNewProject} disabled={busy}><FolderPlus size={17} /></button></div></div>
     <div className="project-list project-tree">{groups.map(group => {
       const children = creatives.filter(creative => creative.parentProjectId === group.id && (showArchived ? Boolean(creative.archivedAt) : !creative.archivedAt)).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '') || a.id.localeCompare(b.id));
       if (showArchived && !children.length) return null;
@@ -187,11 +234,11 @@ export default function ProjectNavigation({ groups, creatives, currentId, curren
             setExpanded(previous => ({ ...previous, [group.id]: !open }));
             if (open) { setMoreOpenFor(null); setViewAll(previous => ({ ...previous, [group.id]: false })); }
           }} title={group.title}>
-            {open ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
-            <FolderOpen size={16} /><span>{group.title}</span><small>{children.length}</small>
+            <span className="project-tree-indicator" aria-hidden="true"><FolderOpen size={17} /></span>
+            <span>{group.title}</span><small>{children.length}</small>
           </button>
-          <button className="project-tree-action" aria-label={`重命名项目：${group.title}`} title="重命名项目" disabled={busy} onClick={() => onRenameProject(group)}><Pencil size={13} /></button>
-          <button className="project-tree-action" aria-label={`在${group.title}下新建创意`} title="新建创意" disabled={busy} onClick={() => onNewCreative(group.id)}><Plus size={14} /></button>
+          <button className="project-tree-action" aria-label={`重命名工作空间：${group.title}`} title="重命名工作空间" disabled={busy} onClick={() => onRenameProject(group)}><Pencil size={13} /></button>
+          <NewCreativeButton group={group} current={isCurrentProject} busy={busy} onCreate={onNewCreative} />
         </div>
         {open && <div className="project-tree-children">
           {useCompact ? <>

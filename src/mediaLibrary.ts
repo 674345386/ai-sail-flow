@@ -1,11 +1,11 @@
 import type { User } from '@supabase/supabase-js';
-import type { LibraryMedia, MediaKind } from '../shared/media-library';
+import type { LibraryMedia, LibraryMediaAssociation, MediaKind } from '../shared/media-library';
 import { api } from './api';
 import { supabase } from './auth';
 
 const bucket = import.meta.env.VITE_SUPABASE_STORAGE_BUCKET?.trim() || 'ai-sail-flow-files';
-type CloudObject = { name: string; id: string | null; created_at: string | null; metadata: Record<string, unknown> | null };
-export function mediaChanged() { window.dispatchEvent(new Event('media-library-changed')); }
+type CloudObject = { name: string; id: string | null; created_at: string | null; metadata: Record<string, unknown> | null; user_metadata?: Record<string, unknown> | null };
+export function mediaChanged(deletedIds: string[] = []) { window.dispatchEvent(new CustomEvent('media-library-changed', { detail: { deletedIds } })); }
 function cloudTitle(name: string) {
   const encoded = name.match(/^[a-f0-9]{64}--(.+)\.[^.]+$/)?.[1];
   if (encoded) {
@@ -48,8 +48,12 @@ export async function loadMediaLibrary(user: User | null, onLocal?: (items: Libr
         const url = data?.[index]?.signedUrl;
         if (!url) return;
         const kind = cloudKind(entry)!;
+        const metadata = entry.user_metadata || entry.metadata;
+        const createdAt = typeof metadata?.sourceCreatedAt === 'string' && Number.isFinite(Date.parse(metadata.sourceCreatedAt)) ? metadata.sourceCreatedAt : entry.created_at || '';
+        const associations = Array.isArray(metadata?.associations) ? metadata.associations.filter((value): value is LibraryMediaAssociation =>
+          value && typeof value === 'object' && ['projectId', 'projectTitle', 'creativeId', 'creativeTitle'].every(key => typeof value[key] === 'string')) : undefined;
         items.set(id, { id, kind, name: cloudTitle(entry.name), mime: String(entry.metadata?.mimetype || (kind === 'image' ? 'image/jpeg' : 'video/mp4')),
-          size: Number(entry.metadata?.size || 0), createdAt: entry.created_at || '', url, cloudPath });
+          size: Number(entry.metadata?.size || 0), createdAt, url, cloudPath, associations });
       });
     }
   }
@@ -87,6 +91,13 @@ export async function uploadLibraryFiles(files: File[]) {
   }
   mediaChanged();
   return uploaded;
+}
+
+export async function deleteLibraryMedia(items: LibraryMedia[]) {
+  const ids = [...new Set(items.map(item => item.id))];
+  if (!ids.length) return;
+  const result = await api<{ deletedIds: string[] }>('/api/media-library', { method: 'DELETE', body: JSON.stringify({ ids }) });
+  mediaChanged(result.deletedIds);
 }
 
 export async function libraryFile(item: LibraryMedia) {

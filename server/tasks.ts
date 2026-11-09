@@ -228,7 +228,7 @@ export function launchTask(id: string, spec: TaskSpec): Promise<void> {
     if (spec.kind === 'compose' && (p.productionMode !== 'tts-subtitles' || video.productionMode !== 'tts-subtitles' || video.status !== 'completed' || !video.filename)) throw new TaskError(409, '没有可本地配音的已完成画面源片。');
   } else if (spec.kind === 'compose') sources(p);
   const job: Job = { id: randomUUID(), kind: spec.kind === 'recover' ? 'generation' : spec.kind === 'compose' ? 'composition' : spec.kind,
-    status: 'running', progress: 2, message: '正在准备任务…', startedAt: now, videoId: video?.id, unitId: video?.unitId, shotId: spec.kind === 'keyframe' ? spec.shotId : undefined };
+    status: 'running', progress: 2, message: occupied >= 2 ? '排队中，正在等待空闲处理资源…' : '正在准备任务…', startedAt: now, videoId: video?.id, unitId: video?.unitId, shotId: spec.kind === 'keyframe' ? spec.shotId : undefined };
   const analysisMethod = getVideoAnalysisMethod();
   const saved = saveProject({ ...p, job, generatedVideos: spec.kind === 'generation' ? [...p.generatedVideos, ...(groupVideos.length ? groupVideos : [video!])] : spec.kind === 'recover' ? p.generatedVideos.map(item => item.id === video!.id ? { ...item, status: 'running', error: undefined } : item) : p.generatedVideos });
   activeProjects.add(id);
@@ -316,7 +316,9 @@ export function launchTask(id: string, spec: TaskSpec): Promise<void> {
           const imageUrls: string[] = [];
           for (const shot of saved.analysis!.shots.filter(item => generationInput!.tierShotIds!.includes(item.id))) {
             const frames = saved.replication?.shots?.[shot.id]?.newFrames!;
-            imageUrls.push(await publishReferenceImage(saved.id, frames.first!.filename, 'image/png', true));
+            const filename = frames.first!.filename;
+            const mime = /\.jpe?g$/i.test(filename) ? 'image/jpeg' : /\.webp$/i.test(filename) ? 'image/webp' : 'image/png';
+            imageUrls.push(await publishReferenceImage(saved.id, filename, mime, true));
           }
           generationInput.images = imageUrls;
           update(id, current => ({ ...current, generatedVideos: current.generatedVideos.map(item => item.tierGroupId === video!.tierGroupId
@@ -324,7 +326,10 @@ export function launchTask(id: string, spec: TaskSpec): Promise<void> {
         } else if (spec.kind === 'generation' && generationInput?.tierShotId) {
           progress(8, '正在上传新首帧和新尾帧并生成临时链接…');
           const imageUrls: string[] = [];
-          for (const filename of [video!.tierFirst!, video!.tierLast!]) imageUrls.push(await publishReferenceImage(saved.id, filename, 'image/png', true));
+          for (const filename of [video!.tierFirst!, video!.tierLast!]) {
+            const mime = /\.jpe?g$/i.test(filename) ? 'image/jpeg' : /\.webp$/i.test(filename) ? 'image/webp' : 'image/png';
+            imageUrls.push(await publishReferenceImage(saved.id, filename, mime, true));
+          }
           generationInput.images = imageUrls;
           update(id, current => ({ ...current, generatedVideos: current.generatedVideos.map(item => item.id === video!.id
             ? { ...item, imageUrls, providerRequest: requestBody(generationInput!, generationInput!.prompt) } : item) }));

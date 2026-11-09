@@ -8,7 +8,7 @@ import type { StoryboardGrid } from '../shared/domain';
 import { library as intelligentLibrary } from './intelligent-ui/library';
 import './agent-canvas-ui.css';
 
-const OpenUIBuiltinGallery = lazy(() => import('./OpenUIBuiltinGallery'));
+const IntelligentUIGallery = lazy(() => import('./IntelligentUIGallery'));
 
 type CanvasActions = { update: (input: Partial<CanvasComponentInput>) => void; grids: StoryboardGrid[]; preview: boolean };
 const Actions = createContext<CanvasActions>({ update: () => {}, grids: [], preview: true });
@@ -50,7 +50,7 @@ const StoryboardSelector = defineComponent({
   },
 });
 
-// Add a defineComponent entry here to make a new canvas controller available to OpenUI.
+// Add a defineComponent entry here to make a new canvas controller available to Open Intelligent UI.
 export const canvasLibrary = intelligentLibrary.extend!({ components: { add: [CameraMotionController, ColorPresetCard, StoryboardSelector] } });
 const examples: CanvasComponentInput[] = [
   { kind: 'camera', duration: 3, strength: 6, direction: 'push', target: '当前片段' },
@@ -66,7 +66,7 @@ function program(component: CanvasComponentInput) {
   }
 }
 function Controller({ component, grids, onUpdate, preview = false }: { component: CanvasComponentInput; grids: StoryboardGrid[]; onUpdate: (input: Partial<CanvasComponentInput>) => void; preview?: boolean }) {
-  return <Actions.Provider value={{ update: onUpdate, grids, preview }}><Renderer response={program(component)} library={canvasLibrary} /></Actions.Provider>;
+  return <Actions.Provider value={{ update: onUpdate, grids, preview }}><div className="intelligent-ui-surface" data-theme="light"><Renderer response={program(component)} library={canvasLibrary} /></div></Actions.Provider>;
 }
 function describe(component: CanvasComponent) {
   switch (component.kind) {
@@ -80,16 +80,16 @@ export default function AgentCanvasUI({ components, grids, onUpdate, onClose, on
   const [selected, setSelected] = useState('custom-camera');
   const [preview, setPreview] = useState<CanvasComponentInput>(examples[0]);
   return <>
-    {!panelsOnly && <button type="button" className="acu-gallery-trigger" onClick={() => setShowGallery(true)} title="预览 OpenUI 与创作组件"><SlidersHorizontal size={14} />组件库</button>}
+    {!panelsOnly && <button type="button" className="acu-gallery-trigger" onClick={() => setShowGallery(true)} title="预览 Open Intelligent UI 与创作组件"><SlidersHorizontal size={14} />组件库</button>}
     {!triggerOnly && !!components.length && <div className="acu-stack" aria-label="Agent 动态画布组件">{components.map(component => <section key={component.id} className="acu-panel" aria-label={canvasComponentLabels[component.kind]}>
       <header><div><small>AGENT · {customNames[component.kind]}</small><h3>{canvasComponentLabels[component.kind]}</h3></div><button type="button" aria-label={`关闭${canvasComponentLabels[component.kind]}`} onClick={() => onClose(component.id)}><X size={17} /></button></header>
       <Controller component={component} grids={grids} onUpdate={input => onUpdate(component.id, input)} />
       <footer><button type="button" onClick={() => onDraft(describe(component))}>把参数填入聊天框</button></footer>
     </section>)}</div>}
     {showGallery && <div className="acu-gallery-backdrop" onClick={event => { if (event.target === event.currentTarget) setShowGallery(false); }}><aside className="acu-gallery" aria-label="组件预览库">
-      <header><div><small>OPENUI + SAIL</small><h2>组件预览库</h2><p>3 个创作组件 · OpenUI 内置组件与示例</p></div><button type="button" aria-label="关闭组件预览库" onClick={() => setShowGallery(false)}><X size={19} /></button></header>
+      <header><div><small>INTELLIGENT UI + SAIL</small><h2>组件预览库</h2><p>3 个创作组件 · Open Intelligent UI 组件与示例</p></div><button type="button" aria-label="关闭组件预览库" onClick={() => setShowGallery(false)}><X size={19} /></button></header>
       <div className="acu-gallery-body"><nav aria-label="组件列表"><strong>创作组件</strong>{examples.map(item => <button type="button" key={item.kind} className={selected === `custom-${item.kind}` ? 'active' : ''} onClick={() => { setSelected(`custom-${item.kind}`); setPreview(item); }}>{canvasComponentLabels[item.kind]}<small>{customNames[item.kind]}</small></button>)}<strong>OpenUI</strong><button type="button" className={selected === 'builtin' ? 'active' : ''} onClick={() => setSelected('builtin')}>内置组件与示例</button></nav>
-      <div className="acu-gallery-preview"><span className="acu-preview-label">实时预览</span>{selected === 'builtin' ? <Suspense fallback={<p>正在加载 OpenUI 内置组件…</p>}><OpenUIBuiltinGallery /></Suspense> : <Controller component={preview} grids={grids} preview onUpdate={input => setPreview(current => ({ ...current, ...input } as CanvasComponentInput))} />}</div></div>
+      <div className="acu-gallery-preview"><span className="acu-preview-label">实时预览</span>{selected === 'builtin' ? <Suspense fallback={<p>正在加载 Open Intelligent UI 组件…</p>}><IntelligentUIGallery /></Suspense> : <Controller component={preview} grids={grids} preview onUpdate={input => setPreview(current => ({ ...current, ...input } as CanvasComponentInput))} />}</div></div>
     </aside></div>}
   </>;
 }

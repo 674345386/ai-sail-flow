@@ -4,6 +4,9 @@
 /* Weights are set with font-weight (Inter 440 / 560 / 640), so drop the
    "wght" variation the page body sets for react-ui text. */
 [class*="iui-"] { font-variation-settings: normal; }
+.iui-video { margin: 0; }
+.iui-video video { display: block; width: 100%; max-height: 600px; border-radius: var(--iui-radius-lg); background: #101614; }
+.iui-video figcaption { margin-top: 8px; }
 
 /* Layout */
 .iui-col, .iui-box { display: flex; flex-direction: column; min-width: 0; }
@@ -17,15 +20,15 @@
   flex-direction: column;
   min-width: 0;
   width: 100%;
-  padding: 20px;
+  padding: var(--iui-card-padding);
   border: 1px solid var(--iui-border);
   border-radius: var(--iui-radius-xl);
   background: var(--iui-canvas);
   font-size: 14px;
-  line-height: 1.55;
+  line-height: var(--iui-body-leading);
 }
-.iui-card-soft { border-color: transparent; background: var(--iui-surface); padding: 20px; }
-.iui-card .iui-card { border-radius: var(--iui-radius-lg); padding: 16px; }
+.iui-card-soft { border-color: transparent; background: var(--iui-surface); padding: var(--iui-card-padding); }
+.iui-card .iui-card { border-radius: var(--iui-radius-lg); padding: var(--iui-card-nested-padding); }
 /* A small or medium title that opens a card reads as the card title: 14/20 Medium, with a 13/18 secondary subtitle. */
 .iui-card > :is(.iui-title-sm, .iui-title-md):first-child, .iui-card > .iui-row:first-child :is(.iui-title-sm, .iui-title-md) { font-size: 14px; line-height: 20px; font-weight: 560; }
 .iui-card > :is(.iui-title-sm, .iui-title-md):first-child + :is(.iui-caption, .iui-text), .iui-card > .iui-row:first-child :is(.iui-title-sm, .iui-title-md) + :is(.iui-caption, .iui-text) { margin-top: 2px; color: var(--iui-muted); font-size: 13px; line-height: 18px; }
@@ -41,12 +44,12 @@
 .iui-title-xl { font-size: 25px; line-height: 1.2; font-weight: 640; letter-spacing: -0.8px; }
 .iui-title-2xl { font-size: 32px; line-height: 1.15; font-weight: 640; letter-spacing: -1px; }
 .iui-title-3xl { font-size: 40px; line-height: 1.1; font-weight: 640; letter-spacing: -1.4px; }
-.iui-text { margin: 0; overflow-wrap: anywhere; line-height: 1.6; white-space: pre-line; }
+.iui-text { margin: 0; overflow-wrap: anywhere; line-height: var(--iui-body-leading); white-space: pre-line; }
 .iui-inline { display: inline-flex; vertical-align: -0.15em; margin: 0 1px; }
 .iui-inline > .iui-badge { vertical-align: 0.1em; }
 .iui-text-xs { font-size: 12px; line-height: 1.6; }
-.iui-text-sm { font-size: 14px; line-height: 1.55; }
-.iui-text-md { font-size: 16px; line-height: 1.6; }
+.iui-text-sm { font-size: var(--iui-text-sm-size); line-height: var(--iui-body-leading); }
+.iui-text-md { font-size: var(--iui-text-md-size); line-height: var(--iui-body-leading); }
 .iui-text-lg { font-size: 18px; line-height: 1.55; }
 .iui-weight-normal { font-weight: 440; }
 .iui-weight-medium { font-weight: 560; }
@@ -103,7 +106,7 @@
 /* Markdown prose */
 /* Markdown prose: a ChatGPT-like rhythm. Paragraphs 16/1.65 with 12px between
    blocks, more air above a heading than below it, lists tucked under their lead-in. */
-.iui-markdown { display: flex; flex-direction: column; min-width: 0; font-size: 16px; line-height: 1.65; overflow-wrap: anywhere; }
+.iui-markdown { display: flex; flex-direction: column; min-width: 0; font-size: var(--iui-text-md-size); line-height: var(--iui-prose-leading); overflow-wrap: anywhere; }
 .iui-markdown > * { margin: 0; }
 .iui-markdown > * + * { margin-top: 12px; }
 .iui-markdown > p + :is(ul, ol) { margin-top: 6px; }
@@ -132,9 +135,8 @@
 .iui-button-ghost { background: transparent; color: var(--iui-ink); padding-inline: 10px; }
 :is(.iui-button-outline, .iui-button-ghost):not(:disabled):hover { background: var(--iui-hover); }
 .iui-button-soft:not(:disabled):hover, :is(.iui-button-outline, .iui-button-ghost):not(:disabled):active { background: var(--iui-pressed); }
-.iui-button-solid.iui-button-danger { background: var(--iui-danger); color: #fff; }
-.iui-button-solid.iui-button-success { background: var(--iui-success); color: #fff; }
-:is(:root[data-openui-theme="dark"], [data-theme="dark"]) .iui-button-solid:is(.iui-button-danger, .iui-button-success) { color: #121212; }
+.iui-button-solid.iui-button-danger { background: var(--iui-danger); color: var(--iui-on-status); }
+.iui-button-solid.iui-button-success { background: var(--iui-success); color: var(--iui-on-status); }
 .iui-button-solid:is(.iui-button-danger, .iui-button-success):not(:disabled):hover { filter: brightness(1.08); }
 :is(.iui-button-outline, .iui-button-soft, .iui-button-ghost).iui-button-danger { color: var(--iui-danger); }
 :is(.iui-button-outline, .iui-button-soft, .iui-button-ghost).iui-button-success { color: var(--iui-success); }
@@ -167,8 +169,7 @@
 .iui-pressable .iui-text[style*="line-through"] { color: var(--iui-muted); }
 /* Rows in a list keep still: the wash alone shows hover and press. */
 .iui-pressable:has(> .iui-row):not([aria-disabled="true"]):is(:hover, :active) { transform: none; }
-.iui-pressable.is-selected:not(:has(> .iui-row))::before { content: ""; position: absolute; top: 8px; right: 8px; z-index: 1; width: 18px; height: 18px; border-radius: 50%; background: var(--iui-ink) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='white' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2.5 6.2l2.3 2.3 4.7-5'/%3E%3C/svg%3E") center / 12px no-repeat; }
-:root[data-openui-theme="dark"] .iui-pressable.is-selected:not(:has(> .iui-row))::before, [data-theme="dark"] .iui-pressable.is-selected:not(:has(> .iui-row))::before { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='%23171717' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2.5 6.2l2.3 2.3 4.7-5'/%3E%3C/svg%3E"); }
+.iui-pressable.is-selected:not(:has(> .iui-row))::before { content: ""; position: absolute; top: 8px; right: 8px; z-index: 1; width: 18px; height: 18px; border-radius: 50%; background: var(--iui-ink) var(--iui-checkmark) center / 12px no-repeat; }
 .iui-pressable[aria-disabled="true"] { cursor: default; }
 .iui-pressable:focus-visible { outline: 2px solid var(--iui-focus); outline-offset: 2px; }
 
@@ -178,16 +179,14 @@
 .iui-input::placeholder { color: var(--iui-faint); opacity: 1; }
 .iui-input:focus, .iui-input:focus-visible { border-color: var(--iui-focus); box-shadow: 0 0 0 2px color-mix(in srgb, var(--iui-focus) 18%, transparent); outline: none; }
 .iui-textarea { min-height: 96px; resize: vertical; }
-.iui-select { appearance: none; padding-right: 38px; cursor: pointer; background: var(--iui-canvas) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23676767' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E") no-repeat right 12px center / 16px; }
-:is(:root[data-openui-theme="dark"], [data-theme="dark"]) .iui-select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23ababab' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E"); }
+.iui-select { appearance: none; padding-right: 38px; cursor: pointer; background: var(--iui-canvas) var(--iui-select-chevron) no-repeat right 12px center / 16px; }
 .iui-date::-webkit-calendar-picker-indicator { opacity: .55; cursor: pointer; }
 
 .iui-segmented { display: inline-flex; align-self: flex-start; gap: 2px; max-width: 100%; padding: 3px; overflow-x: auto; border-radius: 999px; background: var(--iui-surface); scrollbar-width: none; }
 .iui-segmented.iui-block { display: flex; }
 .iui-segmented > button { flex: 1 0 auto; padding: 6px 14px; border: 0; border-radius: 999px; background: transparent; color: var(--iui-muted); font-size: 13px; line-height: 1.4; white-space: nowrap; cursor: pointer; transition: background .2s, color .2s; }
 .iui-segmented > button:hover:not(.is-selected) { color: var(--iui-ink); }
-.iui-segmented > button.is-selected { background: var(--iui-canvas); color: var(--iui-ink); font-weight: 560; box-shadow: var(--iui-shadow-sm), 0 0 0 1px var(--iui-border); }
-:root[data-openui-theme="dark"] .iui-segmented > button.is-selected, [data-theme="dark"] .iui-segmented > button.is-selected { background: var(--iui-surface-strong); }
+.iui-segmented > button.is-selected { background: var(--iui-segmented-selected); color: var(--iui-ink); font-weight: 560; box-shadow: var(--iui-shadow-sm), 0 0 0 1px var(--iui-border); }
 
 /* Range: a 24px pill track with an 18px thumb inside a 40px hit area. */
 .iui-slider { display: flex; flex-direction: column; min-width: 0; }
@@ -241,6 +240,13 @@
 .iui-image > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity .3s ease; }
 .iui-image.is-contain > img { object-fit: contain; }
 .iui-image.is-loaded > img { opacity: 1; }
+.iui-image-link { position: absolute; inset: 0; display: block; border-radius: inherit; }
+.iui-image-link > img { display: block; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity .3s ease; }
+.iui-image.is-contain .iui-image-link > img { object-fit: contain; }
+.iui-image.is-loaded .iui-image-link > img { opacity: 1; }
+.iui-image-error { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 16px; color: var(--iui-muted); font-size: 12px; text-align: center; }
+.iui-image-error button { min-height: 32px; padding: 4px 12px; border: 1px solid var(--iui-border); border-radius: var(--iui-radius-sm); background: var(--iui-surface); color: var(--iui-ink); cursor: pointer; }
+@media (prefers-reduced-motion: reduce) { .iui-image-link > img { transition: none; } }
 .iui-image-empty { width: 26px; height: 26px; color: var(--iui-photo-empty-icon); }
 
 /* A framed table: 14px corners, a surface header row, hover rows. */

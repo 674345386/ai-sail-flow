@@ -14,8 +14,14 @@
 .landing-page > .lbg-panel { position: fixed; z-index: 40; top: var(--lbg-top, 92px); right: 16px; width: 296px; max-height: calc(100vh - var(--lbg-top, 92px) - 16px); display: flex; flex-direction: column; color: #e9e8e4; font: 12.5px/1.4 "Sail Workspace Inter", Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
   background: rgba(18,18,20,.6); -webkit-backdrop-filter: blur(18px) saturate(140%); backdrop-filter: blur(18px) saturate(140%); border: 1px solid rgba(255,255,255,.1); border-radius: 14px; box-shadow: 0 20px 60px rgba(0,0,0,.45); overflow: hidden; }
 .landing-page > .lbg-panel.is-collapsed { width: auto; border-radius: 999px; }
-.lbg-panel button, .lbg-panel select, .lbg-panel input { font: inherit; color: inherit; }
-.lbg-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; padding: 10px 14px; border: 0; background: none; font-weight: 600; cursor: pointer; text-align: left; }
+.lbg-panel button, .lbg-panel select, .lbg-panel input, .lbg-panel textarea { font: inherit; color: inherit; }
+.lbg-panel-header { display: flex; flex: none; align-items: center; min-width: 0; }
+.lbg-panel-header > .lbg-head { flex: 1; min-width: 0; }
+.lbg-panel-header > .lbg-close { display: grid; flex: none; place-items: center; width: 32px; height: 32px; margin-right: 8px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: inherit; cursor: pointer; }
+.lbg-panel-header > .lbg-close:hover { background: rgb(255 255 255 / 10%); }
+.lbg-head.lbg-docked-title { width: auto; cursor: default; touch-action: auto; }
+.lbg-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; padding: 10px 14px; border: 0; background: none; font-weight: 600; cursor: grab; text-align: left; touch-action: none; user-select: none; }
+.lbg-head:active { cursor: grabbing; }
 .lbg-head small, .lbg-panel label small, .lbg-presets small, .lbg-btns small { margin-left: 4px; color: #8d8e92; font-size: 10.5px; font-weight: 400; }
 .lbg-dot { display: inline-block; width: 8px; height: 8px; margin-right: 8px; border-radius: 50%; background: conic-gradient(#d9a46a, #3a4c5c, #7c4e26, #d9a46a); vertical-align: 0; }
 .lbg-chev { color: #8d8e92; transition: transform .2s; }
@@ -42,7 +48,21 @@
 .lbg-panel input[type=color]::-webkit-color-swatch-wrapper { padding: 2px; } .lbg-panel input[type=color]::-webkit-color-swatch { border: 0; border-radius: 4px; }
 .lbg-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 14px; }
 .lbg-toast { min-height: 14px; margin-top: 6px; color: #d9a46a; font-size: 11px; }
-.lbg-panel button:focus-visible, .lbg-panel input:focus-visible, .lbg-panel select:focus-visible { outline: 2px solid #d9a46a; outline-offset: 2px; }
+.lbg-type-tabs { display: grid; flex: none; grid-template-columns: 1fr 1fr; gap: 4px; padding: 8px 14px; border-top: 1px solid rgb(255 255 255 / 7%); }
+.lbg-type-tabs button { display: flex; align-items: center; justify-content: center; gap: 7px; min-height: 34px; padding: 6px 8px; border: 1px solid transparent; border-radius: 7px; background: transparent; color: #a7a8ac; cursor: pointer; }
+.lbg-type-tabs button:hover { color: #e9e8e4; background: rgb(255 255 255 / 6%); }
+.lbg-type-tabs button[aria-selected="true"] { color: #e9c49b; border-color: rgb(217 164 106 / 45%); background: rgb(217 164 106 / 12%); }
+.lbg-settings-section { display: flex; flex-direction: column; min-height: 0; }
+.lbg-section-tabs { border-top: 0; }
+.lbg-announcement-color { display: flex; align-items: center; gap: 8px; }
+.lbg-announcement-color output { font-size: 11px; font-variant-numeric: tabular-nums; }
+.lbg-announcement-settings input[type=text], .lbg-announcement-settings textarea { box-sizing: border-box; width: 100%; padding: 7px 8px; border: 1px solid rgb(255 255 255 / 16%); border-radius: 7px; background: rgb(255 255 255 / 6%); caret-color: #e9c49b; }
+.lbg-announcement-settings textarea { min-height: 74px; resize: vertical; }
+.lbg-announcement-settings .lbg-btns button { display: flex; align-items: center; justify-content: center; gap: 5px; }
+.lbg-announcement-settings ::selection { color: #181214; background: #e9c49b; }
+.lbg-type-description { margin: 10px 0 0; color: #a7a8ac; font-size: 11px; line-height: 1.65; }
+.lbg-body[role="tabpanel"]:focus-visible { outline: 2px solid #d9a46a; outline-offset: -2px; }
+.lbg-panel button:focus-visible, .lbg-panel input:focus-visible, .lbg-panel select:focus-visible, .lbg-panel textarea:focus-visible { outline: 2px solid #d9a46a; outline-offset: 2px; }
 @media (max-width: 680px) {
   .landing-page > .lbg-panel { top: auto; bottom: 12px; right: 12px; max-height: 70vh; }
   .landing-page > .lbg-panel:not(.is-collapsed) { left: 12px; width: auto; }

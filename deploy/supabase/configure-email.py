@@ -71,13 +71,7 @@ auth.update({
     'GOTRUE_MAILER_TEMPLATES_CONFIRMATION': 'https://lululib.cn/auth-email/code.html',
     'GOTRUE_MAILER_TEMPLATES_MAGIC_LINK': 'https://lululib.cn/auth-email/code.html',
 })
-# Providers not needed for the email-only UI stay disabled.
-for key in list(auth):
-    if key.startswith('GOTRUE_EXTERNAL_') and key.endswith('_ENABLED') and key not in {
-        'GOTRUE_EXTERNAL_EMAIL_ENABLED', 'GOTRUE_EXTERNAL_PHONE_ENABLED',
-        'GOTRUE_EXTERNAL_ANONYMOUS_USERS_ENABLED',
-    }:
-        auth[key] = 'false'
+# Preserve separately configured OAuth providers when updating SMTP/email settings.
 compose['services']['storage']['environment']['FILE_SIZE_LIMIT'] = 262144000
 compose_path.write_text(yaml.safe_dump(compose, sort_keys=False))
 print('Email OTP configuration prepared; previous files retained in ' + str(backup))
