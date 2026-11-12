@@ -7,7 +7,8 @@ import { createInterface } from 'node:readline';
 import { dataDir, getProject, saveProject, uploadDir } from './store';
 import { agentAttachmentContext, agentAttachmentDescription, agentMessageAttachments, sentAgentAttachmentIds, type AgentMessage, type AgentMessageImage } from '../shared/agent-message';
 import { createAgentWork, finishAgentWork, recordAgentWork } from '../shared/agent-work';
-import { DEFAULT_AGENT_EFFORT, DEFAULT_AGENT_MODEL } from '../shared/agent-models';
+import { AGENT_MODELS } from '../shared/agent-models';
+import { agentProvider, agentProviderArgs } from './agent-provider';
 import { canvasComponentInput, type CanvasComponent, type CanvasComponentInput } from '../shared/agent-canvas-ui';
 import type { AgentState } from '../shared/intelligent-ui';
 import { summarizeAgentActivity, type AgentActivity } from '../shared/agent-activity';
@@ -23,6 +24,7 @@ import { officialJobFor } from './skill-assets';
 export type { AgentMessage } from '../shared/agent-message';
 export type { AgentState } from '../shared/intelligent-ui';
 type Wire = { id?: number; method?: string; params?: Record<string, unknown>; result?: Record<string, any>; error?: { message?: string } };
+type AgentModelInfo = { model: string; displayName?: string; supportedReasoningEfforts?: { reasoningEffort: string }[] };
 export class AgentTurnConflictError extends Error {}
 
 const sessionsDir = path.join(dataDir, 'agent-sessions');
@@ -48,10 +50,22 @@ function save(id: string) {
   fs.renameSync(temp, dest);
   events.emit(id, state);
 }
+function syncAgentProvider(state: AgentState) {
+  const changed = state.provider !== agentProvider.key;
+  if ((state.provider || 'codex') !== agentProvider.key) {
+    state.model = agentProvider.model;
+    state.effort = agentProvider.effort;
+    // Reuse the existing history-seeding path when the provider changes.
+    state.instructionsVersion = undefined;
+  }
+  state.provider = agentProvider.key;
+  state.model ||= agentProvider.model;
+  state.effort ||= agentProvider.effort;
+  return changed;
+}
 export function getAgentState(id: string): AgentState {
   const cached = states.get(id); if (cached) {
-    if (!cached.model) cached.model = DEFAULT_AGENT_MODEL;
-    cached.effort ||= DEFAULT_AGENT_EFFORT;
+    if (syncAgentProvider(cached)) save(id);
     cached.adaptation = normalizeAgentAdaptation(cached.adaptation);
     cached.presentation = normalizeAgentPresentation(cached.presentation);
     syncAgentVideo(id, cached);
@@ -62,7 +76,7 @@ export function getAgentState(id: string): AgentState {
     }
     return cached;
   }
-  let state: AgentState = { status: 'idle', model: DEFAULT_AGENT_MODEL, effort: DEFAULT_AGENT_EFFORT, messages: [] };
+  let state: AgentState = { status: 'idle', provider: agentProvider.key, model: agentProvider.model, effort: agentProvider.effort, messages: [] };
   try {
     const stored = JSON.parse(fs.readFileSync(filename(id), 'utf8'));
     const { openuiPanel, ...current } = stored;
@@ -70,14 +84,14 @@ export function getAgentState(id: string): AgentState {
     if (!state.intelligentPanel && openuiPanel?.library === 'intelligent') state.intelligentPanel = openuiPanel;
   }
   catch { /* New creative. */ }
-  if (!state.model) state.model = DEFAULT_AGENT_MODEL;
-  state.effort ||= DEFAULT_AGENT_EFFORT;
+  const providerChanged = syncAgentProvider(state);
   state.adaptation = normalizeAgentAdaptation(state.adaptation);
   state.presentation = normalizeAgentPresentation(state.presentation);
   if (state.status === 'running') { state.status = 'failed'; state.turnId = undefined; state.activity = undefined; state.error = '服务已重启，上一轮对话中断。可以继续发送消息。'; finishAgentWork(state.messages, 'interrupted'); }
   // Recover saved messages without silently resuming work after a service restart.
   if (state.queue?.length) state.queuePaused = true;
   states.set(id, state);
+  if (providerChanged) save(id);
   syncAgentVideo(id, state);
   const project = getProject(id); if (project) {
     const synced = syncExperimentSources(state.experiment, project);
@@ -175,7 +189,7 @@ class AppServerClient {
     const cmd = process.env.SOP_AGENT_CODEX_BIN || 'codex';
     const env = { ...process.env, CODEX_HOME: isolatedCodexHome };
     const cwd = experimentWorkspace(projectId); fs.mkdirSync(cwd, { recursive: true, mode: 0o700 });
-    this.proc = spawn(cmd, ['app-server', '--stdio'], { cwd, env, stdio: ['pipe', 'pipe', 'pipe'] });
+    this.proc = spawn(cmd, ['app-server', '--stdio', ...agentProviderArgs()], { cwd, env, stdio: ['pipe', 'pipe', 'pipe'] });
     const lines = createInterface({ input: this.proc.stdout, crlfDelay: Infinity });
     lines.on('line', line => {
       try { this.receive(JSON.parse(line) as Wire); }
@@ -277,10 +291,15 @@ async function clientFor(id: string) {
   if (!client) { client = new AppServerClient(id, message => onNotification(id, message)); clients.set(id, client); }
   return client;
 }
-export async function listAgentModels(id: string) {
+export async function listAgentModels(id: string): Promise<AgentModelInfo[]> {
+  const fallback = { model: agentProvider.model, displayName: AGENT_MODELS.find(model => model.id === agentProvider.model)?.label || agentProvider.model };
+  // Codex's bundled GPT catalog cannot describe an arbitrary external provider.
+  if (agentProvider.custom && !agentProvider.catalog) return [fallback];
   const client = await clientFor(id);
   const result = await client.call('model/list', { includeHidden: false });
-  return (result.data || []) as { model: string; displayName?: string; supportedReasoningEfforts?: { reasoningEffort: string }[] }[];
+  const models = (result.data || []) as AgentModelInfo[];
+  if (!models.some(model => model.model === agentProvider.model)) models.unshift(fallback);
+  return models;
 }
 export async function startAgentTurn(id: string, prompt: string, imageIds?: string[], videoIds?: string[], attachmentOrder?: string[], audioIds?: string[]): Promise<AgentState> {
   const state = getAgentState(id);
@@ -348,10 +367,10 @@ export async function startAgentTurn(id: string, prompt: string, imageIds?: stri
   try {
     const client = await clientFor(id);
     const cwd = experimentWorkspace(id);
-    const selected = state.model || DEFAULT_AGENT_MODEL;
+    const selected = state.model || agentProvider.model;
     const presentation = normalizeAgentPresentation(state.presentation);
     const { developerInstructions, instructionsVersion } = agentInstructionsFor(normalizeAgentAdaptation(state.adaptation), presentation, !!officialJobFor(id));
-    let effort: string | undefined = state.effort || DEFAULT_AGENT_EFFORT;
+    let effort: string | undefined = state.effort || agentProvider.effort;
     try {
       const models = await listAgentModels(id);
       const current = models.find(item => item.model === selected);
@@ -373,7 +392,7 @@ export async function startAgentTurn(id: string, prompt: string, imageIds?: stri
       client.markThreadLoaded(state.threadId);
     }
     state.model = selected;
-    state.effort = effort || DEFAULT_AGENT_EFFORT;
+    state.effort = effort || agentProvider.effort;
     state.videoId = getProject(id)?.assets.find(asset => asset.kind === 'video')?.id || null;
     state.activity = '正在思考…';
     recordAgentWork(state.messages, state.activity);
@@ -516,7 +535,7 @@ export async function setAgentModel(id: string, model: string): Promise<AgentSta
   if (!/^[\w./:-]{1,120}$/.test(model)) throw new Error('模型名称格式无效。');
 
   state.model = model;
-  state.effort = DEFAULT_AGENT_EFFORT;
+  state.effort = agentProvider.effort;
   state.error = undefined;
   save(id);
   return state;

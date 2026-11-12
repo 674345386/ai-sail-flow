@@ -130,7 +130,7 @@ export default function IntelligentUIAgentWorkspace({ theme, project, canvas, di
   const queueByDefault = steering && queueEnabled;
   const queuedMessages = agent.queue || [];
   const currentModel = agent.model || DEFAULT_AGENT_MODEL;
-  const modelOptions = (models.length ? models : AGENT_MODELS.map(model => ({ model: model.id, displayName: model.label }))).map(model => ({
+  const modelOptions = (models.length ? models : [{ model: currentModel, displayName: AGENT_MODELS.find(model => model.id === currentModel)?.label }]).map(model => ({
     ...model,
     label: (model.displayName !== model.model && model.displayName) || AGENT_MODELS.find(option => option.id === model.model)?.label || model.model,
   }));

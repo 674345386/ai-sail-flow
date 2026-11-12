@@ -7,6 +7,7 @@ import type { ExperimentGraph } from './experiment';
 export type IntelligentPanel = { id: string; title: string; source: string; createdAt: string };
 export type AgentQueuedMessage = { id: string; text: string; createdAt: string };
 export type AgentState = {
+  provider?: string;
   threadId?: string;
   previousThreadId?: string;
   instructionsVersion?: string;

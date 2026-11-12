@@ -68,7 +68,7 @@ export async function verifySkillAsset(assetId: string, owner: string, requested
   // Recheck after network reads: double clicks must not create two official workers.
   if (asset.jobs.some(job => job.status === 'running')) return skillAssetDetail(asset.id, owner);
   const project = createProject(false, undefined, `官方实验 · ${asset.name}`), startedAt = new Date().toISOString();
-  const job: VerificationJob = { id: randomUUID(), projectId: project.id, releaseId: release.id, startedAt, model: DEFAULT_AGENT_MODEL, status: 'running', requestedBy: owner };
+  const job: VerificationJob = { id: randomUUID(), projectId: project.id, releaseId: release.id, startedAt, model: agent.getAgentState(project.id).model || DEFAULT_AGENT_MODEL, status: 'running', requestedBy: owner };
   asset.jobs.push(job); saveSkillAsset(asset);
   if (!enabled) { job.status = 'blocked'; job.error = '官方验证 Agent 尚未在当前服务启用，已保留资产，可在启用后重试。'; saveSkillAsset(asset); return skillAssetDetail(asset.id, owner, release.id); }
   try { agent.setAgentExperiment(project.id, adoptSkillSelection(emptyExperiment(), asset, release.id, project.id)); }

@@ -14,6 +14,8 @@ The public configuration runs the existing Express API behind Caddy. Caddy termi
 
 Copy `.env.production.example` to `.env.production` on the server and set the Supabase URL and publishable key. Add any model API keys as server-side values; never use a `VITE_` prefix for private keys. Protect this file with owner-only permissions.
 
+For the creative Agent, the image includes Codex CLI. Set `SOP_AGENT_ENABLED=true`, `SOP_AGENT_CODEX_HOME=/app/data/agent-codex`, `SOP_AGENT_PROVIDER=deepseek`, `SOP_AGENT_MODEL=deepseek-flash`, and `DEEPSEEK_API_KEY` in the server's private runtime environment. `deepseek-flash` serves DeepSeek-V4.1-Flash-1017. All signed-in users share this server-managed key and its billing account. Keep the environment file at mode `600`; never put the key in the image, source control, or browser settings. After changing a key in an environment file, recreate the application container with that file so the updated value is loaded.
+
 Set `PUBLIC_DOMAIN=lululib.cn` and `SOP_ALLOWED_HOSTS=lululib.cn,www.lululib.cn`. Install Node.js, npm, FFmpeg, and Caddy. Caddy installation options are in its [official Debian/Ubuntu instructions](https://caddyserver.com/docs/install). Caddy obtains and renews a certificate automatically after the hostname resolves to the instance and ports 80/443 are reachable.
 
 Install application dependencies and build the frontend with the production Supabase settings available to Vite. Then install the two systemd units:

@@ -31,6 +31,8 @@ process.env.SOP_DATA_DIR = temp;
 process.env.SOP_AGENT_CODEX_HOME = path.join(temp, 'codex-home');
 process.env.SOP_AGENT_CODEX_BIN = fixture;
 process.env.SOP_AGENT_CHECK_REQUESTS = requests;
+process.env.SOP_AGENT_PROVIDER = 'codex';
+process.env.SOP_AGENT_MODEL = 'gpt-6.1-terra';
 
 try {
   const { getAgentState, setAgentAdaptation, setAgentPresentation, startAgentTurn } = await import('../server/creative-agent');

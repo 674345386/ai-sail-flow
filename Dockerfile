@@ -6,7 +6,8 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 
 COPY package.json ./
-RUN npm install --include=dev
+RUN npm install --include=dev \
+  && npm install --global @openai/codex@0.166.0
 COPY . .
 ARG VITE_SUPABASE_URL
 ARG VITE_SUPABASE_PUBLISHABLE_KEY

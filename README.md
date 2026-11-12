@@ -20,7 +20,11 @@
 
 Agent mode 以一个创意对应一条 Codex app-server 对话。进入创意时打开自由画布：左侧是流式对话和 Prompt，右侧是从项目实际数据生成组件的画布。Agent 调用项目专属 MCP 工具执行拆解、编辑分镜描述和本地测试视频生成；「流程页面」保留原布局和交互，不放 Agent 对话。对话状态保存在 `data/agent-sessions/`，Studio mode 仍使用原流程。
 
-本机需安装 `codex` CLI，并在专用的 Codex 目录登录（例如 `CODEX_HOME="$PWD/data/agent-codex" codex login`），或在运行服务的环境提供可用的模型凭证。专用目录避免创作 Agent 继承开发者 Codex 的其它插件和 MCP 工具。`SOP_AGENT_MODEL` 可指定 `model/list` 返回的模型；未指定时优先选择 GPT 6.1 Terra，再选择其它 GPT 6.1 系列和当前 CLI 提供的 GPT 模型。默认推理强度为 `high`，也可用 `SOP_AGENT_EFFORT` 指定。Agent 模型与 Gemini 分析配置相互独立。公网默认关闭 Agent 内部体验；只在单用户内部环境配置 `SOP_AGENT_ENABLED=true` 和独立的 `SOP_AGENT_CODEX_HOME` 后开放。DeepSeek 等自定义模型后续需先由兼容网关完整支持 Responses 流式和工具调用。
+本机需安装 `codex` CLI（DeepSeek 模型元数据要求 0.164.0 或以上）。创作 Agent 默认使用 DeepSeek 原生 Responses API：`SOP_AGENT_PROVIDER=deepseek`、`SOP_AGENT_MODEL=deepseek-flash`，在服务端 `.env` 配置 `DEEPSEEK_API_KEY` 后重启服务即可，无需 Codex 登录。[DeepSeek 官方模型表](https://api-docs.deepseek.com/zh-cn/quick_start/pricing)确认 `deepseek-flash` 对应 **DeepSeek-V4.1-Flash-1017**。项目自带最小模型目录，声明图片输入、1M 上下文和工具调用；界面模型列表来自当前 provider 的模型目录。默认推理强度为 `high`，可用 `SOP_AGENT_EFFORT` 指定。
+
+Provider 设置集中在 `server/agent-provider.ts`，只通过启动参数传给独立的 Codex app server，不修改开发者的 Codex 配置。替换为其他 Responses 兼容服务时，修改 `SOP_AGENT_PROVIDER`、`SOP_AGENT_BASE_URL`、`SOP_AGENT_MODEL`、`SOP_AGENT_API_KEY_ENV`（保存 key 的环境变量名）；如需声明模型能力，再设置 `SOP_AGENT_MODEL_CATALOG`。恢复原来的 Codex 登录方式则设置 `SOP_AGENT_PROVIDER=codex`、`SOP_AGENT_MODEL=gpt-6.1-terra`，并在专用目录登录（例如 `CODEX_HOME="$PWD/data/agent-codex" codex login`）。变更 provider 后，下次发消息会创建新的模型上下文，并带入最近的对话摘要，界面保留已有消息。
+
+Agent 模型与 Gemini 分析配置相互独立。专用 Codex 目录避免创作 Agent 继承开发者的其它插件和 MCP 工具。公网默认关闭 Agent 内部体验；只在单用户内部环境配置 `SOP_AGENT_ENABLED=true` 和独立的 `SOP_AGENT_CODEX_HOME` 后开放。
 
 需要 Node.js 22.12+（推荐 24）、npm、FFmpeg / ffprobe。本机配音与字幕模式还需要 macOS 的 `say` 与 `swift`。
 

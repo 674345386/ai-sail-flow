@@ -28,6 +28,7 @@ export default function AgentWorkspace({ project, disabled, onUploadVideo, onUpl
   const [sentImageIds, setSentImageIds] = useState<Set<string>>(new Set());
   const [previewImageId, setPreviewImageId] = useState<string | null>(null);
   const [showModelSelector, setShowModelSelector] = useState(false);
+  const [models, setModels] = useState<{ model: string; displayName?: string }[]>([]);
   const [chatWidth, setChatWidth] = useState<number | null>(() => {
     try { const value = Number(localStorage.getItem('sail-agent-chat-width')); return Number.isFinite(value) && value >= 280 ? value : null; }
     catch { return null; }
@@ -49,7 +50,14 @@ export default function AgentWorkspace({ project, disabled, onUploadVideo, onUpl
   const videoRunning = project.generatedVideos.some(video => video.status === 'running');
   const mediaByMessage = groupAgentMedia(agent.messages, project.agentImages || [], project.generatedVideos);
   const mediaVersion = [...mediaByMessage.values()].flat().map(result => `${result.kind}:${result.value.id}:${result.value.status}`).join('|');
-  const modelLabel = AGENT_MODELS.find(item => item.id === agent.model)?.label || AGENT_MODELS.find(item => item.id === DEFAULT_AGENT_MODEL)!.label;
+  const modelOptions = models.length ? models : [{ model: agent.model || DEFAULT_AGENT_MODEL, displayName: AGENT_MODELS.find(item => item.id === (agent.model || DEFAULT_AGENT_MODEL))?.label }];
+  const modelLabel = modelOptions.find(item => item.model === agent.model)?.displayName || agent.model || DEFAULT_AGENT_MODEL;
+  useEffect(() => {
+    const controller = new AbortController();
+    setModels([]);
+    void api<{ model: string; displayName?: string }[]>(`/api/projects/${project.id}/agent/models`, { signal: controller.signal }).then(setModels).catch(() => {});
+    return () => controller.abort();
+  }, [project.id]);
   useEffect(() => { onCanvasState?.(agent.canvasComponents || []); }, [agent.canvasComponents, onCanvasState]);
   useEffect(() => { if (canvasDraft) setPrompt(canvasDraft.text); }, [canvasDraft?.version]);
 
@@ -212,7 +220,7 @@ export default function AgentWorkspace({ project, disabled, onUploadVideo, onUpl
         {showModelSelector && <div className="agent-model-menu">
           <div className="agent-model-menu-header"><span>选择创作模型</span><button type="button" className="agent-model-menu-close" aria-label="关闭模型选择" title="关闭" onClick={() => setShowModelSelector(false)}><X size={16} /></button></div>
           <div className="agent-model-options" role="listbox" aria-label="选择创作模型">
-            {AGENT_MODELS.map(model => <button key={model.id} type="button" role="option" aria-selected={model.id === agent.model} className={model.id === agent.model ? 'is-active' : ''} onClick={() => void changeModel(model.id)}>{model.label} · {DEFAULT_AGENT_EFFORT}</button>)}
+            {modelOptions.map(model => <button key={model.model} type="button" role="option" aria-selected={model.model === agent.model} className={model.model === agent.model ? 'is-active' : ''} onClick={() => void changeModel(model.model)}>{model.displayName || model.model} · {agent.effort || DEFAULT_AGENT_EFFORT}</button>)}
           </div>
         </div>}
       </form>
