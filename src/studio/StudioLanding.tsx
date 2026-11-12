@@ -122,7 +122,7 @@ const faqs = [
   },
   {
     q: '使用工作室会影响内容工作台吗？',
-    a: '不会。工作室是 AI-Sail 内的独立入口，生成结果可写回项目；内容工作台的工作流、二创与导出逻辑保持不变。',
+    a: '不会。工作室是 AI Creative Lab 内的独立入口，生成结果可写回项目；内容工作台的工作流、二创与导出逻辑保持不变。',
   },
   {
     q: '图片和素材从哪里来？',
@@ -161,7 +161,7 @@ export default function StudioLanding({
       </div>
 
       <header className="sl-nav">
-        <button type="button" className="sl-brand" onClick={onLeave} aria-label="返回 AI-Sail 门户">
+        <button type="button" className="sl-brand" onClick={onLeave} aria-label="返回 AI Creative Lab 门户">
           <strong className="sl-brand-word">爆款工作室</strong>
         </button>
         <nav className="sl-nav-links" aria-label="工作室落地页导航">
@@ -330,7 +330,7 @@ export default function StudioLanding({
       </main>
 
       <footer className="sl-foot">
-        <span>© AI-Sail · 爆款工作室</span>
+        <span>© AI Creative Lab · 爆款工作室</span>
         <button type="button" className="sl-foot-link" onClick={onBackWorkspace}>内容工作台</button>
       </footer>
     </div>

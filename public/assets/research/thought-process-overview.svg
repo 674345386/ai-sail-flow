@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1672" height="941" viewBox="0 0 1672 941" role="img" aria-labelledby="title desc">
+  <title id="title">从封装到原语</title>
+  <desc id="desc">从观察产品相似性、追溯共同机制与理解用户决策，到对照 UI 开发、建立统一分析框架，再以原型实践持续更新认识。贯穿的问题是如何让新信息转化为可复用的能力。</desc>
+  <defs>
+    <pattern id="dots" width="28" height="28" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r=".8" fill="#d7d3c9"/></pattern>
+    <style>
+      text{font-family:'Anthropic Sans','PingFang SC','Microsoft YaHei',sans-serif;fill:#323a34}
+      .muted{fill:#7b8077}.label{font-size:32px;font-weight:500}.detail{font-size:23px;fill:#73796d}.number{font-size:20px;fill:#8b7b68;letter-spacing:2px}.panel{fill:#fbfaf6;stroke:#cfcec1;stroke-width:1.5}.wire{stroke:#8a9985;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+    </style>
+  </defs>
+  <path fill="#f3f1e9" d="M0 0h1672v941H0z"/>
+  <path fill="url(#dots)" opacity=".6" d="M0 0h1672v941H0z"/>
+  <text x="90" y="62" font-size="19" letter-spacing="3" class="muted">RESEARCHER'S NOTE / A TRAIN OF THOUGHT</text>
+  <text x="1582" y="62" text-anchor="end" font-size="19" class="muted">01 / 02</text>
+  <text x="90" y="133" font-size="50" font-weight="500">从封装到原语</text>
+  <text x="90" y="177" font-size="25" class="muted">观察产品，解释机制，构建原型，再用实践更新理解。</text>
+  <g>
+    <rect x="90" y="235" width="464" height="200" rx="4" class="panel"/>
+    <text x="120" y="278" class="number">01 / OBSERVE</text>
+    <text x="120" y="337" class="label">观察产品的相似性</text>
+    <text x="120" y="386" class="detail">新的名称与演示，熟悉的能力</text>
+    <rect x="604" y="235" width="464" height="200" rx="4" class="panel"/>
+    <text x="634" y="278" class="number">02 / ABSTRACT</text>
+    <text x="634" y="337" class="label">追溯共同的底层原理</text>
+    <text x="634" y="386" class="detail">从呈现方式，回到生成机制</text>
+    <rect x="1118" y="235" width="464" height="200" rx="4" class="panel"/>
+    <text x="1148" y="278" class="number">03 / EXPLAIN</text>
+    <text x="1148" y="337" class="label">理解封装与用户决策</text>
+    <text x="1148" y="386" class="detail">认知、精力、供需与专业分工</text>
+    <rect x="1118" y="535" width="464" height="200" rx="4" class="panel"/>
+    <text x="1148" y="578" class="number">04 / COMPARE</text>
+    <text x="1148" y="637" class="label">对照 UI 开发的四种方式</text>
+    <text x="1148" y="686" class="detail">整页、组件、效果与直接编码</text>
+    <rect x="604" y="535" width="464" height="200" rx="4" class="panel"/>
+    <text x="634" y="578" class="number">05 / CONNECT</text>
+    <text x="634" y="637" class="label">建立统一分析框架</text>
+    <text x="634" y="686" class="detail">粒度、时机、表示与编辑模态</text>
+    <rect x="90" y="535" width="464" height="200" rx="4" fill="#e0e7da" stroke="#93a08a" stroke-width="1.5"/>
+    <text x="120" y="578" class="number">06 / EVOLVE</text>
+    <text x="120" y="637" class="label">以实践持续更新认识</text>
+    <text x="120" y="686" class="detail">复现、参数化、接入与迭代</text>
+  </g>
+  <g class="wire">
+    <path d="M563 335h32m-8-6 8 6-8 6M1077 335h32m-8-6 8 6-8 6M1350 447v76m-6-8 6 8 6-8M1109 635h-32m8-6-8 6 8 6M595 635h-32m8-6-8 6 8 6"/>
+  </g>
+  <path d="M90 793h1492" stroke="#c9cdbf" stroke-width="1.5"/>
+  <text x="90" y="850" font-size="25" class="muted">贯穿的问题</text>
+  <text x="320" y="850" font-size="31">如何让新信息，转化成可复用的能力？</text>
+  <text x="90" y="913" font-size="17" letter-spacing="1" class="muted">ORIGINAL OBSERVATION → CONCEPTUAL EXPANSION → PERSONAL DEVELOPMENT</text>
+</svg>

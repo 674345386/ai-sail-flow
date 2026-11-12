@@ -42,7 +42,7 @@ export default function AgentLandingPage({ onStart, onStudio, onAccount, account
   return <div className="agent-landing" data-no-i18n id="agent-top">
     {announcement && <aside className="al-announcement"><a href="#agent-workflow"><span>{t.announcement}</span><ArrowRight size={14} aria-hidden="true" /></a><button type="button" onClick={() => setAnnouncement(false)} aria-label={t.dismiss}><X size={15} /></button></aside>}
     <header className="al-header">
-      <a className="al-brand" href="/agent" aria-label="AI-Sail Flow"><img src="/assets/brand/sail-mark-dark-bold.svg" width={30} height={30} alt="" /><span>AI-Sail Flow</span></a>
+      <a className="al-brand" href="/agent" aria-label="AI Creative Lab"><img src="/assets/brand/sail-mark-dark-bold.svg" width={30} height={30} alt="" /><span>AI Creative Lab</span></a>
       <nav className="al-navigation" aria-label={t.navigation}><a href="/agent" aria-current="page">{t.home}</a><button type="button" disabled={busy} onClick={onStudio}>{t.studio}</button><a href="#agent-inspiration">{t.inspiration}</a><a href="#agent-workflow">{t.workflow}</a><a href="/research">Research</a></nav>
       <div className="al-header-actions"><button type="button" className="al-header-start" disabled={busy} onClick={() => onStart('')}>{t.start}<ArrowUpRight size={14} /></button><LanguageSwitch /><button type="button" className="al-account" onClick={onAccount} title={accountName || t.account}>{accountName || t.account}</button></div>
     </header>
@@ -80,6 +80,6 @@ export default function AgentLandingPage({ onStart, onStudio, onAccount, account
       <section className="al-final"><Sparkles size={28} strokeWidth={1.3} aria-hidden="true" /><h2>{t.finalTitle}</h2><button type="button" className="al-create" onClick={() => focusInput()}>{t.finalAction}<ArrowRight size={17} /></button></section>
     </main>
 
-    <footer className="al-footer"><div><a className="al-brand" href="/agent"><img src="/assets/brand/sail-mark-dark-bold.svg" width={25} height={25} alt="" /><span>AI-Sail Flow</span></a><p>{t.footer}</p></div><nav aria-label={t.navigation}><button type="button" disabled={busy} onClick={onStudio}>{t.studio}</button><a href="/research">Research</a><a href="#agent-top">{t.top}<ArrowUpRight size={13} /></a></nav></footer>
+    <footer className="al-footer"><div><a className="al-brand" href="/agent"><img src="/assets/brand/sail-mark-dark-bold.svg" width={25} height={25} alt="" /><span>AI Creative Lab</span></a><p>{t.footer}</p></div><nav aria-label={t.navigation}><button type="button" disabled={busy} onClick={onStudio}>{t.studio}</button><a href="/research">Research</a><a href="#agent-top">{t.top}<ArrowUpRight size={13} /></a></nav></footer>
   </div>;
 }

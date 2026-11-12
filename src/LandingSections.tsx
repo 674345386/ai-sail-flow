@@ -234,7 +234,7 @@ function FeatureSection({ onEnter }: { onEnter: () => void }) {
   </section>;
 }
 
-/* ---------- 5 · Flow 创作营 (teams + markets) ---------- */
+/* ---------- 5 · AI Creative Lab 创作营 (teams + markets) ---------- */
 const teamImages = ['use-beauty', 'use-toys', 'use-fashion', 'use-home'];
 const marketPlatforms = ['TikTok Shop · Reels', 'TikTok · Snapchat', 'TikTok Shop · Shopee Video', 'Reels · Shorts'];
 
@@ -255,7 +255,7 @@ function CreatorSection({ onEnter }: { onEnter: () => void }) {
             <span>{String(index + 1).padStart(2, '0')}</span>{item.name}
           </button>)}
         </div>
-        <div className="ls-team-panel" role="tabpanel" id="ls-team-panel" aria-labelledby={`ls-team-tab-${active}`}>
+        <div className="ls-team-panel" role="tabpanel" id="ls-team-panel" aria-labelledby={`ls-team-tab-${active}`} data-landing-state={active}>
           <div className="ls-media"><img key={team.image} src={`${V2}/${team.image}.webp`} alt={t.sceneAlt(team.name)} loading="lazy" decoding="async" /></div>
           <div className="ls-team-copy"><h3>{team.line}</h3><p>{team.body}</p><button className="ls-link" onClick={onEnter}>{t.enter} <ArrowUpRight size={16} /></button></div>
         </div>

@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1672" height="941" viewBox="0 0 1672 941" role="img" aria-labelledby="title desc">
+  <title id="title">从外部线索到可复用能力</title>
+  <desc id="desc">线索经过证据记录、机制重建、资产规范化与迁移验证，形成版本化能力。真实任务中的失败、人工修正和复用反馈决定下一轮选题。固定基线与独立验收约束候选变化。</desc>
+  <defs>
+    <pattern id="grid" width="28" height="28" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r=".8" fill="#d7d3c9"/></pattern>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="m2 1 6 4-6 4" fill="none" stroke="#77877b" stroke-width="1.4"/></marker>
+    <style>
+      text{font-family:'Anthropic Sans','PingFang SC','Microsoft YaHei',sans-serif;fill:#323a34}.muted{fill:#7b8077}.small{font-size:20px}.label{font-size:29px;font-weight:500}.wire{stroke:#879782;stroke-width:2;fill:none}.panel{fill:#fbfaf6;stroke:#cecec2;stroke-width:1.5}
+    </style>
+  </defs>
+  <path fill="#f3f1e9" d="M0 0h1672v941H0z"/>
+  <path fill="url(#grid)" opacity=".6" d="M0 0h1672v941H0z"/>
+  <text x="90" y="62" font-size="19" letter-spacing="3" class="muted">RESEARCH / LEARNING LOOP</text>
+  <text x="1582" y="62" font-size="19" text-anchor="end" class="muted">02 / 02</text>
+  <text x="90" y="131" font-size="48" font-weight="500">从外部线索，到可复用能力</text>
+  <text x="90" y="172" font-size="24" class="muted">每一轮留下可追溯的实现与证据，真实任务决定下一轮的问题。</text>
+  <rect x="90" y="214" width="1492" height="68" rx="3" fill="#e9e8df" stroke="#cecec2" stroke-width="1.5"/>
+  <text x="120" y="257" font-size="24">外部线索</text>
+  <text x="363" y="257" font-size="23" class="muted">官方文档</text><text x="632" y="257" font-size="23" class="muted">开源项目</text><text x="901" y="257" font-size="23" class="muted">文章与视频</text><text x="1222" y="257" font-size="23" class="muted">人工收藏</text>
+  <path d="M254 282v42" class="wire" marker-end="url(#arrow)"/>
+  <g>
+    <rect x="90" y="340" width="328" height="168" rx="3" class="panel"/>
+    <text x="116" y="373" class="small muted">01 / EVIDENCE</text>
+    <text x="116" y="422" class="label">证据记录</text>
+    <text x="116" y="466" class="small muted">来源、版本与待核实主张</text>
+    <rect x="478" y="340" width="328" height="168" rx="3" class="panel"/>
+    <text x="504" y="373" class="small muted">02 / MECHANISM</text>
+    <text x="504" y="422" class="label">机制重建</text>
+    <text x="504" y="466" class="small muted">最小示例与失败条件</text>
+    <rect x="866" y="340" width="328" height="168" rx="3" class="panel"/>
+    <text x="892" y="373" class="small muted">03 / CONTRACT</text>
+    <text x="892" y="422" class="label">资产规范化</text>
+    <text x="892" y="466" class="small muted">参数、行为与适用范围</text>
+    <rect x="1254" y="340" width="328" height="168" rx="3" fill="#e0e7da" stroke="#8f9f89" stroke-width="1.5"/>
+    <text x="1280" y="373" class="small muted">04 / EVALUATION</text>
+    <text x="1280" y="422" class="label">迁移验证</text>
+    <text x="1280" y="466" class="small muted">新页面、新状态与新组合</text>
+  </g>
+  <path d="M427 424h40m348 0h40m348 0h40" class="wire" marker-end="url(#arrow)"/>
+  <rect x="478" y="551" width="716" height="54" rx="3" fill="#ebe1d5"/>
+  <text x="836" y="586" text-anchor="middle" font-size="21" fill="#88634b">独立评估：固定基线 · 留出任务 · 验收标准</text>
+  <path d="M1194 578h224v-60" class="wire" stroke-dasharray="6 6" marker-end="url(#arrow)"/>
+  <path d="M1418 614v-106" class="wire"/>
+  <path d="M1418 614v38" class="wire" marker-end="url(#arrow)"/>
+  <text x="1440" y="634" class="small muted">有证据的候选变化</text>
+  <g>
+    <rect x="1154" y="668" width="428" height="142" rx="3" fill="#e0e7da" stroke="#8f9f89" stroke-width="1.5"/>
+    <text x="1182" y="721" class="label">版本化能力库</text>
+    <text x="1182" y="766" class="small muted">可用、替换、撤回与过期</text>
+    <rect x="622" y="668" width="428" height="142" rx="3" class="panel"/>
+    <text x="650" y="721" class="label">真实任务</text>
+    <text x="650" y="766" class="small muted">失败、人工修正与复用反馈</text>
+    <rect x="90" y="668" width="428" height="142" rx="3" class="panel"/>
+    <text x="118" y="721" class="label">选题与优先级</text>
+    <text x="118" y="766" class="small muted">围绕需求和能力缺口学习</text>
+  </g>
+  <path d="M1142 739h-80m-452 0h-80" class="wire" marker-end="url(#arrow)"/>
+  <path d="M254 658V520" class="wire" stroke-dasharray="6 6" marker-end="url(#arrow)"/>
+  <text x="278" y="594" class="small muted">下一轮</text>
+  <path d="M90 854h1492" stroke="#cecec2" stroke-width="1.5"/>
+  <text x="90" y="896" font-size="23" class="muted">递归改进的研究对象：检索、去重、提炼、路由与验证流程本身。</text>
+  <text x="1582" y="896" text-anchor="end" font-size="18" class="muted">PROPOSED LOOP</text>
+</svg>

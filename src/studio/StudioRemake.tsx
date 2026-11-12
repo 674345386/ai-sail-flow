@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { LoaderCircle, Sparkles } from 'lucide-react';
-import { getStudioProject, searchRadar, startRemake, type StudioProject, type TrendItem } from './studioApi';
+import { getStudioProject, getRadarTrend, startRemake, type StudioProject, type TrendItem } from './studioApi';
 
 export default function StudioRemake({
   trendId,
@@ -22,9 +22,9 @@ export default function StudioRemake({
     void (async () => {
       if (!trendId) { setPicked(null); return; }
       try {
-        const result = await searchRadar('爆款参考');
+        const item = await getRadarTrend(trendId);
         if (cancelled) return;
-        setPicked(result.items.find(item => item.id === trendId) || result.items[0] || null);
+        setPicked(item);
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : '无法加载热片');
       }
@@ -36,14 +36,8 @@ export default function StudioRemake({
     if (busy) return;
     setBusy(true); setError('');
     try {
-      let chosen = picked;
-      let id = chosen?.id || trendId;
-      if (!id) {
-        const sample = await searchRadar('示例热片');
-        chosen = sample.items[0] || null;
-        id = chosen?.id;
-        if (chosen) setPicked(chosen);
-      }
+      const chosen = picked;
+      const id = chosen?.id || trendId;
       if (!id) throw new Error('请先从爆款雷达选择一条热片');
       const created = await startRemake({ trendId: id, title: chosen ? `二创 · ${chosen.title}` : undefined, brief: brief.trim() });
       setProject(created);
@@ -95,16 +89,16 @@ export default function StudioRemake({
             <span className="studio-badge run">已选中</span>
           </article>
         ) : (
-          <div className="studio-empty" style={{ marginBottom: 14 }}>尚未选定热片。可先打开爆款雷达，或在本页直接用示例片发起。</div>
+          <div className="studio-empty" style={{ marginBottom: 14 }}>尚未选定热片。请先在爆款雷达选择一条已采集或导入的视频线索。</div>
         )}
         <div className="studio-form-grid">
           <label className="field"><span className="field-label">二创要求</span>
             <textarea className="input textarea" rows={3} value={brief} disabled={busy} onChange={e => setBrief(e.target.value)} />
           </label>
           <div>
-            <button type="button" className="btn primary" disabled={busy} onClick={() => void run()}>
+            <button type="button" className="btn primary" disabled={busy || !picked} onClick={() => void run()}>
               {busy ? <LoaderCircle size={15} className="spin" /> : <Sparkles size={15} />}
-              {busy ? '创建中…' : picked || trendId ? '开始二创' : '使用示例热片二创'}
+              {busy ? '创建中…' : '开始二创'}
             </button>
           </div>
           {error && <p className="error-text" role="alert">{error}</p>}

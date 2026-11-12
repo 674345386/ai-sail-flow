@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2000 840" width="2000" height="840" role="img" aria-labelledby="F-scene-title F-scene-description">
+    <title id="F-scene-title">F 湖畔远景 · 远景构图白模</title>
+    <desc id="F-scene-description">远山、湖面和岸线分成三层，人物只作尺度参照。环境叙事更强，适合户外与人物故事。</desc>
+    
+  <defs>
+    <symbol id="F-car" viewBox="0 0 180 86">
+      <g stroke="#777" stroke-width="2" stroke-linejoin="round">
+        <path fill="#fafafa" d="M12 48 32 41 59 16H111L141 39 166 47 173 59 168 70H12Z"/>
+        <path fill="#d3d3d3" d="M44 42 66 22H105L128 42Z"/>
+        <path fill="none" d="M92 23V42M17 55H164"/>
+        <circle fill="#b3b3b3" cx="43" cy="69" r="12"/><circle fill="#b3b3b3" cx="143" cy="69" r="12"/>
+        <circle fill="#e8e8e8" cx="43" cy="69" r="5"/><circle fill="#e8e8e8" cx="143" cy="69" r="5"/>
+      </g>
+    </symbol>
+    <symbol id="F-person" viewBox="0 0 32 86">
+      <g stroke="#818181" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle fill="#fafafa" cx="16" cy="10" r="7"/>
+        <path fill="#fafafa" d="M8 24 23 23 25 49 19 53 8 49Z"/>
+        <path fill="none" stroke-width="5" d="M10 53 8 79M21 54 27 79M6 27 3 47M25 27 30 45"/>
+      </g>
+    </symbol>
+  </defs><rect width="2000" height="840" fill="#fafafa"/>
+      <path fill="#ededed" d="M0 330 145 237 307 279 510 152 702 274 887 215 1070 335 1268 205 1445 265 1690 173 2000 310V840H0Z"/>
+      <path fill="#dcdcdc" d="M0 403 215 342 427 386 663 335 905 411 1125 363 1370 405 1615 319 1800 373 2000 358V840H0Z"/>
+      <path fill="#efefef" d="M0 474C351 425 781 448 1100 464S1490 466 1630 454C1441 526 1254 541 1090 592S808 701 943 840H0Z"/>
+      <path fill="#c8c8c8" d="M2000 441 1665 463C1510 529 1464 586 1264 639S1185 754 1310 840H2000Z"/>
+      <path fill="#b8b8b8" d="M0 683 204 641 313 699 464 732 607 840H0Z"/>
+      <path fill="#fafafa" stroke="#aaa" stroke-width="2" d="M1448 840C1370 744 1350 690 1452 621S1635 514 1674 474L1689 474C1686 534 1545 597 1534 666S1570 775 1660 840Z"/>
+      <use href="#F-person" x="1483" y="563" width="25" height="67"/>
+    
+  </svg>

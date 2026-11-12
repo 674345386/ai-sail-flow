@@ -2,15 +2,46 @@ import type { Dict } from './i18n';
 
 /* All landing-page + login copy. The Chinese entry is the source of truth for meaning; English mirrors it. */
 const zh = {
-  nav: { home: '回到首页', aria: '首页导航', overview: '概览', models: '拆解', tools: '工具', creator: 'Flow 创作营', pricing: '价格', more: '更多选项', signIn: '登录' },
+  nav: { home: '回到首页', aria: '首页导航', overview: '概览', models: '拆解', tools: '工具', creator: 'AI Creative Lab 创作营', pricing: '价格', more: '更多选项', signIn: '登录' },
   announcement: { aria: '产品公告', message: '限时优惠：订阅享 8 折，活动截至 11 月 30 日', details: '了解功能', action: '立即体验', close: '关闭促销公告' },
-  omniAnnouncement: { aria: 'Omni 1.2 新模型发布公告', title: 'Omni 1.2 全新登场！', message: '最新视频模型现已加入 Flow，画质更清晰、参考控制更精准、视频更长。', action: '立即体验', close: '关闭 Omni 1.2 公告' },
+  omniAnnouncement: { aria: 'Omni 1.2 新模型发布公告', title: 'Omni 1.2 全新登场！', message: '最新视频模型现已加入 AI Creative Lab，画质更清晰、参考控制更精准、视频更长。', action: '立即体验', close: '关闭 Omni 1.2 公告' },
   hero: {
     kicker: '为电商出海而创作',
     lead: '您的专属 AI 出海创意视频工作室，', lead2: '从真实视频与市场洞察出发，让好创意走向全球。',
-    auto: '自动制作视频', manual: '进入 AI-Sail Flow 制作',
+    auto: '自动制作视频', manual: '进入 AI Creative Lab 制作',
     note: '邮箱验证后即可访问 · 登录用户共用工作区',
     pause: '暂停背景动画', play: '播放背景动画',
+  },
+  showcase: {
+    title: ['好内容，', '不止一种表达。'],
+    description: '从商品种草到品牌广告，从日常分享到镜头前的表达。找到适合你的创作方式，让每一个想法都有自己的舞台。',
+    tabs: '选择创作场景', workflow: '创作流程', openFlow: '进入创作工作流', fromScratch: '从空白开始',
+    note: '登录后即可开始创作', preparing: '正在准备工作区', videoPreview: '参考视频', imagePreview: '场景示意',
+    cases: {
+      commerce: {
+        label: '电商营销', title: ['让好产品，', '被更多人看见。'],
+        description: '从一条参考视频和你的商品出发，拆解镜头、改写创意、生成新片，让产品故事走进更多市场。',
+        workflow: 'AI Creative Lab', steps: ['参考视频', '创意改写', '生成成片'], action: '制作商品视频', prompt: '',
+      },
+      ads: {
+        label: '广告创意', title: ['让你的创意，', '成为目光的焦点。'],
+        description: '一个产品卖点，可以有很多种打开方式。从第一句文案到最后一个镜头，探索品牌下一支广告的表达。',
+        workflow: '品牌广告', steps: ['创意方向', '分镜设计', '画面生成'], action: '创作一支广告',
+        prompt: '我想创作一支品牌广告。请先和我确认产品、目标受众、核心卖点和视觉风格，再帮我构思开场、文案与分镜。',
+      },
+      ugc: {
+        label: 'UGC 内容', title: ['把产品，', '放进生活的故事。'],
+        description: '开箱、体验、日常种草。用贴近生活的视角讲产品，让每一个使用瞬间，都成为值得分享的内容。',
+        workflow: '创作者内容', steps: ['生活场景', '体验脚本', '内容创作'], action: '创作 UGC 视频',
+        prompt: '我想创作一支 UGC 风格的产品体验视频。请先和我确认产品、受众与生活场景，再一起构思自然的开箱、使用体验或种草脚本及分镜。',
+      },
+      talking: {
+        label: '口播视频', title: ['把想说的话，', '说得更动人。'],
+        description: '知识分享、产品讲解、观点表达。从脚本到声音与画面，把一个想法变成一段清晰、有温度的讲述。',
+        workflow: '口播创作', steps: ['打磨脚本', '声音表达', '视频制作'], action: '制作口播视频',
+        prompt: '我想制作一支口播视频。请先和我确认主题、受众、时长、语言和出镜形式，再帮我打磨自然清晰的脚本，并规划声音与画面。',
+      },
+    },
   },
   heroAlt: {
     a: { eyebrow: '跨境电商 AI 视频工作室', pre: '为', post: '市场打造创意视频', markets: ['美国', '英国', '德国', '法国', '日本', '巴西', '澳大利亚'] },
@@ -29,7 +60,7 @@ const zh = {
   },
   statement: {
     eyebrow: '为出海短视频团队打造', title: ['别人跑出来的爆款，', '是你下一条视频的分镜。'] as [string, string],
-    body: '上传一条参考视频，AI-Sail Flow 逐镜头拆开它的结构，再按你的产品重新写、重新出首帧、重新生成。方法照搬，表达是你自己的。',
+    body: '上传一条参考视频，AI Creative Lab 逐镜头拆开它的结构，再按你的产品重新写、重新出首帧、重新生成。方法照搬，表达是你自己的。',
     stats: [['1 条', '参考视频起步'], ['逐镜头', '拆解与重写'], ['单镜', '不满意只重做这一镜']] as [string, string][],
     upload: '上传一条参考视频',
     reels: [
@@ -58,7 +89,7 @@ const zh = {
   },
   compare: {
     eyebrow: '拆解视图 / 原画面', title: ['每一帧，都被读成', '可以复用的结构。'] as [string, string],
-    body: '拖动看看：左边是 AI-Sail Flow 从一个镜头里读到的东西——景别、人物位置、商品出场的时间点、运镜方式。重写时，这些骨架原样保留，主角换成你的产品。',
+    body: '拖动看看：左边是 AI Creative Lab 从一个镜头里读到的东西——景别、人物位置、商品出场的时间点、运镜方式。重写时，这些骨架原样保留，主角换成你的产品。',
     remakeAlt: '参考镜头原画面示意', sourceAlt: '同一镜头的拆解视图：标注景别、人物与商品出场时间',
     left: '拆解视图', right: '原画面', slider: '拖动对比拆解视图与原画面',
     specs: [
@@ -68,7 +99,7 @@ const zh = {
     ],
   },
   creator: {
-    eyebrow: 'Flow 创作营', title: ['给每天都在', '找下一条爆款的人'] as [string, string],
+    eyebrow: 'AI Creative Lab 创作营', title: ['给每天都在', '找下一条爆款的人'] as [string, string],
     body: '不同团队卡在不同地方。选一个最像你的，看看这套流程会怎么接进你的日常。',
     tabsAria: '选择团队类型', enter: '进入工作台',
     sceneAlt: (name: string) => `${name}的工作场景示意`,
@@ -89,7 +120,7 @@ const zh = {
   },
   cta: { title: ['挑一条你最想复刻的视频，', '现在就开始拆。'] as [string, string], primary: '拆解我的第一条视频', pricing: '查看价格' },
   pricing: {
-    title: '价格', body: '本地版当前开放体验；云端与团队方案将在验证后公布。', use: '使用 AI-Sail Flow', start: '立即开始', register: '登记意向',
+    title: '价格', body: '本地版当前开放体验；云端与团队方案将在验证后公布。', use: '使用 AI Creative Lab', start: '立即开始', register: '登记意向',
     note: '* 后续方案、额度和价格以正式发布信息为准。',
     plans: [
       { name: '免费', price: '¥0', note: '本地体验', features: ['1 个本地工作区', '视频与音轨理解', '基础提示词包'] },
@@ -101,28 +132,59 @@ const zh = {
   },
   faq: {
     title: '有疑问?',
-    saveQ: 'AI-Sail Flow 会保存我的视频吗？',
+    saveQ: 'AI Creative Lab 会保存我的视频吗？',
     saveCloud: '公网部署版本会把项目和上传素材保存在授权工作区；只有获准登录的账号可以访问。',
     saveLocal: '本地部署版本把上传素材、项目和导出结果保存在你的设备中。',
     geminiQ: 'Gemini 3.8 Flash 如何理解完整视频？', geminiA: '视频与音轨通过原生多模态格式一起输入，用于识别镜头、口播、产品展示和节奏。',
     handoffQ: '生成的方案可以直接交给制作团队吗？', handoffA: '可以。导出包包含分镜、字幕草稿、制作简报和视频生成提示词。',
   },
   footer: { meta: '本地部署 · Gemini 3.8 Flash · V1', top: '回到顶部', enter: '进入工作台' },
-  toc: { title: '本页目录', overview: '概览', tools: '工具', made: '作品', models: '拆解', compare: '对比', creator: 'Flow 创作营', start: '开始创作', pricing: '价格' },
+  toc: { title: '本页目录', overview: '概览', tools: '工具', made: '作品', models: '拆解', compare: '对比', creator: 'AI Creative Lab 创作营', start: '开始创作', pricing: '价格' },
   boot: { restoring: '正在恢复工作台…' },
 };
 export type LandingMessages = typeof zh;
 
 const en: LandingMessages = {
-  nav: { home: 'Back to home', aria: 'Main navigation', overview: 'Overview', models: 'Breakdown', tools: 'Tools', creator: 'Flow Studio', pricing: 'Pricing', more: 'More options', signIn: 'Sign in' },
+  nav: { home: 'Back to home', aria: 'Main navigation', overview: 'Overview', models: 'Breakdown', tools: 'Tools', creator: 'AI Creative Lab Studio', pricing: 'Pricing', more: 'More options', signIn: 'Sign in' },
   announcement: { aria: 'Announcement', message: 'Limited-time offer: 20% off subscriptions, through November 30', details: 'See features', action: 'Try it now', close: 'Dismiss promotion' },
-  omniAnnouncement: { aria: 'Omni 1.2 model launch announcement', title: 'Introducing Omni 1.2!', message: 'Our latest video model, now in Flow. Better quality. More control. Longer clips.', action: 'Try it now', close: 'Dismiss Omni 1.2 announcement' },
+  omniAnnouncement: { aria: 'Omni 1.2 model launch announcement', title: 'Introducing Omni 1.2!', message: 'Our latest video model, now in AI Creative Lab. Better quality. More control. Longer clips.', action: 'Try it now', close: 'Dismiss Omni 1.2 announcement' },
   hero: {
     kicker: 'Made for cross-border e-commerce',
     lead: 'Your own AI studio for global creative video — ', lead2: 'built on real videos and market insight, so great ideas travel worldwide.',
-    auto: 'Auto-create a video', manual: 'Create in AI-Sail Flow',
+    auto: 'Auto-create a video', manual: 'Create in AI Creative Lab',
     note: 'Verify your email to get access · Signed-in users share one workspace',
     pause: 'Pause background video', play: 'Play background video',
+  },
+  showcase: {
+    title: ['One studio.', 'Every kind of video.'],
+    description: 'Product stories, brand campaigns, everyday moments, and ideas worth sharing. Find your way to create, whatever you have in mind.',
+    tabs: 'Choose a creative use case', workflow: 'Creative workflow', openFlow: 'Open the creative workflow', fromScratch: 'Start from scratch',
+    note: 'Sign in to start creating', preparing: 'Preparing your workspace', videoPreview: 'Reference video', imagePreview: 'Illustrative preview',
+    cases: {
+      commerce: {
+        label: 'E-commerce', title: ['Good products.', 'Great stories.'],
+        description: 'Start with your product and a video you love. Break down the shots, make the story yours, and create for your next market.',
+        workflow: 'AI Creative Lab', steps: ['Reference', 'Remix', 'Create'], action: 'Create a product video', prompt: '',
+      },
+      ads: {
+        label: 'Ads', title: ['Big ideas.', 'All eyes on you.'],
+        description: 'One product. So many ways to tell its story. Explore your next campaign, from the opening hook to the final frame.',
+        workflow: 'Brand campaigns', steps: ['Concept', 'Storyboard', 'Generate'], action: 'Create an ad',
+        prompt: 'I want to create a brand ad. First help me define the product, audience, key selling point, and visual style. Then work with me on the hook, copy, and storyboard.',
+      },
+      ugc: {
+        label: 'UGC', title: ['Real-life moments.', 'Stories to share.'],
+        description: 'Unbox it. Try it. Make it part of the day. Bring products into everyday stories with a personal, creator-style perspective.',
+        workflow: 'Creator content', steps: ['Everyday scene', 'Script', 'Create'], action: 'Create a UGC video',
+        prompt: 'I want to create a UGC-style product video. First help me define the product, audience, and everyday setting. Then work with me on a natural unboxing, hands-on experience, or recommendation script and storyboard.',
+      },
+      talking: {
+        label: 'Talking head', title: ['Your ideas.', 'In your own voice.'],
+        description: 'Share what you know, explain a product, or start a conversation. Shape your idea into a clear story with a script, voice, and visuals.',
+        workflow: 'Talking-head video', steps: ['Script', 'Voice', 'Video'], action: 'Create a talking-head video',
+        prompt: 'I want to make a talking-head video. First help me define the topic, audience, length, language, and on-camera format. Then work with me on a natural, clear script and a plan for the voice and visuals.',
+      },
+    },
   },
   heroAlt: {
     a: { eyebrow: 'AI video studio for cross-border e-commerce', pre: 'Creative video for', post: '', markets: ['the US', 'the UK', 'Germany', 'France', 'Japan', 'Brazil', 'Australia'] },
@@ -141,7 +203,7 @@ const en: LandingMessages = {
   },
   statement: {
     eyebrow: 'Built for global short-video teams', title: ['Someone else’s hit', 'is your next storyboard.'],
-    body: 'Upload a reference video. AI-Sail Flow takes its structure apart shot by shot, then rewrites, re-frames and regenerates it for your product. Borrow the method; the expression stays yours.',
+    body: 'Upload a reference video. AI Creative Lab takes its structure apart shot by shot, then rewrites, re-frames and regenerates it for your product. Borrow the method; the expression stays yours.',
     stats: [['1 video', 'is all you need to start'], ['Shot by shot', 'breakdown and rewrite'], ['Per shot', 'redo only the one you don’t like']],
     upload: 'Upload a reference video',
     reels: [
@@ -170,7 +232,7 @@ const en: LandingMessages = {
   },
   compare: {
     eyebrow: 'Breakdown view / Original', title: ['Every frame, read as', 'structure you can reuse.'],
-    body: 'Drag to compare: on the left is what AI-Sail Flow reads from a single shot — shot size, where people stand, when the product appears, how the camera moves. When rewriting, that skeleton stays as is, and your product takes the lead.',
+    body: 'Drag to compare: on the left is what AI Creative Lab reads from a single shot — shot size, where people stand, when the product appears, how the camera moves. When rewriting, that skeleton stays as is, and your product takes the lead.',
     remakeAlt: 'Illustration of the original reference shot', sourceAlt: 'Breakdown view of the same shot, annotating shot size, people and product timing',
     left: 'Breakdown', right: 'Original', slider: 'Drag to compare the breakdown view with the original',
     specs: [
@@ -180,7 +242,7 @@ const en: LandingMessages = {
     ],
   },
   creator: {
-    eyebrow: 'Flow Studio', title: ['For people who spend every day', 'hunting for the next hit'],
+    eyebrow: 'AI Creative Lab Studio', title: ['For people who spend every day', 'hunting for the next hit'],
     body: 'Every team gets stuck somewhere different. Pick the one most like yours and see how this workflow fits into your day.',
     tabsAria: 'Choose your team type', enter: 'Open the workspace',
     sceneAlt: name => `Illustrative work scene: ${name}`,
@@ -201,7 +263,7 @@ const en: LandingMessages = {
   },
   cta: { title: ['Pick the video you most want to recreate —', 'and start breaking it down now.'], primary: 'Break down my first video', pricing: 'See pricing' },
   pricing: {
-    title: 'Pricing', body: 'The local edition is open to try now; cloud and team plans will be announced once validated.', use: 'Use AI-Sail Flow', start: 'Get started', register: 'Register interest',
+    title: 'Pricing', body: 'The local edition is open to try now; cloud and team plans will be announced once validated.', use: 'Use AI Creative Lab', start: 'Get started', register: 'Register interest',
     note: '* Future plans, quotas and prices are subject to the official release.',
     plans: [
       { name: 'Free', price: '¥0', note: 'Local trial', features: ['1 local workspace', 'Video and audio understanding', 'Basic prompt pack'] },
@@ -213,14 +275,14 @@ const en: LandingMessages = {
   },
   faq: {
     title: 'Questions?',
-    saveQ: 'Does AI-Sail Flow store my videos?',
+    saveQ: 'Does AI Creative Lab store my videos?',
     saveCloud: 'The hosted edition stores projects and uploads in an authorised workspace; only approved signed-in accounts can access it.',
     saveLocal: 'The local edition keeps uploads, projects and exports on your own device.',
     geminiQ: 'How does Gemini 3.8 Flash understand a whole video?', geminiA: 'Video and audio go in together in a native multimodal format, used to identify shots, voiceover, product showcases and pacing.',
     handoffQ: 'Can I hand the generated plan straight to a production team?', handoffA: 'Yes. The export pack includes storyboards, draft subtitles, a production brief and video-generation prompts.',
   },
   footer: { meta: 'Local deployment · Gemini 3.8 Flash · V1', top: 'Back to top', enter: 'Open the workspace' },
-  toc: { title: 'On this page', overview: 'Overview', tools: 'Tools', made: 'Showcase', models: 'Breakdown', compare: 'Compare', creator: 'Flow Studio', start: 'Get started', pricing: 'Pricing' },
+  toc: { title: 'On this page', overview: 'Overview', tools: 'Tools', made: 'Showcase', models: 'Breakdown', compare: 'Compare', creator: 'AI Creative Lab Studio', start: 'Get started', pricing: 'Pricing' },
   boot: { restoring: 'Restoring your workspace…' },
 };
 export const LANDING: Dict<LandingMessages> = { en, 'zh-CN': zh };
@@ -229,7 +291,7 @@ const authZh = {
   close: '关闭账号窗口', account: '我的账号', avatar: '我的头像', method: (m: string) => `${m}登录`,
   methods: { Google: 'Google', email: '邮箱', account: '账号' },
   kept: '登录状态会在此浏览器中保留，你可以使用自己的私有云端素材。', editProfile: '编辑个人资料', signOut: '退出登录',
-  codeTitle: '输入邮箱验证码', title: '登录 AI-Sail Flow', sentTo: '验证码已发送至 ', intro: '登录账号，进入你的创意工作区。',
+  codeTitle: '输入邮箱验证码', title: '登录 AI Creative Lab', sentTo: '验证码已发送至 ', intro: '登录账号，进入你的创意工作区。',
   google: '使用 Google 登录', emailDivider: '或使用邮箱验证码', googleOff: 'Google 登录暂未开通，请使用邮箱验证码。',
   notConnected: '登录服务尚未连接，请联系管理员。', emailLabel: '邮箱地址', emailPlaceholder: '输入邮箱地址', emailOff: '邮箱登录暂未开通，请稍后再试。',
   codeLabel: '邮箱中的数字验证码', codePlaceholder: '输入验证码', changeEmail: '更换邮箱', resendIn: (s: number) => `${s} 秒后重新发送`, resend: '重新发送验证码',
@@ -237,14 +299,14 @@ const authZh = {
   noPassword: '无需设置密码。', autoCreate: '首次验证成功后会自动创建账号。',
   status: { invalidEmail: '请填写有效的邮箱地址。', sending: '正在发送验证码…', sent: '验证码已发送，请检查邮箱。', verifying: '正在验证…', google: '正在前往 Google…', incomplete: '登录未完成', success: '登录成功', signingOut: '正在退出…', signedOut: '已退出登录' },
   errors: { network: '网络连接暂时失败，请稍后重试。', rate: '请求太频繁，请稍后再试。', otp: '验证码已失效或不正确，请检查验证码，或重新发送。', email: '请填写有效的邮箱地址。', googleUnavailable: 'Google 登录暂未开通，请使用邮箱验证码。', signup: '当前暂不开放新账号注册，请使用已有账号登录。', smtp: '验证码邮件暂时无法发送，请稍后重试。', pkce: '登录授权已失效，请在当前浏览器重新开始登录。', denied: '已取消 Google 授权，你可以重新登录或使用邮箱验证码。', generic: '登录未完成，请重试。' },
-  defaultUser: 'AI-Sail 用户',
+  defaultUser: 'AI Creative Lab 用户',
 };
 export type AuthMessages = typeof authZh;
 const authEn: AuthMessages = {
   close: 'Close account window', account: 'My account', avatar: 'My avatar', method: m => `Signed in with ${m}`,
   methods: { Google: 'Google', email: 'email', account: 'account' },
   kept: 'You’ll stay signed in on this browser and can use your own private cloud assets.', editProfile: 'Edit profile', signOut: 'Sign out',
-  codeTitle: 'Enter your email code', title: 'Sign in to AI-Sail Flow', sentTo: 'We sent a code to ', intro: 'Sign in to enter your creative workspace.',
+  codeTitle: 'Enter your email code', title: 'Sign in to AI Creative Lab', sentTo: 'We sent a code to ', intro: 'Sign in to enter your creative workspace.',
   google: 'Sign in with Google', emailDivider: 'or use an email code', googleOff: 'Google sign-in is not available yet. Please use an email code.',
   notConnected: 'The sign-in service isn’t connected yet. Please contact your administrator.', emailLabel: 'Email address', emailPlaceholder: 'Enter your email', emailOff: 'Email sign-in isn’t available yet. Please try again later.',
   codeLabel: 'Numeric code from the email', codePlaceholder: 'Enter code', changeEmail: 'Use a different email', resendIn: s => `Resend in ${s}s`, resend: 'Resend code',
@@ -252,6 +314,6 @@ const authEn: AuthMessages = {
   noPassword: 'No password needed. ', autoCreate: 'Your account is created automatically the first time you verify.',
   status: { invalidEmail: 'Please enter a valid email address.', sending: 'Sending code…', sent: 'Code sent — check your inbox.', verifying: 'Verifying…', google: 'Redirecting to Google…', incomplete: 'Sign-in not completed', success: 'Signed in', signingOut: 'Signing out…', signedOut: 'Signed out' },
   errors: { network: 'Network connection failed. Please try again shortly.', rate: 'Too many requests. Please try again later.', otp: 'That code has expired or is incorrect. Check it, or send a new one.', email: 'Please enter a valid email address.', googleUnavailable: 'Google sign-in is not available yet. Please use an email code.', signup: 'New sign-ups are currently closed. Please sign in with an existing account.', smtp: 'We couldn’t send the code email right now. Please try again shortly.', pkce: 'Your sign-in session expired. Please start again in this browser.', denied: 'Google authorisation was cancelled. You can try again or use an email code.', generic: 'Sign-in didn’t complete. Please try again.' },
-  defaultUser: 'AI-Sail user',
+  defaultUser: 'AI Creative Lab user',
 };
 export const AUTH_TEXT: Dict<AuthMessages> = { en: authEn, 'zh-CN': authZh };

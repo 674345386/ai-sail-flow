@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2000 840" width="2000" height="840" role="img" aria-labelledby="B-scene-title B-scene-description">
+    <title id="B-scene-title">B 高山公路 · 远景构图白模</title>
+    <desc id="B-scene-description">让两侧山体形成前景框架，公路带视线进入远处。空间纵深强，适合品牌宣传片。</desc>
+    
+  <defs>
+    <symbol id="B-car" viewBox="0 0 180 86">
+      <g stroke="#777" stroke-width="2" stroke-linejoin="round">
+        <path fill="#fafafa" d="M12 48 32 41 59 16H111L141 39 166 47 173 59 168 70H12Z"/>
+        <path fill="#d3d3d3" d="M44 42 66 22H105L128 42Z"/>
+        <path fill="none" d="M92 23V42M17 55H164"/>
+        <circle fill="#b3b3b3" cx="43" cy="69" r="12"/><circle fill="#b3b3b3" cx="143" cy="69" r="12"/>
+        <circle fill="#e8e8e8" cx="43" cy="69" r="5"/><circle fill="#e8e8e8" cx="143" cy="69" r="5"/>
+      </g>
+    </symbol>
+    <symbol id="B-person" viewBox="0 0 32 86">
+      <g stroke="#818181" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle fill="#fafafa" cx="16" cy="10" r="7"/>
+        <path fill="#fafafa" d="M8 24 23 23 25 49 19 53 8 49Z"/>
+        <path fill="none" stroke-width="5" d="M10 53 8 79M21 54 27 79M6 27 3 47M25 27 30 45"/>
+      </g>
+    </symbol>
+  </defs><rect width="2000" height="840" fill="#fafafa"/>
+      <path fill="#ededed" d="M0 358 204 240 440 140 610 310 820 215 1000 353 1165 183 1340 92 1518 267 1700 212 2000 350V840H0Z"/>
+      <path fill="#dcdcdc" d="M0 486 252 375 535 450 780 389 1045 483 1300 327 1525 416 1785 330 2000 445V840H0Z"/>
+      <path fill="#c5c5c5" d="M0 143 156 85 365 165 462 295 570 395 734 452 800 565 1044 680 1200 840H0Z"/>
+      <path fill="#d0d0d0" d="M2000 330 1773 403 1615 491 1477 570 1460 692 1620 840H2000Z"/>
+      <path fill="#f8f8f8" stroke="#aaa" stroke-width="2" d="M1570 840C1417 718 1155 667 1164 580S1510 476 1290 394L1311 373C1627 472 1427 542 1330 586S1507 724 1910 840Z"/>
+      <path fill="none" stroke="#d0d0d0" stroke-width="3" d="M1740 840C1490 717 1239 660 1247 584S1580 473 1302 385"/>
+      <use href="#B-car" x="1205" y="529" width="120" height="58"/>
+    
+  </svg>

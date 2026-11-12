@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2000 840" width="2000" height="840" role="img" aria-labelledby="A-scene-title A-scene-description">
+    <title id="A-scene-title">A 海岸弯道 · 远景构图白模</title>
+    <desc id="A-scene-description">沿用你偏好的海岸公路，进一步缩小汽车，用崖壁、弯道和海平面拉开空间。</desc>
+    
+  <defs>
+    <symbol id="A-car" viewBox="0 0 180 86">
+      <g stroke="#777" stroke-width="2" stroke-linejoin="round">
+        <path fill="#fafafa" d="M12 48 32 41 59 16H111L141 39 166 47 173 59 168 70H12Z"/>
+        <path fill="#d3d3d3" d="M44 42 66 22H105L128 42Z"/>
+        <path fill="none" d="M92 23V42M17 55H164"/>
+        <circle fill="#b3b3b3" cx="43" cy="69" r="12"/><circle fill="#b3b3b3" cx="143" cy="69" r="12"/>
+        <circle fill="#e8e8e8" cx="43" cy="69" r="5"/><circle fill="#e8e8e8" cx="143" cy="69" r="5"/>
+      </g>
+    </symbol>
+    <symbol id="A-person" viewBox="0 0 32 86">
+      <g stroke="#818181" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle fill="#fafafa" cx="16" cy="10" r="7"/>
+        <path fill="#fafafa" d="M8 24 23 23 25 49 19 53 8 49Z"/>
+        <path fill="none" stroke-width="5" d="M10 53 8 79M21 54 27 79M6 27 3 47M25 27 30 45"/>
+      </g>
+    </symbol>
+  </defs><rect width="2000" height="840" fill="#fafafa"/>
+      <path fill="#e5e5e5" d="M0 336H2000V840H0Z"/>
+      <path fill="#ededed" d="M650 336 820 270 990 297 1180 330 1320 336Z"/>
+      <path fill="#d3d3d3" d="M0 80 210 110 380 238 520 303 690 327 880 363 1000 404 970 461 800 489 630 544 540 620 0 780Z"/>
+      <path fill="#bdbdbd" d="M0 373 200 417 360 495 580 539 736 610 920 685 950 840H0Z"/>
+      <path fill="#f7f7f7" stroke="#aaa" stroke-width="2" d="M430 840C605 716 1184 680 1294 603S1420 494 1170 453C1080 438 1008 424 990 400L1019 397C1052 423 1181 427 1270 444C1532 494 1627 562 1484 645S1222 790 1195 840Z"/>
+      <path fill="none" stroke="#d0d0d0" stroke-width="3" d="M811 840C858 756 1393 664 1417 570S1125 447 1006 399"/>
+      <path fill="none" stroke="#ccc" stroke-width="2" d="M1640 389H1940M1590 422H1850"/>
+      <use href="#A-car" x="1346" y="530" width="140" height="67"/>
+    
+  </svg>

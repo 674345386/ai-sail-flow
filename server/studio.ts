@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { dataDir, uploadDir } from './store';
 import { generateImage, imageGenerationStatus, type ImageReference } from './image-generation';
 import type { GenerationTask } from '../shared/generation-task';
+import { findRadarItem, registerRadarRoutes } from './radar';
 
 /** FEATURE_STUDIO defaults true; set FEATURE_STUDIO=0|false to disable API. */
 export const FEATURE_STUDIO = !['0', 'false', 'off'].includes(String(process.env.FEATURE_STUDIO || 'true').toLowerCase());
@@ -218,63 +219,6 @@ function saveJob(job: CreativeJob) {
   return updated;
 }
 
-function placeholderThumb(seed: string, label: string) {
-  const safe = encodeURIComponent(label);
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="800" viewBox="0 0 640 800">
-    <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#1d2140"/><stop offset="55%" stop-color="#14151c"/><stop offset="100%" stop-color="#2a3158"/>
-    </linearGradient></defs>
-    <rect width="640" height="800" fill="url(#g)"/>
-    <circle cx="320" cy="300" r="88" fill="#5e6ad233" stroke="#717ee4" stroke-width="3"/>
-    <text x="320" y="480" text-anchor="middle" fill="#c5ccff" font-family="sans-serif" font-size="36">${safe}</text>
-    <text x="320" y="530" text-anchor="middle" fill="#92949f" font-family="sans-serif" font-size="18">${seed.slice(0, 8)}</text>
-  </svg>`;
-  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
-}
-
-function sampleTrends(query: string, platform?: string): TrendItem[] {
-  const now = new Date().toISOString();
-  const plat = platform || 'TikTok';
-  const base = [
-    {
-      title: `${query || '爆款'} · 开箱 3 秒钩子`,
-      author: 'commerce.lab',
-      tags: ['开箱', '钩子', '产品特写'],
-      metrics: { views: 2_480_000, likes: 186_000, comments: 9200, shares: 14_200 },
-      analysis: { hook: '首帧特写 + 反常识提问', pacing: '快切 0.8–1.2s', sellingPoints: ['便携', '颜值', '场景演示'], summary: '前 2 秒抓住注意力，中段演示使用，结尾强 CTA。' },
-    },
-    {
-      title: `${query || '热片'} · 场景种草日更`,
-      author: 'scene.daily',
-      tags: ['场景', '生活方式', '口播'],
-      metrics: { views: 980_000, likes: 74_000, comments: 4100, shares: 6200 },
-      analysis: { hook: '生活痛点旁白', pacing: '中速叙事', sellingPoints: ['痛点共鸣', '前后对比'], summary: '生活场景起手，产品自然入镜，适合品牌感投放。' },
-    },
-    {
-      title: `${query || '趋势'} · UGC 真实测评`,
-      author: 'ugc.proof',
-      tags: ['测评', 'UGC', '信任'],
-      metrics: { views: 1_560_000, likes: 121_000, comments: 15_800, shares: 9800 },
-      analysis: { hook: '真实评价字幕', pacing: '稳定口播', sellingPoints: ['社会证明', '细节特写'], summary: '测评结构清晰，适合转化为卖点图与口播脚本。' },
-    },
-  ];
-  return base.map((item, index) => {
-    const id = `trend-${Buffer.from(`${query}|${plat}|${index}`).toString('base64url').slice(0, 12)}`;
-    return {
-      id,
-      platform: plat === '全部平台' ? ['TikTok', 'Instagram', 'YouTube Shorts'][index] : plat,
-      url: `https://example.com/watch/${id}`,
-      thumbnail: placeholderThumb(id, item.tags[0] || 'Trend'),
-      title: item.title,
-      author: item.author,
-      metrics: item.metrics,
-      tags: item.tags,
-      capturedAt: now,
-      analysis: item.analysis,
-    } satisfies TrendItem;
-  });
-}
-
 class StudioHttpError extends Error {
   constructor(public status: number, message: string, public extra?: Record<string, unknown>) { super(message); }
 }
@@ -461,6 +405,7 @@ export function registerStudioRoutes(app: Express) {
     if (!FEATURE_STUDIO) return res.status(404).json({ error: '爆款工作室未启用。' });
     next();
   });
+  registerRadarRoutes(app);
 
   app.get('/api/studio/projects', (_req, res) => {
     const list = [...projects.values()].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
@@ -501,8 +446,9 @@ export function registerStudioRoutes(app: Express) {
       query: z.string().trim().min(1).max(120),
       platform: z.string().trim().max(40).optional(),
     }).parse(req.body || {});
-    const items = sampleTrends(body.query, body.platform);
-    res.json({ query: body.query, items, searchedAt: new Date().toISOString() });
+    // Compatibility endpoint reads real saved evidence; discovery uses /radar/run.
+    const item = findRadarItem(body.query);
+    res.json({ query: body.query, items: item ? [{ ...item, author: item.author || '', thumbnail: item.thumbnail || '', analysis: { summary: item.excerpt } }] : [], searchedAt: new Date().toISOString() });
   });
 
   app.post('/api/studio/creatives/generate', (req, res, next) => {
@@ -649,6 +595,8 @@ export function registerStudioRoutes(app: Express) {
       title: z.string().trim().max(120).optional(),
       brief: z.string().trim().max(2000).optional(),
     }).parse(req.body || {});
+    const sourceTrend = findRadarItem(body.trendId);
+    if (!sourceTrend || sourceTrend.kind !== 'video') throw new StudioHttpError(400, '请先从雷达选择已保存的视频线索。');
     const now = new Date().toISOString();
     const project = saveProject({
       id: randomUUID(),

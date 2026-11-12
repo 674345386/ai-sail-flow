@@ -350,8 +350,8 @@ export default function LandingBackground({ showControls = true, storageKey = KE
           {g === '色调 · Look' && <div className="lbg-row"><label><span>{bi('混合模式', 'Blend mode')}</span></label>
             <select value={cfg.blend} onChange={e => update({ blend: e.target.value as Config['blend'] })}><option value="normal">{plain('普通 normal', 'Normal')}</option><option value="screen">{plain('滤色 screen', 'Screen')}</option><option value="lighten">{plain('变亮 lighten', 'Lighten')}</option><option value="overlay">{plain('叠加 overlay', 'Overlay')}</option></select></div>}</div>)}
         </>}
-        <div className="lbg-btns">
-          <button type="button" onClick={togglePaused}>{paused ? bi('▶ 播放', en ? '▶ Play' : 'Play') : bi('⏸ 暂停', en ? '⏸ Pause' : 'Pause')}</button>
+        <div className={`lbg-btns${atmosphere ? ' lbg-btns--atmosphere' : ''}`}>
+          {!atmosphere && <button type="button" onClick={togglePaused}>{paused ? bi('▶ 播放', en ? '▶ Play' : 'Play') : bi('⏸ 暂停', en ? '⏸ Pause' : 'Pause')}</button>}
           <button type="button" onClick={randomizeCurrent}>{bi('🎲 随机', en ? '🎲 Randomize' : 'Randomize')}</button>
           <button type="button" onClick={resetCurrent}>{bi('↺ 重置', en ? '↺ Reset' : 'Reset')}</button>
           <button type="button" onClick={copy}>{bi('⧉ 复制 JSON', en ? '⧉ Copy JSON' : 'Copy')}</button>

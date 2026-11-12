@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2000 840" width="2000" height="840" role="img" aria-labelledby="D-scene-title D-scene-description">
+    <title id="D-scene-title">D 建筑广场 · 远景构图白模</title>
+    <desc id="D-scene-description">用建筑体量与一个很小的人物建立尺度。空间整洁、线条克制，适合设计与生活方式内容。</desc>
+    
+  <defs>
+    <symbol id="D-car" viewBox="0 0 180 86">
+      <g stroke="#777" stroke-width="2" stroke-linejoin="round">
+        <path fill="#fafafa" d="M12 48 32 41 59 16H111L141 39 166 47 173 59 168 70H12Z"/>
+        <path fill="#d3d3d3" d="M44 42 66 22H105L128 42Z"/>
+        <path fill="none" d="M92 23V42M17 55H164"/>
+        <circle fill="#b3b3b3" cx="43" cy="69" r="12"/><circle fill="#b3b3b3" cx="143" cy="69" r="12"/>
+        <circle fill="#e8e8e8" cx="43" cy="69" r="5"/><circle fill="#e8e8e8" cx="143" cy="69" r="5"/>
+      </g>
+    </symbol>
+    <symbol id="D-person" viewBox="0 0 32 86">
+      <g stroke="#818181" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle fill="#fafafa" cx="16" cy="10" r="7"/>
+        <path fill="#fafafa" d="M8 24 23 23 25 49 19 53 8 49Z"/>
+        <path fill="none" stroke-width="5" d="M10 53 8 79M21 54 27 79M6 27 3 47M25 27 30 45"/>
+      </g>
+    </symbol>
+  </defs><rect width="2000" height="840" fill="#fafafa"/>
+      <path fill="#ededed" d="M0 380 220 351 422 367 615 332 790 350 1005 380H2000V840H0Z"/>
+      <path fill="#e2e2e2" d="M0 482 2000 404V840H0Z"/>
+      <path fill="#f7f7f7" stroke="#b5b5b5" stroke-width="2" d="M1110 299 1665 206 1960 329 1424 438Z"/>
+      <path fill="#f0f0f0" stroke="#b5b5b5" stroke-width="2" d="M1110 299V527L1424 636V438Z"/>
+      <path fill="#d0d0d0" stroke="#b5b5b5" stroke-width="2" d="M1424 438 1960 329V514L1424 636Z"/>
+      <path fill="#bdbdbd" d="M1482 445 1875 366V484L1482 576Z"/>
+      <path fill="#ededed" d="M1511 440V568L1525 565V438Z"/>
+      <path fill="#f7f7f7" stroke="#bbb" stroke-width="2" d="M1110 527 1424 636 2000 501V555L1424 709 1022 557Z"/>
+      <path fill="none" stroke="#c8c8c8" stroke-width="2" d="M1424 709 1002 840M1022 557 0 717M1850 595 1840 840"/>
+      <use href="#D-person" x="1210" y="486" width="28" height="76"/>
+    
+  </svg>

@@ -12,6 +12,7 @@ import { MODEL, defaultReplication, defaultWorkspace, projectPatchSchema, valida
 import { buildExportFiles, buildVeoUnitPrompt } from '../shared/export';
 import { buildVeoPlan } from '../shared/veo-plan';
 import { workflowBusy } from '../shared/workflow';
+import { sentAgentAttachmentIds } from '../shared/agent-message';
 import { keyframeCurrent } from '../shared/storyboard';
 import type { GenerationInput } from './veo';
 import { createSessionVerifier } from './session-verifier';
@@ -23,8 +24,13 @@ import { GET as getIntelligentStreetRoute } from './intelligent-ui/street-route'
 import { IMAGE_RATIO_PATTERN, IMAGE_SIZE_PATTERN, IMAGE_RATIO_SIZES, IMAGE_SIZE_LIMITS, IMAGE_QUALITIES, imageRequestSize } from '../shared/image-generation-options';
 import { isAgentAdaptation } from '../shared/agent-adaptation';
 import { isAgentPresentation } from '../shared/agent-presentation';
-import { emptyExperiment, experimentAgentContext, experimentOperation, ExperimentError } from '../shared/experiment';
-import { importExperimentSkillInput, bindExperimentInput, readGitHubSkill, attachExperimentSkill, bindExperimentSource, experimentSources } from './experiment-workbench';
+import { minimaxVideoRecoverable } from '../shared/minimax-video';
+import { applyExperimentOperation, emptyExperiment, experimentAgentContext, experimentOperation, ExperimentError } from '../shared/experiment';
+import { assertExperimentRouteExecution, ExperimentPlanningError } from '../shared/experiment-planning';
+import { prepareExperimentProposal } from './experiment-planner';
+import { importExperimentSkillInput, bindExperimentInput, readGitHubSkill, attachExperimentSkill, bindExperimentSource, experimentSources, syncExperimentSources } from './experiment-workbench';
+import { skillSelectionSchema } from '../shared/skill-assets';
+import { createLandingPageStore, registerLandingPageReadRoutes, registerLandingPageWriteRoutes } from './landing-editor';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 try { process.loadEnvFile(path.join(root, '.env')); } catch (err) { if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err; }
@@ -37,15 +43,20 @@ if (process.env.NODE_USE_ENV_PROXY === '1') {
 // Load storage after .env so an optional data-directory override takes effect.
 const { createProject, getProject, listProjects, saveProject, uploadDir, defaultProjectId, createWorkspaceProject, getWorkspaceProject, listWorkspaceProjects, saveWorkspaceProject } = await import('./store');
 const { configured, configureConnection, checkModelConnection, correctTierShot, detectTierSubjects, generateTierSubjectImage } = await import('./gemini');
+const { generateLlm, llmStatus } = await import('./llm');
+const { GptError } = await import('./gpt');
 const { imageGenerationStatus, configureImageGeneration, generateImage, IMAGE_MODELS } = await import('./image-generation');
 const { generationTasks, generationTaskList } = await import('./generation-tasks');
 const { VEO_MODELS, VEO_DURATION, configureGenerationKey, generationConfigured } = await import('./veo');
-const { minimaxVideoStatus, startMinimaxVideo, recoverMinimaxVideo, getMinimaxVideoDetails } = await import('./minimax-video');
+const { minimaxVideoStatus, startMinimaxVideo, recoverMinimaxVideo, getMinimaxVideoDetails, startMinimaxReconciler } = await import('./minimax-video');
 const { MinimaxError } = await import('./minimax-h3');
 const { listTtsVoices } = await import('./compose');
 const { launchTask, TaskError } = await import('./tasks');
-const { agentInternalToken, getAgentState, getAgentImageReferences, subscribeAgent, startAgentTurn, steerAgentTurn, queueAgentMessage, removeQueuedAgentMessage, editQueuedAgentMessage, steerQueuedAgentMessage, resumeAgentQueue, AgentTurnConflictError, interruptAgentTurn, setAgentModel, setAgentAdaptation, setAgentPresentation, listAgentModels, noteAgentVideoChanged, showAgentCanvasComponent, showAgentIntelligentUI, updateAgentCanvasComponent, closeAgentCanvasComponent, setAgentExperiment, mutateAgentExperiment } = await import('./creative-agent');
+const { agentInternalToken, getAgentState, getAgentActivity, getAgentImageReferences, subscribeAgent, startAgentTurn, steerAgentTurn, queueAgentMessage, removeQueuedAgentMessage, editQueuedAgentMessage, steerQueuedAgentMessage, resumeAgentQueue, AgentTurnConflictError, interruptAgentTurn, setAgentModel, setAgentAdaptation, setAgentPresentation, listAgentModels, noteAgentVideoChanged, showAgentCanvasComponent, showAgentIntelligentUI, updateAgentCanvasComponent, closeAgentCanvasComponent, setAgentExperiment, mutateAgentExperiment } = await import('./creative-agent');
 const { programmaticEnabled, experimentWorkspace, publishExperimentFile, publishExperimentFileInput } = await import('./experiment-runtime');
+const { registerSkillInternalRoutes, registerSkillExperimentRoutes, registerSkillAssetRoutes, applyInitialSkills, prepareSkillSelections, verifySkillAsset } = await import('./skill-asset-routes');
+const { officialJobFor, getSkillAsset } = await import('./skill-assets');
+const { discoverExperimentMethods, readExperimentMethod, methodSearchInput, methodReadInput } = await import('./experiment-methods');
 const { canvasComponentInput } = await import('../shared/agent-canvas-ui');
 const { getVideoAnalysisMethod, setVideoAnalysisMethod } = await import('./video-analysis-settings');
 const { launchRemix, RemixError } = await import('./remix');
@@ -58,6 +69,7 @@ await initializeMediaLibrary();
 const { configureKeyframeStorage, keyframeStorageStatus } = await import('./keyframe-storage');
 const port = Number(process.env.SOP_PORT || 4317);
 const app = express();
+const skillAgentAccess = { getAgentState, setAgentExperiment, startAgentTurn, interruptAgentTurn, subscribeAgent };
 app.disable('x-powered-by');
 const publicAuthEnabled = process.env.SOP_REQUIRE_AUTH === 'true';
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
@@ -114,6 +126,8 @@ app.use((req, res, next) => {
   next();
 });
 app.use(express.json({ limit: '3mb' }));
+const landingPageStore = createLandingPageStore(path.resolve(process.env.SOP_DATA_DIR || path.join(root, 'data')));
+registerLandingPageReadRoutes(app, landingPageStore);
 function intelligentDataRoute(handler: (request: globalThis.Request) => Promise<globalThis.Response>) {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -143,6 +157,7 @@ app.use('/api/agent-internal/:id', (req, res, next) => {
   if (!['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(remote) || req.get('X-SOP-Agent-Token') !== agentInternalToken) return res.sendStatus(403);
   next();
 });
+registerSkillInternalRoutes(app, skillAgentAccess);
 app.get('/api/agent-internal/:id', (req, res) => {
   const p = record(req);
   res.json({ id: p.id, title: p.title, revision: p.revision, video: p.assets.find(asset => asset.kind === 'video') ? (() => { const v = p.assets.find(asset => asset.kind === 'video')!; return { id: v.id, name: v.name, duration: v.duration }; })() : null,
@@ -154,6 +169,8 @@ app.get('/api/agent-internal/:id', (req, res) => {
     experiment: experimentAgentContext(getAgentState(p.id).experiment || emptyExperiment()),
     programmatic: { enabled: programmaticEnabled(), workspace: programmaticEnabled() ? experimentWorkspace(p.id) : undefined, publishTool: 'publish_experiment_file' },
     intelligentPanel: getAgentState(p.id).intelligentPanel && { id: getAgentState(p.id).intelligentPanel!.id, title: getAgentState(p.id).intelligentPanel!.title },
+    audioReferences: p.assets.filter(asset => asset.kind === 'audio').map(asset => ({ id: asset.id, name: asset.name, url: asset.url, mime: asset.mime, duration: asset.duration,
+      localPath: getAgentState(p.id).messages.flatMap(message => message.audios || []).find(audio => audio.id === asset.id)?.localPath })),
     imageReferences: [
       ...p.assets.filter(asset => asset.kind === 'product' && /^image\/(png|jpeg|webp)$/.test(asset.mime)).map(asset => ({ id: asset.id, name: asset.name })),
       ...getAgentImageReferences(p.id).filter(image => !p.assets.some(asset => asset.id === image.id)).map(image => ({ id: image.id, name: image.name })),
@@ -164,11 +181,18 @@ app.get('/api/agent-internal/:id', (req, res) => {
     breakdownType: p.breakdownType, analysis: p.analysis && { summary: p.analysis.summary, duration: p.analysis.duration, shots: p.analysis.shots.map(shot => ({ id: shot.id, start: shot.start, end: shot.end, visual: shot.visual })) },
     grids: (p.storyboardGrids || []).map(grid => ({ id: grid.id, start: grid.start, end: grid.end, prompt: grid.prompt, included: grid.included !== false })),
     job: p.job && { id: p.job.id, kind: p.job.kind, status: p.job.status, progress: p.job.progress, message: p.job.message },
-    videos: p.generatedVideos.map(video => ({ id: video.id, provider: video.provider, gridId: video.storyboardGridId, prompt: video.prompt, model: video.model, resolution: video.resolution, aspectRatio: video.aspectRatio, duration: video.duration, referenceIds: video.referenceIds, firstLastFrame: video.model === 'h3-video-frames' || video.providerRequest?.first_last_frame || false, requestId: video.requestId, upstreamStatus: video.minimax?.upstreamStatus, recoverable: video.status === 'failed' && Boolean(video.requestId || video.minimax?.request), status: video.status, url: video.url, error: video.error })),
+    videos: p.generatedVideos.map(video => ({ id: video.id, provider: video.provider, gridId: video.storyboardGridId, prompt: video.prompt, model: video.model, resolution: video.resolution, aspectRatio: video.aspectRatio, duration: video.duration, referenceIds: video.referenceIds, firstLastFrame: video.model === 'h3-video-frames' || video.providerRequest?.first_last_frame || false, requestId: video.requestId, upstreamStatus: video.minimax?.upstreamStatus, recoverable: video.provider === 'minimax-h3' ? minimaxVideoRecoverable(video) : video.status === 'failed' && Boolean(video.requestId), recoveryPending: video.minimax?.recoveryPending, status: video.status, url: video.url, error: video.error })),
   });
 });
 function registerExperimentRoutes(prefix: string) {
+  registerSkillExperimentRoutes(app, prefix, skillAgentAccess);
   const writable = (req: Request) => { const p = record(req); if (p.archivedAt) throw new HttpError(409, '请先恢复已归档创意。'); return p; };
+  app.post(`${prefix}/experiment/methods/search`, async (req, res, next) => {
+    try { const p = record(req); res.json(await discoverExperimentMethods(getAgentState(p.id).experiment || emptyExperiment(), methodSearchInput.parse(req.body))); } catch (error) { next(error); }
+  });
+  app.post(`${prefix}/experiment/methods/read`, async (req, res, next) => {
+    try { record(req); res.json(await readExperimentMethod(methodReadInput.parse(req.body))); } catch (error) { next(error); }
+  });
   app.get(`${prefix}/experiment`, (req, res) => { const p = record(req), graph = getAgentState(p.id).experiment || emptyExperiment(); res.json({ graph, sources: experimentSources(p, graph.files) }); });
   app.get(`${prefix}/experiment/nodes/:nodeId`, (req, res) => {
     const p = record(req), graph = getAgentState(p.id).experiment, node = graph?.nodes.find(n => n.id === req.params.nodeId);
@@ -176,10 +200,46 @@ function registerExperimentRoutes(prefix: string) {
     res.json({ ...node, plan: graph?.plans?.find(plan => plan.id === node.planId), run: graph?.runs?.find(run => run.id === node.runId), ...(node.kind === 'step' ? { executions: graph?.runs?.filter(run => run.stepId === node.id).slice(-10).map(({ method, ...run }) => ({ ...run, methodId: method.id, methodTitle: method.title })) } : {}) });
   });
   app.post(`${prefix}/experiment`, (req, res) => {
-    const p = writable(req), { expectedRevision, ...operation } = req.body || {};
+    const p = writable(req), { expectedRevision, ...input } = req.body || {};
     const graph = getAgentState(p.id).experiment || emptyExperiment();
     if (expectedRevision !== undefined && expectedRevision !== graph.revision) throw new HttpError(409, '实验台已被 Agent 或其他窗口更新，请重新查看后再保存。');
-    res.json(mutateAgentExperiment(p.id, experimentOperation.parse(operation)));
+    let operation = experimentOperation.parse(input);
+    const internal = prefix.startsWith('/api/agent-internal/');
+    if (internal && operation.op === 'policy') throw new HttpError(403, '实验设置由用户在空间中调整。');
+    if (internal && operation.op === 'select-routes') {
+      const { proposalId } = operation;
+      if (graph.proposals?.find(proposal => proposal.id === proposalId)?.policy.decision !== 'auto') throw new HttpError(403, '请等待用户在实验台选择路线。');
+    }
+    if (!internal && ['policy', 'select-routes'].includes(operation.op) && getAgentState(p.id).status === 'running') throw new HttpError(409, 'Agent 正在执行，请结束后再调整实验设置或路线。');
+    if (operation.op === 'propose-routes' || operation.op === 'select-routes') {
+      const references = new Set([
+        ...p.assets.filter(asset => asset.kind === 'product' && /^image\//.test(asset.mime)).map(asset => asset.id),
+        ...getAgentImageReferences(p.id).map(image => image.id),
+        ...(p.agentImages || []).filter(image => image.status === 'completed').map(image => image.id),
+        ...(p.storyboardGrids || []).map(grid => grid.id),
+      ]);
+      const capabilities = { programmatic: programmaticEnabled(), image: imageGenerationStatus().configured, omni: generationConfigured(), minimax: minimaxVideoStatus().configured, referenceStorage: keyframeStorageStatus().configured };
+      if (operation.op === 'propose-routes') operation = prepareExperimentProposal(operation, graph, capabilities, references);
+      else {
+        const { proposalId, routeIds } = operation;
+        const proposal = graph.proposals?.find(item => item.id === proposalId);
+        if (!proposal) throw new HttpError(404, '找不到这份路线提案，请刷新后重试。');
+        const checked = prepareExperimentProposal({ op: 'propose-routes', brief: proposal.brief, families: proposal.families, routes: proposal.routes.filter(route => routeIds.includes(route.id)) }, graph, capabilities, references);
+        const blocked = checked.routes.find(route => route.readiness !== 'ready');
+        if (blocked) throw new HttpError(409, `「${blocked.title}」的条件已变化：${blocked.readinessReason}`);
+      }
+    }
+    if (operation.op === 'propose-routes' || operation.op === 'select-routes') {
+      let updated = applyExperimentOperation(graph, operation, randomUUID);
+      const sources = [...experimentSources(p, updated.files), ...getAgentImageReferences(p.id).map(image => ({ id: image.id, title: image.name, url: image.url, mediaType: 'image' as const, status: 'completed' as const }))];
+      updated = { ...updated, nodes: updated.nodes.map(node => {
+        if (!node.sourceId || graph.nodes.some(old => old.id === node.id)) return node;
+        const source = sources.find(item => item.id === node.sourceId);
+        return source ? { ...node, title: source.title.slice(0, 120), url: source.url, mediaType: source.mediaType, status: source.status } : node;
+      }) };
+      return res.json(setAgentExperiment(p.id, syncExperimentSources(updated, p)!));
+    }
+    res.json(mutateAgentExperiment(p.id, operation));
   });
   app.post(`${prefix}/experiment/skill`, async (req, res, next) => {
     try {
@@ -221,7 +281,8 @@ app.post('/api/agent-internal/:id/intelligent-ui', (req, res) => {
   const { title, source } = z.object({ title: z.string().trim().min(1).max(100), source: z.string().min(1).max(120000) }).parse(req.body);
   res.json(showAgentIntelligentUI(p.id, title, source));
 });
-function checkGenerationExperiment(req: Request, p: Project) {
+function checkGenerationExperiment(req: Request, p: Project, tool: string) {
+  assertExperimentRouteExecution(getAgentState(p.id).experiment || emptyExperiment(), req.body?.stepId, tool);
   if (!req.body?.stepId) return;
   const graph = getAgentState(p.id).experiment, step = graph?.nodes.find(node => node.id === req.body.stepId);
   if (!step || step.kind !== 'step') throw new HttpError(400, '制作步骤不存在，尚未提交生成任务。');
@@ -237,7 +298,7 @@ function trackGenerationExperiment(req: Request, p: Project, sourceId: string) {
 }
 function startAgentImage(req: Request, res: Response) {
   const p = record(req);
-  checkGenerationExperiment(req, p);
+  checkGenerationExperiment(req, p, 'generate_image');
   if (p.archivedAt) throw new HttpError(409, '请先恢复已归档创意。');
   if (!imageGenerationStatus().configured) throw new HttpError(503, '请先连接图片生成服务。');
   if (p.agentImages?.some(image => image.status === 'running')) throw new HttpError(409, '已有图片正在生成，请等待完成。');
@@ -290,7 +351,7 @@ const agentVideoSchema = z.object({
 function startAgentVideo(firstLastFrame: boolean) {
   return (req: Request, res: Response) => {
     const p = record(req); editable(p);
-    checkGenerationExperiment(req, p);
+    checkGenerationExperiment(req, p, firstLastFrame ? 'generate_first_last_frame_video' : 'generate_video');
     if (p.archivedAt) throw new HttpError(409, '请先恢复已归档创意。');
     if (!generationConfigured()) throw new HttpError(503, '请先连接视频生成服务。');
     if (p.generatedVideos.filter(video => video.unitId?.startsWith('agent-video-')).length >= 50) throw new HttpError(409, '当前创意已达到 50 个独立视频上限。');
@@ -327,7 +388,7 @@ app.post('/api/agent-internal/:id/videos', startAgentVideo(false));
 app.post('/api/agent-internal/:id/videos/first-last-frame', startAgentVideo(true));
 app.post('/api/agent-internal/:id/videos/minimax', (req, res) => {
   const p = record(req);
-  checkGenerationExperiment(req, p);
+  checkGenerationExperiment(req, p, 'generate_minimax_video');
   if (uploadsInProgress.has(p.id)) throw new HttpError(409, '请等待素材上传完成。');
   const userMessageId = getAgentState(p.id).messages.filter(message => message.role === 'user').at(-1)?.id;
   const result = startMinimaxVideo(p, req.body, getAgentImageReferences(p.id), userMessageId || p.id);
@@ -365,7 +426,7 @@ app.post('/api/agent-internal/:id/grids/:gridId/prompt', (req, res) => {
 });
 app.post('/api/agent-internal/:id/grids/:gridId/generate', (req, res) => {
   const p = record(req); editable(p);
-  checkGenerationExperiment(req, p);
+  checkGenerationExperiment(req, p, 'generate_grid_video');
   if (p.archivedAt) throw new HttpError(409, '请先恢复已归档创意。');
   const grid = p.storyboardGrids?.find(item => item.id === String(req.params.gridId));
   if (!grid || grid.included === false || !grid.prompt.trim()) throw new HttpError(409, '分镜网格未就绪。');
@@ -376,7 +437,7 @@ app.post('/api/agent-internal/:id/grids/:gridId/generate', (req, res) => {
   if (videoId) trackGenerationExperiment(req, p, videoId);
   res.status(202).json({ started: true, gridId: grid.id, videoId: getProject(p.id)?.job?.videoId, jobId });
 });
-app.get('/api/status', (_req, res) => res.json({ model: MODEL, keyframeModel: imageGenerationStatus().model, configured: configured(), imageGeneration: imageGenerationStatus(), local: !publicAuthEnabled, maxVideoMB: 250, maxImageMB: 10, videoAnalysisMethod: getVideoAnalysisMethod(), minimaxVideoGeneration: minimaxVideoStatus(), keyframeStorage: keyframeStorageStatus(), videoGeneration: { provider: 'veo-3.1', models: VEO_MODELS, configured: generationConfigured(), duration: VEO_DURATION } }));
+app.get('/api/status', (_req, res) => res.json({ model: MODEL, keyframeModel: imageGenerationStatus().model, configured: configured(), llm: llmStatus(), imageGeneration: imageGenerationStatus(), local: !publicAuthEnabled, maxVideoMB: 250, maxImageMB: 10, videoAnalysisMethod: getVideoAnalysisMethod(), minimaxVideoGeneration: minimaxVideoStatus(), keyframeStorage: keyframeStorageStatus(), videoGeneration: { provider: 'veo-3.1', models: VEO_MODELS, configured: generationConfigured(), duration: VEO_DURATION } }));
 app.post('/api/auth/session', async (req, res) => {
   if (!publicAuthEnabled) return res.sendStatus(204);
   const token = bearerToken(req);
@@ -403,9 +464,15 @@ app.use('/api', async (req, res, next) => {
     const allowed = await isAllowedToken(bearerToken(req));
     res.setHeader('Server-Timing', `auth;dur=${(performance.now() - started).toFixed(1)}`);
     if (!allowed) return res.status(401).json({ error: '请先登录，或重新登录后继续。' });
+    const verifiedPayload = JSON.parse(Buffer.from(bearerToken(req).split('.')[1], 'base64url').toString('utf8'));
+    if (typeof verifiedPayload.sub !== 'string' || !verifiedPayload.sub) return res.status(401).json({ error: '登录身份无效。' });
+    res.locals.skillOwnerId = verifiedPayload.sub;
     return next();
   } catch { return res.status(503).json({ error: '登录服务暂时不可用，请稍后重试。' }); }
 });
+const landingEditorUsers = new Set((process.env.SOP_LANDING_EDITOR_USER_IDS || '').split(',').map(value => value.trim()).filter(Boolean));
+registerLandingPageWriteRoutes(app, landingPageStore, (_req, res) => !publicAuthEnabled || landingEditorUsers.has(String(res.locals.skillOwnerId || '')));
+app.post('/api/llm/responses', async (req, res) => { res.json(await generateLlm(req.body)); });
 app.use('/media', async (req, res, next) => {
   if (!publicAuthEnabled) return next();
   try {
@@ -417,6 +484,15 @@ app.use('/media', async (req, res, next) => {
   } catch { return res.status(503).json({ error: '登录服务暂时不可用，请稍后重试。' }); }
 });
 const agentEnabled = !publicAuthEnabled || process.env.SOP_AGENT_ENABLED === 'true' && !!process.env.SOP_AGENT_CODEX_HOME;
+app.get('/api/agent/activity', (_req, res) => {
+  if (!agentEnabled) return res.json({});
+  res.json(Object.fromEntries(listProjects().filter(project => !officialJobFor(project.id)).map(project => [project.id, getAgentActivity(project.id)])));
+});
+app.use('/api/projects/:id', (req, res, next) => {
+  if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method) && officialJobFor(String(req.params.id))) return res.status(403).json({ error: '官方实验记录只读。请采用资产，在自己的创意中继续创作。' });
+  next();
+});
+registerSkillAssetRoutes(app, skillAgentAccess, agentEnabled);
 app.use('/api/projects/:id/agent', (req, res, next) => {
   if (!agentEnabled) return res.status(503).json({ error: '创作 Agent 当前仅开放内部体验。' });
   if (!getProject(String(req.params.id))) return res.status(404).json({ error: '找不到这个创意。' });
@@ -439,6 +515,7 @@ app.post('/api/projects/:id/agent/intelligent-tool', async (req, res, next) => {
     const { name, args } = z.object({ name: z.string().min(1).max(120), args: z.record(z.string(), z.unknown()).default({}) }).parse(req.body);
     const tool = name.replace(/^sail_creation\//, '');
     const routes: Record<string, string> = {
+      discover_experiment_methods: '/experiment/methods/search', read_experiment_method: '/experiment/methods/read',
       get_creative: '', show_intelligent_ui: '/intelligent-ui', show_canvas_component: '/canvas-components', analyze_reference: '/analyze',
       generate_image: '/images', generate_video: '/videos', generate_first_last_frame_video: '/videos/first-last-frame', generate_minimax_video: '/videos/minimax',
       recover_video: `/videos/${encodeURIComponent(String(args.videoId || ''))}/recover`,
@@ -488,8 +565,8 @@ app.get('/api/projects/:id/agent/events', (req, res) => {
 app.post('/api/projects/:id/agent/turns', async (req, res, next) => {
   try {
     if (record(req).archivedAt) throw new HttpError(409, '请先恢复已归档创意。');
-    const { prompt, imageIds, videoIds, attachmentOrder } = z.object({ prompt: z.string().min(1).max(6000).refine(value => !!value.trim(), '请输入消息。'), imageIds: z.array(z.string().min(1)).max(3).optional(), videoIds: z.array(z.string().min(1)).max(1).optional(), attachmentOrder: z.array(z.string().min(1)).max(4).optional() }).parse(req.body);
-    res.status(202).json(await startAgentTurn(String(req.params.id), prompt, imageIds, videoIds, attachmentOrder));
+    const { prompt, imageIds, videoIds, audioIds, attachmentOrder } = z.object({ prompt: z.string().min(1).max(6000).refine(value => !!value.trim(), '请输入消息。'), imageIds: z.array(z.string().min(1)).max(3).optional(), videoIds: z.array(z.string().min(1)).max(1).optional(), audioIds: z.array(z.string().min(1)).max(1).optional(), attachmentOrder: z.array(z.string().min(1)).max(5).optional() }).parse(req.body);
+    res.status(202).json(await startAgentTurn(String(req.params.id), prompt, imageIds, videoIds, attachmentOrder, audioIds));
   } catch (error) { next(error instanceof HttpError || error instanceof z.ZodError ? error : error instanceof Error ? new HttpError(error.message.includes('正在执行') ? 409 : 503, error.message) : error); }
 });
 app.post('/api/projects/:id/agent/steer', async (req, res, next) => {
@@ -622,17 +699,33 @@ app.get('/api/workspace/projects/:id/creatives', (req, res) => {
   res.json(listProjects().filter(creative => creative.parentProjectId === id));
 });
 // Existing production endpoints continue to address individual creatives.
-app.get('/api/projects', (_req, res) => res.json(listProjects()));
+app.get('/api/projects', (_req, res) => res.json(listProjects().filter(project => !officialJobFor(project.id))));
 app.get('/api/generation-tasks', (req, res) => res.json(generationTaskList(typeof req.query.q === 'string' ? req.query.q.slice(0, 500) : '')));
 app.get('/api/generation-tasks/:taskId', (req, res) => {
   const task = generationTasks().find(item => item.id === String(req.params.taskId));
   if (!task) throw new HttpError(404, '找不到这个生成任务，请刷新任务列表。');
   res.json(task);
 });
-app.post('/api/projects', (req, res) => {
-  const { demo, parentProjectId, title } = z.object({ demo: z.boolean().default(false), parentProjectId: z.uuid().default(defaultProjectId), title: z.string().trim().min(1).max(120).optional() }).parse(req.body || {});
+app.post('/api/generation-tasks/:taskId/recover', (req, res) => {
+  const task = generationTasks().find(item => item.id === String(req.params.taskId));
+  if (!task?.creativeId || !task.id.startsWith('video:')) throw new HttpError(404, '找不到可恢复查询的视频任务。');
+  if (officialJobFor(task.creativeId)) throw new HttpError(403, '官方实验记录只读，请在自己的创意中继续。');
+  const project = getProject(task.creativeId);
+  if (!project) throw new HttpError(404, '找不到所属创意。');
+  recoverMinimaxVideo(project, task.id.slice('video:'.length));
+  res.status(202).json(generationTasks().find(item => item.id === task.id));
+});
+app.post('/api/projects', async (req, res) => {
+  const { demo, parentProjectId, title, skills } = z.object({ demo: z.boolean().default(false), parentProjectId: z.uuid().default(defaultProjectId), title: z.string().trim().min(1).max(120).optional(), skills: z.array(skillSelectionSchema).max(8).default([]) }).parse(req.body || {});
   if (!getWorkspaceProject(parentProjectId)) throw new HttpError(404, '所属项目不存在。');
-  res.status(201).json(createProject(demo, parentProjectId, title));
+  const preparedSkills = await prepareSkillSelections(skills, String(res.locals.skillOwnerId || 'local'));
+  const created = createProject(demo, parentProjectId, title);
+  applyInitialSkills(created.id, preparedSkills, String(res.locals.skillOwnerId || 'local'), skillAgentAccess);
+  for (const selection of preparedSkills) {
+    const owner = String(res.locals.skillOwnerId || 'local'), asset = getSkillAsset(selection.assetId, owner);
+    if (asset.visibility === 'public') void verifySkillAsset(asset.id, owner, selection.releaseId, skillAgentAccess, agentEnabled, true).catch(error => console.warn(`Skill verification could not start: ${error instanceof Error ? error.message : 'unknown error'}`));
+  }
+  res.status(201).json(created);
 });
 app.get('/api/projects/:id', (req, res) => res.json(record(req)));
 app.put('/api/projects/:id/remix', (req, res) => {
@@ -914,12 +1007,18 @@ app.post('/api/projects/:id/remix-character', (req, res, next) => {
     });
   } catch (err) { next(err); }
 });
-async function uploadedAsset(file: Express.Multer.File, kind: 'video' | 'product'): Promise<Asset> {
+async function uploadedAsset(file: Express.Multer.File, kind: Asset['kind']): Promise<Asset> {
   if (kind === 'product' && file.size > 10 * 1024 * 1024) throw new HttpError(400, '单张产品图不能超过 10 MB。');
+  if (kind === 'audio' && file.size > 50 * 1024 * 1024) throw new HttpError(400, '单个音频文件不能超过 50 MB。');
   const metadata = await inspectMedia(file.filename, kind);
   return { id: randomUUID(), kind, name: Buffer.from(file.originalname, 'latin1').toString('utf8'), filename: file.filename, url: `/media/${file.filename}`, size: file.size, ...metadata };
 }
 function attachAsset(current: Project, asset: Asset) {
+  if (asset.kind === 'audio') {
+    const sent = sentAgentAttachmentIds(getAgentState(current.id).messages);
+    if (current.assets.some(item => item.kind === 'audio' && !sent.has(item.id))) throw new HttpError(400, '每条消息最多附加 1 个音频文件。');
+    return saveProject({ ...current, assets: [...current.assets, asset] });
+  }
   const video = asset.kind === 'video';
   if (!video && current.assets.filter(item => item.kind === 'product').length >= 3) throw new HttpError(400, '最多上传 3 张产品参考图。');
   const updated = saveProject({ ...current, assets: video ? [...current.assets.filter(item => item.kind !== 'video'), asset] : [...current.assets, asset],
@@ -966,20 +1065,20 @@ app.post('/api/projects/:id/library-assets', async (req, res, next) => {
 app.post('/api/projects/:id/assets/:kind', (req, res, next) => {
   try {
     const p = record(req); editable(p);
-    if (!['video', 'product'].includes(String(req.params.kind))) throw new HttpError(400, '不支持的素材类型。');
+    if (!['video', 'product', 'audio'].includes(String(req.params.kind))) throw new HttpError(400, '不支持的素材类型。');
     if (req.params.kind === 'product' && p.assets.filter(a => a.kind === 'product').length >= 3) throw new HttpError(400, '最多上传 3 张产品参考图。');
     uploadsInProgress.add(p.id);
     uploader.single('file')(req, res, async error => {
       try {
         if (error) throw error;
         if (!req.file) throw new HttpError(400, '请选择一个文件。');
-        const kind = String(req.params.kind) as 'video' | 'product';
+        const kind = String(req.params.kind) as Asset['kind'];
         if (kind === 'product' && req.file.size > 10 * 1024 * 1024) throw new HttpError(400, '单张产品图不能超过 10 MB。');
         const asset = await uploadedAsset(req.file, kind);
-        await collectUploadedAsset(asset);
+        if (kind !== 'audio') await collectUploadedAsset(asset);
         const current = getProject(p.id)!;
         res.status(201).json(attachAsset(current, asset));
-        queueMediaSync(bearerToken(req));
+        if (kind !== 'audio') queueMediaSync(bearerToken(req));
       } catch (err) {
         if (req.file) {
           fs.unlink(req.file.path, () => {});
@@ -994,6 +1093,7 @@ app.delete('/api/projects/:id/assets/:assetId', (req, res) => {
   const p = record(req); editable(p);
   const asset = p.assets.find(a => a.id === req.params.assetId);
   if (!asset) throw new HttpError(404, '素材不存在。');
+  if (asset.kind === 'audio') { res.json(saveProject({ ...p, assets: p.assets.filter(item => item.id !== asset.id) })); return; }
   // Remove the association; retain local source files so replacement is recoverable.
   const updated = saveProject({ ...p, assets: p.assets.filter(a => a.id !== asset.id), ttsTimingNotice: undefined, analysis: asset.kind === 'video' ? null : p.analysis, analysisReview: asset.kind === 'video' ? { pendingIds: [], suggestions: {} } : p.analysisReview, analysisMeta: asset.kind === 'video' ? null : p.analysisMeta, storyboardGrids: asset.kind === 'video' ? [] : p.storyboardGrids, rewrite: asset.kind === 'video' ? null : p.rewrite, rewriteStale: asset.kind === 'product' && !!p.rewrite, generatedVideos: (p.generatedVideos || []).map(video => ({ ...video, stale: true })), composedVideos: (p.composedVideos || []).map(video => ({ ...video, stale: true })), job: null });
   if (asset.kind === 'video') noteAgentVideoChanged(updated.id);
@@ -1094,7 +1194,7 @@ const { registerStudioRoutes } = await import('./studio');
 registerStudioRoutes(app);
 app.use('/api', (_req, res) => res.status(404).json({ error: '接口不存在。' }));
 app.use((error: unknown, req: Request, res: Response, _next: NextFunction) => {
-  if (error instanceof HttpError || error instanceof TaskError || error instanceof RemixError || error instanceof ExperimentError || error instanceof MinimaxError) return res.status(error.status).json({ error: error.message });
+  if (error instanceof HttpError || error instanceof TaskError || error instanceof RemixError || error instanceof ExperimentError || error instanceof ExperimentPlanningError || error instanceof MinimaxError || error instanceof GptError) return res.status(error.status).json({ error: error.message });
   if (error instanceof z.ZodError) {
     const issues = error.issues.map(issue => ({ field: issue.path.join('.'), message: issue.message }));
     const agentRequest = req.path.startsWith('/api/agent-internal/');
@@ -1129,4 +1229,7 @@ if (process.argv.includes('--production')) {
   app.use(vite.middlewares);
 }
 const host = process.env.SOP_HOST || '127.0.0.1';
-app.listen(port, host, () => console.log(`AI-Sail Flow ready at http://${host}:${port} · ${MODEL} · Gemini ${configured() ? 'configured' : 'not configured'}`));
+app.listen(port, host, () => {
+  console.log(`AI Creative Lab ready at http://${host}:${port} · ${MODEL} · Gemini ${configured() ? 'configured' : 'not configured'}`);
+  startMinimaxReconciler(projectId => { getAgentState(projectId); });
+});

@@ -11,9 +11,9 @@ import { readAuthCallback, supabase } from './auth';
 //   /creative/<id>/analysis        step 1 · 视频拆解
 //   /creative/<id>/remix           step 2 · 人物与视频二创
 //   /creative/<id>/canvas          canvas view
-//   /studio                        爆款工作室 · 落地页（Creatify 风格）
-//   /studio/welcome                同上落地页别名
-//   /studio/home                   落地页别名
+//   /studio                        爆款工作室 · 热点研究台
+//   /studio/welcome                热点研究台别名
+//   /studio/home                   工作室介绍
 //   /studio/creatives              商品套图
 //   /studio/radar                  爆款雷达
 //   /studio/tvc                    TVC 成片
@@ -32,7 +32,7 @@ export type AppRoute =
 export const stepSlugs = ['upload', 'analysis', 'remix'] as const;
 const stepAliases: Record<string, number> = { upload: 0, materials: 0, analysis: 1, breakdown: 1, remix: 2, rewrite: 2 };
 export const stepTitles = ['素材', '拆解', '二创'];
-export const appTitle = 'AI-Sail Flow';
+export const appTitle = 'AI Creative Lab';
 
 const studioSections = new Set<string>(['welcome', 'home', 'creatives', 'radar', 'tvc', 'remake', 'projects']);
 
@@ -89,8 +89,8 @@ export function routePath(route: AppRoute): string {
 
 export function studioTitle(route: Extract<AppRoute, { kind: 'studio' }>): string {
   const labels: Record<StudioSection, string> = {
-    home: '爆款工作室',
-    welcome: '爆款工作室',
+    home: '工作室介绍',
+    welcome: '爆款雷达',
     creatives: '商品套图',
     radar: '爆款雷达',
     tvc: 'TVC 成片',

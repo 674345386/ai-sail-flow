@@ -29,7 +29,7 @@ export default function ResearchPage({ pathname, onNavigate }: { pathname: strin
   const currentPath = article ? articlePath(article.slug) : isArticleSection ? '/research/article' : '/research';
   const filtered = researchArticles.filter(item => `${item.title} ${item.subtitle} ${item.summary} ${item.tags.join(' ')}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()));
   useEffect(() => {
-    document.title = `${article?.title || (notFound ? '未找到文章' : isArticleSection ? 'Article' : 'Research')} · AI-Sail Flow`;
+    document.title = `${article?.title || (notFound ? '未找到文章' : isArticleSection ? 'Article' : 'Research')} · AI Creative Lab`;
   }, [article, isArticleSection, notFound]);
 
   const follow = (path: string) => (event: MouseEvent<HTMLAnchorElement>) => {
@@ -37,12 +37,12 @@ export default function ResearchPage({ pathname, onNavigate }: { pathname: strin
     event.preventDefault();
     onNavigate(path);
   };
-  const contents = article && <nav aria-label="本文目录">{article.sections.map(item => <a key={item.id} href={`#${item.id}`}>{item.title}</a>)}</nav>;
+  const contents = article && <nav aria-label="本文目录">{article.opening && <a href={`#${article.opening.id}`}>{article.opening.title}</a>}{article.sections.map(item => <a key={item.id} href={`#${item.id}`}>{item.title}</a>)}</nav>;
 
   return <div className="research-page" id="research-top">
     <a className="research-skip-link" href="#research-main">跳转到正文</a>
     <header className="research-site-header">
-      <a className="research-brand" href="/" aria-label="AI-Sail Flow 首页"><img src="/assets/brand/sail-mark-dark.svg" width={26} height={26} alt="" /><span>AI-Sail Flow</span></a>
+      <a className="research-brand" href="/" aria-label="AI Creative Lab 首页"><img src="/assets/brand/sail-mark-dark.svg" width={26} height={26} alt="" /><span>AI Creative Lab</span></a>
       <nav aria-label="站点导航"><a href="/research" aria-current="page" onClick={follow('/research')}>Research</a><a href={workspacePath()}><ArrowLeft size={14} />返回工作区</a></nav>
     </header>
     <div className="research-layout">
@@ -54,7 +54,7 @@ export default function ResearchPage({ pathname, onNavigate }: { pathname: strin
         {article ? <div className="research-toc"><p>本文目录</p>{contents}</div> : <p className="research-sidebar-note">记录模型、执行基座与<br />交互界面之间的研究。</p>}
       </aside>
       <main className="research-main" id="research-main">
-        <nav className="research-breadcrumbs" aria-label="当前位置"><a href="/research" onClick={follow('/research')}>Research</a>{isArticleSection && <><ChevronRight size={12} /><a href="/research/article" onClick={follow('/research/article')}>Article</a></>}{article && <><ChevronRight size={12} /><span>架构与交互</span></>}</nav>
+        <nav className="research-breadcrumbs" aria-label="当前位置"><a href="/research" onClick={follow('/research')}>Research</a>{isArticleSection && <><ChevronRight size={12} /><a href="/research/article" onClick={follow('/research/article')}>Article</a></>}{article && <><ChevronRight size={12} /><span>{article.category}</span></>}</nav>
         {isIndex ? <>
           <header className="research-index-heading"><h1>{isArticleSection ? 'Article' : 'Research'}</h1><p>{isArticleSection ? '关于系统、界面与智能协作的长篇记录。' : '把思考写下来，把设计放进真实的系统。'}</p></header>
           {!isArticleSection && <div className="research-focus-row">
@@ -68,11 +68,12 @@ export default function ResearchPage({ pathname, onNavigate }: { pathname: strin
             <div className="research-article-description"><div className="research-meta"><span>{item.category}</span><time dateTime={item.publishedAt}>{dateLabel(item.publishedAt)}</time></div><h2>{item.title}</h2><p>{item.summary}</p><div className="research-article-tags">{item.tags.map(tag => <span key={tag}>{tag}</span>)}</div><span className="research-read-link">阅读全文 <ArrowUpRight size={15} /><small>{readingLabel(item)}</small></span></div>
           </a>)}</div>
           {!filtered.length && <div className="research-empty"><h2>没有找到匹配的文章</h2><p>换一个关键词，或查看全部研究记录。</p><button type="button" className="research-button" onClick={() => setQuery('')}>清除搜索</button></div>}
-          <section className="research-index-note"><h2>关于这个栏目</h2><p>Research 收录 AI-Sail Flow 在模型接入、Agent 运行时和生成式界面上的设计与实现记录。Article 用于沉淀完整文章：写下机制、实现依据、当前边界，以及接下来需要验证的问题。</p></section>
+          <section className="research-index-note"><h2>关于这个栏目</h2><p>Research 收录 AI Creative Lab 在模型接入、Agent 运行时和生成式界面上的设计与实现记录。Article 用于沉淀完整文章：写下机制、实现依据、当前边界，以及接下来需要验证的问题。</p></section>
         </> : article ? <article className="research-article">
-          <header className="research-article-heading"><div className="research-meta"><span>{article.category}</span><time dateTime={article.publishedAt}>{dateLabel(article.publishedAt)}</time><span>{readingLabel(article)}</span></div><h1>{article.title}</h1><p className="research-subtitle">{article.subtitle}</p><p className="research-byline">AI-Sail Flow Research · 设计与实现记录</p></header>
+          <header className="research-article-heading"><div className="research-meta"><span>{article.category}</span><time dateTime={article.publishedAt}>{dateLabel(article.publishedAt)}</time><span>{readingLabel(article)}</span></div><h1>{article.title}</h1><p className="research-subtitle">{article.subtitle}</p><p className="research-byline">{article.byline || 'AI Creative Lab Research · 设计与实现记录'}</p></header>
+          {article.opening && <section className="research-article-section" id={article.opening.id}><h2>{article.opening.title}</h2><div className="research-prose"><ReactMarkdown remarkPlugins={[remarkGfm]}>{article.opening.body}</ReactMarkdown></div></section>}
           <details className="research-inline-toc"><summary>本文目录</summary>{contents}</details>
-          <figure className="research-hero"><img src={article.image} alt={article.imageAlt} width={1672} height={941} fetchPriority="high" /><figcaption>可替换的基座，持续展开的界面。AI 生成的概念性编辑拼贴。</figcaption></figure>
+          <figure className="research-hero"><img src={article.image} alt={article.imageAlt} width={1672} height={941} fetchPriority="high" /><figcaption>{article.imageCaption || '可替换的基座，持续展开的界面。AI 生成的概念性编辑拼贴。'}</figcaption></figure>
           <div className="research-abstract"><span>摘要</span><p>{article.summary}</p></div>
           {article.sections.map(item => <section key={item.id} className="research-article-section" id={item.id}>
             <h2>{item.title}</h2><div className="research-prose"><ReactMarkdown remarkPlugins={[remarkGfm]}>{item.body}</ReactMarkdown></div>
@@ -82,7 +83,7 @@ export default function ResearchPage({ pathname, onNavigate }: { pathname: strin
           </section>)}
           <div className="research-endnote"><a href="/research/article" onClick={follow('/research/article')}><ArrowLeft size={15} />返回 Article</a><a href="#research-top">回到顶部 ↑</a></div>
         </article> : <div className="research-empty"><h1>这篇文章还未收录</h1><p>可以回到 Article，查看现有的研究记录。</p><a className="research-button" href="/research/article" onClick={follow('/research/article')}>查看文章</a></div>}
-        <footer className="research-footer"><span>AI-Sail Flow · Research</span><span>模型、执行与界面，持续演进。</span></footer>
+        <footer className="research-footer"><span>AI Creative Lab · Research</span><span>模型、执行与界面，持续演进。</span></footer>
       </main>
     </div>
   </div>;

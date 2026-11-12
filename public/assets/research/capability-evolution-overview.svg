@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1672" height="941" viewBox="0 0 1672 941" role="img" aria-labelledby="title desc">
+  <title id="title">四种 UI 开发方式的共同结构</title>
+  <desc id="desc">整页模板、组件编辑、特效应用和直接编码，利用 HTML、CSS、AI Coding 与可视化反馈连接结构、交互、生成和修改。观察、重建、验证与沉淀使一次实践成为可复用的能力。</desc>
+  <defs>
+    <pattern id="grid" width="28" height="28" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r=".8" fill="#d7d3c9"/></pattern>
+    <radialGradient id="glow"><stop stop-color="#b88dc9" stop-opacity=".7"/><stop offset=".5" stop-color="#df9a77" stop-opacity=".35"/><stop offset="1" stop-color="#f8f6f0" stop-opacity="0"/></radialGradient>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="m2 1 6 4-6 4" fill="none" stroke="#77877b" stroke-width="1.4"/></marker>
+    <style>
+      text{font-family:'Anthropic Sans','PingFang SC','Microsoft YaHei',sans-serif;fill:#323a34}
+      .muted{fill:#7b8077}.small{font-size:19px}.label{font-size:29px;font-weight:500}.rule{stroke:#c8cdc2;stroke-width:2;fill:none}.wire{stroke:#8b998a;stroke-width:2;fill:none}.panel{fill:#fbfaf6;stroke:#cecec2;stroke-width:1.5}
+    </style>
+  </defs>
+  <path fill="#f3f1e9" d="M0 0h1672v941H0z"/>
+  <path fill="url(#grid)" opacity=".6" d="M0 0h1672v941H0z"/>
+  <text x="90" y="62" font-size="19" letter-spacing="3" class="muted">RESEARCHER'S NOTE / UI DEVELOPMENT</text>
+  <text x="1582" y="62" font-size="19" text-anchor="end" class="muted">02 / 02</text>
+  <text x="90" y="131" font-size="48" font-weight="500">四种 UI 开发方式的共同结构</text>
+  <text x="90" y="172" font-size="24" class="muted">整页、组件、效果与代码：同一开发活动在不同粒度上的介入点。</text>
+  <g>
+    <rect x="90" y="218" width="340" height="246" rx="4" class="panel"/>
+    <text x="112" y="250" class="small muted">A / PAGE</text>
+    <g transform="translate(173 273)">
+      <rect width="174" height="102" rx="2" fill="#e9ece3" stroke="#889685"/>
+      <path d="M0 17h174M12 8h4m6 0h4m6 0h4" class="wire"/>
+      <rect x="14" y="31" width="84" height="8" fill="#6f8471"/>
+      <path d="M14 49h74m-74 9h62" class="wire"/>
+      <rect x="112" y="31" width="48" height="45" fill="#bdc8b5"/>
+      <rect x="14" y="78" width="44" height="10" rx="5" fill="#7d927d"/>
+    </g>
+    <text x="260" y="418" class="label" text-anchor="middle">整页模板</text>
+    <text x="260" y="446" class="small muted" text-anchor="middle">选择整体结构与风格</text>
+    <rect x="474" y="218" width="340" height="246" rx="4" class="panel"/>
+    <text x="496" y="250" class="small muted">B / COMPONENT</text>
+    <g transform="translate(557 281)">
+      <rect width="174" height="80" rx="2" fill="#e9ece3" stroke="#889685"/>
+      <path d="M0 23h174M55 0v80m55-80v80M0 51h174" class="wire"/>
+      <path d="M8-8h158m16 8v64M8 88h158" fill="none" stroke="#b46849" stroke-width="2"/>
+      <g fill="#fbfaf6" stroke="#b46849" stroke-width="2"><rect x="-4" y="-12" width="8" height="8"/><rect x="170" y="-12" width="8" height="8"/><rect x="170" y="84" width="8" height="8"/><rect x="-4" y="84" width="8" height="8"/></g>
+    </g>
+    <text x="644" y="418" class="label" text-anchor="middle">组件编辑</text>
+    <text x="644" y="446" class="small muted" text-anchor="middle">调整局部属性与状态</text>
+    <rect x="858" y="218" width="340" height="246" rx="4" class="panel"/>
+    <text x="880" y="250" class="small muted">C / EFFECT</text>
+    <ellipse cx="1028" cy="324" rx="132" ry="61" fill="url(#glow)"/>
+    <rect x="942" y="299" width="172" height="50" rx="25" fill="#fbfaf6" stroke="#5d685c" stroke-width="2"/>
+    <text x="1028" y="331" text-anchor="middle" font-size="22">Button</text>
+    <path d="m1128 341-9 34 12-9 13 13 6-6-13-13 15-3z" fill="#fbfaf6" stroke="#6a7969" stroke-width="2"/>
+    <text x="1028" y="418" class="label" text-anchor="middle">特效应用</text>
+    <text x="1028" y="446" class="small muted" text-anchor="middle">向现有对象附加变化</text>
+    <rect x="1242" y="218" width="340" height="246" rx="4" class="panel"/>
+    <text x="1264" y="250" class="small muted">D / CODE</text>
+    <g transform="translate(1325 279)">
+      <rect width="174" height="88" rx="2" fill="#e9ece3" stroke="#889685"/>
+      <path d="m35 25-15 18 15 18m104-36 15 18-15 18m-41-39-22 43" fill="none" stroke="#6f8471" stroke-width="3"/>
+      <path d="M56 31h13m-18 13h18m39 0h15m-15 13h20" stroke="#b6c1ae" stroke-width="3"/>
+    </g>
+    <text x="1412" y="418" class="label" text-anchor="middle">直接编码</text>
+    <text x="1412" y="446" class="small muted" text-anchor="middle">生成与修改缺失实现</text>
+  </g>
+  <g class="wire">
+    <path d="M260 464v46h1152v-46M644 464v46m384-46v46"/>
+    <path d="M836 510v38" marker-end="url(#arrow)"/>
+  </g>
+  <rect x="90" y="562" width="1492" height="163" rx="4" fill="#e0e7da" stroke="#8f9f89" stroke-width="1.5"/>
+  <text x="122" y="608" font-size="28" font-weight="500">HTML / CSS · AI Coding · 可视化反馈</text>
+  <path d="M122 631h1428" stroke="#b2c0aa" stroke-width="1.5"/>
+  <g font-size="23"><text x="122" y="680">结构与样式</text><text x="500" y="680">组件与交互</text><text x="878" y="680">预制与即时生成</text><text x="1256" y="680">修改与再次预览</text></g>
+  <path d="M836 780v-43" class="wire" marker-end="url(#arrow)"/>
+  <path d="M90 792h1492v87H90z" fill="#fbfaf6" stroke="#cecec2" stroke-width="1.5"/>
+  <text x="122" y="845" font-size="23" class="muted">持续学习</text>
+  <g font-size="27" text-anchor="middle"><text x="442" y="846">观察</text><text x="752" y="846">重建</text><text x="1062" y="846">验证</text><text x="1372" y="846">沉淀</text></g>
+  <path d="M518 837h155m155 0h155m155 0h155" class="wire" marker-end="url(#arrow)"/>
+  <text x="90" y="918" font-size="17" class="muted">UI DEVELOPMENT / A COMPARISON OF ABSTRACTION LEVELS</text>
+</svg>

@@ -5,10 +5,11 @@ import {
   FolderOpen,
   Home,
   ImagePlus,
-  LayoutGrid,
   LoaderCircle,
   ListChecks,
   Radar,
+  Radio,
+  ScanSearch,
   Sparkles,
 } from 'lucide-react';
 import type { AppRoute, StudioSection } from '../useUrlSync';
@@ -23,16 +24,15 @@ const StudioRemake = lazy(() => import('./StudioRemake'));
 
 const navItems: Array<{ section: Exclude<StudioSection, 'project' | 'welcome' | 'home'>; label: string; icon: typeof Home }> = [
   { section: 'creatives', label: '商品套图', icon: ImagePlus },
-  { section: 'radar', label: '爆款雷达', icon: Radar },
   { section: 'tvc', label: 'TVC 成片', icon: Clapperboard },
   { section: 'remake', label: '热片复刻', icon: Sparkles },
 ];
 
 const sectionLabels: Record<StudioSection, string> = {
-  welcome: '工作室介绍',
+  welcome: '发现与研究',
   home: '工作室介绍',
   creatives: '商品套图',
-  radar: '爆款雷达',
+  radar: '爆款探索',
   tvc: 'TVC 成片',
   remake: '热片复刻',
   project: '项目详情',
@@ -98,8 +98,8 @@ export default function StudioShell({
   const fallback = <div className="studio-empty"><LoaderCircle className="spin" size={18} /> 正在打开模块…</div>;
   const openRemakeFromTrend = (item: TrendItem) => onNavigate('remake', item.id);
 
-  // `/studio` (home) and `/studio/welcome` → Creatify-like marketing landing (no product sidebar)
-  if (route.section === 'home' || route.section === 'welcome') {
+  // Keep the marketing overview at /studio/home; /studio opens the research desk.
+  if (route.section === 'home') {
     return (
       <StudioLanding
         onOpen={section => onNavigate(section)}
@@ -110,13 +110,16 @@ export default function StudioShell({
   }
 
   return (
-    <div className="studio-shell">
+    <div className={`studio-shell ${route.section === 'welcome' || route.section === 'radar' ? 'studio-research-shell' : ''}`}>
       <aside className="studio-nav" aria-label="爆款工作室导航">
         <button type="button" className="studio-brand" onClick={() => onNavigate('welcome')}>
-          <span className="studio-brand-mark"><LayoutGrid size={16} /></span>
-          <span><strong>爆款工作室</strong><small>AI-SAIL STUDIO</small></span>
+          <span className="studio-brand-mark"><Radar size={20} strokeWidth={1.5} /></span>
+          <span><strong>爆款工作室</strong><small>AI Creative Lab · SIGNAL LAB</small></span>
         </button>
-        <div className="studio-nav-section">模块</div>
+        <div className="studio-nav-section">发现与研究</div>
+        <button type="button" className={`studio-nav-item ${route.section === 'welcome' ? 'active' : ''}`} aria-current={route.section === 'welcome' ? 'page' : undefined} onClick={() => onNavigate('welcome')}><Radar size={16} /><span>爆款雷达</span></button>
+        <button type="button" className={`studio-nav-item ${route.section === 'radar' ? 'active' : ''}`} aria-current={route.section === 'radar' ? 'page' : undefined} onClick={() => onNavigate('radar')}><ScanSearch size={16} /><span>爆款探索</span></button>
+        <div className="studio-nav-section">内容创作</div>
         {navItems.map(item => {
           const Icon = item.icon;
           const active = route.section === item.section;
@@ -135,10 +138,11 @@ export default function StudioShell({
         <button type="button" className="studio-nav-item" onClick={onOpenTasks}>
           <ListChecks size={16} /><span>任务进度</span>
         </button>
-        <button type="button" className="studio-nav-item" onClick={() => onNavigate('welcome')}>
+        <button type="button" className="studio-nav-item" onClick={() => onNavigate('home')}>
           <Home size={16} /><span>工作室介绍</span>
         </button>
         <div className="studio-nav-spacer" />
+        {(route.section === 'welcome' || route.section === 'radar') && <div className="studio-nav-research"><span><Radio size={13} />发现 · 研究 · 创作</span><p>让每一次内容决策，<br />都有信号与证据可循。</p></div>}
         <div className="studio-nav-foot">
           <button type="button" className="studio-nav-item" onClick={onBackWorkspace}>
             <ArrowLeft size={16} /><span>返回内容工作台</span>
@@ -155,12 +159,12 @@ export default function StudioShell({
             <span>/</span>
             <strong>{sectionLabels[route.section]}{route.id ? ` · ${route.id.slice(0, 8)}` : ''}</strong>
           </div>
-          <span className="studio-badge">AI-Sail Studio</span>
+          <span className="studio-badge">{route.section === 'welcome' || route.section === 'radar' ? '热点研究工作台' : 'AI Creative Lab Studio'}</span>
         </header>
         <div className="studio-content">
           <Suspense fallback={fallback}>
             {route.section === 'creatives' && <StudioCreatives onOpenProject={id => onNavigate('project', id)} />}
-            {route.section === 'radar' && <StudioRadar onRemake={openRemakeFromTrend} />}
+            {(route.section === 'radar' || route.section === 'welcome') && <StudioRadar onRemake={openRemakeFromTrend} initialWorkflow={route.section === 'radar' ? 'product' : 'top'} />}
             {route.section === 'tvc' && <StudioTvc onOpenProject={id => onNavigate('project', id)} />}
             {route.section === 'remake' && (
               <StudioRemake

@@ -8,19 +8,26 @@ import { uploadDir } from './store';
 import type { Asset, Shot } from '../shared/domain';
 import { shotEvidenceFrames, type ShotMedia } from '../shared/shot-evidence';
 const exec = promisify(execFile);
-export async function inspectMedia(filename: string, kind: 'video' | 'product') {
+export async function inspectMedia(filename: string, kind: Asset['kind']) {
   const absolute = path.join(uploadDir, filename);
   const detected = await fileTypeFromFile(absolute);
-  const allowed = kind === 'video' ? ['video/mp4', 'video/quicktime', 'video/webm'] : ['image/jpeg', 'image/png', 'image/webp'];
-  if (!detected || !allowed.includes(detected.mime)) throw new Error(kind === 'video' ? '请上传真实的 MP4、MOV 或 WebM 视频。' : '产品参考图支持 JPG、PNG、WebP。');
+  const allowed = kind === 'video' ? ['video/mp4', 'video/quicktime', 'video/webm'] : kind === 'audio'
+    ? ['audio/mpeg', 'audio/mp4', 'audio/x-m4a', 'audio/wav', 'audio/x-wav', 'audio/vnd.wave', 'audio/aac', 'audio/flac', 'audio/x-flac', 'audio/ogg', 'audio/opus', 'audio/webm', 'video/mp4', 'video/webm']
+    : ['image/jpeg', 'image/png', 'image/webp'];
+  if (!detected || !allowed.includes(detected.mime)) throw new Error(kind === 'video' ? '请上传真实的 MP4、MOV 或 WebM 视频。' : kind === 'audio' ? '请上传真实的 MP3、M4A、WAV、AAC、FLAC、OGG 或 Opus 音频。' : '产品参考图支持 JPG、PNG、WebP。');
   if (kind === 'product') return { mime: detected.mime };
   let raw: string;
   try {
-    raw = (await exec('ffprobe', ['-v', 'error', '-protocol_whitelist', 'file,pipe', '-show_entries', 'format=duration:stream=codec_type,width,height', '-of', 'json', absolute], { timeout: 20000, maxBuffer: 1024 * 1024 })).stdout;
-  } catch { throw new Error('视频读取失败。请确认已安装 FFmpeg，或转换为常见 MP4 后重试。'); }
+    raw = (await exec('ffprobe', ['-v', 'error', '-protocol_whitelist', 'file,pipe', '-show_entries', 'format=duration:stream=codec_type,width,height:stream_disposition=attached_pic', '-of', 'json', absolute], { timeout: 20000, maxBuffer: 1024 * 1024 })).stdout;
+  } catch { throw new Error(kind === 'audio' ? '音频读取失败，请检查文件或转换为 MP3、M4A、WAV 后重试。' : '视频读取失败。请确认已安装 FFmpeg，或转换为常见 MP4 后重试。'); }
   const metadata = JSON.parse(raw);
   const video = metadata.streams?.find((s: { codec_type: string }) => s.codec_type === 'video');
   const duration = Number(metadata.format?.duration);
+  if (kind === 'audio') {
+    if (!metadata.streams?.some((stream: { codec_type: string }) => stream.codec_type === 'audio') || !Number.isFinite(duration) || duration <= 0
+      || metadata.streams.some((stream: { codec_type: string; disposition?: { attached_pic?: number } }) => stream.codec_type === 'video' && !stream.disposition?.attached_pic)) throw new Error('未读取到有效的独立音频轨道，请选择音频文件。');
+    return { mime: detected.mime === 'video/mp4' ? 'audio/mp4' : detected.mime === 'video/webm' ? 'audio/webm' : detected.mime, duration, hasAudio: true };
+  }
   if (!video || !Number.isFinite(duration) || duration <= 0) throw new Error('未读取到有效视频轨道。');
   if (duration > 600) throw new Error('第一版支持最长 10 分钟的参考视频，请先截取相关片段。');
   const thumbnail = `${filename}.jpg`;

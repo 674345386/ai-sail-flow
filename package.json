@@ -8,6 +8,7 @@
     "build": "tsc --noEmit && vite build",
     "start": "NODE_USE_ENV_PROXY=1 tsx server/index.ts --production",
     "check": "tsc --noEmit",
+    "check:llm": "NODE_USE_ENV_PROXY=1 node --import tsx scripts/llm-check.ts",
     "check:agent-media": "node --import tsx scripts/agent-media-check.ts",
     "check:agent-adaptation": "node --import tsx scripts/agent-adaptation-check.ts",
     "check:agent-presentation": "node --import tsx scripts/agent-presentation-check.ts",

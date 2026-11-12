@@ -10,6 +10,7 @@ import { createAgentWork, finishAgentWork, recordAgentWork } from '../shared/age
 import { DEFAULT_AGENT_EFFORT, DEFAULT_AGENT_MODEL } from '../shared/agent-models';
 import { canvasComponentInput, type CanvasComponent, type CanvasComponentInput } from '../shared/agent-canvas-ui';
 import type { AgentState } from '../shared/intelligent-ui';
+import { summarizeAgentActivity, type AgentActivity } from '../shared/agent-activity';
 import { isValidIntelligentUIProgram } from '../src/intelligent-ui/library';
 import { isAgentAdaptation, normalizeAgentAdaptation, type AgentAdaptation } from '../shared/agent-adaptation';
 import { agentInstructionsFor } from './creative-agent-instructions';
@@ -17,6 +18,7 @@ import { appendPresentationRequest, isAgentPresentation, normalizeAgentPresentat
 import { applyExperimentOperation, emptyExperiment, type ExperimentGraph, type ExperimentOperation } from '../shared/experiment';
 import { syncExperimentSources } from './experiment-workbench';
 import { experimentWorkspace } from './experiment-runtime';
+import { officialJobFor } from './skill-assets';
 
 export type { AgentMessage } from '../shared/agent-message';
 export type { AgentState } from '../shared/intelligent-ui';
@@ -82,6 +84,10 @@ export function getAgentState(id: string): AgentState {
     if (synced !== state.experiment) { state.experiment = synced; save(id); }
   }
   return state;
+}
+export function getAgentActivity(id: string): AgentActivity {
+  if (!states.has(id) && !fs.existsSync(filename(id))) return { status: 'idle' };
+  return summarizeAgentActivity(getAgentState(id));
 }
 export function setAgentExperiment(id: string, graph: ExperimentGraph) {
   const state = getAgentState(id); state.experiment = graph; save(id); return graph;
@@ -178,7 +184,7 @@ class AppServerClient {
     this.proc.stderr.on('data', chunk => { const line = String(chunk).trim(); if (line) console.warn(`Creative agent: ${line.slice(0, 400)}`); });
     this.proc.on('error', error => this.fail(error));
     this.proc.on('exit', () => { this.fail(new Error('Codex app server 已退出。')); clients.delete(projectId); });
-    this.ready = this.request('initialize', { clientInfo: { name: 'sail_creation', title: 'Sail Creation Agent', version: '0.1.0' } }).then(() => {
+    this.ready = this.request('initialize', { clientInfo: { name: 'sail_creation', title: 'AI Creative Lab Agent', version: '0.1.0' } }).then(() => {
       this.proc.stdin.write(`${JSON.stringify({ method: 'initialized', params: {} })}\n`);
     });
   }
@@ -219,6 +225,7 @@ function configFor(id: string) {
 }
 
 const workToolLabels: Record<string, string> = {
+  discover_experiment_methods: '寻找创作方法', read_experiment_method: '阅读方法与运行条件',
   get_creative: '读取创意素材', analyze_reference: '分析参考视频',
   generate_image: '生成图片', generate_video: '生成视频', generate_minimax_video: '使用 MiniMax H3 生成视频',
   generate_first_last_frame_video: '生成首尾帧视频', generate_grid_video: '生成分镜视频',
@@ -275,7 +282,7 @@ export async function listAgentModels(id: string) {
   const result = await client.call('model/list', { includeHidden: false });
   return (result.data || []) as { model: string; displayName?: string; supportedReasoningEfforts?: { reasoningEffort: string }[] }[];
 }
-export async function startAgentTurn(id: string, prompt: string, imageIds?: string[], videoIds?: string[], attachmentOrder?: string[]): Promise<AgentState> {
+export async function startAgentTurn(id: string, prompt: string, imageIds?: string[], videoIds?: string[], attachmentOrder?: string[], audioIds?: string[]): Promise<AgentState> {
   const state = getAgentState(id);
   if (state.status === 'running') throw new Error('Agent 正在执行，请等待或先停止。');
   // Snapshot this turn's references before asynchronous setup or later asset edits.
@@ -295,7 +302,22 @@ export async function startAgentTurn(id: string, prompt: string, imageIds?: stri
     return video;
   }))
     .map(({ id, name, url, filename, mime, thumbnail }) => ({ id, name, url, filename, mime, thumbnail }));
-  const selectedIds = new Set([...images, ...videos].map(attachment => attachment.id));
+  const availableAudio = assets.filter(asset => asset.kind === 'audio');
+  const audios = (audioIds === undefined ? availableAudio.filter(asset => !sentIds.has(asset.id)) : [...new Set(audioIds)].map(audioId => {
+    const audio = availableAudio.find(asset => asset.id === audioId);
+    if (!audio) throw new Error('参考音频已变更，请重新添加后发送。');
+    return audio;
+  })).map(({ id: audioId, name, url, filename, mime, duration }) => {
+    const directory = path.join(experimentWorkspace(id), 'references');
+    const localPath = path.join(directory, `audio-${audioId}`);
+    const source = path.join(uploadDir, path.basename(filename));
+    if (!fs.existsSync(source)) throw new Error(`参考音频「${name}」无法读取，请重新添加后发送。`);
+    fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
+    fs.copyFileSync(source, localPath);
+    fs.chmodSync(localPath, 0o600);
+    return { id: audioId, name, url, filename, mime, duration, localPath };
+  });
+  const selectedIds = new Set([...images, ...videos, ...audios].map(attachment => attachment.id));
   const order = attachmentOrder || assets.filter(asset => selectedIds.has(asset.id)).map(asset => asset.id);
   if (order.length !== selectedIds.size || new Set(order).size !== order.length || order.some(attachmentId => !selectedIds.has(attachmentId))) {
     throw new Error('附件顺序与素材不一致，请刷新后重新发送。');
@@ -305,11 +327,11 @@ export async function startAgentTurn(id: string, prompt: string, imageIds?: stri
   const history = state.messages.slice(-16).filter(message => message.role !== 'event')
     .map(message => `${message.role}: ${message.text.slice(0, 2000)}${agentAttachmentContext(message)}`).join('\n\n').slice(-16000);
   const createdAt = new Date().toISOString();
-  const userMessage: AgentMessage = { id: randomUUID(), role: 'user', text: prompt, createdAt, attachmentOrder: [...order], attachmentsSent: false, work: createAgentWork(createdAt), ...(images.length ? { images } : {}), ...(videos.length ? { videos } : {}) };
+  const userMessage: AgentMessage = { id: randomUUID(), role: 'user', text: prompt, createdAt, attachmentOrder: [...order], attachmentsSent: false, work: createAgentWork(createdAt), ...(images.length ? { images } : {}), ...(videos.length ? { videos } : {}), ...(audios.length ? { audios } : {}) };
   const attachmentInputs: ({ type: 'text'; text: string } | { type: 'localImage'; path: string })[] = [];
   for (const [index, attachment] of agentMessageAttachments(userMessage).entries()) {
     attachmentInputs.push({ type: 'text', text: agentAttachmentDescription(attachment, index) });
-    if (attachment.kind === 'video') continue;
+    if (attachment.kind !== 'image') continue;
     const source = path.join(uploadDir, path.basename(attachment.filename!));
     if (!fs.existsSync(source)) throw new Error(`参考图片「${attachment.name}」无法读取，请重新添加后发送。`);
     attachmentInputs.push({ type: 'localImage', path: source });
@@ -328,7 +350,7 @@ export async function startAgentTurn(id: string, prompt: string, imageIds?: stri
     const cwd = experimentWorkspace(id);
     const selected = state.model || DEFAULT_AGENT_MODEL;
     const presentation = normalizeAgentPresentation(state.presentation);
-    const { developerInstructions, instructionsVersion } = agentInstructionsFor(normalizeAgentAdaptation(state.adaptation), presentation);
+    const { developerInstructions, instructionsVersion } = agentInstructionsFor(normalizeAgentAdaptation(state.adaptation), presentation, !!officialJobFor(id));
     let effort: string | undefined = state.effort || DEFAULT_AGENT_EFFORT;
     try {
       const models = await listAgentModels(id);
@@ -387,7 +409,7 @@ async function drainAgentQueue(id: string) {
   const queued = state.queue.shift()!;
   try {
     // Queued text must not pick up unrelated attachments uploaded in a later draft.
-    await startAgentTurn(id, queued.text, [], [], []);
+    await startAgentTurn(id, queued.text, [], [], [], []);
   } catch (error) {
     state.queue.unshift(queued);
     state.queuePaused = true;

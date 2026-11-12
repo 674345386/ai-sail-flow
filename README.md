@@ -1,4 +1,4 @@
-# AI-Sail Flow
+# AI Creative Lab
 
 面向跨境电商内容团队的本机工作台。流程：**上传素材 → 视频拆解（逐镜头关键帧＋描述）→ 产品与创意改写（对应的复刻关键帧＋描述）→ 检查与导出关键帧**。当前先完成图生视频所需的图片和描述，视频生成与拼接留待后续。
 
@@ -101,6 +101,20 @@ Agentic 模式在原有 `generateContent` 请求内传输 Base64 视频；视频
 - 项目与素材保存到 `data/`；草稿自动保存；任务进度持久化；服务重启后中断任务标记失败；修改产品/市场/原片分析后旧改写标记为待更新，阻止误导出。
 
 ## 技术结构
+
+普通 LLM 调用统一经过 `server/llm.ts` 的 `generateLlm()`，GPT 适配器位于 `server/gpt.ts`，使用 `POST /v1/responses`，支持 `gpt-6.1-sol`（默认）与 `gpt-6.1-terra`。服务端在 `.env` 配置独立的 `SOP_GPT_API_KEY`、`SOP_GPT_BASE_URL=https://maiai.ai` 和可选 `SOP_GPT_MODEL`；Base URL 也接受 `/v1` 或完整 `/v1/responses`。支持文本或多轮文本消息、instructions、输出 token 上限、reasoning effort、JSON Schema、超时和取消；一次调用只提交一次请求。`GET /api/status` 的 `llm` 字段仅返回非密钥配置；同源 `POST /api/llm/responses` 使用相同入口。现有视频分析与创作 Agent 沿用各自的调用方式。
+
+```ts
+import { generateLlm } from './server/llm';
+
+const result = await generateLlm({
+  provider: 'gpt', model: 'gpt-6.1-terra', input: '用一句话介绍这个产品。',
+  maxOutputTokens: 1024, reasoningEffort: 'low',
+});
+console.log(result.text, result.usage);
+```
+
+`npm run check:llm` 执行不计费的请求与错误处理检查；`npm run check:llm -- --live` 读取本地 `.env`，向每个 GPT 模型各提交一次小型真实请求（会消耗渠道额度）。协议参考 [OpenAI Docs：文本生成](https://developers.openai.com/api/docs/guides/text)和[结构化输出](https://developers.openai.com/api/docs/guides/structured-outputs)。
 
 - `src/`：React + TypeScript，Linear-inspired 深色工作台；Lucide 图标；响应式 CSS。
 - `shared/domain.ts`：共享类型、Zod schema、市场与平台策略、时间线校验。

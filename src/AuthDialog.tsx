@@ -170,7 +170,7 @@ export default function AuthDialog({ open, onClose, auth, availability, googleBu
             <button type="button" className="btn" disabled={locked} onClick={onEditProfile}><Pencil size={15} />{t.editProfile}</button>
             <button type="button" className="btn" disabled={locked} onClick={onSignOut}>{auth.busy ? <LoaderCircle className="spin" size={15} /> : <LogOut size={15} />}{t.signOut}</button>
           </div> : <>
-            <div className="auth-login-brand"><img src="/assets/brand/logo/ai-sail-flow-logo-dark.svg" alt="" width={32} height={32} /><span>AI-Sail Flow</span></div>
+            <div className="auth-login-brand"><img src="/assets/brand/logo/ai-sail-flow-logo-dark.svg" alt="" width={32} height={32} /><span>AI Creative Lab</span></div>
             <div className="auth-screen-intro">
               <h1 id="auth-screen-title">{stage === 'code' ? t.codeTitle : copy.welcome}</h1>
               <p id="auth-screen-description">{stage === 'code' ? <>{t.sentTo}<strong>{email}</strong></> : t.intro}</p>

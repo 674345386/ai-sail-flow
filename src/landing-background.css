@@ -1,5 +1,5 @@
 /* Animated landing background + config panel (original). */
-.landing-page > .lbg { position: fixed; inset: 0; z-index: 0; overflow: hidden; background: var(--lbg-base); pointer-events: none; contain: strict; }
+.landing-page > .lbg { position: fixed; inset: 0; z-index: -100 !important; overflow: hidden; background: var(--lbg-base); pointer-events: none; contain: strict; }
 .lbg-pools { position: absolute; inset: -20%; filter: blur(var(--lbg-blur)) saturate(var(--lbg-sat)) brightness(var(--lbg-bright)); will-change: opacity; }
 .lbg-pool { position: absolute; left: 0; top: 0; border-radius: 50%; will-change: transform; mix-blend-mode: var(--lbg-blend); }
 .lbg-vignette { position: absolute; inset: 0; opacity: var(--lbg-vig); background:

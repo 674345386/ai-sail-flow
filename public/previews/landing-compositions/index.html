@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>远景构图白模 · AI Creative Lab</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <main>
+    <header class="intro">
+      <div>
+        <h1>先选镜头，再定质感。</h1>
+        <p>六张远景构图白模。先看环境、主体比例和文案留白，颜色、光线与材质留到下一步。</p>
+      </div>
+      <a class="back-link" href="/">返回落地页 <span aria-hidden="true">↗</span></a>
+    </header>
+
+    <div class="toolbar" aria-label="构图预览选项">
+      <div class="view-controls">
+        <label><input id="guides" type="checkbox">构图辅助线</label>
+        <label><input id="copy-preview" type="checkbox">叠加落地页文案</label>
+      </div>
+      <p>宽幅 2.4:1 <span aria-hidden="true">/</span> 灰白构图稿</p>
+    </div>
+
+    <section id="gallery" class="gallery" aria-label="六个远景构图候选"></section>
+    <noscript><p>请启用 JavaScript 查看交互预览，也可直接打开 <a href="./A.svg">A 构图</a> 至 <a href="./F.svg">F 构图</a>。</p></noscript>
+
+    <section class="next-step" aria-labelledby="next-title">
+      <h2 id="next-title">这一步只选空间关系。</h2>
+      <div class="criteria">
+        <p><strong>环境够不够开阔？</strong>先看画面的大部分是否交给了天空、地形和空间。</p>
+        <p><strong>主体是否太抢？</strong>人物或物件提供尺度感，保留远景叙事。</p>
+        <p><strong>文案能否放下？</strong>打开文案叠加，检查左侧留白和主体的位置。</p>
+      </div>
+      <p class="process">选定构图后，再比较同一构图的两种真实布光，最后生成正式图片。</p>
+    </section>
+  </main>
+
+  <footer class="selection-bar">
+    <div><span class="selection-label">已选方向</span><output id="selection" aria-live="polite">尚未选择</output></div>
+    <div class="selection-actions"><span id="copy-status" role="status"></span><button id="copy-selection" type="button" disabled>复制选择，发到聊天</button></div>
+  </footer>
+  <script type="module" src="./viewer.js"></script>
+</body>
+</html>

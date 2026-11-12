@@ -17,3 +17,12 @@ export function downloadBlob(blob: Blob, name: string) {
   document.body.appendChild(anchor); anchor.click(); anchor.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+export async function apiBlob(url: string): Promise<Blob> {
+  const headers = new Headers();
+  const session = supabase ? (await supabase.auth.getSession()).data.session : null;
+  if (session?.access_token) headers.set('Authorization', `Bearer ${session.access_token}`);
+  else if (publicAuthRequired) throw new Error('请先登录后下载交付包。');
+  const response = await fetch(url, { headers, credentials: 'same-origin' });
+  if (!response.ok) { const body = await response.json().catch(() => ({})); throw new Error(body.error || '交付包下载失败，请重试。'); }
+  return response.blob();
+}

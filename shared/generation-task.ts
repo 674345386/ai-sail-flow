@@ -18,6 +18,7 @@ export type GenerationTask = {
   updatedAt: string;
   finishedAt?: string;
   requestId?: string;
+  recoverable?: boolean;
   aspectRatio?: string;
   size?: string;
   quality?: string;

@@ -106,6 +106,7 @@ export async function initializeMediaLibrary() {
     const project = getProject(summary.id)!;
     if (project.isDemo) continue;
     for (const asset of project.assets) {
+      if (asset.kind === 'audio') continue;
       if (!isUserUploadFilename(asset.filename) || known.has(asset.filename) || !fs.existsSync(path.join(uploadDir, asset.filename))) continue;
       await collectUploadedAsset(asset, fs.statSync(path.join(uploadDir, asset.filename)).birthtime.toISOString(), false); known.add(asset.filename);
     }

@@ -1,20 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
-import { Film, LoaderCircle, Play, X } from 'lucide-react';
+import { AudioLines, Film, LoaderCircle, Play, X } from 'lucide-react';
 import type { Asset, Project } from '../shared/domain';
 import { agentAttachmentLabel, agentMessageAttachments, sentAgentAttachmentIds, type AgentMessage } from '../shared/agent-message';
 import { api } from './api';
 import { mediaChanged } from './mediaLibrary';
+import { promptMediaKind, validatePromptMedia } from '../shared/prompt-media';
+export { promptMediaAccept } from '../shared/prompt-media';
 
-const imageTypes = ['image/jpeg', 'image/png', 'image/webp'];
-const videoTypes = ['video/mp4', 'video/quicktime', 'video/webm'];
-export const promptMediaAccept = [...imageTypes, ...videoTypes, '.jpg', '.jpeg', '.png', '.webp', '.mp4', '.mov', '.webm'].join(',');
 type PendingMedia = { id: string; name: string; kind: Asset['kind']; url: string; thumbnail?: string };
 
 function fileKind(file: File): Asset['kind'] | null {
-  if (imageTypes.includes(file.type)) return 'product';
-  if (videoTypes.includes(file.type)) return 'video';
-  if (file.type && file.type !== 'application/octet-stream') return null;
-  return /\.(jpe?g|png|webp)$/i.test(file.name) ? 'product' : /\.(mp4|mov|webm)$/i.test(file.name) ? 'video' : null;
+  const kind = promptMediaKind(file);
+  return kind === 'image' ? 'product' : kind;
 }
 
 export function useAgentPromptMedia({ project, messages, disabled, onBeforeChange, onProjectUpdate, onError }: {
@@ -60,9 +57,9 @@ export function useAgentPromptMedia({ project, messages, disabled, onBeforeChang
   const upload = (files: File[]) => {
     if (!files.length || disabled || busy.current) return;
     const entries = files.map(file => ({ file, kind: fileKind(file) }));
-    const invalid = entries.find(item => !item.kind || item.file.size > (item.kind === 'video' ? 250 : 10) * 1024 * 1024);
+    const invalid = validatePromptMedia(files, attachments.map(item => item.kind === 'product' ? 'image' : item.kind));
     if (invalid) {
-      onError(!invalid.kind ? '请选择 JPG、PNG、WebP 图片或 MP4、MOV、WebM 视频。' : `${invalid.file.name} 过大，${invalid.kind === 'video' ? '视频最多 250 MB' : '图片最多 10 MB'}。`);
+      onError({ formats: '请选择 JPG、PNG、WebP 图片，MP4、MOV、WebM 视频，或 MP3、M4A、WAV、AAC、FLAC、OGG、Opus 音频。', tooLarge: '图片最多 10 MB，视频最多 250 MB，音频最多 50 MB。', tooMany: '每条消息最多附加 3 张图片、1 条视频和 1 个音频文件。' }[invalid]);
       return;
     }
     if (attachments.filter(asset => asset.kind === 'product').length + entries.filter(item => item.kind === 'product').length > 3) {
@@ -101,15 +98,15 @@ export function AgentPromptMedia({ assets, pending, disabled, onRemove }: {
   return <ul className="iua-prompt-media" aria-label="消息附件">
     {[...assets, ...pending].map((item, index) => {
       const uploading = pending.some(entry => entry.id === item.id);
-      const kind = item.kind === 'video' ? 'video' : 'image';
+      const kind = item.kind === 'product' ? 'image' : item.kind;
       const label = agentAttachmentLabel(index, kind);
       return <li className="iua-prompt-media-item" key={item.id} title={`${label}：${item.name}`} aria-label={`${label}：${item.name}`}>
-        {item.kind === 'product' ? <img src={item.url} alt={item.name} />
+        {item.kind === 'product' ? <img src={item.url} alt={item.name} /> : item.kind === 'audio' ? <AudioLines className="iua-prompt-video-fallback" size={24} aria-hidden="true" />
           : <><Film className="iua-prompt-video-fallback" size={22} aria-hidden="true" />{item.thumbnail
             ? <img src={item.thumbnail} alt={item.name} />
             : <video src={item.url} preload="metadata" muted playsInline aria-label={item.name} />}
             <span className="iua-prompt-video-badge" aria-label="视频"><Play size={11} fill="currentColor" /></span></>}
-        <span className="iua-prompt-media-number" aria-hidden="true">{index + 1} · {kind === 'video' ? '视频' : '图片'}</span>
+        <span className="iua-prompt-media-number" aria-hidden="true">{index + 1} · {kind === 'video' ? '视频' : kind === 'audio' ? '音频' : '图片'}</span>
         {uploading ? <span className="iua-prompt-media-loading" role="status" aria-label={`正在上传 ${item.name}`}><LoaderCircle size={18} className="spin" /></span>
           : <button type="button" className="iua-prompt-media-remove" disabled={disabled} title={`移除 ${item.name}`} aria-label={`移除附件 ${item.name}`} onClick={() => onRemove(item.id)}><X size={13} /></button>}
       </li>;
@@ -120,6 +117,7 @@ export function AgentPromptMedia({ assets, pending, disabled, onRemove }: {
 export function AgentMessageAttachments({ message }: { message: AgentMessage }) {
   return agentMessageAttachments(message).map((attachment, index) => <figure className={`iua-message-attachment is-${attachment.kind}`} key={attachment.id}>
     {attachment.kind === 'image' ? <img className="iua-reference" src={attachment.url} alt={attachment.name} />
+      : attachment.kind === 'audio' ? <audio src={attachment.url} controls preload="metadata" aria-label={attachment.name} style={{ maxWidth: '100%' }} />
       : <video className="iua-reference iua-reference-video" src={attachment.url} poster={attachment.thumbnail} controls playsInline preload="metadata" aria-label={attachment.name} />}
     <figcaption>{agentAttachmentLabel(index, attachment.kind)}</figcaption>
   </figure>);

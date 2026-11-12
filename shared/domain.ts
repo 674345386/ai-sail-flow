@@ -182,7 +182,7 @@ export type AnalysisReview = z.infer<typeof analysisReviewSchema>;
 export type Analysis = z.infer<typeof analysisSchema>;
 export type Rewrite = z.infer<typeof rewriteSchema>;
 export type Asset = {
-  id: string; kind: 'video' | 'product'; name: string; mime: string; size: number;
+  id: string; kind: 'video' | 'product' | 'audio'; name: string; mime: string; size: number;
   url: string; filename: string; thumbnail?: string; duration?: number; width?: number; height?: number; hasAudio?: boolean;
 };
 export type Job = {
@@ -230,7 +230,7 @@ export type GeneratedVideo = {
   storyboardGridId?: string; gridId?: string;
   referenceIds?: string[];
   referenceMedia?: { id: string; name: string; filename: string; url: string; mime?: string; role?: string }[];
-  minimax?: { idempotencyKey: string; requestKey?: string; requestFingerprint?: string; generateAudio?: boolean; optimizePrompt?: boolean; request?: import('./minimax-video').MinimaxGenerationRequest; details?: import('./minimax-video').MinimaxGenerationDetails; upstreamStatus?: 'succeeded'; outputAssetId?: string; optimizedPrompt?: string; credits?: { held: string; charged: string } };
+  minimax?: { idempotencyKey: string; requestKey?: string; requestFingerprint?: string; generateAudio?: boolean; optimizePrompt?: boolean; request?: import('./minimax-video').MinimaxGenerationRequest; details?: import('./minimax-video').MinimaxGenerationDetails; upstreamStatus?: string; recoveryPending?: boolean; nextRecoveryAt?: string; outputAssetId?: string; optimizedPrompt?: string; credits?: { held: string; charged: string } };
 };
 export type ComposedVideo = {
   id: string; mode: ProductionMode; unitId?: string; sourceVideoIds: string[]; voice: string;

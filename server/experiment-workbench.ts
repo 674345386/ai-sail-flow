@@ -11,7 +11,8 @@ type ExperimentSource = { id: string; title: string; url?: string; mediaType: 'i
 export function experimentSources(project: Project, files: ExperimentFile[] = []): ExperimentSource[] {
   return [
     ...files.map(file => ({ ...file, error: undefined as string | undefined })),
-    ...project.assets.map(a => ({ id: a.id, title: a.name, url: a.url, mediaType: a.mime.startsWith('video/') ? 'video' as const : a.mime.startsWith('image/') ? 'image' as const : 'text' as const, status: 'completed' as const, error: undefined as string | undefined })),
+    // Audio is available through chat's audio player; it is not a text preview.
+    ...project.assets.filter(a => a.kind !== 'audio').map(a => ({ id: a.id, title: a.name, url: a.url, mediaType: a.mime.startsWith('video/') ? 'video' as const : a.mime.startsWith('image/') ? 'image' as const : 'text' as const, status: 'completed' as const, error: undefined as string | undefined })),
     ...(project.storyboardGrids || []).map(a => ({ id: a.id, title: `${a.start}–${a.end} 秒连续分镜`, url: a.url, mediaType: 'image' as const, status: 'completed' as const })),
     ...(project.agentImages || []).map(a => ({ id: a.id, title: a.prompt.slice(0, 80), url: a.url, mediaType: 'image' as const, status: a.status, error: a.error, prompt: a.prompt, referenceIds: a.referenceIds, model: a.model, parameters: { ...(a.size ? { size: a.size } : {}), ...(a.quality ? { quality: a.quality } : {}), ...(a.aspectRatio ? { aspectRatio: a.aspectRatio } : {}) } })),
     ...project.generatedVideos.map(a => ({ id: a.id, title: a.prompt.slice(0, 80), url: a.url, mediaType: 'video' as const, status: a.stale ? 'stale' as const : a.status, error: a.error, prompt: a.prompt, referenceIds: a.referenceIds, model: a.model, parameters: { ...(a.resolution ? { resolution: a.resolution } : {}), ...(a.aspectRatio ? { aspectRatio: a.aspectRatio } : {}), ...(a.duration ? { duration: a.duration } : {}) } })),
@@ -104,8 +105,8 @@ export function bindExperimentSource(graph: ExperimentGraph | undefined, project
   return syncExperimentSources(next, project)!;
 }
 
-async function githubJSON(endpoint: string) {
-  const response = await fetch(`https://api.github.com${endpoint}`, { headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'AI-Sail-Flow' }, signal: AbortSignal.timeout(15000), redirect: 'error' });
+export async function githubJSON(endpoint: string) {
+  const response = await fetch(`https://api.github.com${endpoint}`, { headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'AI-Creative-Lab' }, signal: AbortSignal.timeout(15000), redirect: 'error' });
   if (!response.ok) throw new ExperimentError(response.status === 404 ? '找不到这个公开 GitHub 仓库、版本或 Skill 文件。' : response.status === 403 || response.status === 429 ? 'GitHub 读取额度暂时用尽，请稍后重试。' : `GitHub 读取失败（${response.status}），请稍后重试。`);
   const reader = response.body!.getReader(); let total = 0; const chunks: Uint8Array[] = [];
   while (true) { const { value, done } = await reader.read(); if (done) break; total += value.length; if (total > 3_000_000) { await reader.cancel(); throw new ExperimentError('仓库目录过大，请使用具体 SKILL.md 的 GitHub 链接。'); } chunks.push(value); }

@@ -1,5 +1,6 @@
 import type { Job, Project } from '../shared/domain';
 import { generationTaskActive, type GenerationTask, type GenerationTaskList, type GenerationTaskStage, type GenerationTaskStatus } from '../shared/generation-task';
+import { minimaxVideoRecoverable } from '../shared/minimax-video';
 import { getProject, getWorkspaceProject, listProjects } from './store';
 import { imageAttemptActive, imageGenerationStatus, listImageAttempts } from './image-generation';
 import { studioGenerationTasks } from './studio';
@@ -133,9 +134,10 @@ export function generationTasks(): GenerationTask[] {
       const generated = 'provider' in video ? video : undefined;
       const job = [...jobs].reverse().find(item => item.videoId === video.id || !!generated?.tierGroupId && item.unitId === generated.unitId);
       const interrupted = video.status === 'running' && (!job || job.status !== 'running');
+      const recoverable = generated && minimaxVideoRecoverable(generated);
       const stage = video.status === 'completed' || generated?.minimax?.upstreamStatus === 'succeeded' ? 'save' : videoStage(job);
       const status: GenerationTaskStatus = interrupted ? 'needs-attention' : video.status === 'running' ? runningStatus(stage, job?.message || '')
-        : video.status === 'completed' ? 'completed' : generated?.minimax?.upstreamStatus === 'succeeded' || /待核对|重启|中断/.test(video.error || '') ? 'needs-attention' : 'failed';
+        : video.status === 'completed' ? 'completed' : recoverable || generated?.minimax?.upstreamStatus === 'succeeded' || /待核对|重启|中断/.test(video.error || '') ? 'needs-attention' : 'failed';
       const output = video.url ? { id: video.id, url: video.url, filename: video.filename, thumbnail: video.thumbnail } : undefined;
       const groupId = generated?.tierGroupId;
       const existing = groupId ? groupedVideos.get(groupId) : undefined;
@@ -154,7 +156,7 @@ export function generationTasks(): GenerationTask[] {
         model: video.model, prompt: video.prompt, status, stage,
         message: video.error || (interrupted ? '本地处理已中断，请打开所属创意核对原任务。' : video.status === 'completed' ? '视频已保存，可以播放和下载。' : job?.message || '视频模型正在处理…'),
         createdAt: video.startedAt, updatedAt: video.status === 'running' && job?.status === 'running' ? project.updatedAt : video.finishedAt || job?.finishedAt || video.startedAt,
-        finishedAt: video.status === 'running' ? undefined : video.finishedAt, requestId: video.requestId,
+        finishedAt: video.status === 'running' || recoverable ? undefined : video.finishedAt, requestId: video.requestId, recoverable: !!recoverable,
         aspectRatio: video.aspectRatio, resolution: video.resolution, duration: video.duration, width: video.width, height: video.height,
         referenceCount: generated?.referenceIds?.length ?? generated?.imageUrls?.length, credits: generated?.minimax?.credits,
         error: video.error, outputs: output ? [output] : [],

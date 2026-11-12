@@ -14,6 +14,25 @@ export function methodMatchesRun(node: ExperimentNode, run: ExperimentRun, nodes
 
 /** Add logical ownership without moving nodes or replacing any existing media. IDs are deterministic for old sessions. */
 export function normalizeExperimentGraph(graph: ExperimentGraph): ExperimentGraph {
+  // Older alternatives kept basedOn but lost their route identity. Restore only
+  // within the same goal; route selection and tool checks still apply at execution.
+  let inheritedRoute = false;
+  const linkedPlans = graph.plans?.map(plan => {
+    if (plan.proposalId || plan.routeId || !plan.basedOn) return plan;
+    const seen = new Set([plan.id]);
+    let original = graph.plans?.find(item => item.id === plan.basedOn);
+    while (original && !seen.has(original.id) && original.goalId === plan.goalId) {
+      seen.add(original.id);
+      if (original.proposalId && original.routeId && graph.proposals?.some(proposal => proposal.id === original!.proposalId && proposal.routes.some(route => route.id === original!.routeId))) {
+        inheritedRoute = true;
+        return { ...plan, proposalId: original.proposalId, routeId: original.routeId };
+      }
+      const parentId = original.basedOn;
+      original = parentId ? graph.plans?.find(item => item.id === parentId) : undefined;
+    }
+    return plan;
+  });
+  if (inheritedRoute) graph = { ...graph, plans: linkedPlans };
   if (graph.organizationVersion === 1 && graph.plans && graph.runs && graph.nodes.every(node => {
     if (node.kind === 'step') { const method = activeExperimentMethod(node); return !!method && method.id === node.activeMethodId && graph.plans!.some(plan => plan.id === node.planId) && node.prompt === method.prompt && node.method === method.title && JSON.stringify(node.inputs) === JSON.stringify(method.inputs); }
     if (node.kind === 'artifact') { const step = graph.nodes.find(item => item.kind === 'step' && node.inputs.includes(item.id)); return !step || (node.planId === step.planId && ((!node.sourceId && !node.content.trim()) || !!node.runId)); }

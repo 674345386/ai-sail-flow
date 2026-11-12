@@ -1,3 +1,5 @@
+import { capabilityEvolutionArticle } from './capabilityEvolutionArticle';
+
 export type ResearchIllustration = { src: string; alt: string; caption: string; width: number; height: number };
 export type ResearchSection = {
   id: string;
@@ -18,6 +20,9 @@ export type ResearchArticle = {
   tags: string[];
   image: string;
   imageAlt: string;
+  imageCaption?: string;
+  byline?: string;
+  opening?: { id: string; title: string; body: string };
   sections: ResearchSection[];
 };
 
@@ -25,7 +30,7 @@ export const embeddedAgentArticle: ResearchArticle = {
   slug: 'embedded-agent-interface-foundation',
   title: '让 Agent 成为应用的一部分',
   subtitle: '可替换的模型与 Harness，持续生成的交互界面。',
-  summary: 'AI-Sail Flow 的一项架构探索：将模型接入、Agent 执行与界面渲染拆成独立边界，让对话能够生成、操作并持续更新应用内的可视化组件。',
+  summary: 'AI Creative Lab 的一项架构探索：将模型接入、Agent 执行与界面渲染拆成独立边界，让对话能够生成、操作并持续更新应用内的可视化组件。',
   publishedAt: '2026-11-05',
   category: '架构与交互',
   tags: ['Embedded Agent', 'Harness', 'A2UI', 'Generative UI'],
@@ -37,7 +42,7 @@ export const embeddedAgentArticle: ResearchArticle = {
       title: '把一次回答，变成可以继续工作的界面',
       body: `当用户说“帮我安排一个周末”，一个有用的回答可以包含日程、节奏选择、地图与可调整的活动。当用户说“用这张参考图制作视频”，对话还需要连接素材、生成任务与实际产物。这些任务共同提出一个问题：Agent 的输出，怎样进入应用的工作流？
 
-AI-Sail Flow 的做法，是把对话、工具调用、可视化组件与创作产物放进同一工作区。Agent 可以给出文字，也可以生成一个有状态的界面；用户在界面里的操作，又可以成为下一轮任务的输入。一次回答因此能够成为后续工作的起点。
+AI Creative Lab 的做法，是把对话、工具调用、可视化组件与创作产物放进同一工作区。Agent 可以给出文字，也可以生成一个有状态的界面；用户在界面里的操作，又可以成为下一轮任务的输入。一次回答因此能够成为后续工作的起点。
 
 这套设计的核心，是让**模型、执行基座与界面分别拥有清楚的边界**。模型可以选择，Harness 可以适配，界面由应用持有的组件系统渲染。它为应用提供了一种持续演进的交互方式，也让不同模型与运行时有机会共享同一套产品界面。`,
     },
@@ -186,6 +191,6 @@ Research / Article 将持续记录这些设计与实现。后续文章可以分�
 };
 
 /** Add another article here to include it in Research and Article indexes. */
-export const researchArticles: ResearchArticle[] = [embeddedAgentArticle];
+export const researchArticles: ResearchArticle[] = [capabilityEvolutionArticle, embeddedAgentArticle];
 export const articlePath = (slug: string) => `/research/article/${encodeURIComponent(slug)}`;
-export const articleReadingMinutes = (article: ResearchArticle) => Math.max(1, Math.ceil(article.sections.reduce((length, section) => length + section.body.length + (section.code?.length || 0), 0) / 500));
+export const articleReadingMinutes = (article: ResearchArticle) => Math.max(1, Math.ceil(article.sections.reduce((length, section) => length + section.body.length + (section.code?.length || 0), article.opening?.body.length || 0) / 500));

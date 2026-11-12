@@ -4,9 +4,11 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { ArrowUp, Check, ChevronDown, CornerUpRight, ListFilter, ListPlus, LoaderCircle, Package, Plus, SlidersHorizontal, Square, X } from 'lucide-react';
 import type { GeneratedVideo, Project } from '../shared/domain';
+import { minimaxVideoRecoverable } from '../shared/minimax-video';
 import type { CanvasComponent } from '../shared/agent-canvas-ui';
 import type { AgentMessage } from '../shared/agent-message';
 import { agentWorkHistory, createAgentWork } from '../shared/agent-work';
+import { summarizeAgentActivity, type AgentActivity } from '../shared/agent-activity';
 import type { AgentState } from '../shared/intelligent-ui';
 import { agentPanelId, htmlPageTitle, parseAgentAnswer, type AgentAnswerPanel } from '../shared/agent-answer';
 import { AGENT_MODELS, DEFAULT_AGENT_MODEL } from '../shared/agent-models';
@@ -14,6 +16,7 @@ import { AGENT_ADAPTATIONS, normalizeAgentAdaptation, type AgentAdaptation } fro
 import { AGENT_PRESENTATIONS, normalizeAgentPresentation, type AgentPresentation } from '../shared/agent-presentation';
 import { api } from './api';
 import { AgentMessageAttachments, AgentPromptMedia, promptMediaAccept, useAgentPromptMedia } from './AgentPromptMedia';
+import { clipboardMediaFiles } from '../shared/prompt-media';
 import { groupAgentMedia, UNASSIGNED_MEDIA, type AgentMedia } from './agentMediaTimeline';
 import { supabase } from './auth';
 import { library } from './intelligent-ui/library';
@@ -34,6 +37,7 @@ import './intelligent-ui/components/components.css';
 import './intelligent-ui/components/map/map.css';
 import './intelligent-ui-agent.css';
 import ExperimentWorkbench from './ExperimentWorkbench';
+import SkillAssetCenter from './SkillAssetCenter';
 import AgentQueuedMessages from './AgentQueuedMessages';
 
 class PanelBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
@@ -52,10 +56,11 @@ function ConversationText({ message, onOpenUI }: { message: AgentMessage; onOpen
   </>;
 }
 
-export default function IntelligentUIAgentWorkspace({ theme, project, canvas, disabled, steerDisabled = disabled, onProjectUpdate, onBeforeSend, onCanvasState, canvasDraft, onCanvasDraftConsumed, taskAssetsOpen, onOpenTaskAssets, onCloseTaskAssets, entryDraft, onEntryDraftConsumed }: {
+export default function IntelligentUIAgentWorkspace({ theme, project, canvas, disabled, steerDisabled = disabled, onProjectUpdate, onBeforeSend, onCanvasState, onActivity, canvasDraft, onCanvasDraftConsumed, taskAssetsOpen, onOpenTaskAssets, onCloseTaskAssets, entryDraft, onEntryDraftConsumed }: {
   theme: AgentThemeController;
   project: Project; canvas: ReactNode; disabled: boolean; steerDisabled?: boolean;
   onProjectUpdate: (project: Project) => void; onBeforeSend: () => Promise<unknown>; onCanvasState: (components: CanvasComponent[]) => void;
+  onActivity?: (id: string, activity: AgentActivity) => void;
   canvasDraft?: { text: string; version: number } | null; onCanvasDraftConsumed: () => void;
   taskAssetsOpen: boolean; onOpenTaskAssets: () => void; onCloseTaskAssets: () => void;
   entryDraft?: { id: string; text: string } | null; onEntryDraftConsumed?: () => void;
@@ -73,6 +78,10 @@ export default function IntelligentUIAgentWorkspace({ theme, project, canvas, di
   const [connected, setConnected] = useState(false);
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const [historyError, setHistoryError] = useState('');
+  const activity = summarizeAgentActivity(agent);
+  useEffect(() => {
+    if (historyLoaded) onActivity?.(project.id, activity);
+  }, [project.id, historyLoaded, activity.status, activity.updatedAt, activity.completedAt, onActivity]);
   const [pendingUser, setPendingUser] = useState<(AgentMessage & { afterCount: number }) | null>(null);
   const [modelDraft, setModelDraft] = useState<string>(DEFAULT_AGENT_MODEL);
   const [modelMenu, setModelMenu] = useState(false);
@@ -90,7 +99,7 @@ export default function IntelligentUIAgentWorkspace({ theme, project, canvas, di
   const preferenceSavingRef = useRef(false);
   const [models, setModels] = useState<{ model: string; displayName?: string }[]>([]);
   const [rightView, setRightView] = useState('lab');
-  const [tabs, setTabs] = useState<string[]>(['lab', 'canvas', 'ui']);
+  const [tabs, setTabs] = useState<string[]>(['lab', 'assets', 'canvas', 'ui']);
   const [tabMenu, setTabMenu] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [panelError, setPanelError] = useState('');
@@ -265,7 +274,7 @@ export default function IntelligentUIAgentWorkspace({ theme, project, canvas, di
   useEffect(() => {
     if (scroll.current && nearBottom.current) scroll.current.scrollTop = scroll.current.scrollHeight;
   }, [messages, agent.activity, sending]);
-  const hasRunningMedia = Boolean(project.agentImages?.some(image => image.status === 'running') || project.generatedVideos.some(video => video.status === 'running'));
+  const hasRunningMedia = Boolean(project.agentImages?.some(image => image.status === 'running') || project.generatedVideos.some(video => video.status === 'running' || video.minimax?.recoveryPending && minimaxVideoRecoverable(video)));
   useEffect(() => {
     let cancelled = false;
     const refresh = () => void api<Project>(`/api/projects/${project.id}`).then(fresh => { if (!cancelled) onProjectUpdateRef.current(fresh); }).catch(() => {});
@@ -291,19 +300,20 @@ export default function IntelligentUIAgentWorkspace({ theme, project, canvas, di
     if (!steering && media.attachments.length) { setError('队列仅支持文字，请先发送或移除附件。'); return; }
     if (await updateQueue('', 'POST', { prompt: text })) setDraft(current => current === text ? '' : current);
   };
-  const send = async (text: string) => {
-    const attachments = steering ? [] : media.attachments.slice();
+  const send = async (text: string, includeAttachments = true) => {
+    const attachments = steering || !includeAttachments ? [] : media.attachments.slice();
     const prompt = text.trim() ? text : attachments.length ? '请查看附件中的参考素材。' : '';
     if (!prompt.trim() || sendDisabled || media.busy.current || sendingRef.current || queueSavingRef.current || preferenceSavingRef.current) return;
     const images = attachments.filter(asset => asset.kind === 'product');
     const videos = attachments.filter(asset => asset.kind === 'video');
+    const audios = attachments.filter(asset => asset.kind === 'audio');
     const attachmentOrder = attachments.map(asset => asset.id);
     sendingRef.current = true; setSending(true); setError(''); nearBottom.current = true;
     const createdAt = new Date().toISOString();
-    setPendingUser({ id: `pending:${crypto.randomUUID()}`, role: 'user', text: prompt, createdAt, images, videos, attachmentOrder, attachmentsSent: false, work: createAgentWork(createdAt), afterCount: agent.messages.length });
+    setPendingUser({ id: `pending:${crypto.randomUUID()}`, role: 'user', text: prompt, createdAt, images, videos, audios, attachmentOrder, attachmentsSent: false, work: createAgentWork(createdAt), afterCount: agent.messages.length });
     try {
       if (!steering) await onBeforeSend();
-      await api<AgentState>(`/api/projects/${project.id}/agent/${steering ? 'steer' : 'turns'}`, { method: 'POST', body: JSON.stringify(steering ? { prompt, expectedTurnId: agent.turnId } : { prompt, imageIds: images.map(image => image.id), videoIds: videos.map(video => video.id), attachmentOrder }) });
+      await api<AgentState>(`/api/projects/${project.id}/agent/${steering ? 'steer' : 'turns'}`, { method: 'POST', body: JSON.stringify(steering ? { prompt, expectedTurnId: agent.turnId } : { prompt, imageIds: images.map(image => image.id), videoIds: videos.map(video => video.id), audioIds: audios.map(audio => audio.id), attachmentOrder }) });
       media.markSent(attachmentOrder);
       setDraft(current => current === text ? '' : current);
       // Refresh from the source instead of applying the POST snapshot, which may
@@ -329,7 +339,7 @@ export default function IntelligentUIAgentWorkspace({ theme, project, canvas, di
     void send(`${event.humanFriendlyMessage || event.type}${fields}`);
   };
   const tools = useMemo(() => Object.fromEntries(
-    ['get_creative', 'show_intelligent_ui', 'show_canvas_component', 'analyze_reference', 'generate_image', 'generate_video', 'generate_minimax_video', 'generate_first_last_frame_video', 'recover_video', 'edit_grid_prompt', 'generate_grid_video', 'update_experiment', 'import_experiment_skill', 'bind_experiment_source'].flatMap(name =>
+    ['get_creative', 'discover_experiment_methods', 'read_experiment_method', 'show_intelligent_ui', 'show_canvas_component', 'analyze_reference', 'generate_image', 'generate_video', 'generate_minimax_video', 'generate_first_last_frame_video', 'recover_video', 'edit_grid_prompt', 'generate_grid_video', 'update_experiment', 'import_experiment_skill', 'bind_experiment_source'].flatMap(name =>
       [name, `sail_creation/${name}`].map(alias => [alias, (args: Record<string, unknown>) => api(`/api/projects/${project.id}/agent/intelligent-tool`, { method: 'POST', body: JSON.stringify({ name, args }) })]),
     ),
   ), [project.id]);
@@ -393,7 +403,7 @@ export default function IntelligentUIAgentWorkspace({ theme, project, canvas, di
   };
 
   const renderMedia = (items: AgentMedia[] = []) => items.map(item => <figure className="iua-chat-media" key={item.value.id}>
-    {item.value.url ? item.kind === 'image' ? <img src={item.value.url} alt={item.value.prompt} loading="lazy" /> : <video src={item.value.url} controls playsInline preload="metadata" /> : <p>{item.value.status === 'running' ? '媒体正在生成…' : '媒体生成失败，请核对任务状态。'}</p>}
+    {item.value.url ? item.kind === 'image' ? <img src={item.value.url} alt={item.value.prompt} loading="lazy" /> : <video src={item.value.url} controls playsInline preload="metadata" /> : <p>{item.value.status === 'running' ? '媒体正在生成，正在查询原任务…' : item.kind === 'video' && minimaxVideoRecoverable(item.value) ? '本地查询已中断，上游状态待核对；可在任务详情中继续查询原任务。' : '媒体生成失败，请核对任务状态。'}</p>}
     <button type="button" onClick={() => { activate(`${item.kind}:${item.value.id}`); }}>查看创作产物</button>
   </figure>);
   return <section className="intelligent-agent" data-workspace-background={theme.preferences.workspaceBackground ? 'on' : 'off'} aria-label="Open Intelligent UI 创作工作区">
@@ -407,7 +417,7 @@ export default function IntelligentUIAgentWorkspace({ theme, project, canvas, di
           </div>}
           {messages.map(message => <Fragment key={message.id}><article className={`iua-message iua-message-${message.role}`}>
             {message.role === 'user' ? <>
-              {(!!message.images?.length || !!message.videos?.length) && <div className="iua-user-attachments" role="group" aria-label="本条消息的附件"><AgentMessageAttachments message={message} /></div>}
+              {(!!message.images?.length || !!message.videos?.length || !!message.audios?.length) && <div className="iua-user-attachments" role="group" aria-label="本条消息的附件"><AgentMessageAttachments message={message} /></div>}
               {!!message.text.trim() && <div className="iua-user-bubble"><ConversationText message={message} onOpenUI={index => activate(agentPanelId(message.id, index))} /></div>}
               {renderMedia(groupedMedia.get(message.id))}
             </> : <>
@@ -420,13 +430,13 @@ export default function IntelligentUIAgentWorkspace({ theme, project, canvas, di
         </div>
         <div className="iua-composer-area">
           <AgentQueuedMessages messages={queuedMessages} paused={!!agent.queuePaused} disabled={queueDisabled} canSteer={steering && !!agent.turnId} queueEnabled={queueEnabled} onResume={() => updateQueue('/resume', 'POST')} onRemove={id => updateQueue(`/${encodeURIComponent(id)}`, 'DELETE')} onSteer={id => updateQueue(`/${encodeURIComponent(id)}/steer`, 'POST', { expectedTurnId: agent.turnId })} onEdit={(id, text) => updateQueue(`/${encodeURIComponent(id)}`, 'PATCH', { prompt: text })} onAdd={text => updateQueue('', 'POST', { prompt: text })} onToggleQueue={toggleQueuing} />
-          <form className="iua-composer" data-custom-surface={theme.preferences.surfaces.composer.enabled ? 'on' : 'off'} style={theme.surfaceStyle('composer')} onSubmit={event => { event.preventDefault(); void submitDraft(); }} onDragOver={event => { if (event.dataTransfer.types.includes('Files')) { event.preventDefault(); event.dataTransfer.dropEffect = mediaDisabled ? 'none' : 'copy'; } }} onDrop={event => { if (event.dataTransfer.files.length) { event.preventDefault(); media.upload(Array.from(event.dataTransfer.files)); } }} onPaste={event => { if (event.clipboardData.files.length) { if (!event.clipboardData.getData('text/plain')) event.preventDefault(); media.upload(Array.from(event.clipboardData.files)); } }}>
+          <form className="iua-composer" data-custom-surface={theme.preferences.surfaces.composer.enabled ? 'on' : 'off'} style={theme.surfaceStyle('composer')} onSubmit={event => { event.preventDefault(); void submitDraft(); }} onDragOver={event => { if (event.dataTransfer.types.includes('Files')) { event.preventDefault(); event.dataTransfer.dropEffect = mediaDisabled ? 'none' : 'copy'; } }} onDrop={event => { if (event.dataTransfer.files.length) { event.preventDefault(); media.upload(Array.from(event.dataTransfer.files)); } }} onPaste={event => { const files = clipboardMediaFiles(event.clipboardData); if (files.length) { if (!event.clipboardData.getData('text/plain')) event.preventDefault(); media.upload(files); } }}>
             {canvasDraft && <div className="iua-canvas-draft"><span>{canvasDraft.text}</span><button type="button" onClick={() => { setDraft(canvasDraft.text); onCanvasDraftConsumed(); }}>填入输入框</button></div>}
-            <input ref={mediaInput} type="file" accept={promptMediaAccept} multiple hidden aria-label="添加图片或视频附件" disabled={mediaDisabled} onChange={event => { const files = Array.from(event.target.files || []); event.target.value = ''; media.upload(files); }} />
+            <input ref={mediaInput} type="file" accept={promptMediaAccept} multiple hidden aria-label="添加视频、图片或音频附件" disabled={mediaDisabled} onChange={event => { const files = Array.from(event.target.files || []); event.target.value = ''; media.upload(files); }} />
             <AgentPromptMedia assets={media.attachments} pending={media.pending} disabled={mediaDisabled} onRemove={media.remove} />
             <textarea ref={composerText} aria-label="发送给创作 Agent 的消息" aria-description={queueByDefault ? 'Enter 加入队列，Alt + Enter 立即调整，Shift + Enter 换行' : steering ? 'Enter 立即调整，Alt + Enter 加入队列，Shift + Enter 换行' : 'Enter 发送，Shift + Enter 换行'} placeholder={queueByDefault ? '继续输入，消息将在当前任务结束后发送…' : steering ? '补充要求，立即调整当前任务…' : '描述你想创作的图片、视频，或直接提问…'} maxLength={6000} rows={3} value={draft} onChange={event => setDraft(event.target.value)} onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); if (steering && (queueEnabled ? !event.altKey : event.altKey)) void queueDraft(); else void send(draft); } }} />
             <div className="iua-composer-actions">
-              <button type="button" className="iua-attach-button" aria-label={media.working ? '正在处理附件' : '添加图片或视频'} title="添加图片或视频，也可拖入或粘贴" disabled={mediaDisabled} onClick={() => mediaInput.current?.click()}>{media.working ? <LoaderCircle size={18} className="spin" /> : <Plus size={20} />}</button>
+              <button type="button" className="iua-attach-button" aria-label={media.working ? '正在处理附件' : '添加视频、图片或音频'} title="添加视频、图片或音频，也可拖入或粘贴" disabled={mediaDisabled} onClick={() => mediaInput.current?.click()}>{media.working ? <LoaderCircle size={18} className="spin" /> : <Plus size={20} />}</button>
               <button type="button" className="iua-preferences-toggle" ref={preferencesToggle} aria-label={`回答设置，${preferencesTitle}`} title={preferencesTitle} aria-expanded={preferencesOpen} aria-controls={preferencesId} onClick={() => { setPreferencesOpen(open => !open); setModelMenu(false); }}><SlidersHorizontal size={16} aria-hidden="true" /><span>回答设置</span></button>
               {!connected && <span role="status">正在重新连接…</span>}
               <div className="iua-model-picker" ref={modelPicker}><button type="button" ref={modelToggle} disabled={disabled || running || adaptationSaving || presentationSaving || modelSaving} title={currentModel} aria-label="选择 Agent 模型" aria-expanded={modelMenu} aria-controls={modelMenuId} aria-haspopup="dialog" onClick={() => { setModelMenu(open => !open); setPreferencesOpen(false); }}><span>{currentModelLabel}</span><small>{agent.effort || 'high'}</small>{modelSaving ? <LoaderCircle size={13} className="spin" /> : <ChevronDown size={13} />}</button>
@@ -455,14 +465,15 @@ export default function IntelligentUIAgentWorkspace({ theme, project, canvas, di
           <button type="button" className={`iua-task-assets-tab${taskAssetsOpen ? ' active' : ''}`} aria-pressed={taskAssetsOpen} aria-controls="iua-task-assets" title="任务素材" onClick={openTaskAssets}><Package size={15} aria-hidden="true" /><span>任务素材</span><span className="iua-tab-count">{taskAssetCount}</span></button>
           <nav className="iua-tabs" ref={tabStrip} aria-label="右侧工作区标签页">{tabs.map(tab => {
           const artifact = artifacts.find(item => item.id === tab);
-          const title = tab === 'lab' ? '创作实验台' : tab === 'canvas' ? '视频画布' : tab === 'ui' ? '生成结果' : artifact?.title || '产物';
+          const title = tab === 'lab' ? '创作实验台' : tab === 'assets' ? '资产中心' : tab === 'canvas' ? '视频画布' : tab === 'ui' ? '生成结果' : artifact?.title || '产物';
           return <div className={!taskAssetsOpen && rightView === tab ? 'active' : ''} key={tab}><button type="button" className="iua-tab-title" aria-pressed={!taskAssetsOpen && rightView === tab} title={title} onClick={() => activate(tab)}>{artifact && <AgentArtifactIcon kind={artifact.kind} />}<span>{title}</span></button><button type="button" className="iua-tab-close" aria-label={`关闭${title}`} onClick={() => closeTab(tab)}><X size={14} /></button></div>;
-        })}</nav><div className="iua-tab-add"><button type="button" className="iua-icon-button" aria-label="添加标签页" aria-expanded={tabMenu} onClick={() => setTabMenu(open => !open)}><Plus size={19} /></button>{tabMenu && <div className="iua-menu"><button type="button" onClick={() => activate('lab')}>创作实验台</button><button type="button" onClick={() => activate('canvas')}>视频画布</button><button type="button" onClick={() => activate('ui')}>生成结果</button><button type="button" onClick={() => { closeTaskAssets.current(); setSummaryOpen(true); setTabMenu(false); }}>打开产物列表</button></div>}</div></header>
+        })}</nav><div className="iua-tab-add"><button type="button" className="iua-icon-button" aria-label="添加标签页" aria-expanded={tabMenu} onClick={() => setTabMenu(open => !open)}><Plus size={19} /></button>{tabMenu && <div className="iua-menu"><button type="button" onClick={() => activate('lab')}>创作实验台</button><button type="button" onClick={() => activate('assets')}>资产中心</button><button type="button" onClick={() => activate('canvas')}>视频画布</button><button type="button" onClick={() => activate('ui')}>生成结果</button><button type="button" onClick={() => { closeTaskAssets.current(); setSummaryOpen(true); setTabMenu(false); }}>打开产物列表</button></div>}</div></header>
         <div className="iua-task-assets-panel" id="iua-task-assets" ref={taskAssetsPanel} hidden={!taskAssetsOpen} tabIndex={-1} role="region" aria-label="任务素材"><AgentTaskAssets artifacts={artifacts} active={taskAssetsOpen} onOpen={openArtifact} onClose={tabs.length ? onCloseTaskAssets : undefined} /></div>
         <div className="iua-output-body" hidden={taskAssetsOpen}>
           {summaryOpen && <AgentArtifacts artifacts={artifacts} activeId={rightView} onOpen={openArtifact} onCanvas={openCanvas} onClose={closeSummary} />}
           <div className="iua-panels">
-            <div className="iua-experiment-tab" hidden={rightView !== 'lab' || !tabs.includes('lab')}><ExperimentWorkbench project={project} graph={agent.experiment} onGraph={experiment => setAgent(current => ({ ...current, experiment }))} onDraft={text => setDraft(text)} disabled={disabled || !historyLoaded} active={rightView === 'lab'} /></div>
+            <div className="iua-experiment-tab" hidden={rightView !== 'lab' || !tabs.includes('lab')}><ExperimentWorkbench project={project} graph={agent.experiment} onGraph={experiment => setAgent(current => ({ ...current, experiment }))} onDraft={text => setDraft(text)} onExecute={text => { void send(text, false); }} disabled={disabled || running || sendDisabled || !historyLoaded} active={rightView === 'lab'} /></div>
+            <div className="iua-skill-assets-tab" hidden={rightView !== 'assets' || !tabs.includes('assets')}><SkillAssetCenter key={project.id} project={project} graph={agent.experiment} onGraph={experiment => setAgent(current => ({ ...current, experiment }))} onDraft={text => setDraft(text)} onContinue={() => { activate('lab'); composerText.current?.focus({ preventScroll: true }); }} disabled={disabled || running || !historyLoaded} active={rightView === 'assets' && !taskAssetsOpen} /></div>
             <div className="iua-generated" hidden={(rightView !== 'ui' && activeArtifact?.kind !== 'ui') || !tabs.includes(rightView)} onClick={event => {
               if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
               const link = (event.target as HTMLElement).closest<HTMLAnchorElement>('a[data-iui-media]');
@@ -482,7 +493,7 @@ export default function IntelligentUIAgentWorkspace({ theme, project, canvas, di
             </div>
             <div className="iua-canvas-tab" hidden={rightView !== 'canvas' || !tabs.includes('canvas')}><div className="iua-canvas">{canvas}</div></div>
             {activeArtifact && activeArtifact.kind !== 'ui' && <AgentArtifactPreview key={activeArtifact.id} artifact={activeArtifact} onOpen={activate} onLoadVideo={loadVideoDetails} disabled={disabled || running} onRecreate={video => { setDraft(current => [current.trim(), recreateVideoDraft(video)].filter(Boolean).join("\n\n")); composerText.current?.focus({ preventScroll: true }); }} />}
-            {tabs.includes(rightView) && !['lab', 'ui', 'canvas'].includes(rightView) && !activeArtifact && <p className="iua-empty">这份产物已不在当前创意中，可以关闭标签页并从产物列表重新选择。</p>}
+            {tabs.includes(rightView) && !['lab', 'assets', 'ui', 'canvas'].includes(rightView) && !activeArtifact && <p className="iua-empty">这份产物已不在当前创意中，可以关闭标签页并从产物列表重新选择。</p>}
             {!tabs.length && <p className="iua-empty">点击 + 打开工作区标签页。</p>}
           </div>
         </div>

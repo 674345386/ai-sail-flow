@@ -1,7 +1,8 @@
 import { useEffect, useId, useMemo, useRef, useState, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
-import { Archive, ArchiveRestore, ArrowLeft, Ellipsis, FolderOpen, FolderPlus, MessageCirclePlus, MessageSquare, Pencil, Pin, Plus, Search } from 'lucide-react';
+import { Archive, ArchiveRestore, ArrowLeft, CircleAlert, CirclePause, Ellipsis, FolderOpen, FolderPlus, LoaderCircle, MessageCirclePlus, MessageSquare, Pencil, Pin, Plus, Search } from 'lucide-react';
 import type { ProjectSummary, WorkspaceProject } from '../shared/domain';
+import { agentActivityTime, type AgentActivities, type AgentActivity } from '../shared/agent-activity';
 
 const RECENT_LIMIT = 3;
 const MORE_LIST_LIMIT = 20;
@@ -25,6 +26,18 @@ function TaskBadge({ count, showZero = false }: { count: number; showZero?: bool
   return <span className="creative-task-badge" title={`进行中任务：${count}`} aria-label={`进行中任务 ${count}`}>
     <MessageSquare size={12} aria-hidden="true" /><em>{count}</em>
   </span>;
+}
+
+function UnreadDot() {
+  return <span className="creative-unread-dot" role="img" aria-label="已完成，有新结果待查看" title="已完成，有新结果待查看" />;
+}
+
+function CreativeActivityStatus({ creative, activity }: { creative: ProjectSummary; activity?: AgentActivity }) {
+  if (activity?.status === 'running') return <span className="creative-agent-status" role="img" aria-label="Agent 正在执行" title="Agent 正在执行"><LoaderCircle size={14} className="spin creative-agent-spinner" aria-hidden="true" /></span>;
+  if (activity?.status === 'failed') return <span className="creative-agent-status is-failed" role="img" aria-label="Agent 执行失败" title="执行失败，打开会话查看详情"><CircleAlert size={14} aria-hidden="true" /></span>;
+  if (activity?.status === 'interrupted') return <span className="creative-agent-status" role="img" aria-label="Agent 已停止" title="Agent 已停止"><CirclePause size={14} aria-hidden="true" /></span>;
+  const updatedAt = activity?.updatedAt && activity.updatedAt > creative.updatedAt ? activity.updatedAt : creative.updatedAt;
+  return <time className="creative-agent-status" dateTime={updatedAt} title={new Date(updatedAt).toLocaleString()}>{agentActivityTime(updatedAt)}</time>;
 }
 
 function NewCreativeButton({ group, current, busy, onCreate }: {
@@ -61,17 +74,19 @@ function NewCreativeButton({ group, current, busy, onCreate }: {
 }
 
 function CreativeRow({
-  creative, selected, busy, running, showArchived, badge, pinned, onSelect, onArchive, onTogglePin, pinVisible = false,
+  creative, selected, busy, running, showArchived, badge, pinned, onSelect, onArchive, onTogglePin, pinVisible = false, agentMode = false, activity, unread = false,
 }: {
   creative: ProjectSummary; selected: boolean; busy: boolean; running: boolean; showArchived: boolean;
   badge: number; pinned?: boolean; onSelect: (id: string) => void; onArchive: (id: string, archived: boolean) => void;
   onTogglePin?: (id: string) => void; pinVisible?: boolean;
+  agentMode?: boolean; activity?: AgentActivity; unread?: boolean;
 }) {
   return <div className={`project-row ${selected ? 'selected' : ''}${pinned ? ' is-pinned' : ''}`}>
     <button className={`project-link ${selected ? 'selected' : ''}`} aria-current={selected ? 'page' : undefined} onClick={() => onSelect(creative.id)} disabled={busy} title={creative.title}>
+      {unread && <UnreadDot />}
       <span className="project-link-title">{creative.title}</span>
       {creative.isDemo && <small>示例</small>}
-      <TaskBadge count={badge} />
+      {agentMode ? <CreativeActivityStatus creative={creative} activity={activity} /> : <TaskBadge count={badge} />}
     </button>
     {onTogglePin && <button
       type="button"
@@ -82,16 +97,17 @@ function CreativeRow({
       disabled={busy}
       onClick={event => { event.stopPropagation(); onTogglePin(creative.id); }}
     ><Pin size={13} /></button>}
-    <button className="project-archive-action" aria-label={`${showArchived ? '恢复' : '归档'}创意：${creative.title}`} title={showArchived ? '恢复创意' : '归档创意'} disabled={busy || (selected && running)} onClick={() => onArchive(creative.id, !showArchived)}>{showArchived ? <ArchiveRestore size={14} /> : <Archive size={14} />}</button>
+    <button className="project-archive-action" aria-label={`${showArchived ? '恢复' : '归档'}创意：${creative.title}`} title={showArchived ? '恢复创意' : '归档创意'} disabled={busy || activity?.status === 'running' || (selected && running)} onClick={() => onArchive(creative.id, !showArchived)}>{showArchived ? <ArchiveRestore size={14} /> : <Archive size={14} />}</button>
   </div>;
 }
 
 function MorePopover({
-  creatives, pinnedIds, currentId, busy, onSelect, onTogglePin, onViewAll, onClose, anchorRef,
+  creatives, pinnedIds, currentId, busy, onSelect, onTogglePin, onViewAll, onClose, anchorRef, agentActivities, unreadIds,
 }: {
   creatives: ProjectSummary[]; pinnedIds: Set<string>; currentId: string; busy: boolean;
   onSelect: (id: string) => void; onTogglePin: (id: string) => void; onViewAll: () => void; onClose: () => void;
   anchorRef: RefObject<HTMLButtonElement | null>;
+  agentActivities?: AgentActivities; unreadIds?: Set<string>;
 }) {
   const [query, setQuery] = useState('');
   const [coords, setCoords] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
@@ -140,8 +156,9 @@ function MorePopover({
         const pinned = pinnedIds.has(creative.id);
         return <div key={creative.id} className={`sidebar-more-row${creative.id === currentId ? ' selected' : ''}`}>
           <button type="button" className="sidebar-more-link" disabled={busy} onClick={() => { onSelect(creative.id); onClose(); }} title={creative.title}>
-            <span className="sidebar-more-avatar" aria-hidden="true">{creative.title.trim().charAt(0).toUpperCase()}</span><span>{creative.title}</span>
-            <TaskBadge count={creative.inProgressCount || 0} showZero />
+            {unreadIds?.has(creative.id) && <UnreadDot />}
+            <span className="sidebar-more-avatar" aria-hidden="true">{creative.title.trim().charAt(0).toUpperCase()}</span><span className="sidebar-more-link-title">{creative.title}</span>
+            {agentActivities ? <CreativeActivityStatus creative={creative} activity={agentActivities[creative.id]} /> : <TaskBadge count={creative.inProgressCount || 0} showZero />}
           </button>
           <button
             type="button"
@@ -159,12 +176,13 @@ function MorePopover({
   </div>;
 }
 
-export default function ProjectNavigation({ groups, creatives, currentId, currentParentId, busy, running, showArchived, onShowArchived, onNewProject, onRenameProject, onNewCreative, onSelect, onArchive, onSearch, collapsed = false, onExpand }: {
+export default function ProjectNavigation({ groups, creatives, currentId, currentParentId, busy, running, showArchived, onShowArchived, onNewProject, onRenameProject, onNewCreative, onSelect, onArchive, onSearch, collapsed = false, onExpand, agentActivities, unreadIds }: {
   groups: WorkspaceProject[]; creatives: ProjectSummary[]; currentId: string; currentParentId?: string; busy: boolean; running: boolean; showArchived: boolean;
   onShowArchived: (value: boolean) => void; onNewProject: () => void; onRenameProject: (group: WorkspaceProject) => void;
   onNewCreative: (parentId: string) => void; onSelect: (id: string) => void; onArchive: (id: string, archived: boolean) => void;
   collapsed?: boolean; onExpand?: () => void;
   onSearch: () => void;
+  agentActivities?: AgentActivities; unreadIds?: Set<string>;
 }) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [viewAll, setViewAll] = useState<Record<string, boolean>>({});
@@ -247,6 +265,9 @@ export default function ProjectNavigation({ groups, creatives, currentId, curren
               {favorites.map(creative => <CreativeRow
                 key={creative.id}
                 creative={creative}
+                agentMode={!!agentActivities}
+                activity={agentActivities?.[creative.id]}
+                unread={unreadIds?.has(creative.id)}
                 selected={creative.id === currentId}
                 busy={busy}
                 running={running}
@@ -264,6 +285,9 @@ export default function ProjectNavigation({ groups, creatives, currentId, curren
               {recent.map(creative => <CreativeRow
                 key={creative.id}
                 creative={creative}
+                agentMode={!!agentActivities}
+                activity={agentActivities?.[creative.id]}
+                unread={unreadIds?.has(creative.id)}
                 selected={creative.id === currentId}
                 busy={busy}
                 running={running}
@@ -288,6 +312,8 @@ export default function ProjectNavigation({ groups, creatives, currentId, curren
               ><Ellipsis size={14} /><span>More</span></button>
               {moreOpenFor === group.id && <MorePopover
                 creatives={children}
+                agentActivities={agentActivities}
+                unreadIds={unreadIds}
                 pinnedIds={pinnedSet}
                 currentId={currentId}
                 busy={busy}
@@ -302,6 +328,9 @@ export default function ProjectNavigation({ groups, creatives, currentId, curren
             {children.map(creative => <CreativeRow
               key={creative.id}
               creative={creative}
+              agentMode={!!agentActivities}
+              activity={agentActivities?.[creative.id]}
+              unread={unreadIds?.has(creative.id)}
               selected={creative.id === currentId}
               busy={busy}
               running={running}

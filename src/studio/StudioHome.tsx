@@ -49,7 +49,7 @@ export default function StudioHome({ onOpen }: { onOpen: (section: Exclude<Studi
     <div className="studio-stack">
       <div className="studio-hero">
         <div>
-          <div className="eyebrow">AI-SAIL STUDIO <span>/</span> 爆款工作室</div>
+          <div className="eyebrow">AI Creative Lab Studio <span>/</span> 爆款工作室</div>
           <h1>选择一个模块开始</h1>
           <p>商品套图、爆款雷达、TVC 与热片复刻互不打扰现有「素材 → 拆解 → 二创」流程。</p>
         </div>

@@ -58,7 +58,7 @@ export default function WelcomeProfileDialog({ user, avatarUrl, firstRun, onComp
       {!firstRun && <button className="profile-welcome-close" type="button" aria-label="关闭个人资料" disabled={busy} onClick={onCancel}><X size={18} /></button>}
       <div className="profile-welcome-art" aria-hidden="true"><span /><span /><span /><span /></div>
       <div className="profile-welcome-portrait"><img src={preview} alt="当前选择的头像" /><button type="button" title="上传头像" aria-label="上传头像" disabled={busy} onClick={() => fileInput.current?.click()}><Pencil size={14} /></button></div>
-      <h1 id="profile-welcome-title">{firstRun ? '欢迎使用 AI-Sail Flow！' : '让大家认识你'}</h1>
+      <h1 id="profile-welcome-title">{firstRun ? '欢迎使用 AI Creative Lab！' : '让大家认识你'}</h1>
       <p className="profile-welcome-intro">{firstRun ? '从一个名字开始，让创意有你的色彩。' : '选择头像，也可以换一个喜欢的名字。'}</p>
       <label className="profile-welcome-name"><span>你的名称</span><div><input ref={nameInput} value={name} maxLength={254} autoComplete="nickname" disabled={busy} required onChange={event => setName(event.target.value)} aria-describedby="profile-name-hint" /><button type="button" aria-label="编辑名称" disabled={busy} onClick={() => { nameInput.current?.focus(); nameInput.current?.select(); }}><Pencil size={16} /></button></div></label>
       <p id="profile-name-hint" className="profile-welcome-hint">点击名称即可编辑，之后也可以在账号中修改。</p>

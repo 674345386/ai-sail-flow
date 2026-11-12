@@ -1,5 +1,7 @@
 import { z } from 'zod';
 import { activeExperimentMethod, normalizeExperimentGraph, methodMatchesRun } from './experiment-organization';
+import { environmentSchema, type SkillEnvironment, type SkillReference } from './skill-assets';
+import { applyExperimentPlanning, assertExperimentRouteExecution, defaultExperimentPolicy, experimentPlanningOperations, normalizeExperimentPolicy, type ExperimentPolicy, type ExperimentProposal } from './experiment-planning';
 export { activeExperimentMethod, normalizeExperimentGraph, methodMatchesRun } from './experiment-organization';
 
 export const experimentKinds = ['asset', 'step', 'skill', 'artifact', 'compare'] as const;
@@ -16,10 +18,12 @@ export const experimentMethodInput = z.object({
   parameters: z.record(z.string().max(120), z.union([z.string().max(2000), z.number().finite(), z.boolean(), z.null()])).default({}),
 });
 export type ExperimentMethod = z.infer<typeof experimentMethodInput>;
-export type ExperimentPlan = { id: string; title: string; goal: string; goalId: string; basedOn?: string; adopted?: boolean; selectedArtifactId?: string };
+export type ExperimentPlan = { id: string; title: string; goal: string; goalId: string; basedOn?: string; adopted?: boolean; selectedArtifactId?: string; proposalId?: string; routeId?: string };
 export type ExperimentRun = {
   id: string; stepId: string; planId: string; method: ExperimentMethod; inputRevisions: Record<string, number>;
   artifactIds: string[]; status: 'running' | 'completed' | 'failed'; startedAt: string; finishedAt?: string; error?: string;
+  environment?: SkillEnvironment;
+  policy?: ExperimentPolicy; proposalId?: string; routeId?: string;
 };
 export const experimentNodeInput = z.object({
   id: nodeId, kind: z.enum(experimentKinds), title: z.string().trim().min(1).max(120),
@@ -29,6 +33,7 @@ export const experimentNodeInput = z.object({
   position: position.optional(), sourceId: z.string().max(150).optional(),
   selectedInput: nodeId.optional(),
   planId: nodeId.optional(), methods: z.array(experimentMethodInput).min(1).max(16).optional(), activeMethodId: nodeId.optional(),
+  assetReferenceId: nodeId.optional(),
 });
 export type ExperimentNodeInput = z.infer<typeof experimentNodeInput>;
 export type ExperimentSkill = { repository: string; path: string; commit: string; url: string; content: string; name: string };
@@ -36,14 +41,17 @@ export type ExperimentNode = ExperimentNodeInput & {
   position: { x: number; y: number }; revision: number; inputRevisions: Record<string, number>;
   url?: string; mediaType?: 'image' | 'video' | 'text'; skill?: ExperimentSkill; error?: string;
   runId?: string;
+  routeStepIndex?: number;
 };
 export type ExperimentTemplate = { id: string; title: string; createdAt: string; verified: boolean; nodes: ExperimentNode[]; plans?: ExperimentPlan[] };
 export type ExperimentFile = { id: string; title: string; url: string; mediaType: 'image' | 'video' | 'text'; status: 'completed'; filename: string; size: number;
   createdAt?: string; purpose?: 'context' | 'output'; sourceId?: string; sourceTime?: number;
   storage?: 'local';
 };
-export type ExperimentGraph = { version: 1; revision: number; title: string; nodes: ExperimentNode[]; templates: ExperimentTemplate[]; files?: ExperimentFile[]; updatedAt: string; organizationVersion?: 1; plans?: ExperimentPlan[]; runs?: ExperimentRun[] };
+export type ExperimentGraph = { version: 1; revision: number; title: string; nodes: ExperimentNode[]; templates: ExperimentTemplate[]; files?: ExperimentFile[]; updatedAt: string; organizationVersion?: 1; plans?: ExperimentPlan[]; runs?: ExperimentRun[]; environment?: SkillEnvironment; assetReferences?: SkillReference[]; policy?: ExperimentPolicy; proposals?: ExperimentProposal[]; activeProposalId?: string };
 export const experimentOperation = z.discriminatedUnion('op', [
+  ...experimentPlanningOperations,
+  z.object({ op: z.literal('environment'), environment: environmentSchema }),
   z.object({ op: z.literal('upsert'), nodes: z.array(experimentNodeInput).min(1).max(80) }),
   z.object({ op: z.literal('patch'), id: nodeId, changes: experimentNodeInput.omit({ id: true, kind: true }).partial() }),
   z.object({ op: z.literal('move'), positions: z.array(z.object({ id: nodeId, position })).max(160) }),
@@ -70,7 +78,11 @@ export const emptyExperiment = (): ExperimentGraph => ({ version: 1, organizatio
 
 /** Keep routine Agent reads bounded; a node's full method/content is read on demand. */
 export function experimentAgentContext(graph: ExperimentGraph) {
-  return { ...graph, runCount: graph.runs?.length || 0, runs: graph.runs?.slice(-30).map(run => ({ ...run, method: { ...run.method, prompt: run.method.prompt.slice(0, 1500) }, readFullWith: 'read_experiment_node' })), templates: graph.templates.map(({ nodes, ...template }) => ({ ...template, nodeCount: nodes.length })), nodes: graph.nodes.map(n => ({ ...n, content: n.content.slice(0, 6000), methods: n.methods?.map(method => ({ ...method, prompt: method.prompt.slice(0, 6000) })), ...(n.skill ? { skill: { ...n.skill, content: n.skill.content.slice(0, 3000), readFullWith: 'read_experiment_node' } } : {}) })) };
+  const proposals = graph.proposals?.map(proposal => proposal.id === graph.activeProposalId
+    ? { ...proposal, routes: proposal.routes.map(route => ({ ...route, steps: route.steps.map(step => ({ ...step, prompt: step.prompt.slice(0, 1500) })) })) }
+    : { id: proposal.id, createdAt: proposal.createdAt, goal: proposal.brief.goal, selectedRouteIds: proposal.selectedRouteIds });
+  const environment = graph.environment && { ...graph.environment, files: graph.environment.files.map(({ content, ...file }) => file) };
+  return { ...graph, policy: normalizeExperimentPolicy(graph.policy), proposals, environment, assetReferences: graph.assetReferences?.map(({ snapshot, environment: required, ...reference }) => ({ ...reference, environment: required && { ...required, files: required.files.map(({ content, ...file }) => file) }, example: snapshot && { id: snapshot.id, title: snapshot.title, runCount: snapshot.graph.runs?.length || 0 }, readFullWith: 'read_skill_reference' })), runCount: graph.runs?.length || 0, runs: graph.runs?.slice(-30).map(({ environment: runEnvironment, ...run }) => ({ ...run, environment: runEnvironment && { ...runEnvironment, files: runEnvironment.files.map(({ content, ...file }) => file) }, method: { ...run.method, prompt: run.method.prompt.slice(0, 1500) }, readFullWith: 'read_experiment_node' })), templates: graph.templates.map(({ nodes, ...template }) => ({ ...template, nodeCount: nodes.length })), nodes: graph.nodes.map(n => ({ ...n, content: n.content.slice(0, 6000), methods: n.methods?.map(method => ({ ...method, prompt: method.prompt.slice(0, 6000) })), ...(n.skill ? { skill: { ...n.skill, content: n.skill.content.slice(0, 3000), readFullWith: 'read_experiment_node' } } : {}) })) };
 }
 
 export const experimentRecipes = [
@@ -131,6 +143,7 @@ function experimentPathNodes(nodes: ExperimentNode[], plans: ExperimentPlan[]) {
 }
 export function applyExperimentOperation(graph: ExperimentGraph, operation: ExperimentOperation, uid: () => string): ExperimentGraph {
   graph = normalizeExperimentGraph(graph);
+  if (operation.op === 'policy' || operation.op === 'propose-routes' || operation.op === 'select-routes') return applyExperimentPlanning(graph, operation, uid);
   let nodes = structuredClone(graph.nodes), templates = [...graph.templates], title = graph.title;
   let plans = structuredClone(graph.plans || []), runs = structuredClone(graph.runs || []);
   const find = (id: string) => { const n = nodes.find(n => n.id === id); if (!n) throw new ExperimentError('找不到这个节点，请刷新实验台。'); return n; };
@@ -147,7 +160,13 @@ export function applyExperimentOperation(graph: ExperimentGraph, operation: Expe
     step.error = previous?.error;
     nodes = invalidateExperimentNodes(nodes, new Set(nodes.filter(node => node.inputs.includes(step.id) && node.kind !== 'artifact').map(node => node.id)));
   };
-  if (operation.op === 'upsert' || operation.op === 'patch') {
+  if (operation.op === 'environment') {
+    if (runs.some(run => run.status === 'running')) throw new ExperimentError('有步骤正在执行，请结束后再更新环境。');
+    const runtimeKey = (environment?: SkillEnvironment) => environment && JSON.stringify([environment.platform, environment.architecture, environment.workingDirectory, environment.entries, environment.files.map(file => [file.path, file.sha256]), environment.requirements, environment.unresolved]);
+    const changed = runtimeKey(graph.environment) !== runtimeKey(operation.environment);
+    graph = { ...graph, environment: operation.environment };
+    if (changed) nodes = invalidateExperimentNodes(nodes, new Set(nodes.filter(node => node.kind === 'step').map(node => node.id)));
+  } else if (operation.op === 'upsert' || operation.op === 'patch') {
     const incoming = operation.op === 'upsert' ? operation.nodes : [{ ...find(operation.id), ...operation.changes }];
     const changed = new Set<string>();
     for (const input of incoming) {
@@ -205,7 +224,7 @@ export function applyExperimentOperation(graph: ExperimentGraph, operation: Expe
     const members = experimentPathNodes(nodes.filter(node => node.planId === original.id && ['step', 'artifact', 'compare'].includes(node.kind)), [original]);
     const id = uid(), ids = new Map(members.map(node => [node.id, uid()]));
     const alternative = plans.filter(plan => plan.goalId === original.goalId).length + 1;
-    plans.push({ id, title: `${original.title.slice(0, 100)} · 备选 ${alternative}`, goal: original.goal, goalId: original.goalId, basedOn: original.id });
+    plans.push({ id, title: `${original.title.slice(0, 100)} · 备选 ${alternative}`, goal: original.goal, goalId: original.goalId, basedOn: original.id, proposalId: original.proposalId, routeId: original.routeId });
     const offset = members.length ? Math.max(...members.map(node => node.position.y)) - Math.min(...members.map(node => node.position.y)) + 330 : 330;
     for (const node of members) {
       const methodIds = new Map(node.methods?.map(method => [method.id, uid()]));
@@ -240,18 +259,21 @@ export function applyExperimentOperation(graph: ExperimentGraph, operation: Expe
     nodes = invalidateExperimentNodes(nodes, new Set(nodes.filter(node => node.inputs.some(id => previous.includes(id)) || activeExperimentMethod(node)?.referenceIds.some(id => previousSources.includes(id))).map(node => node.id)));
     plans = plans.map(item => item.goalId === plan.goalId ? { ...item, adopted: item.id === plan.id, ...(item.id === plan.id ? { selectedArtifactId: artifact.id } : {}) } : item);
   } else if (operation.op === 'start-run') {
+    assertExperimentRouteExecution(graph, operation.stepId);
     const step = findStep(operation.stepId);
     if (runs.some(run => run.stepId === step.id && run.status === 'running')) throw new ExperimentError('此步骤已有任务正在执行，请查询原任务。');
     if (runs.length >= 1000) throw new ExperimentError('当前实验台已达到 1000 次执行记录上限。');
     if (operation.methodId && operation.methodId !== step.activeMethodId) activate(step, operation.methodId);
     const method = activeExperimentMethod(step)!;
+    if ((step.assetReferenceId || method.inputs.some(id => find(id).kind === 'skill' && find(id).assetReferenceId)) && !graph.environment) throw new ExperimentError('采用平台 Skill 后，请先检查依赖并记录当前实际环境，再开始执行。');
     if (operation.prompt !== undefined) method.prompt = operation.prompt;
     if (operation.referenceIds !== undefined) method.referenceIds = operation.referenceIds;
     if (operation.model !== undefined) method.model = operation.model;
     if (operation.parameters !== undefined) method.parameters = operation.parameters;
     if (method.inputs.some(id => find(id).status !== 'completed')) throw new ExperimentError('请先完成这个方法的上游输入。');
     step.prompt = method.prompt; step.method = method.title; step.inputs = [...method.inputs]; step.status = 'running'; step.error = undefined; step.revision++;
-    runs.push({ id: uid(), stepId: step.id, planId: step.planId!, method: structuredClone(method), inputRevisions: Object.fromEntries(method.inputs.map(id => [id, find(id).revision])), artifactIds: [], status: 'running', startedAt: new Date().toISOString() });
+    const owner = plans.find(plan => plan.id === step.planId), proposal = graph.proposals?.find(item => item.id === owner?.proposalId);
+    runs.push({ id: uid(), stepId: step.id, planId: step.planId!, method: structuredClone(method), inputRevisions: Object.fromEntries(method.inputs.map(id => [id, find(id).revision])), artifactIds: [], status: 'running', startedAt: new Date().toISOString(), policy: structuredClone(proposal?.policy || graph.policy || defaultExperimentPolicy()), proposalId: owner?.proposalId, routeId: owner?.routeId, ...(graph.environment ? { environment: structuredClone(graph.environment) } : {}) });
   } else if (operation.op === 'fail-run') {
     const run = runs.find(item => item.id === operation.runId);
     if (!run) throw new ExperimentError('找不到这次执行记录。');
@@ -287,7 +309,8 @@ export function applyExperimentOperation(graph: ExperimentGraph, operation: Expe
     const reusable = experimentPathNodes(template.nodes, template.plans || []);
     const ids = new Map(reusable.map(n => [n.id, uid()]));
     const planIds = new Map((template.plans || []).map(plan => [plan.id, uid()]));
-    plans.push(...(template.plans || []).map(plan => ({ ...plan, id: planIds.get(plan.id)!, goalId: planIds.get(plan.goalId) || planIds.get(plan.id)!, basedOn: plan.basedOn ? planIds.get(plan.basedOn) : undefined, adopted: false, selectedArtifactId: undefined })));
+    const goalIds = new Map((template.plans || []).map(plan => [plan.goalId, uid()]));
+    plans.push(...(template.plans || []).map(plan => ({ ...plan, id: planIds.get(plan.id)!, goalId: goalIds.get(plan.goalId)!, basedOn: plan.basedOn ? planIds.get(plan.basedOn) : undefined, adopted: false, selectedArtifactId: undefined, proposalId: undefined, routeId: undefined })));
     const offset = nodes.length ? Math.max(...nodes.map(n => n.position.y)) + 320 : 0;
     nodes.push(...reusable.map(n => {
       const methodIds = new Map(n.methods?.map(method => [method.id, uid()]));

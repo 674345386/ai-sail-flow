@@ -3,7 +3,10 @@ import { open, unlink } from 'node:fs/promises';
 import type { MinimaxGenerationRequest } from '../shared/minimax-video';
 
 export class MinimaxError extends Error { constructor(public status: number, message: string) { super(message); } }
-type Progress = (progress: number, message: string) => void;
+export class MinimaxTaskError extends MinimaxError {
+  constructor(public taskStatus: 'failed' | 'cancelled', message: string) { super(502, message); }
+}
+type Progress = (progress: number, message: string, task?: MinimaxTask) => void;
 export type MinimaxOutput = { asset_id: string; media_type: string; download_url: string; byte_length?: number | string; download_expires_at?: string };
 export type MinimaxTask = {
   id: string; status: string; outputs?: MinimaxOutput[]; optimized_prompt?: string | null;
@@ -78,8 +81,8 @@ export class MinimaxH3Client {
         continue;
       }
       if (task.status === 'succeeded') return task;
-      if (['failed', 'cancelled'].includes(task.status)) throw new MinimaxError(502, `MiniMax 任务${task.status === 'cancelled' ? '已取消' : '失败'}：${this.detail(task.error?.message || task.error?.code || task.status)}`);
-      progress(task.status === 'queued' ? 30 : 55, `MiniMax H3 ${task.status === 'queued' ? '已排队' : '正在生成视频'}…`);
+      if (task.status === 'failed' || task.status === 'cancelled') throw new MinimaxTaskError(task.status, `MiniMax 任务${task.status === 'cancelled' ? '已取消' : '失败'}：${this.detail(task.error?.message || task.error?.code || task.status)}`);
+      progress(task.status === 'queued' ? 30 : 55, `MiniMax H3 ${task.status === 'queued' ? '已排队' : '正在生成视频'}…`, task);
       await new Promise(resolve => setTimeout(resolve, Date.now() - started < 60_000 ? 5000 : 15_000));
     }
     throw new MinimaxError(504, 'MiniMax 等待超时，任务 ID 已保存；请用 recover_video 继续查询，避免重复生成。');

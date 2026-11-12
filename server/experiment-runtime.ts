@@ -8,6 +8,7 @@ import { inspectMedia } from './media';
 import { bindExperimentSource, experimentSources } from './experiment-workbench';
 import { emptyExperiment, ExperimentError, type ExperimentGraph, type ExperimentFile } from '../shared/experiment';
 import type { Project } from '../shared/domain';
+import { assertExperimentRouteExecution } from '../shared/experiment-planning';
 
 // Directory separation keeps creative files organised; it is not an OS sandbox.
 // Hosted code execution needs a separate isolated worker and is deliberately off.
@@ -21,6 +22,7 @@ export const publishExperimentFileInput = z.object({ stepId: z.string().regex(/^
 export async function publishExperimentFile(graph: ExperimentGraph | undefined, project: Project, input: z.infer<typeof publishExperimentFileInput>) {
   if (!programmaticEnabled()) throw new ExperimentError('程序化代码执行与本地产物发布当前只在本机模式开放。');
   const current = graph || emptyExperiment();
+  assertExperimentRouteExecution(current, input.stepId, 'programmatic');
   const source = input.sourceId ? experimentSources(project, current.files).find(file => file.id === input.sourceId) : undefined;
   if (input.sourceId && !source) throw new ExperimentError('来源素材不在当前创意中。');
   if (input.sourceTime !== undefined && source?.mediaType !== 'video') throw new ExperimentError('抽帧时间需要关联当前创意中的来源视频。');
@@ -38,7 +40,7 @@ export async function publishExperimentFile(graph: ExperimentGraph | undefined, 
   const detected = await fileTypeFromFile(absolute);
   const mediaType = detected && ['video/mp4', 'video/quicktime', 'video/webm'].includes(detected.mime) ? 'video' : detected && ['image/png', 'image/jpeg', 'image/webp'].includes(detected.mime) ? 'image' : 'text';
   const ext = mediaType === 'text' ? 'txt' : detected!.ext;
-  if (mediaType === 'text' && (!/\.(?:tsx?|jsx?|mjs|cjs|css|html|json|md|txt|srt|vtt|py)$/i.test(absolute) || stat.size > 1024 * 1024)) throw new ExperimentError('非媒体产物支持小于 1 MB 的代码、文本、脚本或字幕文件。');
+  if (mediaType === 'text' && (!/(?:\.(?:tsx?|jsx?|mjs|cjs|css|html|json|md|txt|srt|vtt|py|sh|ya?ml|toml|lock)|(?:^|\/)Dockerfile)$/i.test(absolute) || stat.size > 1024 * 1024)) throw new ExperimentError('非媒体产物支持小于 1 MB 的代码、依赖锁、环境配置、文本或字幕文件。');
   const filename = `experiment-${randomUUID()}.${ext}`, destination = path.join(uploadDir, filename);
   try {
     await fs.copyFile(absolute, destination);

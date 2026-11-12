@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
 import { ArrowRight, Check, GitBranch, Image, Link2, Plus, Save, Trash2 } from 'lucide-react';
 import { activeExperimentMethod, experimentStatusLabels, type ExperimentGraph, type ExperimentMethod, type ExperimentNode, type ExperimentOperation, type ExperimentPlan, type ExperimentRun } from '../shared/experiment';
+import { experimentLevel } from '../shared/experiment-planning';
+import { experimentNodePresentation } from './experiment-status';
+import { SkillEnvironmentView } from './SkillAssetCenter';
 
 export type WorkbenchSource = { id: string; title: string; url?: string; mediaType?: 'image' | 'video' | 'text'; referenceAvailable?: boolean };
 type Mutate = (operation: ExperimentOperation) => Promise<ExperimentGraph | undefined>;
@@ -70,8 +73,10 @@ export function ExperimentRunDetails({ run, graph, sources, onSelect }: { run: E
   return <section className="lab-run-details"><div className="lab-section-title"><h3>产物来源 · {run.method.title}</h3><span className={`lab-status lab-status-${run.status}`}>{experimentStatusLabels[run.status]}</span></div>
     <button type="button" className="lab-link-button" onClick={() => onSelect(run.stepId)}><Link2 size={13} />{graph.nodes.find(node => node.id === run.stepId)?.title || '来源步骤'}<ArrowRight size={13} /></button>
     <p className="lab-help">{new Date(run.startedAt).toLocaleString('zh-CN')} · {run.method.model || '未指定模型'}</p>
+    {run.policy && <p className="lab-help">实验设置：{experimentLevel(run.policy.level).name} · {run.policy.decision === 'auto' ? 'Agent 自动选定' : '用户选择'}{run.routeId ? ` · ${graph.proposals?.find(proposal => proposal.id === run.proposalId)?.routes.find(route => route.id === run.routeId)?.title || '所选路线'}` : ''}</p>}
     {run.method.description && <p>{run.method.description}</p>}
     <details><summary>本次实际使用的提示词</summary><pre>{run.method.prompt || '此次执行没有文本提示词。'}</pre></details>
+    <details><summary>本次运行的依赖与工具版本</summary><SkillEnvironmentView environment={run.environment} /></details>
     {!!run.method.referenceIds.length && <><h3>本次输入参考图</h3><ExperimentReferences ids={run.method.referenceIds} sources={sources} /></>}
     {!!Object.keys(run.method.parameters).length && <details><summary>本次生成参数</summary><pre>{JSON.stringify(run.method.parameters, null, 2)}</pre></details>}
     {run.error && <p className="lab-stale-note">{run.error}</p>}
@@ -93,7 +98,7 @@ export function ExperimentPlanEditor({ plan, graph, busy, mutate, onSelect, onAd
     {conflict && <div className="lab-conflict">方案已更新。<button type="button" onClick={() => { setTitle(plan.title); setGoal(plan.goal); setBaseline(JSON.stringify([plan.title, plan.goal])); }}>重新读取</button></div>}
     <button type="button" className="lab-primary" disabled={busy || conflict || !title.trim() || (title === plan.title && goal === plan.goal)} onClick={async () => { const updated = await mutate({ op: 'plan', id: plan.id, title, goal }); const saved = updated?.plans?.find(item => item.id === plan.id); if (saved) setBaseline(JSON.stringify([saved.title, saved.goal])); }}><Save size={13} />保存方案</button>
     <section className="lab-plan-steps"><div className="lab-section-title"><h3>方案中的步骤 <span>{steps.length}</span></h3><button type="button" disabled={busy} onClick={onAddStep}><Plus size={13} />添加步骤</button></div>
-      {steps.map((step, index) => <div key={step.id} className="lab-plan-step"><button type="button" onClick={() => onSelect(step.id)}><span>{index + 1}</span><strong>{step.title}</strong><ArrowRight size={13} /></button><p>{step.methods?.length || 1} 种方法 · 当前：{activeExperimentMethod(step)?.title} · {experimentStatusLabels[step.status]}</p>{outputs.filter(output => output.inputs.includes(step.id)).map(output => <button type="button" className="lab-plan-output" key={output.id} onClick={() => onSelect(output.id)}>{plan.adopted && plan.selectedArtifactId === output.id ? <Check size={13} /> : <Image size={13} />}<span>{output.title}</span><small>{experimentStatusLabels[output.status]}</small></button>)}</div>)}
+      {steps.map((step, index) => <div key={step.id} className="lab-plan-step"><button type="button" onClick={() => onSelect(step.id)}><span>{index + 1}</span><strong>{step.title}</strong><ArrowRight size={13} /></button><p>{step.methods?.length || 1} 种方法 · 当前：{activeExperimentMethod(step)?.title} · {experimentNodePresentation(step, graph).label}</p>{outputs.filter(output => output.inputs.includes(step.id)).map(output => <button type="button" className="lab-plan-output" key={output.id} onClick={() => onSelect(output.id)}>{plan.adopted && plan.selectedArtifactId === output.id ? <Check size={13} /> : <Image size={13} />}<span>{output.title}</span><small>{experimentNodePresentation(output, graph).label}</small></button>)}</div>)}
       {!steps.length && <p className="lab-help">添加步骤，或在已有节点详情中选择所属方案。节点可以保留在画布的任意位置。</p>}
     </section>
     <div className="lab-plan-actions"><button type="button" disabled={busy} onClick={onBranch}><GitBranch size={14} />创建备选方案</button><button type="button" onClick={onCompare}>比较方案与产物<ArrowRight size={14} /></button></div>
@@ -111,7 +116,7 @@ export function ExperimentComparisons({ graph, plan, step, busy, mutate, onSelec
     <p className="lab-help">{group.runs.length} 次执行 · {group.outputs.filter(output => output.status === 'completed').length} 份已完成产物</p>
     {group.outputs.map(output => { const run = graph.runs?.find(item => item.id === output.runId); const adopted = group.plan.adopted && group.plan.selectedArtifactId === output.id; return <div className="lab-compare-output" key={output.id}>
       <button type="button" className="lab-link-button" onClick={() => onSelect(output.id)}>{output.title}<ArrowRight size={13} /></button>
-      <ExperimentMedia node={output} /><p className="lab-help">{run?.method.title || '等待执行'} · {experimentStatusLabels[output.status]}{run ? ` · ${new Date(run.startedAt).toLocaleString('zh-CN')}` : ''}</p>
+      <ExperimentMedia node={output} /><p className="lab-help">{run?.method.title || '尚未执行'} · {experimentNodePresentation(output, graph).label}{run ? ` · ${new Date(run.startedAt).toLocaleString('zh-CN')}` : ''}</p>
       <button type="button" disabled={busy || adopted || output.status !== 'completed' || (!output.sourceId && !output.content.trim())} onClick={() => void mutate({ op: 'adopt-artifact', planId: group.plan.id, artifactId: output.id })}><Check size={13} />{adopted ? '已采用此产物' : '采用此产物'}</button>
     </div>; })}
     {!group.outputs.length && <p className="lab-help">执行后，独立产物会出现在这里，原有结果会保留。</p>}

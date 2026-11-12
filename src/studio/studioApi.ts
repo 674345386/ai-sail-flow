@@ -1,4 +1,22 @@
 import { api } from '../api';
+import type { RadarInput, RadarRun, RadarItem, RadarSourceStatus, RadarCalendarEvent, ScoredRadarItem } from '../../shared/radar';
+
+export type RadarRunSummary = Pick<RadarRun, 'id' | 'input' | 'createdAt' | 'status'> & { count: number };
+export const radarConfig = () => api<{ sources: RadarSourceStatus[] }>('/api/studio/radar/config');
+export const radarLibrary = () => api<{ items: ScoredRadarItem[]; bookmarks: string[] }>('/api/studio/radar/library');
+export const radarRuns = () => api<RadarRunSummary[]>('/api/studio/radar/runs');
+export const radarRun = (id: string) => api<RadarRun>(`/api/studio/radar/runs/${encodeURIComponent(id)}`);
+export const runRadar = (input: RadarInput, localOnly = false) => api<RadarRun>('/api/studio/radar/run', { method: 'POST', body: JSON.stringify({ ...input, localOnly }) });
+export const getRadarCalendar = (region: string) => api<RadarCalendarEvent[]>(`/api/studio/radar/calendar?region=${encodeURIComponent(region)}`);
+export const importRadarItems = (items: unknown) => api<{ count: number; items: ScoredRadarItem[] }>('/api/studio/radar/import', { method: 'POST', body: JSON.stringify({ items }) });
+export const bookmarkRadarItem = (id: string, saved: boolean) => api<{ bookmarks: string[] }>(`/api/studio/radar/bookmarks/${encodeURIComponent(id)}`, { method: 'POST', body: JSON.stringify({ saved }) });
+export const interpretRadarRun = (id: string) => api<RadarRun>(`/api/studio/radar/runs/${encodeURIComponent(id)}/interpret`, { method: 'POST' });
+export const identifyRadarImage = (image: File) => {
+  const body = new FormData(); body.append('image', image);
+  return api<{ subject: string; category: string; keywords: string[]; observations: string[]; uncertainty: string }>('/api/studio/radar/identify', { method: 'POST', body });
+};
+export const getRadarTrend = (id: string) => api<TrendItem>(`/api/studio/radar/items/${encodeURIComponent(id)}`);
+export type { RadarInput, RadarRun, RadarItem, RadarSourceStatus, ScoredRadarItem };
 
 /** Feature gate: always on for this PR (override with FEATURE_STUDIO=0 / false). */
 export const FEATURE_STUDIO = (() => {

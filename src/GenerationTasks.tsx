@@ -64,14 +64,16 @@ function useTaskList(query: string, version: number) {
   return { data, error, refreshing };
 }
 
-function TaskDetail({ taskId, updatedAt, onClose, onOpenCreative, onOpenStudioProject, busy }: {
-  taskId: string; updatedAt?: string; onClose: () => void; onOpenCreative: (id: string) => void; onOpenStudioProject: (id: string) => void; busy: boolean;
+function TaskDetail({ taskId, updatedAt, onClose, onOpenCreative, onOpenStudioProject, onChanged, busy }: {
+  taskId: string; updatedAt?: string; onClose: () => void; onOpenCreative: (id: string) => void; onOpenStudioProject: (id: string) => void; onChanged: () => void; busy: boolean;
 }) {
   const [task, setTask] = useState<GenerationTask | null>(null);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
   const [mediaError, setMediaError] = useState(false);
   const [retry, setRetry] = useState(0);
+  const [recovering, setRecovering] = useState(false);
+  const recoveringRef = useRef(false);
   const panel = useRef<HTMLElement>(null);
   const copyTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => {
@@ -94,6 +96,15 @@ function TaskDetail({ taskId, updatedAt, onClose, onOpenCreative, onOpenStudioPr
       setCopied(true); clearTimeout(copyTimer.current); copyTimer.current = setTimeout(() => setCopied(false), 1800);
     } catch { setError('复制失败，请选中下方请求标识手动复制。'); }
   };
+  const recover = async () => {
+    if (recoveringRef.current || busy || !task?.recoverable) return;
+    recoveringRef.current = true; setRecovering(true); setError('');
+    try {
+      setTask(await api<GenerationTask>(`/api/generation-tasks/${encodeURIComponent(taskId)}/recover`, { method: 'POST' }));
+      onChanged();
+    } catch (failure) { setError(failure instanceof Error ? failure.message : '暂时无法查询原任务，请稍后重试。'); }
+    finally { recoveringRef.current = false; setRecovering(false); }
+  };
   const stageIndex = task ? stages.findIndex(stage => stage.id === task.stage) : 0;
   const attention = task?.status === 'failed' || task?.status === 'needs-attention';
   return <aside className="generation-detail" ref={panel} tabIndex={-1} aria-label="任务详情">
@@ -113,7 +124,7 @@ function TaskDetail({ taskId, updatedAt, onClose, onOpenCreative, onOpenStudioPr
         })}
       </ol>
       <p className={`generation-detail-message ${attention ? 'is-attention' : ''}`} role="status">{task.message}</p>
-      {task.status === 'needs-attention' && <p className="generation-detail-hint">先核对原任务或在所属创意中恢复查询，避免重复提交。</p>}
+      {task.recoverable ? <><p className="generation-detail-hint">本地查询中断不代表上游生成失败。继续查询会使用原任务标识，不新建生成任务。</p><button type="button" className="generation-button" disabled={busy || recovering} onClick={() => void recover()}>{recovering ? <LoaderCircle size={14} className="generation-spin" /> : <RefreshCw size={14} />}{recovering ? '正在恢复查询…' : '继续查询原任务'}</button></> : task.status === 'needs-attention' && <p className="generation-detail-hint">先核对原任务或在所属创意中恢复查询，避免重复提交。</p>}
       {task.warning && <p className="generation-detail-hint">{task.warning}</p>}
       {task.outputs.length > 0 && <div className="generation-outputs">
         {task.outputs.map((output, index) => <div className="generation-output" key={output.id}>
@@ -193,7 +204,7 @@ export default function GenerationTasks({ theme, onOpenCreative, onOpenStudioPro
         {data && !tasks.length && <div className="generation-empty"><Inbox size={32} strokeWidth={1.4} /><strong>{counts?.total ? '没有符合条件的任务' : '还没有生成任务'}</strong><p>{counts?.total ? '试试其他关键词，或清除筛选查看全部任务。' : '在创意中生成图片或视频后，任务会出现在这里。'}</p>{!!counts?.total && <button type="button" className="generation-button" onClick={clearFilters}>清除筛选</button>}</div>}
         {tasks.length > PAGE_SIZE && <nav className="generation-pagination" aria-label="任务列表分页"><span>{currentPage * PAGE_SIZE + 1}–{Math.min((currentPage + 1) * PAGE_SIZE, tasks.length)} / {tasks.length}</span><button type="button" className="generation-icon-button" aria-label="上一页" disabled={currentPage === 0} onClick={() => setPage(currentPage - 1)}><ChevronLeft size={16} /></button><button type="button" className="generation-icon-button" aria-label="下一页" disabled={currentPage === lastPage} onClick={() => setPage(currentPage + 1)}><ChevronRight size={16} /></button></nav>}
       </div>
-      {selectedId && <TaskDetail key={selectedId} taskId={selectedId} updatedAt={data?.updatedAt} onClose={closeDetail} onOpenCreative={onOpenCreative} onOpenStudioProject={onOpenStudioProject} busy={busy} />}
+      {selectedId && <TaskDetail key={selectedId} taskId={selectedId} updatedAt={data?.updatedAt} onClose={closeDetail} onOpenCreative={onOpenCreative} onOpenStudioProject={onOpenStudioProject} onChanged={() => setVersion(value => value + 1)} busy={busy} />}
     </div>
     <p className="generation-footnote">任务在后台继续执行，离开此页后仍可回来查看。</p>
   </section>;

@@ -1,0 +1,75 @@
+.lvs-showcase { width: 100%; min-width: 0; color: var(--lp-ink, #f8f6ff); }
+.lvs-heading { display: flex; align-items: center; justify-content: space-between; gap: 20px; width: calc(100% - 64px); max-width: 1400px; margin: 0 auto 10px; }
+.lvs-heading > div { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px 18px; }
+.lvs-heading h2 { margin: 0; color: inherit; font: 500 14px/1.5 var(--sail-font-ui); letter-spacing: 0; }
+.lvs-heading > div > span { color: var(--lp-muted, #c7c1ce); font-size: 11px; }
+.lvs-pause { display: flex; align-items: center; justify-content: center; flex: none; gap: 7px; min-height: 44px; padding: 8px 0 8px 12px; border: 0; background: transparent; color: inherit; font: 12px/1.5 var(--sail-font-ui); }
+.lvs-pause:hover span { text-decoration: underline; text-underline-offset: 4px; }
+/* Clip the looping rail horizontally; editor offsets must remain visible vertically. */
+.lvs-viewport { width: 100%; max-width: 1920px; margin-inline: auto; overflow-x: clip; overflow-y: visible; }
+.lvs-track { display: flex; width: max-content; animation: lvs-drift 72s linear infinite; }
+.lvs-group { display: flex; flex: none; gap: 16px; padding-right: 16px; }
+.lvs-card { position: relative; display: block; flex: none; width: clamp(240px, 24vw, 360px); aspect-ratio: 16/9; overflow: hidden; padding: 0; border: 0; border-radius: 14px; background: #121318; color: #fff; text-align: left; isolation: isolate; }
+.lvs-card > video { display: block; width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+.lvs-muted, .lvs-duration { position: absolute; top: 12px; display: flex; align-items: center; justify-content: center; min-height: 23px; padding: 3px 6px; border-radius: 4px; background: #0009; color: #fff; }
+.lvs-muted { left: 12px; }
+.lvs-duration { right: 12px; font: 11px/1.5 var(--sail-font-ui); font-variant-numeric: tabular-nums; }
+.lvs-caption { position: absolute; inset: auto 0 0; display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 34px 16px 14px; background: linear-gradient(transparent, #000d); pointer-events: none; }
+.lvs-caption > span:first-child { display: flex; flex-direction: column; gap: 3px; }
+.lvs-caption strong { color: #fff; font: 500 14px/1.4 var(--sail-font-ui); }
+.lvs-caption > span > span { color: #e5e5e5; font: 11px/1.4 var(--sail-font-ui); }
+.lvs-play { display: grid; place-items: center; flex: none; width: 36px; height: 36px; border: 1px solid #ffffff80; border-radius: 50%; transition: background .18s ease, color .18s ease; }
+.lvs-card:hover .lvs-play { background: #fff; color: #171719; }
+.lvs-track[data-paused="true"], .lvs-viewport:hover .lvs-track { animation-play-state: paused; }
+.lvs-viewport:has(:focus-visible) { overflow-x: auto; mask-image: none; }
+.lvs-viewport:has(:focus-visible) .lvs-track { animation: none; }
+.lvs-card:focus-visible { outline: 2px solid #fff; outline-offset: -4px; }
+.lvs-pause:focus-visible, .lvs-close:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+@keyframes lvs-drift { to { transform: translateX(-50%); } }
+
+.lvs-dialog { width: min(1120px, calc(100vw - 40px)); max-width: none; max-height: calc(100svh - 40px); margin: auto; overflow: auto; padding: 0; border: 0; border-radius: 16px; background: #121318; color: #f4f3ef; box-shadow: 0 24px 80px #0009; color-scheme: dark; }
+.lvs-dialog::backdrop { background: #000c; }
+.lvs-player-heading { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 12px 16px 12px 22px; }
+.lvs-player-heading h2 { margin: 0; color: #f4f3ef; font: 500 16px/1.5 var(--sail-font-ui); letter-spacing: 0; }
+.lvs-player-heading p { margin: 3px 0 0; color: #b6b6be; font: 12px/1.5 var(--sail-font-ui); }
+.lvs-close { display: grid; place-items: center; flex: none; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: #e2e2e7; }
+.lvs-close:hover { background: #ffffff12; }
+.lvs-player { display: block; width: 100%; max-height: calc(100svh - 132px); margin: 0; background: #000; object-fit: contain; }
+
+/* Keep the examples in the lower part of the opening viewport. */
+.lp-hero.lp-with-examples { flex-direction: column; gap: clamp(24px, 3svh, 36px); height: auto; min-height: calc(100svh - var(--lp-chrome-height, var(--lp-nav-height))); max-height: none; padding: 32px 0 72px; }
+.lp-with-examples > .lp-body { width: calc(100% - 64px); transform: none; }
+.lp-with-examples .lp-marquee { margin-bottom: 28px; }
+.lp-with-examples .lp-heading { margin-bottom: 26px; }
+.lp-with-examples .lp-scroll-cue { bottom: 20px; }
+@media (min-width: 821px) and (max-height: 850px) {
+  .lp-hero.lp-with-examples { gap: 22px; padding-top: 24px; padding-bottom: 60px; }
+  .lp-with-examples .lp-marquee { margin-bottom: 18px; }
+  .lp-with-examples .lp-heading { margin-bottom: 20px; }
+  .lp-with-examples .lp-heading h1 { font-size: clamp(32px, 3.5vw, 50px); }
+  .lp-with-examples .lp-composer { min-height: 176px; padding: 20px 22px 18px; }
+  .lp-with-examples .lp-composer textarea { min-height: 72px; }
+  .lp-with-examples .lp-toolbar { margin-top: 12px; }
+  .lp-with-examples .lvs-card { width: clamp(240px, 22vw, 300px); }
+}
+@media (max-width: 580px) {
+  .lp-hero.lp-with-examples { gap: 24px; padding: 26px 0 58px; }
+  .lp-with-examples > .lp-body, .lvs-heading { width: calc(100% - 36px); }
+  .lp-with-examples .lp-marquee { margin-bottom: 24px; }
+  .lp-with-examples .lp-heading { margin-bottom: 24px; }
+  .lvs-heading { gap: 12px; }
+  .lvs-heading > div { gap: 3px; flex-direction: column; }
+  .lvs-heading h2 { font-size: 13px; }
+  .lvs-heading > div > span { font-size: 10px; }
+  .lvs-pause { font-size: 11px; }
+  .lvs-card { width: min(78vw, 300px); border-radius: 12px; }
+  .lvs-dialog { width: calc(100vw - 20px); max-height: calc(100svh - 20px); border-radius: 12px; }
+  .lvs-player-heading { padding-left: 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lvs-track { animation: none; }
+  .lvs-group[aria-hidden="true"], .lvs-card[aria-hidden="true"] { display: none; }
+  .lvs-viewport { overflow-x: auto; mask-image: none; }
+  .lvs-group { padding-inline: 18px; }
+  .lvs-play { transition: none; }
+}

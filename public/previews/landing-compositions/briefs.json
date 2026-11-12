@@ -1,0 +1,73 @@
+{
+  "stage": "composition-only",
+  "finalImageGeneration": "awaiting user selection",
+  "aspectRatio": "2000:840",
+  "frames": [
+    {
+      "id": "A",
+      "name": "海岸弯道",
+      "lens": "28 mm",
+      "horizon": 336,
+      "scale": "车占画宽 7%",
+      "space": "左侧留白 38%",
+      "description": "沿用你偏好的海岸公路，进一步缩小汽车，用崖壁、弯道和海平面拉开空间。",
+      "subject": "small silver car",
+      "brief": "Wide coastal road after rain, a small car in the right lower third, 28mm environmental shot, sweeping road into the distance, broad sea horizon, left 38% quiet for copy. Keep the car at 7% of frame width."
+    },
+    {
+      "id": "B",
+      "name": "高山公路",
+      "lens": "24 mm",
+      "horizon": 360,
+      "scale": "车占画宽 6%",
+      "space": "左侧留白 36%",
+      "description": "让两侧山体形成前景框架，公路带视线进入远处。空间纵深强，适合品牌宣传片。",
+      "subject": "small touring car",
+      "brief": "Wide alpine pass, layered mountains and a winding road, tiny car in the right lower third, 24mm environment-led view, foreground mountain frame, deep readable valley, left copy-safe region. Car width 6% of frame."
+    },
+    {
+      "id": "C",
+      "name": "荒原直线",
+      "lens": "35 mm",
+      "horizon": 310,
+      "scale": "车占画宽 4.8%",
+      "space": "左侧留白 44%",
+      "description": "低地平线、大面积天空和偏置消失点。主体更小、构图更安静，开阔感最直接。",
+      "subject": "distant off-road vehicle",
+      "brief": "Expansive arid plateau with low horizon and huge open sky, a single offset road receding to a distant small vehicle, 35mm panoramic environmental frame, quiet left 44% for copy. Vehicle width 4.8% of frame."
+    },
+    {
+      "id": "D",
+      "name": "建筑广场",
+      "lens": "28 mm",
+      "horizon": 380,
+      "scale": "人物占画高 9%",
+      "space": "左侧留白 40%",
+      "description": "用建筑体量与一个很小的人物建立尺度。空间整洁、线条克制，适合设计与生活方式内容。",
+      "subject": "small person in architectural plaza",
+      "brief": "Wide architectural plaza with a large restrained modern pavilion in the right third and one small person for scale, 28mm perspective, extensive clear ground plane, left 40% quiet copy space. Person height about 9% of frame."
+    },
+    {
+      "id": "E",
+      "name": "海面帆影",
+      "lens": "35 mm",
+      "horizon": 352,
+      "scale": "帆船占画宽 5.8%",
+      "space": "左侧留白 44%",
+      "description": "长海平线与小帆船构成极简远景。几乎没有前景遮挡，适合安静、舒展的品牌画面。",
+      "subject": "small sailboat on an open sea",
+      "brief": "Expansive quiet sea with a long uninterrupted horizon and one small sailboat to the right, low distant headland at far left, 35mm panoramic shot, large empty water and sky, left 44% copy-safe. Boat width 5.8% of frame."
+    },
+    {
+      "id": "F",
+      "name": "湖畔远景",
+      "lens": "24 mm",
+      "horizon": 330,
+      "scale": "人物占画高 8%",
+      "space": "左侧留白 38%",
+      "description": "远山、湖面和岸线分成三层，人物只作尺度参照。环境叙事更强，适合户外与人物故事。",
+      "subject": "small lone walker by a lake",
+      "brief": "Wide highland lake surrounded by layered distant mountains, a quiet curving shore leading to one small lone walker at right, 24mm environmental composition, open lake on left for copy, person height 8% of frame. Environment should dominate."
+    }
+  ]
+}

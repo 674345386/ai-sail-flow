@@ -59,6 +59,46 @@ export const ATMOSPHERE_PRESETS = {
     name: '玫瑰星云', en: 'Rose',
     config: { composition: 'halo', base: '#140911', primary: '#39113f', secondary: '#9c2e6c', accent: '#b86c4f', focusX: 58, focusY: 16, angle: 15, spread: 1.1 },
   },
+  abyss: {
+    name: '深海幽蓝', en: 'Abyss',
+    config: { composition: 'wash', base: '#030916', primary: '#092b66', secondary: '#0f5470', accent: '#18224b', focusY: 34, spread: 1.2, softness: 36, intensity: .85, speed: .6, drift: .7 },
+  },
+  aurora: {
+    name: '极光夜幕', en: 'Aurora night',
+    config: { composition: 'wash', base: '#050e12', primary: '#174e50', secondary: '#443184', accent: '#0f725c', focusX: 46, focusY: 6, angle: -12, intensity: .9, speed: .8, drift: .8 },
+  },
+  cobalt: {
+    name: '钴蓝辉光', en: 'Cobalt',
+    config: { composition: 'halo', base: '#040817', primary: '#082557', secondary: '#2762b4', accent: '#232168', focusY: 18, spread: .95, angle: -8, softness: 28, speed: .65, drift: .6 },
+  },
+  amethyst: {
+    name: '紫晶暗涌', en: 'Amethyst',
+    config: { composition: 'wash', base: '#10081c', primary: '#3f1465', secondary: '#683497', accent: '#251a61', focusX: 58, focusY: 32, angle: 10, spread: 1.15, speed: .6, drift: .7 },
+  },
+  jade: {
+    name: '墨玉流光', en: 'Jade',
+    config: { composition: 'beam', base: '#030e0c', primary: '#082c28', secondary: '#36a081', accent: '#1d5e58', focusX: 38, angle: 24, spread: 1.4, softness: 32, intensity: .75, speed: .6, drift: .7 },
+  },
+  ember: {
+    name: '黑金余烬', en: 'Ember',
+    config: { composition: 'halo', base: '#100b08', primary: '#30200e', secondary: '#a36a28', accent: '#733723', focusY: 6, spread: 1.3, softness: 36, intensity: .75, speed: .4, drift: .6 },
+  },
+  crimson: {
+    name: '绯红月蚀', en: 'Crimson',
+    config: { composition: 'halo', base: '#12070d', primary: '#390b20', secondary: '#983148', accent: '#613565', focusX: 62, focusY: 12, spread: 1.15, softness: 36, speed: .55, drift: .65 },
+  },
+  steel: {
+    name: '冷银雾夜', en: 'Steel mist',
+    config: { composition: 'wash', base: '#090d13', primary: '#263245', secondary: '#394a60', accent: '#1f3146', spread: 1.4, softness: 45, intensity: .8, speed: .35, drift: .5 },
+  },
+  dusk: {
+    name: '暮紫余晖', en: 'Violet dusk',
+    config: { composition: 'wash', base: '#100b22', primary: '#3b237f', secondary: '#683b8e', accent: '#7f413b', focusY: 45, spread: 1.3, intensity: .85, speed: .6, drift: .8 },
+  },
+  forest: {
+    name: '森林微光', en: 'Forest',
+    config: { composition: 'halo', base: '#07100e', primary: '#102e25', secondary: '#376749', accent: '#57663b', focusX: 48, focusY: 16, spread: 1.2, softness: 36, intensity: .8, speed: .45, drift: .65 },
+  },
 } satisfies Record<string, AtmospherePreset>;
 
 export const DEFAULT_ATMOSPHERE_BACKGROUND: AtmosphereBackgroundConfig = {

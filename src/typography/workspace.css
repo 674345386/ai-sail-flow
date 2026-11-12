@@ -81,9 +81,9 @@
 }
 .app-shell .sidebar-brand-row .brand strong {
   font-family: var(--sail-font-prose);
-  font-size: 22px;
+  font-size: 18px;
   font-weight: 500;
-  line-height: 28px;
-  font-variation-settings: "opsz" 22;
-  white-space: nowrap;
+  line-height: 24px;
+  font-variation-settings: "opsz" 18;
+  white-space: normal;
 }

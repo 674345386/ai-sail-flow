@@ -74,7 +74,13 @@
 /* The same renderer provides the preset thumbnails in the existing palette. */
 .lbg-background-tabs { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .lbg-background-tabs button { flex-direction: column; gap: 4px; padding: 7px 2px; font-size: 11px; }
-.lbg-atmosphere-presets { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0 16px; }
+.lbg-atmosphere-motion { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 38px; margin: 12px 0 16px; padding: 8px 10px; border: 1px solid rgb(255 255 255 / 16%); border-radius: 8px; background: rgb(255 255 255 / 5%); text-align: left; cursor: pointer; }
+.lbg-atmosphere-motion:hover { background: rgb(255 255 255 / 9%); }
+.lbg-atmosphere-motion[aria-pressed="true"] { border-color: rgb(217 164 106 / 45%); background: rgb(217 164 106 / 10%); }
+.lbg-atmosphere-motion-state { margin-left: auto; color: #b9babd; font-size: 11px; }
+.lbg-atmosphere-motion[aria-pressed="true"] .lbg-atmosphere-motion-state { color: #e9c49b; }
+.lbg-atmosphere-group-title { margin: 14px 0 8px; color: #b9babd; font-size: 11px; font-weight: 500; }
+.lbg-atmosphere-presets { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 0 16px; }
 .lbg-atmosphere-presets button { min-width: 0; overflow: hidden; padding: 0; border: 1px solid rgb(255 255 255 / 16%); border-radius: 8px; background: transparent; cursor: pointer; text-align: left; }
 .lbg-atmosphere-presets button:hover { border-color: #b9babd; }
 .lbg-atmosphere-presets button[aria-pressed="true"] { border-color: #e9c49b; }
@@ -88,6 +94,7 @@
 .lbg-atmosphere-controls summary { cursor: pointer; color: #e9e8e4; font-weight: 500; }
 .lbg-atmosphere-controls summary::marker { color: #b9babd; }
 .lbg-atmosphere-controls summary:focus-visible { outline: 2px solid #d9a46a; outline-offset: 3px; }
+.lbg-btns.lbg-btns--atmosphere { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 
 /* Palette and background continue through the whole landing page. */
 .landing-page.landing-atmosphere {

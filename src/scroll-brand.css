@@ -18,7 +18,7 @@
   flex: none;
   /* Fixed layout box (no reflow while scrolling): wide enough for the wordmark
      or the mark, whichever is larger. */
-  width: max(calc(var(--sb-u) * 1462 * var(--sb-word-scale)), calc(var(--sb-u) * 347));
+  width: max(calc(var(--sb-u) * 1955 * var(--sb-word-scale)), calc(var(--sb-u) * 347));
   height: var(--sb-mark);
   color: inherit;
   line-height: 0;
@@ -29,7 +29,7 @@
   position: absolute;
   left: 0;
   top: 0;
-  width: calc(var(--sb-u) * 1462);
+  width: calc(var(--sb-u) * 1955);
   height: var(--sb-mark);
   overflow: visible;
   pointer-events: none;

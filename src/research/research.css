@@ -102,6 +102,9 @@ html:has(.research-page), body:has(.research-page) { background: #fff; color-sch
 .research-article-section > h2 { max-width: 76ch; margin: 0 0 16px; font: 500 18px/1.5 var(--sail-font-ui); letter-spacing: 0; }
 .research-prose { max-width: 76ch; color: var(--research-prose); font: 400 16px/1.5 var(--sail-font-prose); letter-spacing: 0; word-spacing: 0; }
 .research-prose p { margin: 0 0 22px; }
+.research-prose blockquote { margin: 20px 0; padding: 20px 24px; border-left: 2px solid #b5a28b; background: var(--research-soft); }
+.research-prose blockquote p { font-size: 15px; line-height: 1.75; }
+.research-prose blockquote > :last-child { margin-bottom: 0; }
 .research-prose > :last-child { margin-bottom: 0; }
 .research-prose :is(strong, b) { font-weight: 600; }
 .research-prose :is(h3, h4) { margin: 24px 0 10px; font-size: 16px; font-weight: 600; line-height: 1.5; letter-spacing: 0; }

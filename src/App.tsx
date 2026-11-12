@@ -14,6 +14,7 @@ import { MAX_STORYBOARD_GRID_DURATION } from '../shared/storyboard-grid';
 import { buildBrief, buildPrompt, buildExportFiles, buildVeoPromptPreview, buildVeoUnitPrompt, subtitles } from '../shared/export';
 import { buildVeoPlan, type VeoPlanUnit } from '../shared/veo-plan';
 import { api, downloadBlob } from './api';
+import { promptMediaKind } from '../shared/prompt-media';
 import { useAgentTheme } from './intelligent-ui/useAgentTheme';
 import { AgentThemePicker } from './intelligent-ui/AgentThemePicker';
 import { authDisplayName, authEmail, authErrorMessage, authRedirectUrl, initialAuthState, publicAuthRequired, syncPublicServerSession, supabase, loadAuthAvailability, unknownAuthAvailability, validEmail, validEmailCode, withAuthTimeout, readAuthCallback, clearAuthCallback, type AuthAvailability, type SailAuthState } from './auth';
@@ -22,8 +23,10 @@ import AccountName from './AccountName';
 import WelcomeProfileDialog from './WelcomeProfileDialog';
 import { isNewUserFirstLogin, needsProfileSetup, useProfileAvatar } from './userProfile';
 import AssetLibrary, { MediaLibraryPage } from './AssetLibrary';
+import { SkillAssetPicker } from './SkillAssetCenter';
+import type { SkillSelection } from '../shared/skill-assets';
 import GenerationTasks from './GenerationTasks';
-import { ListChecks } from 'lucide-react';
+import { ListChecks, MessageCirclePlus } from 'lucide-react';
 import type { LibraryMedia } from '../shared/media-library';
 import { libraryFile, mediaChanged, syncMediaLibrary } from './mediaLibrary';
 import PipelineCanvas from './PipelineCanvas';
@@ -36,11 +39,13 @@ import StoryboardGridWorkbench, { gridVideoState } from './StoryboardGridWorkben
 import ProductPipelineCanvas from './ProductPipelineCanvas';
 import StudioPipelineCanvas from './StudioPipelineCanvas';
 import ProjectNavigation from './ProjectNavigation';
+import { useAgentActivity } from './useAgentActivity';
 import WorkspaceSearchPalette from './WorkspaceSearchPalette';
 import AnimatedBrandMark from './AnimatedBrandMark';
 import ShaderBackdrop from './ShaderBackdrop';
 import LandingHero from './LandingHero';
 import LandingPromptHero from './LandingPromptHero';
+import LandingPageEditor from './LandingPageEditor';
 import LandingAnnouncement from './LandingAnnouncement';
 import ScrollBrand from "./ScrollBrand";
 import LandingSections from './LandingSections';
@@ -98,15 +103,17 @@ function SidebarToggleIcon({ expanded }: { expanded: boolean }) {
   </svg>;
 }
 type OrganizationDialog = { kind: 'project-new' | 'project-edit' | 'creative-new' | 'creative-edit'; parentId: string; title: string; demo?: boolean };
-function OrganizationForm({ dialog, groups, busy, error, onSubmit, onClose }: { dialog: OrganizationDialog; groups: WorkspaceProject[]; busy: boolean; error: string; onSubmit: (title: string, parentId: string) => void; onClose: () => void }) {
+function OrganizationForm({ dialog, groups, busy, error, onSubmit, onClose }: { dialog: OrganizationDialog; groups: WorkspaceProject[]; busy: boolean; error: string; onSubmit: (title: string, parentId: string, skills: SkillSelection[]) => void; onClose: () => void }) {
   const [title, setTitle] = useState(dialog.title);
   const [parentId, setParentId] = useState(dialog.parentId);
+  const [skills, setSkills] = useState<SkillSelection[]>([]);
   const creative = dialog.kind.startsWith('creative');
   const heading = { 'project-new': '新建工作空间', 'project-edit': '重命名工作空间', 'creative-new': '新建创意', 'creative-edit': '编辑创意' }[dialog.kind];
-  return <Modal title={heading} onClose={onClose}><form onSubmit={event => { event.preventDefault(); onSubmit(title.trim(), parentId); }}>
+  return <Modal title={heading} onClose={onClose}><form onSubmit={event => { event.preventDefault(); onSubmit(title.trim(), parentId, skills); }}>
     <p className="modal-description">{creative ? '每个创意独立保存参考素材、镜头拆解、Prompt 与生成结果。' : '工作空间用于归类相关创意，例如“夏装”。一个工作空间可以包含多个创意。'}</p>
     {creative && <Field label="所属工作空间"><select className="input" value={parentId} disabled={busy} onChange={event => setParentId(event.target.value)}>{groups.map(group => <option key={group.id} value={group.id}>{group.title}</option>)}</select></Field>}
     <Field label={creative ? '创意名称' : '工作空间名称'}><Input autoFocus required maxLength={120} value={title} disabled={busy} placeholder={creative ? '例如：色卡夏装换装上、青少年夏装' : '例如：夏装'} onChange={event => setTitle(event.target.value)} /></Field>
+    {dialog.kind === 'creative-new' && !dialog.demo && <SkillAssetPicker value={skills} onChange={setSkills} disabled={busy} />}
     {error && <p className="field-error" role="alert">{error}</p>}
     <div className="organization-form-actions"><button type="button" className="btn" disabled={busy} onClick={onClose}>取消</button><button className="btn primary" type="submit" disabled={busy || !title.trim() || (creative && !parentId)}>{busy ? '保存中' : dialog.kind === 'project-new' ? '创建工作空间' : dialog.kind === 'creative-new' ? '创建创意' : '保存'}</button></div>
   </form></Modal>;
@@ -173,7 +180,7 @@ type StudioMockupVariant = 'gallery' | 'plan' | 'create' | 'polish';
 function StudioMockup({ variant, images }: { variant: StudioMockupVariant; images: string[] }) {
   const labels = variant === 'plan' ? ['创意方向', '受众洞察', '镜头结构', '行动引导'] : variant === 'create' ? ['脚本', '画面', '口播', '字幕'] : ['上传素材', '视频拆解', '创意改写', '提示词包'];
   return <div className={`gf-studio gf-studio-${variant}`} aria-label={`${variant} 工作台示意`}>
-    <div className="gf-studio-toolbar"><strong>AI-Sail Flow</strong><span className="gf-studio-address" /><span className="gf-studio-avatar" /></div>
+    <div className="gf-studio-toolbar"><strong>AI Creative Lab</strong><span className="gf-studio-address" /><span className="gf-studio-avatar" /></div>
     <div className="gf-studio-body">
       <aside className="gf-studio-sidebar"><span className="active" />{labels.map(label => <span key={label}>{label}</span>)}</aside>
       <div className="gf-studio-canvas">
@@ -321,6 +328,8 @@ export default function App() {
     if (experienceMode !== 'agent' || !agentTheme.preferences.workspaceBackground || showLanding || showMediaLibrary || showGenerationTasks) setBackgroundControlsOpen(false);
   }, [experienceMode, agentTheme.preferences.workspaceBackground, showLanding, showMediaLibrary, showGenerationTasks]);
   const [studioRoute, setStudioRoute] = useState<Extract<AppRoute, { kind: 'studio' }> | null>(null);
+  const agentConversationVisible = !showLanding && !studioRoute && !showMediaLibrary && !showGenerationTasks && experienceMode === 'agent' && workspacePresentation === 'canvas';
+  const agentActivity = useAgentActivity(!showLanding && !studioRoute && experienceMode === 'agent' && projects.length > 0 && (!publicAuthRequired || !!auth.session), agentConversationVisible ? project?.id : undefined, auth.user?.id);
   const [routeReady, setRouteReady] = useState(false);
   const current = useRef<Project | null>(null);
   const unsaved = useRef(false);
@@ -586,7 +595,7 @@ export default function App() {
   const newProject = (demo = false, parentId = current.current?.parentProjectId || projectGroups[0]?.id || '') => {
     setError(''); setOrganizationDialog({ kind: 'creative-new', parentId, title: demo ? '随行冷萃杯 · 美国市场' : '', demo });
   };
-  const submitOrganization = (title: string, parentId: string) => perform('正在保存', async () => {
+  const submitOrganization = (title: string, parentId: string, skills: SkillSelection[] = []) => perform('正在保存', async () => {
     if (!organizationDialog) return;
     await flush();
     if (organizationDialog.kind === 'project-new') {
@@ -603,7 +612,7 @@ export default function App() {
       change(creative => ({ ...creative, title, parentProjectId: parentId })); await flush();
     } else {
       const demo = Boolean(organizationDialog.demo);
-      const p = await api<Project>('/api/projects', { method: 'POST', body: JSON.stringify({ demo, parentProjectId: parentId, title }) });
+      const p = await api<Project>('/api/projects', { method: 'POST', body: JSON.stringify({ demo, parentProjectId: parentId, title, skills }) });
       adopt(p); setShowMediaLibrary(false); setShowGenerationTasks(false); setDirty(false); unsaved.current = false; setStep(demo ? 1 : 0); setWorkspacePresentation(experienceMode === 'agent' ? 'canvas' : 'page'); setSelectedShot(0); setSelectedRewrite(0); setShowRequiredErrors(false); setFocusTarget(null); setObserving(false); setShowArchived(false); await refreshList(); setSidebarOpen(false);
     }
     setOrganizationDialog(null);
@@ -658,7 +667,9 @@ export default function App() {
         const parentProjectId = current.current?.parentProjectId;
         let next = await api<Project>('/api/projects', { method: 'POST', body: JSON.stringify({ title, ...(parentProjectId ? { parentProjectId } : {}) }) });
         for (const file of pendingAgentFiles.current) {
-          const kind = file.type.startsWith('video/') || /\.(mp4|mov|webm)$/i.test(file.name) ? 'video' : 'product';
+          const mediaKind = promptMediaKind(file);
+          if (!mediaKind) throw new Error('不支持的附件类型，请选择视频、图片或音频。');
+          const kind = mediaKind === 'image' ? 'product' : mediaKind;
           const body = new FormData(); body.append('file', file);
           next = await api<Project>(`/api/projects/${next.id}/assets/${kind}`, { method: 'POST', body });
         }
@@ -1103,11 +1114,17 @@ export default function App() {
     <LandingAnnouncement onEnter={() => enterWorkspace()} />
     <header className="landing-nav">
       <button className="landing-brand" onClick={() => setShowLanding(true)} aria-label={L.nav.home}><img className="landing-brand-logo" src="/assets/brand/sail-mark-dark-bold.svg" alt="" width={30} height={30} /><ScrollBrand /></button>
-      <nav className="landing-links" aria-label={L.nav.aria}><button type="button" className="landing-mode-link" onClick={() => { switchExperience('studio'); enterWorkspace(); }}>Studio mode</button><button type="button" className="landing-mode-link" onClick={() => { setLandingMode('agent'); window.scrollTo(0, 0); }}>Agent mode</button><a href="/research">Research</a><a href="#overview">{L.nav.overview}</a><a href="#models">{L.nav.models}</a><a href="#tools">{L.nav.tools}</a><a href="#creator">{L.nav.creator}</a><a href="#pricing">{L.nav.pricing}</a>{FEATURE_STUDIO && <button type="button" className="landing-studio-link" onClick={() => openStudio('welcome')}>爆款工作室</button>}</nav>
+      <nav className="landing-links" aria-label={L.nav.aria}>
+        <a href="#tools">Products</a>
+        <a href="/research">Research</a>
+        <a href="/lab">Lab</a>
+        <a href="/research/article">Resources</a>
+        {FEATURE_STUDIO && <button type="button" className="landing-studio-link" onClick={() => openStudio('welcome')}>爆款工作室</button>}
+      </nav>
       <div className="landing-social"><button aria-label={L.nav.more}>⋮</button><LanguageSwitch /><button className="landing-account" onClick={openAuth}>{auth.user && <img src={accountAvatar} alt="" />}{auth.user ? <AccountName name={authDisplayName(auth.user)} /> : L.nav.signIn}</button></div>
     </header>
     <LandingPromptHero onStart={startAgentEntry} busy={!!busy || pendingAgentPrompt !== null} error={error || bootError} />
-    <LandingHero headingLevel={2} authRequired={publicAuthRequired} onEnter={mode => enterWorkspace(false, mode)} />
+    <LandingHero headingLevel={2} authRequired={publicAuthRequired} onEnter={mode => enterWorkspace(false, mode)} onStart={startAgentEntry} busy={!!busy || pendingAgentPrompt !== null} />
     <LandingSections onEnter={() => enterWorkspace()} />
     <LandingToc />
 
@@ -1125,11 +1142,12 @@ export default function App() {
         [L.faq.handoffQ, L.faq.handoffA],
       ].map(([question, answer]) => <details key={question}><summary><span>{question}</span><Plus size={18} /></summary><p>{answer}</p></details>)}</div>
     </section>
-    <footer className="gf-footer"><strong>AI-Sail Flow</strong><span>{L.footer.meta}</span><nav><a href="#create">{L.footer.top}</a><button onClick={() => enterWorkspace()}>{L.footer.enter}</button></nav></footer>
+    <footer className="gf-footer"><strong>AI Creative Lab</strong><span>{L.footer.meta}</span><nav><a href="#create">{L.footer.top}</a><button onClick={() => enterWorkspace()}>{L.footer.enter}</button></nav></footer>
+    <LandingPageEditor accountKey={auth.user?.id || ''} />
     {profileDialog}
     {authDialog}
   </div>;
-  if (!project) return <div className="boot-screen"><div className="brand-icon"><img src="/assets/brand/sail-mark-dark.svg" alt="" /></div><h1>AI-Sail Flow</h1>{bootError ? <><p className="error-text">{bootError}</p><button className="btn" onClick={() => location.reload()}>重新连接</button></> : <><LoaderCircle className="spin" /><p>正在打开工作台…</p></>}{profileDialog}</div>;
+  if (!project) return <div className="boot-screen"><div className="brand-icon"><img src="/assets/brand/sail-mark-dark.svg" alt="" /></div><h1>AI Creative Lab</h1>{bootError ? <><p className="error-text">{bootError}</p><button className="btn" onClick={() => location.reload()}>重新连接</button></> : <><LoaderCircle className="spin" /><p>正在打开工作台…</p></>}{profileDialog}</div>;
   const video = project.assets.find(a => a.kind === 'video');
   const disabled = !!busy || running || observing;
   const autoView = false;
@@ -1318,12 +1336,13 @@ export default function App() {
     {sharedAgentBackground && <div className="agent-global-background"><LandingBackground storageKey="sail-workspace-bg-v1" uiStorageKey="sail-workspace-bg-ui-v1" onBaseColorChange={agentTheme.setBackgroundBase} controlsOpen={backgroundControlsOpen} onControlsClose={closeBackgroundControls} /></div>}
     {sidebarOpen && <button className="sidebar-scrim" aria-label="关闭导航" onClick={() => setSidebarOpen(false)} />}
     <aside id="workspace-sidebar" aria-label="工作区导航" className={`sidebar ${shellThemeClass} ${sidebarOpen ? 'open' : ''}`} data-theme={shellTheme} data-custom-surface={experienceMode === 'agent' && agentTheme.preferences.surfaces.sidebar.enabled ? 'on' : 'off'} style={experienceMode === 'agent' ? { ...(sharedAgentBackground ? agentTheme.backgroundStyle : undefined), ...agentTheme.surfaceStyle('sidebar', sharedAgentBackground) } : undefined}>
-      <div className="sidebar-brand-row"><a className="brand" href="/" title="回到门户首页" aria-label="AI-Sail Flow，回到门户首页" onClick={event => {
+      <div className="sidebar-brand-row"><a className="brand" href="/" title="回到门户首页" aria-label="AI Creative Lab，回到门户首页" onClick={event => {
         if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
         event.preventDefault();
         // Always navigate home, even while a task runs (tasks continue in the background); save pending edits first when idle.
         void (async () => { if (!busy) { try { await flush(); } catch { /* keep navigating; edits stay local */ } } setSidebarOpen(false); setLandingMode(experienceMode); setShowLanding(true); window.scrollTo(0, 0); })();
-      }}><span className="brand-compact" aria-hidden="true">SF</span><div className="brand-icon"><img src="/assets/brand/sail-mark-dark.svg" alt="" width={40} height={40} /></div><div><strong>AI-Sail Flow</strong><span>跨境内容工作台</span></div><Badge>V1</Badge></a><button className="icon-btn sidebar-toggle sidebar-collapse-toggle" aria-label={sidebarIsCollapsed ? '展开侧边栏' : '收起侧边栏'} title={sidebarIsCollapsed ? '展开侧边栏' : '收起侧边栏'} aria-expanded={!sidebarIsCollapsed} aria-controls="workspace-sidebar" onClick={() => { setSidebarOpen(false); setSidebarCollapsed(!sidebarIsCollapsed); }}><SidebarToggleIcon expanded={!sidebarIsCollapsed} /></button></div>
+      }}><span className="brand-compact" aria-hidden="true">CL</span><div className="brand-icon"><img src="/assets/brand/sail-mark-dark.svg" alt="" width={40} height={40} /></div><div><strong>AI Creative Lab</strong><span>跨境内容工作台</span></div><Badge>V1</Badge></a><button className="icon-btn sidebar-toggle sidebar-collapse-toggle" aria-label={sidebarIsCollapsed ? '展开侧边栏' : '收起侧边栏'} title={sidebarIsCollapsed ? '展开侧边栏' : '收起侧边栏'} aria-expanded={!sidebarIsCollapsed} aria-controls="workspace-sidebar" onClick={() => { setSidebarOpen(false); setSidebarCollapsed(!sidebarIsCollapsed); }}><SidebarToggleIcon expanded={!sidebarIsCollapsed} /></button></div>
+      <button type="button" className="sidebar-new-session" aria-label="新建会话" title="新建会话" disabled={!!busy} onClick={() => newProject()}><MessageCirclePlus size={18} strokeWidth={1.7} aria-hidden="true" /><span>New Session</span></button>
       <div className="workspace-picker" title={defaultWorkspace.title}><span className="workspace-avatar workspace-brand-avatar"><AnimatedBrandMark /></span><span>{defaultWorkspace.title}<small>工作空间与创意</small></span></div>
       <button type="button" className={`nav-item sidebar-media-button ${showMediaLibrary ? 'active' : ''}`} aria-label="所有媒体" title="所有媒体" aria-pressed={showMediaLibrary} disabled={!!busy} onClick={() => { setShowGenerationTasks(false); setShowMediaLibrary(true); setSidebarOpen(false); }}><Grid2X2 size={18} /><span>所有媒体</span></button>
       <button type="button" className={`nav-item sidebar-generation-button ${showGenerationTasks ? 'active' : ''}`} aria-label="任务进度" title="任务进度" aria-pressed={showGenerationTasks} onClick={openGenerationTasks}><ListChecks size={18} /><span>任务进度</span></button>
@@ -1334,6 +1353,7 @@ export default function App() {
         void flush().then(() => { window.location.assign('/research'); }).catch(failure => setError(failure instanceof Error ? failure.message : '保存创意失败，请重试。'));
       }}><BookOpen size={18} /><span>Research</span></a>
       <ProjectNavigation collapsed={sidebarIsCollapsed} onExpand={() => { setSidebarCollapsed(false); }} onSearch={() => setSearchPaletteOpen(true)} groups={projectGroups} creatives={projects} currentId={showGenerationTasks ? '' : project.id} currentParentId={project.parentProjectId} busy={!!busy} running={running} showArchived={showArchived} onShowArchived={setShowArchived}
+        agentActivities={experienceMode === 'agent' ? agentActivity.activities : undefined} unreadIds={experienceMode === 'agent' ? agentActivity.unreadIds : undefined}
         onNewProject={() => { setError(''); setOrganizationDialog({ kind: 'project-new', parentId: '', title: '' }); }} onRenameProject={editParentProject} onNewCreative={parentId => newProject(false, parentId)} onSelect={switchProject} onArchive={setProjectArchived} />
       <div className="sidebar-footer-row">{experienceMode === 'agent' && <AgentThemePicker backgroundControlsOpen={backgroundControlsOpen} onOpenBackgroundControls={() => { agentTheme.setWorkspaceBackground(true); setBackgroundControlsOpen(true); setSidebarOpen(false); }} preferences={agentTheme.preferences} defaultTextColors={agentTheme.defaultTextColors} onTextColor={agentTheme.setTextColor} onSurface={agentTheme.setSurface} onGraySurfaces={agentTheme.setGraySurfaces} onTheme={agentTheme.setTheme} onPanelTheme={agentTheme.setPanelTheme} onWorkspaceBackground={agentTheme.setWorkspaceBackground} onReset={agentTheme.resetTheme} />}<button className="sidebar-config" title="配置" aria-label="配置" onClick={openConfiguration}><Settings size={16} /><span>配置</span></button></div>
     </aside>
@@ -1430,7 +1450,7 @@ export default function App() {
         </> : <>
         <div className="unified-workspace">
           {workspacePresentation !== 'canvas' && <div className="workflow-ambient"><LandingBackground storageKey="sail-workspace-bg-v1" uiStorageKey="sail-workspace-bg-ui-v1" onBaseColorChange={agentTheme.setBackgroundBase} controlsOpen={backgroundControlsOpen} onControlsClose={closeBackgroundControls} /></div>}
-          {workspacePresentation === 'canvas' ? <div className="agent-canvas-shell"><Suspense fallback={<div className="agent-chat" aria-label="加载创作 Agent" />}><IntelligentUIAgentWorkspace key={project.id} theme={agentTheme} project={project} canvas={remixPanel} disabled={disabled} steerDisabled={!!busy || observing} onProjectUpdate={adoptAgentUpdate} onBeforeSend={flush} onCanvasState={receiveAgentCanvasState} canvasDraft={agentCanvasDraft} onCanvasDraftConsumed={() => setAgentCanvasDraft(null)} taskAssetsOpen={taskAssetsProjectId === project.id} onOpenTaskAssets={() => setTaskAssetsProjectId(project.id)} onCloseTaskAssets={closeTaskAssets} entryDraft={agentEntryDraft} onEntryDraftConsumed={consumeAgentEntryDraft} /></Suspense></div> : <>
+          {workspacePresentation === 'canvas' ? <div className="agent-canvas-shell"><Suspense fallback={<div className="agent-chat" aria-label="加载创作 Agent" />}><IntelligentUIAgentWorkspace key={project.id} theme={agentTheme} project={project} canvas={remixPanel} disabled={disabled} steerDisabled={!!busy || observing} onProjectUpdate={adoptAgentUpdate} onBeforeSend={flush} onCanvasState={receiveAgentCanvasState} onActivity={agentActivity.receiveActivity} canvasDraft={agentCanvasDraft} onCanvasDraftConsumed={() => setAgentCanvasDraft(null)} taskAssetsOpen={taskAssetsProjectId === project.id} onOpenTaskAssets={() => setTaskAssetsProjectId(project.id)} onCloseTaskAssets={closeTaskAssets} entryDraft={agentEntryDraft} onEntryDraftConsumed={consumeAgentEntryDraft} /></Suspense></div> : <>
           <button className="unified-steps-toggle" aria-expanded={!stepsCollapsed} onClick={() => setStepsCollapsed(value => !value)}>{stepsCollapsed ? '展开步骤' : '收起步骤'}</button>
           <aside className={`unified-steps wizard-panel workflow-toc${stepsCollapsed ? ' is-collapsed' : ''}`} aria-label="创作流程">
             <h2>创作流程</h2>
@@ -1555,7 +1575,7 @@ export default function App() {
       </details>
       <div className="modal-actions"><a href="https://gaoruitech.apifox.cn/doc-8842676" target="_blank" rel="noreferrer">Omni 接口文档 <ArrowUpRight size={14} /></a><button className="btn primary" disabled={!!busy || (apiKey.trim().length < 16 && imageApiKey.trim().length < 16 && !imageModel && veoApiKey.trim().length < 16 && storageKey.trim().length < 16)} onClick={() => perform('正在配置', async () => { if (apiKey.trim()) await api('/api/settings', { method: 'POST', body: JSON.stringify({ apiKey, baseUrl }) }); if (imageApiKey.trim() || imageModel || imageBaseUrl.trim()) await api('/api/settings/image-generation', { method: 'POST', body: JSON.stringify({ ...(imageApiKey.trim() ? { apiKey: imageApiKey } : {}), ...(imageBaseUrl.trim() ? { baseUrl: imageBaseUrl } : {}), model: imageModel || status.imageGeneration?.model || DEFAULT_IMAGE_MODEL }) }); if (veoApiKey.trim()) await api('/api/settings/veo', { method: 'POST', body: JSON.stringify({ apiKey: veoApiKey }) }); if (storageKey.trim()) await api('/api/settings/keyframe-storage', { method: 'POST', body: JSON.stringify({ url: storageUrl || status.keyframeStorage?.url, apiKey: storageKey, bucket: storageBucket || status.keyframeStorage?.bucket || 'sop-keyframes' }) }); setStatus(await api<Status>('/api/status')); setApiKey(''); setImageApiKey(''); setImageModel(''); setImageBaseUrl(''); setVeoApiKey(''); setBaseUrl(''); setStorageKey(''); setModal(null); setNotice('模型连接已配置'); })}>保存连接</button></div>
     </Modal>}
-    {modal === 'guide' && <Modal title="跨境视频创意指南" wide onClose={() => setModal(null)}><p className="modal-description">把平台的创作原则落实到每个镜头。以下是创意建议，不是流量或转化承诺。</p><div className="guide-grid"><article><span className="guide-number">01</span><h3>用情境吸引注意</h3><p>先让观众识别自己的问题，再用具体动作展示产品价值。采用清晰的开头、主体和行动引导。</p><a href="https://ads.tiktok.com/resources/help/article/creative-best-practices?lang=en" target="_blank" rel="noreferrer">TikTok 创意建议 <ArrowUpRight size={13} /></a></article><article><span className="guide-number">02</span><h3>为竖屏观看设计</h3><p>Reels 优先竖屏、有声音的内容。字幕、商品和关键信息避开界面遮挡，生成后按实际版位检查。</p><a href="https://www.facebook.com/business/ads/facebook-instagram-reels-ads" target="_blank" rel="noreferrer">Meta Reels 创意指南 <ArrowUpRight size={13} /></a></article><article><span className="guide-number">03</span><h3>卖点与产品页一致</h3><p>用目标顾客的语言解释用途与收益，填写真实规格、售价和优惠，让视频承诺与落地页保持一致。</p><a href="https://help.shopify.com/en/manual/products/details/product-descriptions/write" target="_blank" rel="noreferrer">Shopify 产品描述指南 <ArrowUpRight size={13} /></a></article><article><span className="guide-number">04</span><h3>让内容可交接</h3><p>原片拆解与新方案分开保存。修改前提会将旧方案标记为待更新，导出时使用最新的镜头与口播。</p><span className="secondary-label">AI-SAIL FLOW 工作方式</span></article></div><div className="guide-footer"><Info size={15} /><span>当前流程生成逐镜头复刻关键帧与描述，作为后续图生视频的输入。可检查、调整单张图片并导出制作包。</span></div></Modal>}
+    {modal === 'guide' && <Modal title="跨境视频创意指南" wide onClose={() => setModal(null)}><p className="modal-description">把平台的创作原则落实到每个镜头。以下是创意建议，不是流量或转化承诺。</p><div className="guide-grid"><article><span className="guide-number">01</span><h3>用情境吸引注意</h3><p>先让观众识别自己的问题，再用具体动作展示产品价值。采用清晰的开头、主体和行动引导。</p><a href="https://ads.tiktok.com/resources/help/article/creative-best-practices?lang=en" target="_blank" rel="noreferrer">TikTok 创意建议 <ArrowUpRight size={13} /></a></article><article><span className="guide-number">02</span><h3>为竖屏观看设计</h3><p>Reels 优先竖屏、有声音的内容。字幕、商品和关键信息避开界面遮挡，生成后按实际版位检查。</p><a href="https://www.facebook.com/business/ads/facebook-instagram-reels-ads" target="_blank" rel="noreferrer">Meta Reels 创意指南 <ArrowUpRight size={13} /></a></article><article><span className="guide-number">03</span><h3>卖点与产品页一致</h3><p>用目标顾客的语言解释用途与收益，填写真实规格、售价和优惠，让视频承诺与落地页保持一致。</p><a href="https://help.shopify.com/en/manual/products/details/product-descriptions/write" target="_blank" rel="noreferrer">Shopify 产品描述指南 <ArrowUpRight size={13} /></a></article><article><span className="guide-number">04</span><h3>让内容可交接</h3><p>原片拆解与新方案分开保存。修改前提会将旧方案标记为待更新，导出时使用最新的镜头与口播。</p><span className="secondary-label">AI Creative Lab 工作方式</span></article></div><div className="guide-footer"><Info size={15} /><span>当前流程生成逐镜头复刻关键帧与描述，作为后续图生视频的输入。可检查、调整单张图片并导出制作包。</span></div></Modal>}
     <AssetLibrary open={!!assetLibraryTarget} user={auth.user} project={project} workspaceProject={parentProject} frameBusy={frameBusy} target={assetLibraryTarget || 'all'} initialSelection={initialMedia} onClose={() => { setAssetLibraryTarget(null); setFrameRefTarget(null); setVideoRefTarget(null); }} onReference={referenceMedia} onSignIn={() => { setAssetLibraryTarget(null); setFrameRefTarget(null); setVideoRefTarget(null); openAuth(); }} />
     {profileDialog}
     {authDialog}

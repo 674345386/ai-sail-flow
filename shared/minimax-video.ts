@@ -1,4 +1,18 @@
 import { z } from 'zod';
+import type { GeneratedVideo } from './domain';
+
+export function minimaxVideoRecoverable(video: GeneratedVideo) {
+  return video.provider === 'minimax-h3' && video.status === 'failed' && !!video.minimax &&
+    !['failed', 'cancelled'].includes(video.minimax.upstreamStatus || '') && !!(video.requestId || video.minimax.request);
+}
+
+/** Automatic recovery only queries a known task ID; it never replays a submission. */
+export function minimaxVideoNeedsReconciliation(video: GeneratedVideo, now = Date.now()) {
+  if (video.provider !== 'minimax-h3' || !video.requestId || !video.minimax || video.status === 'completed' || ['failed', 'cancelled'].includes(video.minimax.upstreamStatus || '')) return false;
+  if (video.status === 'running') return true;
+  const pending = video.minimax.recoveryPending ?? /重启|等待超时|本地保存失败/.test(video.error || '');
+  return pending && (!video.minimax.nextRecoveryAt || Date.parse(video.minimax.nextRecoveryAt) <= now);
+}
 
 export const MINIMAX_MODELS = ['h3-video', 'h3-video-flex', 'h3-video-frames'] as const;
 export const MINIMAX_RESOLUTIONS = ['480p', '720p', '768p', '960p', '1080p'] as const;

@@ -1,5 +1,5 @@
 ---
-name: AI-Sail Flow
+name: AI Creative Lab
 description: 跨境内容创作工作台的现有界面风格
 colors:
   shell-bg: "#101114"
@@ -37,7 +37,7 @@ components:
     rounded: "{rounded.node}"
 ---
 
-# Design System: AI-Sail Flow
+# Design System: AI Creative Lab
 
 ## Overview
 
@@ -72,3 +72,9 @@ components:
 - 沿用当前区域的主题：深色导航与 Agent 对话、浅色二创画布。
 - 让素材、镜头证据和当前状态优先于装饰。
 - 保留现有的紫色全局强调与绿色 Agent 强调的作用范围。
+
+## 爆款研究台（/studio、/studio/radar）
+
+研究页面采用深色操作界面，服务全平台热点发现与创作选题。该区域独立使用 `.studio-research-shell` 与 `.radar-desk` 作用域：背景 `#0d1015`，表面 `#141920`，边界 `#29313c`，主文字 `#edf1f6`，辅助文字 `#a1adbc`，操作强调 `#a2e6c8`。沿用本地 General Sans 与中文系统回退字体，数据使用等宽数字；表格、工具栏和证据详情保持紧凑密度。
+
+五个工作流通过页内标签切换。搜索条件位于上方，分类榜单位于左侧，选中内容的指标、潜力构成和数据缺口位于右侧。窄屏中详情移到榜单下方。绿色代表可跟踪的信号与主操作，来源颜色仅用于识别。未接入、失败、示例与真实观测必须通过文字明确区分，不能只依赖颜色。

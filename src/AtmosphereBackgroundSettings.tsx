@@ -1,8 +1,9 @@
 import { useId } from 'react';
-import { Check } from 'lucide-react';
+import { Check, Pause, Play } from 'lucide-react';
 import { useLang } from './i18n';
 import AtmosphereBackground from './AtmosphereBackground';
 import { ATMOSPHERE_COMPOSITIONS, ATMOSPHERE_PRESETS, ATMOSPHERE_SLIDERS, atmospherePreset, type AtmosphereBackgroundConfig } from './atmosphere-background';
+import { agentContrastColor } from './intelligent-ui/theme';
 
 export default function AtmosphereBackgroundSettings({ config, onChange, showHeroSetting }: {
   config: AtmosphereBackgroundConfig;
@@ -13,18 +14,30 @@ export default function AtmosphereBackgroundSettings({ config, onChange, showHer
   const { lang } = useLang();
   const plain = (zh: string, en: string) => lang === 'en' ? en : zh;
   const customize = (patch: Partial<AtmosphereBackgroundConfig>) => onChange({ ...patch, preset: null });
+  const presetKeys = Object.keys(ATMOSPHERE_PRESETS) as (keyof typeof ATMOSPHERE_PRESETS)[];
 
   return <>
     <p className="lbg-type-description">{plain('一张连续的光色背景，贯穿导航、首屏和内容。', 'One continuous colour field across navigation, hero and content.')}</p>
-    <div className="lbg-atmosphere-presets" aria-label={plain('氛围预设', 'Atmosphere presets')}>
-      {(Object.keys(ATMOSPHERE_PRESETS) as (keyof typeof ATMOSPHERE_PRESETS)[]).map(key => {
-        const preset = ATMOSPHERE_PRESETS[key];
-        return <button type="button" key={key} aria-pressed={config.preset === key} onClick={() => onChange({ ...atmospherePreset(key), paused: config.paused, hero: config.hero })}>
-          <span className="lbg-atmosphere-swatch"><AtmosphereBackground config={atmospherePreset(key)} preview /></span>
-          <span className="lbg-atmosphere-preset-name">{plain(preset.name, preset.en)}{config.preset === key && <Check size={12} aria-hidden="true" />}</span>
-        </button>;
-      })}
-    </div>
+    <button type="button" className="lbg-atmosphere-motion" aria-label={plain('背景动效', 'Background animation')} aria-pressed={!config.paused} onClick={() => onChange({ paused: !config.paused })}>
+      {config.paused ? <Play size={15} aria-hidden="true" /> : <Pause size={15} aria-hidden="true" />}
+      <span>{plain('背景动效', 'Background animation')}</span>
+      <span className="lbg-atmosphere-motion-state">{config.paused ? plain('已关闭', 'Off') : plain('已开启', 'On')}</span>
+    </button>
+    {([
+      { light: false, zh: '深色氛围', en: 'Dark atmospheres' },
+      { light: true, zh: '浅色氛围', en: 'Light atmospheres' },
+    ] as const).map(group => <div key={group.zh}>
+      <h3 className="lbg-atmosphere-group-title" id={`${id}-${group.light ? 'light' : 'dark'}`}>{plain(group.zh, group.en)}</h3>
+      <div className="lbg-atmosphere-presets" role="group" aria-labelledby={`${id}-${group.light ? 'light' : 'dark'}`}>
+        {presetKeys.filter(key => (agentContrastColor(ATMOSPHERE_PRESETS[key].config.base) === '#000000') === group.light).map(key => {
+          const preset = ATMOSPHERE_PRESETS[key];
+          return <button type="button" key={key} aria-pressed={config.preset === key} onClick={() => onChange({ ...atmospherePreset(key), paused: config.paused, hero: config.hero })}>
+            <span className="lbg-atmosphere-swatch"><AtmosphereBackground config={atmospherePreset(key)} preview /></span>
+            <span className="lbg-atmosphere-preset-name">{plain(preset.name, preset.en)}{config.preset === key && <Check size={12} aria-hidden="true" />}</span>
+          </button>;
+        })}
+      </div>
+    </div>)}
     <div className="lbg-row">
       <label htmlFor={`${id}-composition`}>{plain('光线构图', 'Composition')}</label>
       <select id={`${id}-composition`} value={config.composition} onChange={event => customize({ composition: event.target.value as AtmosphereBackgroundConfig['composition'] })}>

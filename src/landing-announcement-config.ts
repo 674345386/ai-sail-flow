@@ -34,7 +34,9 @@ function loadConfig(): AnnouncementConfig {
       if (typeof bar.height === 'number' && Number.isFinite(bar.height)) result[id].height = Math.round(Math.max(ANNOUNCEMENT_HEIGHT.min, Math.min(ANNOUNCEMENT_HEIGHT.max, bar.height)));
       for (const lang of ['en', 'zh-CN'] as const) {
         for (const field of ['title', 'message', 'action', 'details'] as const) {
-          if (typeof bar.copy?.[lang]?.[field] === 'string') result[id].copy[lang][field] = bar.copy[lang][field];
+          if (typeof bar.copy?.[lang]?.[field] === 'string') result[id].copy[lang][field] = bar.copy[lang][field]
+            .replace(/\bAI[- ]Sail(?:[- ]Flow)?\b/gi, 'AI Creative Lab')
+            .replace(/\bFlow\b/g, 'AI Creative Lab');
         }
       }
     }

@@ -1,0 +1,193 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2000" height="1600" viewBox="0 0 2000 1600" font-family="PingFang SC, Microsoft YaHei, sans-serif"><rect width="2000" height="1600" fill="#fff"/><text x="40" y="58" fill="#222" font-size="34">远景构图白模 · 先选空间，再定质感</text><text x="40" y="91" fill="#666" font-size="19">只比较主体比例、远近层次和留白，暂不比较材质与光线。</text><svg x="40" y="120" width="940" height="394.8" viewBox="0 0 2000 840">
+    <title id="A-scene-title">A 海岸弯道 · 远景构图白模</title>
+    <desc id="A-scene-description">沿用你偏好的海岸公路，进一步缩小汽车，用崖壁、弯道和海平面拉开空间。</desc>
+    
+  <defs>
+    <symbol id="A-car" viewBox="0 0 180 86">
+      <g stroke="#777" stroke-width="2" stroke-linejoin="round">
+        <path fill="#fafafa" d="M12 48 32 41 59 16H111L141 39 166 47 173 59 168 70H12Z"/>
+        <path fill="#d3d3d3" d="M44 42 66 22H105L128 42Z"/>
+        <path fill="none" d="M92 23V42M17 55H164"/>
+        <circle fill="#b3b3b3" cx="43" cy="69" r="12"/><circle fill="#b3b3b3" cx="143" cy="69" r="12"/>
+        <circle fill="#e8e8e8" cx="43" cy="69" r="5"/><circle fill="#e8e8e8" cx="143" cy="69" r="5"/>
+      </g>
+    </symbol>
+    <symbol id="A-person" viewBox="0 0 32 86">
+      <g stroke="#818181" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle fill="#fafafa" cx="16" cy="10" r="7"/>
+        <path fill="#fafafa" d="M8 24 23 23 25 49 19 53 8 49Z"/>
+        <path fill="none" stroke-width="5" d="M10 53 8 79M21 54 27 79M6 27 3 47M25 27 30 45"/>
+      </g>
+    </symbol>
+  </defs><rect width="2000" height="840" fill="#fafafa"/>
+      <path fill="#e5e5e5" d="M0 336H2000V840H0Z"/>
+      <path fill="#ededed" d="M650 336 820 270 990 297 1180 330 1320 336Z"/>
+      <path fill="#d3d3d3" d="M0 80 210 110 380 238 520 303 690 327 880 363 1000 404 970 461 800 489 630 544 540 620 0 780Z"/>
+      <path fill="#bdbdbd" d="M0 373 200 417 360 495 580 539 736 610 920 685 950 840H0Z"/>
+      <path fill="#f7f7f7" stroke="#aaa" stroke-width="2" d="M430 840C605 716 1184 680 1294 603S1420 494 1170 453C1080 438 1008 424 990 400L1019 397C1052 423 1181 427 1270 444C1532 494 1627 562 1484 645S1222 790 1195 840Z"/>
+      <path fill="none" stroke="#d0d0d0" stroke-width="3" d="M811 840C858 756 1393 664 1417 570S1125 447 1006 399"/>
+      <path fill="none" stroke="#ccc" stroke-width="2" d="M1640 389H1940M1590 422H1850"/>
+      <use href="#A-car" x="1346" y="530" width="140" height="67"/>
+    
+  </svg><text x="40" y="549" fill="#333" font-size="27">A  海岸弯道</text><text x="40" y="579" fill="#666" font-size="18">28 mm · 车占画宽 7% · 左侧留白 38%</text>
+<svg x="1020" y="120" width="940" height="394.8" viewBox="0 0 2000 840">
+    <title id="B-scene-title">B 高山公路 · 远景构图白模</title>
+    <desc id="B-scene-description">让两侧山体形成前景框架，公路带视线进入远处。空间纵深强，适合品牌宣传片。</desc>
+    
+  <defs>
+    <symbol id="B-car" viewBox="0 0 180 86">
+      <g stroke="#777" stroke-width="2" stroke-linejoin="round">
+        <path fill="#fafafa" d="M12 48 32 41 59 16H111L141 39 166 47 173 59 168 70H12Z"/>
+        <path fill="#d3d3d3" d="M44 42 66 22H105L128 42Z"/>
+        <path fill="none" d="M92 23V42M17 55H164"/>
+        <circle fill="#b3b3b3" cx="43" cy="69" r="12"/><circle fill="#b3b3b3" cx="143" cy="69" r="12"/>
+        <circle fill="#e8e8e8" cx="43" cy="69" r="5"/><circle fill="#e8e8e8" cx="143" cy="69" r="5"/>
+      </g>
+    </symbol>
+    <symbol id="B-person" viewBox="0 0 32 86">
+      <g stroke="#818181" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle fill="#fafafa" cx="16" cy="10" r="7"/>
+        <path fill="#fafafa" d="M8 24 23 23 25 49 19 53 8 49Z"/>
+        <path fill="none" stroke-width="5" d="M10 53 8 79M21 54 27 79M6 27 3 47M25 27 30 45"/>
+      </g>
+    </symbol>
+  </defs><rect width="2000" height="840" fill="#fafafa"/>
+      <path fill="#ededed" d="M0 358 204 240 440 140 610 310 820 215 1000 353 1165 183 1340 92 1518 267 1700 212 2000 350V840H0Z"/>
+      <path fill="#dcdcdc" d="M0 486 252 375 535 450 780 389 1045 483 1300 327 1525 416 1785 330 2000 445V840H0Z"/>
+      <path fill="#c5c5c5" d="M0 143 156 85 365 165 462 295 570 395 734 452 800 565 1044 680 1200 840H0Z"/>
+      <path fill="#d0d0d0" d="M2000 330 1773 403 1615 491 1477 570 1460 692 1620 840H2000Z"/>
+      <path fill="#f8f8f8" stroke="#aaa" stroke-width="2" d="M1570 840C1417 718 1155 667 1164 580S1510 476 1290 394L1311 373C1627 472 1427 542 1330 586S1507 724 1910 840Z"/>
+      <path fill="none" stroke="#d0d0d0" stroke-width="3" d="M1740 840C1490 717 1239 660 1247 584S1580 473 1302 385"/>
+      <use href="#B-car" x="1205" y="529" width="120" height="58"/>
+    
+  </svg><text x="1020" y="549" fill="#333" font-size="27">B  高山公路</text><text x="1020" y="579" fill="#666" font-size="18">24 mm · 车占画宽 6% · 左侧留白 36%</text>
+<svg x="40" y="605" width="940" height="394.8" viewBox="0 0 2000 840">
+    <title id="C-scene-title">C 荒原直线 · 远景构图白模</title>
+    <desc id="C-scene-description">低地平线、大面积天空和偏置消失点。主体更小、构图更安静，开阔感最直接。</desc>
+    
+  <defs>
+    <symbol id="C-car" viewBox="0 0 180 86">
+      <g stroke="#777" stroke-width="2" stroke-linejoin="round">
+        <path fill="#fafafa" d="M12 48 32 41 59 16H111L141 39 166 47 173 59 168 70H12Z"/>
+        <path fill="#d3d3d3" d="M44 42 66 22H105L128 42Z"/>
+        <path fill="none" d="M92 23V42M17 55H164"/>
+        <circle fill="#b3b3b3" cx="43" cy="69" r="12"/><circle fill="#b3b3b3" cx="143" cy="69" r="12"/>
+        <circle fill="#e8e8e8" cx="43" cy="69" r="5"/><circle fill="#e8e8e8" cx="143" cy="69" r="5"/>
+      </g>
+    </symbol>
+    <symbol id="C-person" viewBox="0 0 32 86">
+      <g stroke="#818181" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle fill="#fafafa" cx="16" cy="10" r="7"/>
+        <path fill="#fafafa" d="M8 24 23 23 25 49 19 53 8 49Z"/>
+        <path fill="none" stroke-width="5" d="M10 53 8 79M21 54 27 79M6 27 3 47M25 27 30 45"/>
+      </g>
+    </symbol>
+  </defs><rect width="2000" height="840" fill="#fafafa"/>
+      <path fill="#ededed" d="M0 310 170 290 320 300 470 270 670 286 870 308 1030 295 1275 307 1470 272 1650 289 1840 299 2000 285V840H0Z"/>
+      <path fill="#dcdcdc" d="M0 353C380 333 710 357 1030 331S1710 336 2000 320V840H0Z"/>
+      <path fill="#d0d0d0" d="M0 600C270 526 485 580 680 579S1036 530 1140 581L960 840H0Z"/>
+      <path fill="#e5e5e5" d="M1418 481C1580 451 1740 479 2000 450V840H1560Z"/>
+      <path fill="#f8f8f8" stroke="#aaa" stroke-width="2" d="M510 840 1249 314H1262L1470 840Z"/>
+      <path fill="none" stroke="#ccc" stroke-width="3" d="M990 840 1255 314"/>
+      <use href="#C-car" x="1200" y="394" width="96" height="46"/>
+    
+  </svg><text x="40" y="1034" fill="#333" font-size="27">C  荒原直线</text><text x="40" y="1064" fill="#666" font-size="18">35 mm · 车占画宽 4.8% · 左侧留白 44%</text>
+<svg x="1020" y="605" width="940" height="394.8" viewBox="0 0 2000 840">
+    <title id="D-scene-title">D 建筑广场 · 远景构图白模</title>
+    <desc id="D-scene-description">用建筑体量与一个很小的人物建立尺度。空间整洁、线条克制，适合设计与生活方式内容。</desc>
+    
+  <defs>
+    <symbol id="D-car" viewBox="0 0 180 86">
+      <g stroke="#777" stroke-width="2" stroke-linejoin="round">
+        <path fill="#fafafa" d="M12 48 32 41 59 16H111L141 39 166 47 173 59 168 70H12Z"/>
+        <path fill="#d3d3d3" d="M44 42 66 22H105L128 42Z"/>
+        <path fill="none" d="M92 23V42M17 55H164"/>
+        <circle fill="#b3b3b3" cx="43" cy="69" r="12"/><circle fill="#b3b3b3" cx="143" cy="69" r="12"/>
+        <circle fill="#e8e8e8" cx="43" cy="69" r="5"/><circle fill="#e8e8e8" cx="143" cy="69" r="5"/>
+      </g>
+    </symbol>
+    <symbol id="D-person" viewBox="0 0 32 86">
+      <g stroke="#818181" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle fill="#fafafa" cx="16" cy="10" r="7"/>
+        <path fill="#fafafa" d="M8 24 23 23 25 49 19 53 8 49Z"/>
+        <path fill="none" stroke-width="5" d="M10 53 8 79M21 54 27 79M6 27 3 47M25 27 30 45"/>
+      </g>
+    </symbol>
+  </defs><rect width="2000" height="840" fill="#fafafa"/>
+      <path fill="#ededed" d="M0 380 220 351 422 367 615 332 790 350 1005 380H2000V840H0Z"/>
+      <path fill="#e2e2e2" d="M0 482 2000 404V840H0Z"/>
+      <path fill="#f7f7f7" stroke="#b5b5b5" stroke-width="2" d="M1110 299 1665 206 1960 329 1424 438Z"/>
+      <path fill="#f0f0f0" stroke="#b5b5b5" stroke-width="2" d="M1110 299V527L1424 636V438Z"/>
+      <path fill="#d0d0d0" stroke="#b5b5b5" stroke-width="2" d="M1424 438 1960 329V514L1424 636Z"/>
+      <path fill="#bdbdbd" d="M1482 445 1875 366V484L1482 576Z"/>
+      <path fill="#ededed" d="M1511 440V568L1525 565V438Z"/>
+      <path fill="#f7f7f7" stroke="#bbb" stroke-width="2" d="M1110 527 1424 636 2000 501V555L1424 709 1022 557Z"/>
+      <path fill="none" stroke="#c8c8c8" stroke-width="2" d="M1424 709 1002 840M1022 557 0 717M1850 595 1840 840"/>
+      <use href="#D-person" x="1210" y="486" width="28" height="76"/>
+    
+  </svg><text x="1020" y="1034" fill="#333" font-size="27">D  建筑广场</text><text x="1020" y="1064" fill="#666" font-size="18">28 mm · 人物占画高 9% · 左侧留白 40%</text>
+<svg x="40" y="1090" width="940" height="394.8" viewBox="0 0 2000 840">
+    <title id="E-scene-title">E 海面帆影 · 远景构图白模</title>
+    <desc id="E-scene-description">长海平线与小帆船构成极简远景。几乎没有前景遮挡，适合安静、舒展的品牌画面。</desc>
+    
+  <defs>
+    <symbol id="E-car" viewBox="0 0 180 86">
+      <g stroke="#777" stroke-width="2" stroke-linejoin="round">
+        <path fill="#fafafa" d="M12 48 32 41 59 16H111L141 39 166 47 173 59 168 70H12Z"/>
+        <path fill="#d3d3d3" d="M44 42 66 22H105L128 42Z"/>
+        <path fill="none" d="M92 23V42M17 55H164"/>
+        <circle fill="#b3b3b3" cx="43" cy="69" r="12"/><circle fill="#b3b3b3" cx="143" cy="69" r="12"/>
+        <circle fill="#e8e8e8" cx="43" cy="69" r="5"/><circle fill="#e8e8e8" cx="143" cy="69" r="5"/>
+      </g>
+    </symbol>
+    <symbol id="E-person" viewBox="0 0 32 86">
+      <g stroke="#818181" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle fill="#fafafa" cx="16" cy="10" r="7"/>
+        <path fill="#fafafa" d="M8 24 23 23 25 49 19 53 8 49Z"/>
+        <path fill="none" stroke-width="5" d="M10 53 8 79M21 54 27 79M6 27 3 47M25 27 30 45"/>
+      </g>
+    </symbol>
+  </defs><rect width="2000" height="840" fill="#fafafa"/>
+      <path fill="#e8e8e8" d="M0 352H2000V840H0Z"/>
+      <path fill="#ddd" d="M0 300 120 277 255 298 338 334 510 352H0Z"/>
+      <path fill="#d0d0d0" d="M0 599 72 574 170 607 266 648 335 755 390 840H0Z"/>
+      <path fill="none" stroke="#d2d2d2" stroke-width="2" d="M700 526H1020M1060 663H1330M1470 582H1810M375 731H810"/>
+      <g stroke="#929292" stroke-width="2.5" stroke-linejoin="round">
+        <path fill="#fafafa" d="M1341 491 1457 491 1436 515H1367Z"/>
+        <path fill="none" d="M1393 491V373"/>
+        <path fill="#fafafa" d="M1385 386 1346 480H1385Z"/>
+        <path fill="#f3f3f3" d="M1401 402 1439 480H1401Z"/>
+      </g>
+    
+  </svg><text x="40" y="1519" fill="#333" font-size="27">E  海面帆影</text><text x="40" y="1549" fill="#666" font-size="18">35 mm · 帆船占画宽 5.8% · 左侧留白 44%</text>
+<svg x="1020" y="1090" width="940" height="394.8" viewBox="0 0 2000 840">
+    <title id="F-scene-title">F 湖畔远景 · 远景构图白模</title>
+    <desc id="F-scene-description">远山、湖面和岸线分成三层，人物只作尺度参照。环境叙事更强，适合户外与人物故事。</desc>
+    
+  <defs>
+    <symbol id="F-car" viewBox="0 0 180 86">
+      <g stroke="#777" stroke-width="2" stroke-linejoin="round">
+        <path fill="#fafafa" d="M12 48 32 41 59 16H111L141 39 166 47 173 59 168 70H12Z"/>
+        <path fill="#d3d3d3" d="M44 42 66 22H105L128 42Z"/>
+        <path fill="none" d="M92 23V42M17 55H164"/>
+        <circle fill="#b3b3b3" cx="43" cy="69" r="12"/><circle fill="#b3b3b3" cx="143" cy="69" r="12"/>
+        <circle fill="#e8e8e8" cx="43" cy="69" r="5"/><circle fill="#e8e8e8" cx="143" cy="69" r="5"/>
+      </g>
+    </symbol>
+    <symbol id="F-person" viewBox="0 0 32 86">
+      <g stroke="#818181" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle fill="#fafafa" cx="16" cy="10" r="7"/>
+        <path fill="#fafafa" d="M8 24 23 23 25 49 19 53 8 49Z"/>
+        <path fill="none" stroke-width="5" d="M10 53 8 79M21 54 27 79M6 27 3 47M25 27 30 45"/>
+      </g>
+    </symbol>
+  </defs><rect width="2000" height="840" fill="#fafafa"/>
+      <path fill="#ededed" d="M0 330 145 237 307 279 510 152 702 274 887 215 1070 335 1268 205 1445 265 1690 173 2000 310V840H0Z"/>
+      <path fill="#dcdcdc" d="M0 403 215 342 427 386 663 335 905 411 1125 363 1370 405 1615 319 1800 373 2000 358V840H0Z"/>
+      <path fill="#efefef" d="M0 474C351 425 781 448 1100 464S1490 466 1630 454C1441 526 1254 541 1090 592S808 701 943 840H0Z"/>
+      <path fill="#c8c8c8" d="M2000 441 1665 463C1510 529 1464 586 1264 639S1185 754 1310 840H2000Z"/>
+      <path fill="#b8b8b8" d="M0 683 204 641 313 699 464 732 607 840H0Z"/>
+      <path fill="#fafafa" stroke="#aaa" stroke-width="2" d="M1448 840C1370 744 1350 690 1452 621S1635 514 1674 474L1689 474C1686 534 1545 597 1534 666S1570 775 1660 840Z"/>
+      <use href="#F-person" x="1483" y="563" width="25" height="67"/>
+    
+  </svg><text x="1020" y="1519" fill="#333" font-size="27">F  湖畔远景</text><text x="1020" y="1549" fill="#666" font-size="18">24 mm · 人物占画高 8% · 左侧留白 38%</text></svg>

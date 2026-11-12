@@ -84,7 +84,8 @@ for (const filename of fs.readdirSync(recordsDir)) {
         ? { ...shot, keyframe: { ...shot.keyframe, status: 'failed' as const, error: '服务已重启，关键帧请求结果可能未知；请先核对，避免重复生成。' } } : shot) };
       if (interruptedGeneration) {
         project.generatedVideos = project.generatedVideos.map(video => video.status === 'running'
-          ? { ...video, status: 'failed' as const, error: '服务重启后已停止本地轮询；可恢复查询已提交的上游任务，不会新建或计费。', finishedAt }
+          ? { ...video, status: 'failed' as const, error: video.provider === 'minimax-h3' && video.requestId ? '本地服务已重启，将自动继续查询原视频任务。' : '服务重启后已停止本地轮询；可恢复查询已提交的上游任务，不会新建或计费。', finishedAt,
+            ...(video.provider === 'minimax-h3' && video.minimax ? { minimax: { ...video.minimax, recoveryPending: !!video.requestId, nextRecoveryAt: undefined } } : {}) }
           : video);
       }
       saveProject(project);

@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2000 840" width="2000" height="840" role="img" aria-labelledby="C-scene-title C-scene-description">
+    <title id="C-scene-title">C 荒原直线 · 远景构图白模</title>
+    <desc id="C-scene-description">低地平线、大面积天空和偏置消失点。主体更小、构图更安静，开阔感最直接。</desc>
+    
+  <defs>
+    <symbol id="C-car" viewBox="0 0 180 86">
+      <g stroke="#777" stroke-width="2" stroke-linejoin="round">
+        <path fill="#fafafa" d="M12 48 32 41 59 16H111L141 39 166 47 173 59 168 70H12Z"/>
+        <path fill="#d3d3d3" d="M44 42 66 22H105L128 42Z"/>
+        <path fill="none" d="M92 23V42M17 55H164"/>
+        <circle fill="#b3b3b3" cx="43" cy="69" r="12"/><circle fill="#b3b3b3" cx="143" cy="69" r="12"/>
+        <circle fill="#e8e8e8" cx="43" cy="69" r="5"/><circle fill="#e8e8e8" cx="143" cy="69" r="5"/>
+      </g>
+    </symbol>
+    <symbol id="C-person" viewBox="0 0 32 86">
+      <g stroke="#818181" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle fill="#fafafa" cx="16" cy="10" r="7"/>
+        <path fill="#fafafa" d="M8 24 23 23 25 49 19 53 8 49Z"/>
+        <path fill="none" stroke-width="5" d="M10 53 8 79M21 54 27 79M6 27 3 47M25 27 30 45"/>
+      </g>
+    </symbol>
+  </defs><rect width="2000" height="840" fill="#fafafa"/>
+      <path fill="#ededed" d="M0 310 170 290 320 300 470 270 670 286 870 308 1030 295 1275 307 1470 272 1650 289 1840 299 2000 285V840H0Z"/>
+      <path fill="#dcdcdc" d="M0 353C380 333 710 357 1030 331S1710 336 2000 320V840H0Z"/>
+      <path fill="#d0d0d0" d="M0 600C270 526 485 580 680 579S1036 530 1140 581L960 840H0Z"/>
+      <path fill="#e5e5e5" d="M1418 481C1580 451 1740 479 2000 450V840H1560Z"/>
+      <path fill="#f8f8f8" stroke="#aaa" stroke-width="2" d="M510 840 1249 314H1262L1470 840Z"/>
+      <path fill="none" stroke="#ccc" stroke-width="3" d="M990 840 1255 314"/>
+      <use href="#C-car" x="1200" y="394" width="96" height="46"/>
+    
+  </svg>

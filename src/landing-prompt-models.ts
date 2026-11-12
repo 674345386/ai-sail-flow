@@ -1,10 +1,10 @@
-// Model names and SVG artwork extracted from https://www.capyai.cc/ on 2026-11-08.
+// Curated models for the landing-page marquee.
 // Display references; generation controls use the models configured in this app.
 export const landingPromptModels = [
   {
-    "id": "nano-banana-pro",
-    "label": "Nano Banana Pro",
-    "icon": "gemini"
+    "id": "gpt-image-2.6-sunburst",
+    "label": "GPT Image 2.6 Sunburst",
+    "icon": "openai"
   },
   {
     "id": "gpt-image-2.6-flare",
@@ -12,63 +12,38 @@ export const landingPromptModels = [
     "icon": "openai"
   },
   {
-    "id": "doubao-seedance-2-0-260128",
-    "label": "Seedance 2.0",
-    "icon": "seedance"
-  },
-  {
     "id": "veo-3.1-generate-preview",
     "label": "Veo 3.1",
     "icon": "gemini"
   },
   {
-    "id": "grok-imagine-image-quality",
-    "label": "Grok Imagine Quality",
-    "icon": "grok"
-  },
-  {
-    "id": "doubao-seedream-5-0-pro",
-    "label": "Seedream 5.0 Pro",
-    "icon": "seedream"
-  },
-  {
-    "id": "gpt-image-2.6-sunburst",
-    "label": "GPT Image 2.6 Sunburst",
-    "icon": "openai"
-  },
-  {
-    "id": "gpt-image-2.5-flare",
-    "label": "GPT Image 2.5 Flare",
-    "icon": "openai"
-  },
-  {
-    "id": "gpt-image-2.5-sunburst",
-    "label": "GPT Image 2.5 Sunburst",
-    "icon": "openai"
-  },
-  {
-    "id": "gpt-image-2",
-    "label": "GPT Image 2",
-    "icon": "openai"
-  },
-  {
-    "id": "grok-imagine-image",
-    "label": "Grok Imagine",
-    "icon": "grok"
-  },
-  {
-    "id": "nano-banana-2-lite",
-    "label": "Nano Banana 2 Lite",
+    "id": "gemini-4-argon",
+    "label": "Gemini-4-Argon",
     "icon": "gemini"
   },
   {
-    "id": "nano-banana-2",
-    "label": "Nano Banana 2",
+    "id": "gpt-6.1-sol",
+    "label": "GPT-6.1 Sol",
+    "icon": "openai"
+  },
+  {
+    "id": "gpt-6-astra",
+    "label": "GPT-6 Astra",
+    "icon": "openai"
+  },
+  {
+    "id": "gemini-omni-flash-1.2",
+    "label": "Gemini Omni Flash 1.2",
     "icon": "gemini"
   },
   {
-    "id": "gemini-omni-flash-preview",
-    "label": "Omni Flash",
-    "icon": "gemini"
+    "id": "minimax-h3",
+    "label": "MiniMax H3",
+    "icon": "minimax"
+  },
+  {
+    "id": "claude-code-opus-5.5",
+    "label": "Claude Code Opus5.5",
+    "icon": "claude"
   }
 ] as const;
