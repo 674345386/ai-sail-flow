@@ -1,0 +1,67 @@
+import { experimentReviewInput } from '../shared/experiment-review';
+
+/** Editorial summary of the verified messages, prompts and media from 2026-11-08. */
+export const receiptRecapReview = experimentReviewInput.parse({
+  title: '这条小票视频，是怎样一步步复刻出来的？',
+  goal: '把原片人物换成指定女性，保留七个镜头、五品牌小票和变装节奏。经过四版视频，最终交付15秒文字修正版。',
+  dateLabel: '2026年11月8日 · 纽约时间 · 6个阶段，4版视频',
+  finalArtifactId: '3d64f076-befa-454b-9f3e-3eaff2d99c8a',
+  stages: [
+    {
+      planId: 'recap-analysis', shortTitle: '看懂原片', title: '先看懂原片，确认要替换的人物', time: '07:24–07:26', outcome: 'prepared',
+      approach: '先确定什么要保留、什么要替换，让后续生成有共同依据。',
+      actions: ['确认短发女性是目标人物，只换身份，服装与道具跟随原片。', '分析14.49秒原片及音轨，拆出店员开场、五品牌变装、卡片合集，共七个镜头。', '自动抽帧并拼成两张3×3分镜图，分别覆盖0–10秒和10–14.49秒。'],
+      result: '得到七镜头分析、两张连续分镜和已确认的人物图。原视频用于分析，后续H3生成接收图片参考。',
+      decision: '先用人物图和两张分镜，尝试一次生成整条视频。',
+      stepIds: ['reference_analysis'], previewNodeIds: ['reference_video', 'replacement_person'],
+    },
+    {
+      planId: 'recap-direct', shortTitle: '整片生成 V1', title: '尝试1：用人物图和分镜，一次生成整片', time: '07:36–07:48', outcome: 'iterate',
+      approach: '把人物、服装、动作、小票背景和剪辑一起交给视频模型生成。',
+      actions: ['输入三张参考图：人物身份图＋两张原片分镜。', 'MiniMax H3 Flex生成15秒、9:16、768p视频，记录扣费38积分。'],
+      result: '得到V1人物替换版视频。',
+      finding: '你指出这类画面主要是静态小票背景与运动人物，可以将背景单独准备，减少模型同时处理的内容。',
+      quote: '其实这种背景不动，只有人物动的，你可以把背景识别出来，弄成参考图片。',
+      decision: '先去掉人物，重建五个品牌各自的小票背景。',
+      stepIds: ['recreate_plan'], previewNodeIds: ['output-3b302217-7d40-4579-bbac-505628d80811'],
+    },
+    {
+      planId: 'recap-background', shortTitle: '单独准备背景', title: '把五套小票背景，从人物中分离出来', time: '07:49–07:51', outcome: 'prepared',
+      approach: '为后续尝试建立独立的背景参考，保留品牌配色、小票轮廓和文字布局。',
+      actions: ['用两张分镜调用GPT Image 2.6 Flare，移除人物、手持饮品和阴影。', '补全人物遮挡的区域，输出2880×1024参考板，横向排列五套576×1024背景。'],
+      result: '得到瑞幸、茶百道、蜜雪冰城、霸王茶姬、益禾堂的去人物背景板。',
+      finding: '这是一张模型重建图，遮挡区域经过补全，底图文字还需要校对。',
+      decision: '把背景板作为第四张参考图，与人物图、分镜一起再生成一版。',
+      stepIds: ['background_refs'], previewNodeIds: ['output-737e5608-22e1-4285-aeb4-91938edca3fd'],
+    },
+    {
+      planId: 'recap-reference', shortTitle: '背景参考 V2', title: '尝试2：加入背景板，小票仍被重新绘制', time: '10:22–10:54', outcome: 'rejected',
+      approach: '继续整片生成，增加背景参考，并在提示词中要求小票与文字保持静止。',
+      actions: ['输入人物图、背景板、两张分镜，共四张参考图。', 'H3 Flex再次生成15秒768p视频，记录扣费38积分。'],
+      result: '得到V2背景参考版，但小票出现乱码和排版变化。',
+      finding: '参考图提供外观依据，视频模型仍会重新生成背景像素；“背景静止”的提示词无法锁定文字。',
+      quote: '截图中的背景小票会有乱码，并没有按照你刚才提取的小票参考图。',
+      decision: '按你要求改为480p，将小票固定为图片，只单独生成人物动画再合成。',
+      stepIds: ['background-recreation-v2'], previewNodeIds: ['010d04b8-36dc-48ae-b42b-d5f942357fc0'],
+    },
+    {
+      planId: 'recap-composite', shortTitle: '固定背景 V3', title: '尝试3：固定小票背景，只让人物动', time: '10:54–11:02 · 22:47收到文字反馈', outcome: 'rejected',
+      approach: '将“生成”与“合成”分开，让模型负责人物，程序负责固定背景和剪辑。',
+      actions: ['H3 Flex生成15秒480p纯色背景人物素材，记录扣费23积分。', '裁切五张小票，抠去人物背景；修正服装切换时间、白底闪帧和红蓝服装误删。', '将人物叠到固定背景上，制作片尾扇形合集，再配回原片音轨。'],
+      result: '得到V3固定背景合成版，480×854、24fps、15秒；小票不再被视频模型重绘。',
+      finding: '固定背景同时保留了底图里的错字。这一轮解决了文字变形，尚未解决原始背景板的文字准确性。',
+      quote: '小票上还是有很多错别字、或者乱码。',
+      decision: '保留现有人物动画，对照原片校对文字，用真实字体重新排版小票。',
+      stepIds: ['foreground-480', 'composite-480'], previewNodeIds: ['d79df10b-1770-40c9-bf3c-606ab2194189', '88c00775-3b2f-4d9a-962d-718364178192'],
+    },
+    {
+      planId: 'recap-typeset', shortTitle: '文字校正 V4', title: '尝试4：校正文字，复用人物合成最终片', time: '22:48–22:50', outcome: 'final',
+      approach: '将文字准确性交给可编辑的字体排版，沿用已经完成的人物和合成流程。',
+      actions: ['对照原片核对品牌、商品与金额，Logo取自原片，正文用真实字体排版。', '无法辨认或被人物遮挡的字段留白。', '复用人物、抠像、时间轴和原音轨，重新制作视频与片尾合集，无需再次生成人物。'],
+      result: '交付V4文字修正版：15秒、480×854、24fps，保留原片音轨。字体重排小票、源码和核对图一并保存。',
+      finding: '部分商品字段留白，小票版式经过重排；这是文字修正版，保留了可核对内容的依据。',
+      decision: '最终采用V4文字修正版。',
+      stepIds: ['receipt-text-fix'], previewNodeIds: ['3d64f076-befa-454b-9f3e-3eaff2d99c8a', '618cfbd5-eb09-4fdb-af21-1fe05e6d74f6'],
+    },
+  ],
+});

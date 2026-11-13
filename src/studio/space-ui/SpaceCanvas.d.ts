@@ -1,0 +1,5 @@
+import type { Dispatch, ReactNode, SetStateAction } from 'react';
+import type { ScoredRadarItem, RadarCalendarEvent } from '../../../shared/radar';
+export type SpaceNode = { id:string;type:string;name:string;description:string;x:number;y:number;width:number;height?:number;sourceId?:string;src?:string;item?:ScoredRadarItem;event?:RadarCalendarEvent;runId?:string;markdown?:string;[key:string]:unknown };
+export type SpaceCanvasSettings = { showGrid?:boolean;snapToGrid?:boolean;focusSelected?:boolean;focusNew?:boolean;promptHighlight?:boolean;[key:string]:unknown };
+export default function SpaceCanvas(props:{nodes:SpaceNode[];setNodes:Dispatch<SetStateAction<SpaceNode[]>>;selectedNode:string|null;setSelectedNode:Dispatch<SetStateAction<string|null>>;viewMode:'canvas'|'list';setViewMode:Dispatch<SetStateAction<'canvas'|'list'>>;onAction:(action:string,payload?:Record<string,unknown>)=>void;settings:SpaceCanvasSettings;collapsed:boolean;agent?:{icon?:string;emoji?:string};renderContent?:(node:SpaceNode,list:boolean)=>ReactNode}):ReactNode;

@@ -9,6 +9,7 @@ import { dataDir, uploadDir } from './store';
 import { generateImage, imageGenerationStatus, type ImageReference } from './image-generation';
 import type { GenerationTask } from '../shared/generation-task';
 import { findRadarItem, registerRadarRoutes } from './radar';
+import { registerRadarSpaceRoutes } from './radar-space-agent';
 
 /** FEATURE_STUDIO defaults true; set FEATURE_STUDIO=0|false to disable API. */
 export const FEATURE_STUDIO = !['0', 'false', 'off'].includes(String(process.env.FEATURE_STUDIO || 'true').toLowerCase());
@@ -406,6 +407,7 @@ export function registerStudioRoutes(app: Express) {
     next();
   });
   registerRadarRoutes(app);
+  registerRadarSpaceRoutes(app);
 
   app.get('/api/studio/projects', (_req, res) => {
     const list = [...projects.values()].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));

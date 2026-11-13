@@ -1,0 +1,102 @@
+{
+  "capturedAt": "2026-11-13T13:46:02.757409+00:00",
+  "captureMethod": "在本地应用操作真实已完成项目，使用 CUA 截取可见界面并裁剪；无生成式图像、无合成 UI。",
+  "projectId": "fa8df845-5fcd-48cd-8203-4b929f312606",
+  "projectTitle": "落地页素材 · 真实服装短片拆解",
+  "analysisUrl": "http://127.0.0.1:4317/creative/fa8df845-5fcd-48cd-8203-4b929f312606/analysis",
+  "source": {
+    "repositoryPath": "src/assets/landing/commerce-hero-reference.mp4",
+    "sha256": "14702e858b16fbae6aef95f7793fff80bb801345a23f566df1aa1dc7c4f0abca",
+    "durationSeconds": 10,
+    "width": 1280,
+    "height": 720,
+    "audioStreams": 0
+  },
+  "results": {
+    "shots": [
+      {
+        "id": "shot-1",
+        "start": 0,
+        "end": 2.8,
+        "camera": "由半身特写拉远至全身固定镜头，正面平视。"
+      },
+      {
+        "id": "shot-2",
+        "start": 2.8,
+        "end": 4.6,
+        "camera": "模拟胶卷上下滚动运动，中远景固定。"
+      },
+      {
+        "id": "shot-3",
+        "start": 4.6,
+        "end": 6.8,
+        "camera": "正面平视全景固定机位。"
+      },
+      {
+        "id": "shot-4",
+        "start": 6.8,
+        "end": 8.8,
+        "camera": "中景，略微跟随向前微移或模特走入景深。"
+      },
+      {
+        "id": "shot-5",
+        "start": 8.8,
+        "end": 10,
+        "camera": "下半身平视仰拍固定角度。"
+      }
+    ],
+    "storyboardGrids": 1,
+    "subjects": 8
+  },
+  "manualReview": [
+    "原视频无音轨；已将模型误判的配乐描述订正为“原片无音轨”，移除全片声音候选。",
+    "其余文字为模型实际分析，界面保留对照原片核验提示。"
+  ],
+  "screenshots": [
+    {
+      "file": "shots.jpg",
+      "size": [
+        496,
+        826
+      ],
+      "surface": "真实镜头时间点编辑器，5 个镜头、原片预览与首中尾证据帧",
+      "sha256": "15d91613c31779e0a55f1ee61674d939159305a5153b695399a771deca0200b0"
+    },
+    {
+      "file": "camera.jpg",
+      "size": [
+        396,
+        680
+      ],
+      "surface": "镜头 01：原片三张证据帧、画面、主体、运镜、转场和动态时间线",
+      "sha256": "932fa43897c739885e97807b0d1cadf4c321ac70f70b3950ec206656dc13cdc7"
+    },
+    {
+      "file": "insights.jpg",
+      "size": [
+        396,
+        660
+      ],
+      "surface": "原片预览、全片表达与产品观察、创意亮点",
+      "sha256": "e738394fc4a3f8ac05a033751726c29a8b9a9d5da8ba83e977d5d565ab3d5e12"
+    },
+    {
+      "file": "grid.jpg",
+      "size": [
+        396,
+        650
+      ],
+      "surface": "实际原片抽帧形成的 3×3 分镜网格与生成 Prompt",
+      "sha256": "1bb6bee2636b1e9d64e0cf3bcda91cd60f69d63a23f8489884385b038f5ea5ca"
+    },
+    {
+      "file": "subjects.jpg",
+      "size": [
+        396,
+        660
+      ],
+      "surface": "真实主体设定卡与红色内搭原片参考图弹层",
+      "sha256": "f91a8addd4573bbc931254c401b77339fbf9586171a842081e9e97ce3fe6e537"
+    }
+  ]
+}

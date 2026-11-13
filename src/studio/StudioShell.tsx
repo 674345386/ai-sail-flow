@@ -19,6 +19,7 @@ import './studio.css';
 
 const StudioCreatives = lazy(() => import('./StudioCreatives'));
 const StudioRadar = lazy(() => import('./StudioRadar'));
+const RadarSpaceWorkspace = lazy(() => import('./RadarSpaceWorkspace'));
 const StudioTvc = lazy(() => import('./StudioTvc'));
 const StudioRemake = lazy(() => import('./StudioRemake'));
 
@@ -107,6 +108,15 @@ export default function StudioShell({
         onBackWorkspace={onBackWorkspace}
       />
     );
+  }
+
+  if (['welcome', 'radar'].includes(route.section)) {
+    return <Suspense fallback={fallback}><RadarSpaceWorkspace
+      onBackWorkspace={onBackWorkspace}
+      onHome={() => onNavigate('home')}
+      onOpenTasks={onOpenTasks}
+      initialWorkflow={route.section === 'radar' ? 'product' : 'top'}
+    /></Suspense>;
   }
 
   return (

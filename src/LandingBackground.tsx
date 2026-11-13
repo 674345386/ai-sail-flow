@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { useEffect, useId, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { Eclipse, Layers2, Megaphone, Sun, X } from 'lucide-react';
 import LightBackground from './LightBackground';
 import AtmosphereBackground, { atmosphereStyle } from './AtmosphereBackground';
@@ -79,12 +79,13 @@ function hsl(h: number, s: number, l: number) {
   return `#${f(0)}${f(8)}${f(4)}`;
 }
 
-export default function LandingBackground({ showControls = true, storageKey = KEY, uiStorageKey = UI_KEY, onBaseColorChange, controlsOpen, onControlsClose }: { showControls?: boolean; storageKey?: string; uiStorageKey?: string; onBaseColorChange?: (color: string) => void; controlsOpen?: boolean; onControlsClose?: () => void } = {}) {
+export default function LandingBackground({ showControls = true, storageKey = KEY, uiStorageKey = UI_KEY, onBaseColorChange, controlsOpen, onControlsClose, spectrumControls, backgroundEnabled = true, onBackgroundEnabledChange }: { showControls?: boolean; storageKey?: string; uiStorageKey?: string; onBaseColorChange?: (color: string) => void; controlsOpen?: boolean; onControlsClose?: () => void; spectrumControls?: ReactNode; backgroundEnabled?: boolean; onBackgroundEnabledChange?: (enabled: boolean) => void } = {}) {
   const [cfg, setCfg] = useState<Config>(() => loadConfig(storageKey));
   const [backgroundType, setBackgroundType] = useState<BackgroundType>(() => loadBackgroundType(storageKey));
   const [lightCfg, setLightCfg] = useState<LightBackgroundConfig>(() => loadLightBackground(storageKey));
   const [atmosphereCfg, setAtmosphereCfg] = useState<AtmosphereBackgroundConfig>(() => loadAtmosphereBackground(storageKey));
-  const [settingsTab, setSettingsTab] = useState<'background' | 'announcements'>('background');
+  const [settingsTab, setSettingsTab] = useState<'spectrum' | 'background' | 'announcements'>(spectrumControls ? 'spectrum' : 'background');
+  const settingsTabs = spectrumControls ? ['spectrum', 'background', 'announcements'] as const : ['background', 'announcements'] as const;
   const tabsId = useId();
   const announcementSettings = storageKey === KEY && settingsTab === 'announcements';
   const light = backgroundType === 'light';
@@ -163,15 +164,16 @@ export default function LandingBackground({ showControls = true, storageKey = KE
   useEffect(() => { try { localStorage.setItem(backgroundStorageKeys(storageKey).light, JSON.stringify(lightCfg)); } catch { /* storage unavailable */ } }, [lightCfg, storageKey]);
   useEffect(() => { try { localStorage.setItem(backgroundStorageKeys(storageKey).atmosphere, JSON.stringify(atmosphereCfg)); } catch { /* storage unavailable */ } }, [atmosphereCfg, storageKey]);
   useEffect(() => {
+    if (!backgroundEnabled) return;
     const page = document.querySelector<HTMLElement>('.landing-page');
     if (!page) return;
     page.classList.toggle('landing-light', lightPage);
     page.style.setProperty('--lbg-page-base', activeBase);
     return () => { page.classList.remove('landing-light'); page.style.removeProperty('--lbg-page-base'); };
-  }, [lightPage, activeBase]);
+  }, [lightPage, activeBase, backgroundEnabled]);
   useEffect(() => {
     const page = document.querySelector<HTMLElement>('.landing-page');
-    if (!page || !atmosphere) return;
+    if (!page || !atmosphere || !backgroundEnabled) return;
     const variables = atmosphereStyle(atmosphereCfg);
     page.classList.add('landing-atmosphere');
     page.dataset.atmosphereHero = atmosphereCfg.hero;
@@ -181,14 +183,14 @@ export default function LandingBackground({ showControls = true, storageKey = KE
       delete page.dataset.atmosphereHero;
       for (const key of Object.keys(variables)) page.style.removeProperty(key);
     };
-  }, [atmosphere, atmosphereCfg]);
+  }, [atmosphere, atmosphereCfg, backgroundEnabled]);
   useEffect(() => { if (!controlled) { try { localStorage.setItem(uiStorageKey, open ? 'open' : 'closed'); } catch { /* storage unavailable */ } } }, [open, uiStorageKey, controlled]);
   useEffect(() => { if (!toast) return; const id = window.setTimeout(() => setToast(''), 1800); return () => window.clearTimeout(id); }, [toast]);
 
   // One rAF loop drives blob transforms. Time only advances while visible, unpaused and motion is allowed;
   // when nothing moves the loop parks itself and restarts on the next relevant change.
   useEffect(() => {
-    if (backgroundType !== 'ambient') return;
+    if (backgroundType !== 'ambient' || !backgroundEnabled) return;
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
     let t = 0, last = performance.now(), raf = 0, stopped = false;
     const render = () => {
@@ -214,7 +216,7 @@ export default function LandingBackground({ showControls = true, storageKey = KE
     document.addEventListener('visibilitychange', kick); reduce.addEventListener('change', kick); window.addEventListener('resize', kick);
     kick();
     return () => { stopped = true; cancelAnimationFrame(raf); document.removeEventListener('visibilitychange', kick); reduce.removeEventListener('change', kick); window.removeEventListener('resize', kick); };
-  }, [backgroundType]);
+  }, [backgroundType, backgroundEnabled]);
   // Re-render a frame (and resume if needed) after any config change.
   useEffect(() => { (window as unknown as { __sailBgKick?: () => void }).__sailBgKick?.(); }, [cfg]);
 
@@ -274,7 +276,7 @@ export default function LandingBackground({ showControls = true, storageKey = KE
   };
 
   return <>
-    <div className={`lbg${paused ? ' is-paused' : ''}`} data-background-type={backgroundType} style={style} aria-hidden="true">
+    {backgroundEnabled && <div className={`lbg${paused ? ' is-paused' : ''}`} data-background-type={backgroundType} style={style} aria-hidden="true">
       {atmosphere ? <AtmosphereBackground config={atmosphereCfg} /> : light ? <LightBackground config={lightCfg} /> : <>
       <div className="lbg-pools" ref={poolsRef}>
         {Array.from({ length: cfg.count }, (_, i) => { const d = cfg.size * seed(i).sk, c = cfg.colors[i % cfg.colors.length];
@@ -283,30 +285,32 @@ export default function LandingBackground({ showControls = true, storageKey = KE
       <div className="lbg-vignette" />
       <div className="lbg-grain" />
       </>}
-    </div>
+    </div>}
 
     {showControls && (!controlled || panelOpen) && <aside ref={panelRef} id={controlled ? 'agent-background-controls' : undefined} className={`lbg-panel${panelOpen ? '' : ' is-collapsed'}${controlled ? ' is-docked' : ''}`} style={panelStyle} aria-label={plain('背景调色板', 'Background palette')}>
       <div className="lbg-panel-header">
       {controlled ? <div className="lbg-head lbg-docked-title"><span><i className="lbg-dot" />{plain('Background 调色板', 'Background palette')}</span></div> : <button type="button" className="lbg-head" aria-expanded={panelOpen} title={plain('拖动移动；点击展开或收起', 'Drag to move; click to open or close')}
         onPointerDown={startPanelDrag} onPointerMove={movePanelDrag} onPointerUp={endPanelDrag} onPointerCancel={endPanelDrag} onLostPointerCapture={endPanelDrag}
         onClick={event => { if (suppressToggle.current) { event.preventDefault(); suppressToggle.current = false; return; } setOpen(o => !o); }}>
-        <span><i className="lbg-dot" />{bi('背景配置', 'Background')}</span><span className="lbg-chev" aria-hidden="true">▾</span>
+        <span><i className="lbg-dot" />{spectrumControls ? 'Playground' : bi('背景配置', 'Background')}</span><span className="lbg-chev" aria-hidden="true">▾</span>
       </button>}
       {panelOpen && <button type="button" className="lbg-close" ref={closeButton} title={plain('关闭调色板', 'Close palette')} aria-label={plain('关闭调色板', 'Close palette')} onClick={() => { if (controlled) onControlsClose?.(); else setOpen(false); }}><X size={17} aria-hidden="true" /></button>}
       </div>
       {panelOpen && <>
-      {storageKey === KEY && <div className="lbg-type-tabs lbg-section-tabs" role="tablist" aria-label={plain('配置分类', 'Settings category')}>
-        {(['background', 'announcements'] as const).map(section => <button type="button" key={section} id={`${tabsId}-section-${section}`} role="tab" aria-selected={settingsTab === section} aria-controls={`${tabsId}-section-settings`} tabIndex={settingsTab === section ? 0 : -1}
+      {storageKey === KEY && <div className={`lbg-type-tabs lbg-section-tabs${spectrumControls ? ' has-spectrum' : ''}`} role="tablist" aria-label={plain('配置分类', 'Settings category')}>
+        {settingsTabs.map(section => <button type="button" key={section} id={`${tabsId}-section-${section}`} role="tab" aria-selected={settingsTab === section} aria-controls={`${tabsId}-section-settings`} tabIndex={settingsTab === section ? 0 : -1}
           onClick={() => setSettingsTab(section)} onKeyDown={event => {
             if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
             event.preventDefault();
-            const next = event.key === 'Home' ? 'background' : event.key === 'End' ? 'announcements' : section === 'background' ? 'announcements' : 'background';
+            const index = settingsTabs.findIndex(tab => tab === section);
+            const next = event.key === 'Home' ? settingsTabs[0] : event.key === 'End' ? settingsTabs[settingsTabs.length - 1] : settingsTabs[(index + (event.key === 'ArrowRight' ? 1 : -1) + settingsTabs.length) % settingsTabs.length];
             setSettingsTab(next);
             document.getElementById(`${tabsId}-section-${next}`)?.focus();
-          }}>{section === 'background' ? <Layers2 size={14} aria-hidden="true" /> : <Megaphone size={14} aria-hidden="true" />}<span>{plain(section === 'background' ? '页面背景' : '头部活动栏', section === 'background' ? 'Background' : 'Header bars')}</span></button>)}
+          }}>{section === 'spectrum' ? <Eclipse size={14} aria-hidden="true" /> : section === 'background' ? <Layers2 size={14} aria-hidden="true" /> : <Megaphone size={14} aria-hidden="true" />}<span>{plain(section === 'spectrum' ? '光谱' : section === 'background' ? '背景' : '活动栏', section === 'spectrum' ? 'Spectrum' : section === 'background' ? 'Background' : 'Header bars')}</span></button>)}
       </div>}
       <div className="lbg-settings-section" id={`${tabsId}-section-settings`} role={storageKey === KEY ? 'tabpanel' : undefined} aria-labelledby={storageKey === KEY ? `${tabsId}-section-${settingsTab}` : undefined}>
-      {announcementSettings ? <div className="lbg-body lbg-announcement-settings"><LandingAnnouncementSettings /></div> : <>
+      {settingsTab === 'spectrum' && spectrumControls ? <div className="lbg-body lbg-spectrum-settings">{spectrumControls}</div> : announcementSettings ? <div className="lbg-body lbg-announcement-settings"><LandingAnnouncementSettings /></div> : <>
+      {onBackgroundEnabledChange && <div className="lbg-overlay-toggle"><label><input type="checkbox" checked={backgroundEnabled} onChange={event => onBackgroundEnabledChange(event.target.checked)} />{plain('叠加原背景', 'Show ambient background')}</label></div>}
       <div className="lbg-type-tabs lbg-background-tabs" role="tablist" aria-label={plain('背景类型', 'Background type')}>
         {BACKGROUND_TYPES.map(({ value: type, zh, en: english, Icon }, index) => <button type="button" key={type} id={`${tabsId}-${type}`} role="tab" aria-selected={backgroundType === type} aria-controls={`${tabsId}-settings`} tabIndex={backgroundType === type ? 0 : -1}
           onClick={() => setBackgroundType(type)} onKeyDown={event => {

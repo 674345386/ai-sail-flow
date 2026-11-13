@@ -1,0 +1,21 @@
+{
+  "source": "https://vgpu.sh/",
+  "repository": "https://github.com/vercel-labs/vgpu",
+  "license": "MIT",
+  "snapshot": "2026-11-12",
+  "moduleCount": 62,
+  "bundleSha256": "290b01e3210a7ec6330a25175effaa8f444758c54493dfa25dc5ee1aff0fd201",
+  "chunks": [
+    "0u4us7-xn0ffs.js",
+    "10a246z7u6pam.js",
+    "1pqgd9zydgs62.js",
+    "1qqzxd-24mase.js",
+    "27_9z23l3jsis.js",
+    "2bz06ufz3fsty.js",
+    "2uv8y_qkj7wdu.js",
+    "2vcmixrf8p4xn.js",
+    "3r39qpblc-b0u.js",
+    "44f3l30fby3kr.js"
+  ],
+  "adaptation": "Original WebGPU renderer entry exposed independently of the Next.js component; dark pipeline and adaptive quality retained."
+}

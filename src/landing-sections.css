@@ -66,6 +66,9 @@
 .ls-reel-item { margin: 0; }
 .ls-reel-item:nth-child(2n) { margin-top: clamp(32px, 5vw, 80px); }
 .ls-media-vertical { aspect-ratio: 9 / 16; }
+.ls-statement .ls-analysis-visual { display: block; aspect-ratio: 3 / 5; background: #f7f9f8; cursor: zoom-in; }
+.ls-statement .ls-analysis-visual img { object-fit: contain; }
+.ls-statement .ls-analysis-visual:focus-visible { outline: 2px solid #a6e8d1; outline-offset: 5px; }
 .ls-reel figcaption { display: grid; gap: 4px; padding-top: 14px; }
 .ls-reel figcaption span { font-size: 14px; font-weight: 500; }
 .ls-reel figcaption small { color: var(--ls-ink-3); font-size: 13px; line-height: 1.5; }
@@ -143,8 +146,8 @@
 
 /* responsive */
 @media (max-width: 1100px) {
-  .ls-reel { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .ls-reel-item:nth-child(n+4) { display: none; }
+  .ls-reel { grid-template-columns: repeat(5, minmax(220px, 1fr)); overflow-x: auto; scroll-snap-type: x proximity; padding-bottom: 8px; }
+  .ls-reel-item { scroll-snap-align: start; }
   .ls-teams { grid-template-columns: 1fr; }
 }
 @media (max-width: 860px) {

@@ -18,8 +18,13 @@
 .sidebar-new-creative-shortcut { display: inline-flex; align-items: center; gap: 3px; }
 .sidebar-new-creative-shortcut kbd { display: grid; min-width: 19px; height: 19px; padding: 0 4px; place-items: center; border-radius: 4px; background: color-mix(in srgb, currentColor 12%, transparent); font: inherit; line-height: 1; }
 .app-shell .sidebar-workspaces .project-tree-children { margin: 0; padding: 0; border: 0; }
-.app-shell .sidebar-workspaces .project-tree-children .project-row { min-width: 0; min-height: 34px; max-width: 100%; }
+.app-shell .sidebar-workspaces .project-tree-children .project-row { min-width: 0; min-height: 34px; max-width: 100%; padding-right: 0; }
 .app-shell .sidebar-workspaces .project-row .project-link { min-height: 34px; padding: 7px 6px 7px 32px; font-size: var(--workspace-nav-label-size); font-weight: 400; }
+/* Hidden actions do not reserve space beside the session timestamp. */
+.app-shell .sidebar-workspaces .project-row > :is(.project-pin-action, .project-archive-action) { display: none; }
+.app-shell .sidebar-workspaces .project-row:hover > :is(.project-pin-action, .project-archive-action),
+.app-shell .sidebar-workspaces .project-row:focus-within > :is(.project-pin-action, .project-archive-action),
+.app-shell .sidebar-workspaces .project-row > .project-pin-action:is(.is-visible, .is-on) { display: grid; }
 .app-shell .sidebar-workspaces .project-link-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .app-shell .sidebar-workspaces .project-link { position: relative; }
 .creative-unread-dot { position: absolute; left: 18px; top: calc(50% - 3px); width: 6px; height: 6px; border-radius: 50%; background: var(--iui-success, var(--success)); }
@@ -38,6 +43,7 @@
 .app-shell .sidebar-workspaces .sidebar-project-rail { flex: 1; min-height: 0; max-height: none; align-content: start; overscroll-behavior: contain; }
 @media (hover: none), (pointer: coarse) {
   .app-shell .sidebar-workspaces .project-tree-heading > .project-tree-action { display: grid; }
+  .app-shell .sidebar-workspaces .project-row > :is(.project-pin-action, .project-archive-action) { display: grid; opacity: 1; }
 }
 .app-shell > .sidebar > .sidebar-new-session { display: flex; align-items: center; justify-content: center; order: 0; flex-shrink: 0; gap: 8px; width: 100%; min-height: 38px; margin: 2px 0 10px; padding: 8px 12px; border: 1px solid color-mix(in srgb, var(--text) 20%, transparent); border-radius: 9px; background: color-mix(in srgb, var(--text) 12%, transparent); color: var(--text); font: inherit; font-size: var(--sidebar-utility-size, 13px); font-weight: 500; line-height: 20px; cursor: pointer; transition: background 150ms ease, border-color 150ms ease; }
 .app-shell > .sidebar > .sidebar-new-session:hover:not(:disabled) { background: color-mix(in srgb, var(--text) 18%, transparent); border-color: color-mix(in srgb, var(--text) 30%, transparent); }

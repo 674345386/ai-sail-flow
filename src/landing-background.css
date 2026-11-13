@@ -54,6 +54,11 @@
 .lbg-type-tabs button[aria-selected="true"] { color: #e9c49b; border-color: rgb(217 164 106 / 45%); background: rgb(217 164 106 / 12%); }
 .lbg-settings-section { display: flex; flex-direction: column; min-height: 0; }
 .lbg-section-tabs { border-top: 0; }
+.lbg-section-tabs.has-spectrum { grid-template-columns: repeat(3, minmax(0, 1fr)); padding-inline: 10px; }
+.lbg-section-tabs.has-spectrum button { gap: 5px; padding-inline: 5px; font-size: 11px; }
+.lbg-overlay-toggle { padding: 7px 14px 12px; }
+.lbg-overlay-toggle label { display: flex; align-items: center; gap: 8px; }
+.lbg-spectrum-settings input[type=checkbox], .lbg-overlay-toggle input { accent-color: #e5c19c; }
 .lbg-announcement-color { display: flex; align-items: center; gap: 8px; }
 .lbg-announcement-color output { font-size: 11px; font-variant-numeric: tabular-nums; }
 .lbg-announcement-settings input[type=text], .lbg-announcement-settings textarea { box-sizing: border-box; width: 100%; padding: 7px 8px; border: 1px solid rgb(255 255 255 / 16%); border-radius: 7px; background: rgb(255 255 255 / 6%); caret-color: #e9c49b; }

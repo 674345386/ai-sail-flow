@@ -4,6 +4,7 @@ import { useDict } from './i18n';
 import { clipboardMediaFiles, promptMediaAccept, promptMediaKind, validatePromptMedia, type PromptMediaKind } from '../shared/prompt-media';
 import { landingPromptModels } from './landing-prompt-models';
 import LandingVideoShowcase from './LandingVideoShowcase';
+import VgpuPrismBackground from './VgpuPrismBackground';
 import './landing-prompt-hero.css';
 
 const messages = {
@@ -89,7 +90,8 @@ export default function LandingPromptHero({ onStart, busy, error }: {
     onStart(prompt.trim() || t.attachmentPrompt, references.map(item => item.file));
   };
 
-  return <section className="lp-hero lp-with-examples" id="create" ref={section} aria-labelledby="lp-title">
+  return <><section className="lp-hero lp-prism-hero" id="create" ref={section} aria-labelledby="lp-title" data-hero-theme="true">
+    <VgpuPrismBackground />
     <div className="lp-body">
       <div className="lp-marquee" role="region" aria-label={t.models} tabIndex={0}>
         <div className="lp-model-track">{[false, true].map(duplicate => <div key={String(duplicate)} className="lp-model-group" role={duplicate ? undefined : 'list'} aria-hidden={duplicate || undefined}>
@@ -124,7 +126,6 @@ export default function LandingPromptHero({ onStart, busy, error }: {
       </form>
       {(inputError || error) && <p id="lp-error" className="lp-error" role="alert">{inputError || error}</p>}
     </div>
-    <LandingVideoShowcase />
     <a className="lp-scroll-cue" href="#overview"><span>{t.overview}</span><ArrowDown size={15} /></a>
-  </section>;
+  </section><LandingVideoShowcase /></>;
 }

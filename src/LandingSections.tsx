@@ -53,7 +53,13 @@ function Eyebrow({ children }: { children: ReactNode }) { return <p className="l
 const delay = (index: number) => ({ '--ls-delay': `${index * 80}ms` }) as CSSProperties;
 
 /* ---------- 1 · Statement + result reel ---------- */
-const reels = ['reel-1', 'reel-2', 'reel-3', 'reel-4', 'reel-5'];
+const reels = [
+  { name: 'shots', width: 496, height: 826 },
+  { name: 'camera', width: 396, height: 680 },
+  { name: 'insights', width: 396, height: 660 },
+  { name: 'grid', width: 396, height: 650 },
+  { name: 'subjects', width: 396, height: 660 },
+];
 
 function StatementSection({ onEnter }: { onEnter: () => void }) {
   const ref = useReveal<HTMLElement>();
@@ -72,8 +78,8 @@ function StatementSection({ onEnter }: { onEnter: () => void }) {
         </div>
       </div>
       <div className="ls-reel" role="list">
-        {reels.map((name, index) => { const reel = t.reels[index]; return <figure className="ls-reel-item" role="listitem" key={name} data-reveal style={delay(index)}>
-          <div className="ls-media ls-media-vertical"><LoopVideo name={name} label={t.reelAlt(reel.market, reel.category)} /></div>
+        {reels.map(({ name, width, height }, index) => { const reel = t.reels[index]; const image = `/assets/landing/video-analysis-real/${name}.jpg`; return <figure className="ls-reel-item" role="listitem" key={name} data-reveal style={delay(index)}>
+          <a className="ls-media ls-analysis-visual" href={image} target="_blank" rel="noopener noreferrer"><img src={image} alt={t.reelAlt(reel.market, reel.category)} width={width} height={height} loading="lazy" decoding="async" /></a>
           <figcaption><span>{reel.market} · {reel.category}</span><small>{reel.note}</small></figcaption>
         </figure>; })}
       </div>

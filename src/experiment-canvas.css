@@ -1,0 +1,161 @@
+/* Media canvas, based on the user's Liblib reference. Route proposals keep their own surface. */
+.experiment-workbench.lab-media-canvas {
+  --lab-bg: #191919;
+  --lab-paper: #242424;
+  --lab-ink: #e7e7e7;
+  --lab-muted: #a3a3a3;
+  --lab-line: #3b3b3b;
+  --lab-accent: #bce6c8;
+  --lab-accent-bg: #323a34;
+  --lab-canvas-blue: #9acbf5;
+  position: relative;
+  color-scheme: dark;
+  background: var(--lab-bg);
+}
+.lab-media-canvas ::selection { background: #b9d8ec; color: #18222c; }
+.lab-media-canvas :is(.lab-inspector-scroll, .lab-drawer, .lab-plan-navigation nav, .lab-toolbar-popover-panel, .lab-reference-picker) { scrollbar-color: #565656 transparent; }
+.lab-media-canvas button { background: #292929; border-color: #414141; color: #d4d4d4; }
+.lab-media-canvas button:hover:not(:disabled) { background: #383838; border-color: #606060; }
+.lab-media-canvas button[aria-pressed='true'] { background: #404040; border-color: #565656; color: #f3f3f3; }
+.lab-media-canvas :is(button, a, input, textarea, select, summary):focus-visible { outline-color: #b9d8ec; }
+.lab-media-canvas button.lab-primary { background: #dce8de; border-color: transparent; color: #23372a; }
+.lab-media-canvas button.lab-primary:hover:not(:disabled) { background: #f0f7f1; border-color: transparent; }
+.lab-media-canvas > .lab-toolbar { min-height: 48px; background: #1c1c1c; border-bottom-color: #303030; }
+.lab-media-canvas .lab-toolbar-popover > summary { background: #282828; border-color: #3b3b3b; color: #d0d0d0; }
+.lab-media-canvas .lab-toolbar-popover > summary:hover, .lab-media-canvas .lab-toolbar-popover[open] > summary { background: #373737; }
+.lab-media-canvas .lab-toolbar-popover-panel { background: #252525; border-color: #414141; box-shadow: 0 15px 40px #0004; }
+.lab-media-canvas .lab-actions-menu button { background: transparent; border-color: transparent; }
+.lab-media-canvas .lab-actions-menu button:hover:not(:disabled) { background: #383838; }
+.lab-media-canvas .lab-workbench-views { gap: 2px; padding: 3px; border: 1px solid #343434; border-radius: 8px; background: #242424; }
+.lab-media-canvas .lab-workbench-views > button { min-height: 27px; padding-block: 3px; color: #a4a4a4; }
+.lab-media-canvas .lab-workbench-views > button[aria-pressed='true'] { background: #3a3a3a; color: #f1f1f1; }
+.lab-media-canvas .lab-plan-navigation { min-height: 37px; background: #1c1c1c; border-bottom-color: #303030; }
+.lab-media-canvas .lab-plan-navigation nav button { min-height: 27px; padding-block: 3px; color: #aaa; }
+.lab-media-canvas .lab-plan-navigation nav button[aria-pressed='true'] { background: #343434; color: #ededed; border-color: transparent; }
+.lab-media-canvas .lab-plan-navigation > .lab-plan-actions button { min-height: 27px; border-color: transparent; background: transparent; color: #aaa; }
+.lab-media-canvas .lab-plan-navigation > .lab-plan-actions button:hover { background: #333; color: #eee; }
+.lab-media-canvas .lab-workbench-stats > span { color: #dfbd85; }
+.lab-media-canvas .lab-viewport, .lab-media-canvas .react-flow { background: #191919; }
+.lab-media-canvas .react-flow__pane { cursor: default; }
+.lab-media-canvas .react-flow__pane.draggable { cursor: grab; }
+.lab-media-canvas .react-flow__pane.dragging { cursor: grabbing; }
+.lab-media-canvas .react-flow__node-experiment { background: transparent; border: 0; padding: 0; border-radius: 12px; }
+.lab-media-canvas .react-flow__nodesselection-rect, .lab-media-canvas .react-flow__selection { border: 1px solid #9acbf5; background: #9acbf512; }
+.lab-media-canvas .react-flow__edge-path { stroke-linecap: round; }
+.lab-media-canvas .react-flow__edge.selected .react-flow__edge-path, .lab-media-canvas .react-flow__edge:hover .react-flow__edge-path { stroke: #a8d8ff; stroke-width: 2; }
+
+/* The title and metadata sit on the canvas; the image itself is the card. */
+.lab-media-canvas .lab-node { position: relative; width: 266px; padding: 0; border: 0; border-radius: 12px; background: transparent; color: #e7e7e7; outline: none; }
+.lab-media-canvas .lab-node-caption { position: absolute; bottom: calc(100% + 8px); left: 0; right: 0; display: flex; align-items: center; gap: 6px; min-height: 17px; color: #a4a4a4; }
+.lab-media-canvas .lab-node-caption > svg { flex-shrink: 0; color: #a4a4a4; }
+.lab-media-canvas .lab-node-caption h3 { min-width: 0; margin: 0; overflow: hidden; color: inherit; font-size: 11px; font-weight: 400; line-height: 1.5; white-space: nowrap; text-overflow: ellipsis; }
+.lab-media-canvas .lab-node-surface { position: relative; display: flex; flex-direction: column; width: 100%; min-height: 218px; border-radius: 12px; background: #252525; outline: 1px solid #444; outline-offset: 0; overflow: hidden; }
+.lab-media-canvas .lab-node.has-media .lab-node-surface { height: 266px; min-height: 0; outline-color: transparent; background: #222; }
+.lab-media-canvas .lab-node:hover .lab-node-surface { outline-color: #777; }
+.lab-media-canvas .lab-node.is-related:not(.is-selected) .lab-node-surface { outline-color: #71808c; }
+.lab-media-canvas .lab-node[data-status='stale'] .lab-node-surface { outline-color: #aa8d59; }
+.lab-media-canvas .lab-node[data-status='failed'] .lab-node-surface { outline-color: #a46f66; }
+.lab-media-canvas .lab-node.is-selected .lab-node-surface { outline: 1.5px solid #ddd; outline-offset: 1px; }
+.lab-media-canvas .lab-node.is-selected .lab-node-caption, .lab-media-canvas .lab-node.is-selected .lab-node-caption > svg { color: #e5e5e5; }
+.lab-media-canvas .lab-node.is-dimmed { opacity: .3; }
+.lab-media-canvas .lab-node.is-dimmed:hover, .lab-media-canvas .lab-node.is-dimmed.is-selected { opacity: 1; }
+.lab-media-canvas .lab-node-image { display: block; width: 100%; height: 100%; max-height: none; margin: 0; border-radius: 12px; background: #222; object-fit: contain; }
+.lab-media-canvas .lab-node-content { display: flex; flex: 1; flex-direction: column; align-items: center; justify-content: center; gap: 12px; min-height: 218px; padding: 44px 21px 23px; }
+.lab-media-canvas .lab-node-placeholder { min-height: 266px; }
+.lab-media-canvas .lab-node-symbol { display: grid; place-items: center; width: 46px; height: 46px; color: #a2a2a2; }
+.lab-media-canvas .lab-node-placeholder .lab-node-symbol { width: 56px; height: 56px; color: #999; }
+.lab-media-canvas .lab-node-placeholder .lab-node-symbol > svg { fill: #777; stroke: #777; }
+.lab-media-canvas .lab-node-method-title { max-width: 100%; color: #e0e0e0; font-size: 12px; font-weight: 500; text-align: center; overflow-wrap: anywhere; }
+.lab-media-canvas .lab-node-excerpt { display: -webkit-box; -webkit-line-clamp: 4; min-height: 0; max-height: 88px; margin: 0; color: #aaa; font-size: 11px; line-height: 1.8; text-align: center; }
+.lab-media-canvas .lab-node-execution-hint { margin: 0; color: #c2b89f; font-size: 10px; line-height: 1.7; text-align: center; }
+.lab-media-canvas .lab-node-method { justify-content: center; margin: 0; color: #c0d4c4; font-size: 10px; }
+.lab-media-canvas .lab-node-badges { position: absolute; z-index: 2; top: 9px; left: 9px; right: 9px; display: flex; align-items: flex-start; justify-content: flex-end; gap: 6px; pointer-events: none; }
+.lab-media-canvas .lab-node-badges .lab-status, .lab-media-canvas .lab-node-badges .lab-adopted { display: inline-flex; align-items: center; gap: 4px; min-height: 21px; padding: 3px 6px; border-radius: 5px; background: #191919de; color: #c2c2c2; font-size: 9px; line-height: 1.4; }
+.lab-media-canvas .lab-node-badges .lab-adopted { margin-right: auto; color: #c7e3ce; }
+.lab-media-canvas .lab-node-state-dot { display: inline-block; width: 4px; height: 4px; border-radius: 50%; background: currentColor; }
+.lab-media-canvas .lab-status-completed { color: #c2dfcb; }
+.lab-media-canvas .lab-status-running { color: #afd7fc; }
+.lab-media-canvas .lab-status-stale { color: #e3c58d; }
+.lab-media-canvas .lab-status-failed { color: #ffada1; }
+.lab-media-canvas .lab-node-badges .lab-status-completed { color: #c2dfcb; }
+.lab-media-canvas .lab-node-badges .lab-status-running { color: #afd7fc; }
+.lab-media-canvas .lab-node-badges .lab-status-stale { color: #e3c58d; }
+.lab-media-canvas .lab-node-badges .lab-status-failed { color: #ffada1; }
+.lab-media-canvas .lab-node > footer { position: absolute; top: calc(100% + 6px); left: 1px; right: 1px; display: flex; align-items: center; justify-content: space-between; gap: 9px; margin: 0; padding: 0; border: 0; color: #a1a1a1; font-size: 9px; line-height: 1.5; }
+.lab-media-canvas .lab-node > footer > span:first-child { max-width: 232px; }
+.lab-media-canvas .lab-node .react-flow__handle { display: grid; place-items: center; width: 22px; height: 22px; border: 1px solid #858585; border-radius: 50%; background: #202020; color: #ccc; opacity: .68; }
+.lab-media-canvas .lab-node .react-flow__handle-left { left: -16px; }
+.lab-media-canvas .lab-node .react-flow__handle-right { right: -16px; }
+.lab-media-canvas .lab-node .react-flow__handle > svg { pointer-events: none; }
+.lab-media-canvas .lab-node:is(:hover, .is-selected) .react-flow__handle { border-color: #b8c0c8; color: #eee; opacity: 1; }
+.lab-media-canvas .lab-node .react-flow__handle.connecting, .lab-media-canvas .lab-node .react-flow__handle.valid { background: #30485a; border-color: #9acbf5; opacity: 1; }
+.lab-media-canvas .lab-skill-source { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; width: 100%; margin: 0; text-align: center; }
+.lab-media-canvas .lab-skill-source > svg { color: #c5bea4; }
+.lab-media-canvas .lab-skill-source strong { color: #e0dccf; font-size: 12px; font-weight: 500; }
+.lab-media-canvas .lab-skill-source code { color: #aaa; font-size: 10px; }
+.lab-media-canvas .lab-node-result-link { position: relative; z-index: 2; justify-content: center; width: calc(100% - 20px); min-height: 29px; margin: 0 10px 10px; padding: 5px 7px; border: 0; background: #353c40; color: #c5e1f7; font-size: 10px; }
+.lab-media-canvas .lab-node-result-link:hover:not(:disabled) { background: #43535e; }
+
+/* A single floating dock, with small independent viewport controls. */
+.lab-media-canvas .lab-canvas-tools { position: absolute; z-index: 6; top: auto; bottom: 21px; left: 50%; display: flex; align-items: center; gap: 3px; padding: 6px; transform: translateX(-50%); border: 1px solid #383838; border-radius: 14px; background: #252525; box-shadow: 0 12px 32px #0003; }
+.lab-media-canvas .lab-canvas-tools button { display: grid; place-items: center; width: 35px; min-width: 35px; height: 35px; min-height: 35px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: #bbb; }
+.lab-media-canvas .lab-canvas-tools button:hover:not(:disabled), .lab-media-canvas .lab-canvas-tools button[aria-pressed='true'] { background: #444; color: #f2f2f2; }
+.lab-media-canvas .lab-canvas-tools .lab-canvas-add { background: #e3e3e3; color: #272727; }
+.lab-media-canvas .lab-canvas-tools .lab-canvas-add:hover:not(:disabled) { background: #fff; color: #191919; }
+.lab-media-canvas .lab-canvas-divider { width: 1px; height: 22px; margin-inline: 4px; background: #424242; }
+.lab-media-canvas .lab-canvas-zoom { position: absolute; z-index: 5; bottom: 24px; left: 15px; display: flex; align-items: center; gap: 1px; padding: 3px; border: 1px solid #363636; border-radius: 9px; background: #242424; }
+.lab-media-canvas .lab-canvas-zoom button { min-width: 26px; min-height: 29px; height: 29px; padding: 3px; border: 0; border-radius: 5px; background: transparent; color: #b7b7b7; font-size: 10px; }
+.lab-media-canvas .lab-canvas-zoom button:hover, .lab-media-canvas .lab-canvas-zoom button[aria-pressed='true'] { background: #3c3c3c; color: #f0f0f0; }
+.lab-media-canvas .lab-canvas-zoom .lab-canvas-zoom-value { min-width: 39px; font-variant-numeric: tabular-nums; }
+.lab-media-canvas .lab-canvas-hint { top: 12px; bottom: auto; left: 50%; color: #9d9d9d; font-size: 9px; }
+.lab-media-canvas .react-flow__minimap { right: 15px; bottom: 85px; width: 122px; height: 80px; margin: 0; border: 1px solid #414141; border-radius: 8px; background: #222; }
+.lab-media-canvas .lab-footer { min-height: 25px; padding: 4px 13px; border-top-color: #2d2d2d; background: #1c1c1c; color: #a0a0a0; font-size: 9px; }
+.lab-media-canvas .lab-live-dot { background: #9db8a2; }
+.lab-media-canvas .lab-message { background: #29352c; color: #c6ddcb; }
+.lab-media-canvas .lab-error { background: #422e29; color: #f2b8a9; }
+.lab-media-canvas .lab-message button { background: transparent; border: 0; color: inherit; }
+
+/* Inspector and dialogs float over the scene rather than resizing the canvas. */
+.lab-media-canvas .lab-inspector { position: absolute; z-index: 7; top: 14px; right: 14px; bottom: 87px; width: min(318px, calc(100% - 28px)); min-height: 0; overflow: hidden; border: 1px solid #414141; border-radius: 14px; background: #232323; box-shadow: 0 18px 40px #0003; }
+.lab-media-canvas .lab-inspector > header { min-height: 41px; border-bottom-color: #3b3b3b; background: #262626; }
+.lab-media-canvas .lab-inspector-scroll { padding: 18px 16px; }
+.lab-media-canvas .lab-inspector-heading h2 { font-size: 16px; font-weight: 500; }
+.lab-media-canvas .lab-inspector-footer { border-top-color: #3b3b3b; }
+.lab-media-canvas :is(input, select, textarea) { background: #1a1a1a; border-color: #454545; color: #e0e0e0; caret-color: #b9d8ec; }
+.lab-media-canvas :is(input, textarea)::placeholder { color: #a0a0a0; }
+.lab-media-canvas :is(.lab-inspector-scroll > section, .lab-step-actions) { border-top-color: #3b3b3b; }
+.lab-media-canvas .lab-inputs > div > button:first-child { background: #2c2c2c; }
+.lab-media-canvas :is(.lab-reference-picker img, .lab-reference-list img, .lab-run-row > button img, .lab-result-preview video, .lab-result-preview img, .lab-comparisons video, .lab-comparisons img, .lab-compare-output > img, .lab-compare-output > video) { background: #191919; }
+.lab-media-canvas :is(.lab-skill-details pre, .lab-run-details pre) { background: #191919; color: #d2d2d2; }
+.lab-media-canvas :is(.lab-stale-note, .lab-conflict) { background: #3c3325; color: #e4c795; }
+.lab-media-canvas .lab-drawer { border-color: #444; background: #242424; box-shadow: 0 18px 44px #0004; }
+.lab-media-canvas .lab-remove { color: #e6aca1; }
+.lab-media-canvas .lab-icon-button { background: transparent; border-color: transparent; color: #b9b9b9; }
+.lab-media-canvas .lab-icon-button:hover { background: #383838; }
+.lab-media-canvas .lab-help, .lab-media-canvas .lab-field-label > span { color: #aaa; }
+.lab-media-canvas .lab-policy-stops button { border-color: transparent; background: transparent; }
+.lab-media-canvas .lab-policy-stops button[aria-pressed='true'] { color: #d1e9d7; }
+.lab-media-canvas .lab-welcome { max-width: 880px; padding-bottom: 45px; background: #191919; }
+.lab-media-canvas .lab-welcome-symbol { border-color: #424242; background: #2b302c; color: #c1d2c4; }
+.lab-media-canvas .lab-welcome h2 { color: #e6e6e6; }
+.lab-media-canvas .lab-recipe-grid > button { background: transparent; border-bottom-color: #3b3b3b; }
+.lab-media-canvas .lab-recipe-grid > button:hover:not(:disabled) { background: #242424; color: #e7e7e7; }
+.lab-media-canvas .lab-recipe-grid > button > svg:first-child { color: #a8b7ac; }
+
+@container experiment-workbench (max-width: 950px) {
+  .lab-media-canvas .lab-canvas-zoom { bottom: 82px; left: 12px; }
+  .lab-media-canvas .lab-canvas-hint { display: none; }
+}
+@container experiment-workbench (max-width: 600px) {
+  .lab-media-canvas .lab-canvas-tools { gap: 1px; bottom: 15px; padding: 5px; border-radius: 12px; }
+  .lab-media-canvas .lab-canvas-tools button { width: 32px; min-width: 32px; height: 34px; min-height: 34px; }
+  .lab-media-canvas .lab-canvas-tools .lab-canvas-secondary { display: none; }
+  .lab-media-canvas .lab-canvas-zoom { bottom: 71px; }
+  .lab-media-canvas .lab-inspector { top: 9px; right: 9px; bottom: 110px; width: min(300px, calc(100% - 18px)); }
+  .lab-media-canvas .lab-toolbar-actions { gap: 3px; }
+  .lab-media-canvas .lab-toolbar-popover > summary { min-width: 29px; padding-inline: 6px; }
+  .lab-media-canvas .lab-footer > span:last-child { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lab-media-canvas .react-flow__edge.animated path { animation: none; }
+}

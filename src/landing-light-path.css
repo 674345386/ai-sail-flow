@@ -1,0 +1,12 @@
+/* This continuation sits behind the content and is clipped below the existing hero. */
+.landing-page.landing-vgpu-page > .landing-light-path {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  contain: strict;
+}
+.landing-light-path > canvas { display: block; width: 100%; height: 100%; }
+/* The first block below the hero must let the shared optical layer pass behind it. */
+.landing-page.landing-vgpu-page > .lvs-showcase { background: transparent; }

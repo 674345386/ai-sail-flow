@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>黑底光谱 · AI Creative Lab 首屏三版</title>
+  <style>
+    :root { color-scheme: dark; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", sans-serif; background: #000; color: #f5f5f5; }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    button, a { -webkit-tap-highlight-color: transparent; }
+    button { font: inherit; cursor: pointer; }
+    a { color: inherit; text-underline-offset: 4px; }
+    :focus-visible { outline: 2px solid #fff; outline-offset: 5px; }
+    .toolbar { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 20px; padding: 22px 32px; background: #080808; border-bottom: 1px solid #252525; }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand img { width: 32px; height: 32px; }
+    h1 { margin: 0; font-size: 15px; font-weight: 600; line-height: 1.6; }
+    .brand p { margin: 2px 0 0; color: #a0a0a0; font-size: 12px; line-height: 1.6; }
+    .views { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+    .views button { min-height: 40px; padding: 9px 15px; border: 1px solid #303030; border-radius: 7px; background: #111; color: #bcbcbc; font-size: 13px; white-space: nowrap; }
+    .views button:hover { color: #fff; border-color: #737373; }
+    .views button[aria-pressed="true"] { background: #f5f5f5; border-color: #f5f5f5; color: #111; }
+    main { max-width: 1920px; margin: 0 auto; padding: 25px 32px 40px; }
+    figure { margin: 0; }
+    figure[hidden] { display: none; }
+    figcaption { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; padding: 0 0 15px; }
+    h2 { margin: 0 0 6px; font-size: 18px; line-height: 1.5; font-weight: 600; }
+    figcaption p { margin: 0; color: #aaa; font-size: 13px; line-height: 1.8; }
+    .original { flex-shrink: 0; margin-top: 5px; font-size: 12px; color: #bcbcbc; }
+    .design { display: block; width: 100%; height: auto; background: #000; }
+    main[data-view="all"] figure + figure { margin-top: 52px; padding-top: 30px; border-top: 1px solid #252525; }
+    .note { margin: 22px 0 0; color: #929292; font-size: 12px; line-height: 1.8; }
+    @media (min-width: 1800px) { main { padding-left: 64px; padding-right: 64px; } }
+    @media (max-width: 700px) { .toolbar { position: static; padding: 18px 16px; gap: 16px; } .views { width: 100%; } .views button { flex: 1; padding: 9px 7px; font-size: 12px; } main { padding: 24px 12px; } h2 { font-size: 16px; } figcaption { gap: 12px; padding: 0 4px 14px; } figcaption p { font-size: 12px; } }
+  </style>
+</head>
+<body>
+  <header class="toolbar">
+    <div class="brand">
+      <img src="./assets/brand.svg" width="32" height="32" alt="">
+      <div><h1>AI Creative Lab · 首屏三版</h1><p>纯黑背景 · 白色文字 · 彩虹折射光</p></div>
+    </div>
+    <nav class="views" aria-label="切换首屏设计方案">
+      <button type="button" data-view="a" aria-pressed="true">A 棱镜折射</button>
+      <button type="button" data-view="b" aria-pressed="false">B 光谱地平线</button>
+      <button type="button" data-view="c" aria-pressed="false">C 玻璃画框</button>
+      <button type="button" data-view="all" aria-pressed="false">三版对比</button>
+    </nav>
+  </header>
+  <main data-view="a">
+    <figure data-variant="a">
+      <figcaption><div><h2>A · 棱镜折射</h2><p>最接近参考图。左侧创作入口，右侧黑玻璃棱镜，彩虹光束穿过下方。</p></div><a class="original" href="./a-prism.png" target="_blank" rel="noreferrer">查看原图 ↗</a></figcaption>
+      <img class="design" src="./a-prism.png" width="1672" height="941" alt="方案 A：黑底白字，左侧标题与创作输入框，右侧三角玻璃棱镜折射彩虹光束。" fetchpriority="high">
+    </figure>
+    <figure data-variant="b" hidden>
+      <figcaption><div><h2>B · 光谱地平线</h2><p>延续居中的创作入口，用底部光谱弧线点亮纯黑画面，输入框是视觉焦点。</p></div><a class="original" href="./b-horizon.png" target="_blank" rel="noreferrer">查看原图 ↗</a></figcaption>
+      <img class="design" src="./b-horizon.png" width="1672" height="941" alt="方案 B：黑底白字，居中标题和大输入框，下方是一道彩虹色的发光地平线。" decoding="async">
+    </figure>
+    <figure data-variant="c" hidden>
+      <figcaption><div><h2>C · 玻璃画框</h2><p>让光谱穿过一块悬浮的玻璃画框，把光学质感与创作画布联系起来。</p></div><a class="original" href="./c-canvas.png" target="_blank" rel="noreferrer">查看原图 ↗</a></figcaption>
+      <img class="design" src="./c-canvas.png" width="1717" height="916" alt="方案 C：黑底白字，左侧标题与输入框，右侧立体玻璃矩形画框折射彩虹光。" decoding="async">
+    </figure>
+    <p class="note">当前为桌面首屏视觉设计稿，图中的导航与输入框用于展示视觉效果。可用键盘 1 / 2 / 3 切换方案，0 查看三版。</p>
+    <noscript><p>浏览器未启用 JavaScript。可直接查看 <a href="./a-prism.png">A 原图</a>、<a href="./b-horizon.png">B 原图</a>、<a href="./c-canvas.png">C 原图</a>。</p></noscript>
+  </main>
+  <script>
+    const viewButtons = [...document.querySelectorAll('button[data-view]')];
+    const figures = [...document.querySelectorAll('figure[data-variant]')];
+    const main = document.querySelector('main');
+    const validViews = ['a', 'b', 'c', 'all'];
+    function showView(value) {
+      const view = validViews.includes(value) ? value : 'a';
+      main.dataset.view = view;
+      for (const button of viewButtons) button.setAttribute('aria-pressed', String(button.dataset.view === view));
+      for (const figure of figures) figure.hidden = view !== 'all' && figure.dataset.variant !== view;
+      document.title = `${view === 'all' ? '三版对比' : view.toUpperCase() + ' 方案'} · AI Creative Lab 首屏`;
+    }
+    function selectView(view) {
+      if (location.hash === '#' + view) showView(view);
+      else location.hash = view;
+    }
+    for (const button of viewButtons) button.addEventListener('click', () => selectView(button.dataset.view));
+    window.addEventListener('hashchange', () => showView(location.hash.slice(1)));
+    document.addEventListener('keydown', event => {
+      if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || event.target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(event.target.tagName)) return;
+      const view = ({ '1': 'a', '2': 'b', '3': 'c', '0': 'all' })[event.key];
+      if (view) { event.preventDefault(); selectView(view); }
+    });
+    showView(location.hash.slice(1));
+  </script>
+</body>
+</html>

@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { activeExperimentMethod, normalizeExperimentGraph, methodMatchesRun } from './experiment-organization';
 import { environmentSchema, type SkillEnvironment, type SkillReference } from './skill-assets';
 import { applyExperimentPlanning, assertExperimentRouteExecution, defaultExperimentPolicy, experimentPlanningOperations, normalizeExperimentPolicy, type ExperimentPolicy, type ExperimentProposal } from './experiment-planning';
+import { experimentReviewInput, type ExperimentReview } from './experiment-review';
 export { activeExperimentMethod, normalizeExperimentGraph, methodMatchesRun } from './experiment-organization';
 
 export const experimentKinds = ['asset', 'step', 'skill', 'artifact', 'compare'] as const;
@@ -34,6 +35,7 @@ export const experimentNodeInput = z.object({
   selectedInput: nodeId.optional(),
   planId: nodeId.optional(), methods: z.array(experimentMethodInput).min(1).max(16).optional(), activeMethodId: nodeId.optional(),
   assetReferenceId: nodeId.optional(),
+  display: z.object({ width: z.number().finite().min(160).max(720), aspectRatio: z.number().finite().min(0.1).max(10).optional() }).optional(),
 });
 export type ExperimentNodeInput = z.infer<typeof experimentNodeInput>;
 export type ExperimentSkill = { repository: string; path: string; commit: string; url: string; content: string; name: string };
@@ -48,13 +50,16 @@ export type ExperimentFile = { id: string; title: string; url: string; mediaType
   createdAt?: string; purpose?: 'context' | 'output'; sourceId?: string; sourceTime?: number;
   storage?: 'local';
 };
-export type ExperimentGraph = { version: 1; revision: number; title: string; nodes: ExperimentNode[]; templates: ExperimentTemplate[]; files?: ExperimentFile[]; updatedAt: string; organizationVersion?: 1; plans?: ExperimentPlan[]; runs?: ExperimentRun[]; environment?: SkillEnvironment; assetReferences?: SkillReference[]; policy?: ExperimentPolicy; proposals?: ExperimentProposal[]; activeProposalId?: string };
+export type ExperimentGraph = { version: 1; revision: number; title: string; nodes: ExperimentNode[]; templates: ExperimentTemplate[]; files?: ExperimentFile[]; updatedAt: string; organizationVersion?: 1; plans?: ExperimentPlan[]; runs?: ExperimentRun[]; environment?: SkillEnvironment; assetReferences?: SkillReference[]; policy?: ExperimentPolicy; proposals?: ExperimentProposal[]; activeProposalId?: string; review?: ExperimentReview };
 export const experimentOperation = z.discriminatedUnion('op', [
   ...experimentPlanningOperations,
+  z.object({ op: z.literal('review'), review: experimentReviewInput.nullable() }),
   z.object({ op: z.literal('environment'), environment: environmentSchema }),
   z.object({ op: z.literal('upsert'), nodes: z.array(experimentNodeInput).min(1).max(80) }),
   z.object({ op: z.literal('patch'), id: nodeId, changes: experimentNodeInput.omit({ id: true, kind: true }).partial() }),
   z.object({ op: z.literal('move'), positions: z.array(z.object({ id: nodeId, position })).max(160) }),
+  z.object({ op: z.literal('resize'), id: nodeId, width: z.number().finite().min(160).max(720), aspectRatio: z.number().finite().min(0.1).max(10).optional(), position: position.optional() }),
+  z.object({ op: z.literal('canvas-next'), sourceId: nodeId, kind: z.enum(['image', 'video', 'step']), model: z.string().max(120).default(''), aspectRatio: z.string().regex(/^[1-9]\d{0,3}:[1-9]\d{0,3}$/).optional() }),
   z.object({ op: z.literal('remove'), id: nodeId }),
   z.object({ op: z.literal('branch'), id: nodeId }),
   z.object({ op: z.literal('plan'), id: nodeId.optional(), title: z.string().trim().min(1).max(120), goal: z.string().max(2000) }),
@@ -70,7 +75,7 @@ export const experimentOperation = z.discriminatedUnion('op', [
   z.object({ op: z.literal('recipe'), recipe: z.enum(['programmatic', 'talking-head', 'keyframes', 'direct', 'grid', 'character']) }),
   z.object({ op: z.literal('freeze'), title: z.string().trim().min(1).max(120), planId: nodeId.optional() }),
   z.object({ op: z.literal('instantiate'), templateId: nodeId }),
-  z.object({ op: z.literal('layout') }),
+  z.object({ op: z.literal('layout'), dimensions: z.array(z.object({ id: nodeId, width: z.number().finite().min(1).max(2000), height: z.number().finite().min(1).max(7200) })).max(160).optional() }),
 ]);
 export type ExperimentOperation = z.infer<typeof experimentOperation>;
 export class ExperimentError extends Error { status = 400; }
@@ -106,7 +111,7 @@ function assertDAG(nodes: ExperimentNode[]) {
   };
   nodes.forEach(n => visit(n.id));
 }
-export function layoutExperiment(nodes: ExperimentNode[]) {
+export function layoutExperiment(nodes: ExperimentNode[], dimensions: { id: string; width: number; height: number }[] = []) {
   assertDAG(nodes);
   const depths = new Map<string, number>(), rows = new Map<number, number>();
   const byId = new Map(nodes.map(n => [n.id, n]));
@@ -116,7 +121,13 @@ export function layoutExperiment(nodes: ExperimentNode[]) {
     const d = n.inputs.length ? 1 + Math.max(...n.inputs.map(depth)) : 0;
     depths.set(id, d); return d;
   };
-  return nodes.map(n => { const col = depth(n.id), row = rows.get(col) || 0; rows.set(col, row + 1); return { ...n, position: { x: col * 326, y: row * 258 } }; });
+  const measured = new Map(dimensions.map(item => [item.id, item]));
+  const columnWidths = new Map<number, number>();
+  for (const node of nodes) { const col = depth(node.id); columnWidths.set(col, Math.max(columnWidths.get(col) || 266, measured.get(node.id)?.width || node.display?.width || 266)); }
+  const columnX = (col: number) => Array.from({ length: col }, (_, index) => (columnWidths.get(index) || 266) + 124).reduce((sum, width) => sum + width, 0);
+  return nodes.map(n => { const col = depth(n.id), y = rows.get(col) || 0; const width = n.display?.width || 266;
+    rows.set(col, y + (measured.get(n.id)?.height || (n.display?.aspectRatio ? width / n.display.aspectRatio : 266)) + 74);
+    return { ...n, position: { x: columnX(col), y } }; });
 }
 export function invalidateExperimentNodes(nodes: ExperimentNode[], roots: Set<string>) {
   const affected = new Set(roots);
@@ -160,7 +171,22 @@ export function applyExperimentOperation(graph: ExperimentGraph, operation: Expe
     step.error = previous?.error;
     nodes = invalidateExperimentNodes(nodes, new Set(nodes.filter(node => node.inputs.includes(step.id) && node.kind !== 'artifact').map(node => node.id)));
   };
-  if (operation.op === 'environment') {
+  if (operation.op === 'review') {
+    if (operation.review) {
+      const review = operation.review;
+      if (new Set(review.stages.map(stage => stage.planId)).size !== review.stages.length) throw new ExperimentError('过程总览中的阶段不能重复。');
+      for (const stage of review.stages) {
+        findPlan(stage.planId);
+        for (const id of stage.stepIds) {
+          const step = findStep(id);
+          if (step.planId !== stage.planId) throw new ExperimentError('过程步骤与所属方案不匹配。');
+        }
+        stage.previewNodeIds.forEach(find);
+      }
+      if (find(review.finalArtifactId).kind !== 'artifact') throw new ExperimentError('最终成片需要关联真实产物节点。');
+    }
+    graph = { ...graph, review: operation.review || undefined };
+  } else if (operation.op === 'environment') {
     if (runs.some(run => run.status === 'running')) throw new ExperimentError('有步骤正在执行，请结束后再更新环境。');
     const runtimeKey = (environment?: SkillEnvironment) => environment && JSON.stringify([environment.platform, environment.architecture, environment.workingDirectory, environment.entries, environment.files.map(file => [file.path, file.sha256]), environment.requirements, environment.unresolved]);
     const changed = runtimeKey(graph.environment) !== runtimeKey(operation.environment);
@@ -203,6 +229,24 @@ export function applyExperimentOperation(graph: ExperimentGraph, operation: Expe
     }
   } else if (operation.op === 'move') {
     nodes = nodes.map(n => ({ ...n, position: operation.positions.find(p => p.id === n.id)?.position || n.position }));
+  } else if (operation.op === 'resize') {
+    const node = find(operation.id);
+    node.display = { ...node.display, width: operation.width, ...(operation.aspectRatio ? { aspectRatio: operation.aspectRatio } : {}) };
+    if (operation.position) node.position = operation.position;
+  } else if (operation.op === 'canvas-next') {
+    const source = find(operation.sourceId), planId = uid(), stepId = uid(), outputId = uid(), methodId = uid();
+    const media = operation.kind === 'step' ? undefined : operation.kind;
+    const name = media === 'image' ? '图片创作' : media === 'video' ? '视频创作' : '继续制作';
+    const goal = `基于「${source.title}」${name}`.slice(0, 120);
+    const sourcePlan = plans.find(plan => plan.id === source.planId);
+    const referenceIds = source.mediaType === 'image' && source.sourceId && source.status === 'completed' ? [source.sourceId] : [];
+    const method: ExperimentMethod = { id: methodId, title: name, description: '', prompt: '', inputs: [source.id], referenceIds, model: operation.model, parameters: operation.aspectRatio ? { aspectRatio: operation.aspectRatio } : {} };
+    plans.push({ id: planId, title: goal, goal, goalId: sourcePlan?.goalId || planId });
+    const x = source.position.x + (source.display?.width || 266) + 124;
+    const y = source.position.y + nodes.filter(node => node.inputs.includes(source.id)).length * 340;
+    const base = { description: '', prompt: '', content: '', method: '', status: 'planned' as const, revision: 1, inputRevisions: {} };
+    nodes.push({ ...base, id: stepId, planId, kind: 'step', title: goal, inputs: [source.id], methods: [method], activeMethodId: method.id, method: method.title, mediaType: media, position: { x, y } },
+      { ...base, id: outputId, planId, kind: 'artifact', title: `${name} · 结果`, inputs: [stepId], mediaType: media, position: { x: x + 390, y } });
   } else if (operation.op === 'remove') {
     find(operation.id);
     if (runs.some(run => run.stepId === operation.id || run.artifactIds.includes(operation.id) || run.method.inputs.includes(operation.id))) throw new ExperimentError('这个节点已有执行记录，请保留它以追溯产物；可以创建备选方案继续。');
@@ -317,7 +361,7 @@ export function applyExperimentOperation(graph: ExperimentGraph, operation: Expe
       return { ...structuredClone(n), id: ids.get(n.id)!, planId: n.planId ? planIds.get(n.planId) : undefined, inputs: n.inputs.map(id => ids.get(id)!), methods: n.methods?.map(method => ({ ...structuredClone(method), id: methodIds.get(method.id)!, inputs: method.inputs.map(id => ids.get(id)!), referenceIds: [] })), activeMethodId: n.activeMethodId ? methodIds.get(n.activeMethodId) : undefined, selectedInput: undefined, runId: undefined, error: undefined, mediaType: undefined, position: { x: n.position.x, y: n.position.y + offset }, status: n.kind === 'skill' ? 'completed' as const : 'planned' as const, sourceId: undefined, url: undefined, content: n.kind === 'skill' ? n.content : '', revision: 1, inputRevisions: {} };
     }));
     title = template.title;
-  } else if (operation.op === 'layout') nodes = layoutExperiment(nodes);
+  } else if (operation.op === 'layout') nodes = layoutExperiment(nodes, operation.dimensions);
   if (nodes.length > 160) throw new ExperimentError('当前实验台最多容纳 160 个节点。');
   if (plans.length > 80) throw new ExperimentError('当前实验台最多保留 80 个方案。');
   assertDAG(nodes);

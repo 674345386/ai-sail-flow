@@ -1,0 +1,623 @@
+{
+  "projectId": "fa8df845-5fcd-48cd-8203-4b929f312606",
+  "analysis": {
+    "summary": "时尚女装穿搭展示视频，模特在白色极简棚拍背景及Pantone色卡道具前快速切换多种夏季服饰搭配，配合胶片滚动与快门开合特效展现多套夏秋季穿搭造型。",
+    "sourceLanguage": "zh",
+    "duration": 10,
+    "sellingPoints": [
+      "多款时尚服饰搭配展示（白衬衫牛仔短裤、牛仔外套、黄色T恤配百慕大短裤、蓝色风衣夹克与百褶裙）",
+      "结合Pantone色卡视觉元素，强化色彩搭配灵感",
+      "快节奏胶片转场与快门收缩视觉动效，提升吸睛度"
+    ],
+    "productAppearance": "无额外目标商品图提供。视频中展示多款服装，包括红色抹胸、白色衬衫、牛仔短裤、牛仔外套、黄色短袖Polo/T恤、棕色短裤、蓝色雨靴、天蓝色夹克外套及棕色/粉色百褶短裙。",
+    "shots": [
+      {
+        "id": "shot-1",
+        "start": 0,
+        "end": 2.8,
+        "role": "hook",
+        "visual": "纯白背景，背后立有巨型Pantone色卡。模特背对镜头后转身正面微笑，着白色长袖衬衫内搭红色吊带与牛仔短裤，头戴红色发带。",
+        "action": "模特从背身快速向左转体面向镜头，插兜站立展示全身穿搭。",
+        "camera": "由半身特写拉远至全身固定镜头，正面平视。",
+        "narration": "",
+        "onScreenText": "PANTONE 16-1140 TCX / 17-1452 TCX 等",
+        "sound": "原片无音轨。",
+        "productPresence": "女装白衬衫、红色内搭与高腰牛仔短裤。",
+        "uncertainty": "色卡型号文本细节随拉远稍有模糊。",
+        "subject": "年轻女性模特，红发带扎发，白色宽松衬衫配红色内搭与浅蓝牛仔超短裤。",
+        "effects": "背后色卡扇形展开式排布平面构图。",
+        "transition": "胶片卷动垂直位移转出至下一镜头。",
+        "reconstructionPrompt": "Studio setting, white clean background with oversized Pantone color swatches. A young woman with red hairband turns around to face camera, revealing white oversized shirt over red camisole and denim shorts. Quick zoom out from back view to full body standing pose.",
+        "evidenceFrames": [
+          {
+            "at": 1.4,
+            "reason": "模特转至正面展示完整正面服饰搭配及背景色卡"
+          }
+        ],
+        "motionBeats": [
+          {
+            "start": 0,
+            "end": 1.2,
+            "kind": "subject",
+            "description": "模特从背向镜头向左顺时针旋转转为正面，发丝飘动"
+          },
+          {
+            "start": 0.5,
+            "end": 2,
+            "kind": "camera",
+            "description": "镜头快速后拉缩放至全身景别"
+          },
+          {
+            "start": 2,
+            "end": 2.8,
+            "kind": "subject",
+            "description": "模特双手插兜，正对镜头微笑摆姿势"
+          }
+        ],
+        "focusPoints": [
+          {
+            "category": "action",
+            "text": "模特转身动势配合镜头拉远",
+            "evidenceAt": 0.8,
+            "selected": true,
+            "id": "8d832d0e-89d0-49bc-8bf2-47b6678b0b9c",
+            "source": "ai",
+            "userEdited": false
+          },
+          {
+            "category": "product",
+            "text": "白色衬衫与高腰牛仔短裤搭配",
+            "evidenceAt": 2.2,
+            "selected": true,
+            "id": "bb0984da-76c9-4872-92df-64206e99a58b",
+            "source": "ai",
+            "userEdited": false
+          },
+          {
+            "category": "scene",
+            "text": "背景扇形展开的Pantone色卡道具",
+            "evidenceAt": 2.2,
+            "selected": false,
+            "id": "22b5830d-8f92-4b01-a6f4-eff259690e3d",
+            "source": "ai",
+            "userEdited": false
+          }
+        ]
+      },
+      {
+        "id": "shot-2",
+        "start": 2.8,
+        "end": 4.6,
+        "role": "demo",
+        "visual": "胶片胶卷边框上下快速卷动转场，画中模特换穿蓝色破洞牛仔外套配红底吊带与短裤。",
+        "action": "画面纵向滚动，模特在胶片框内正面插兜直视镜头摆造型。",
+        "camera": "模拟胶卷上下滚动运动，中远景固定。",
+        "narration": "",
+        "onScreenText": "",
+        "sound": "原片无音轨。",
+        "productPresence": "浅蓝色廓形牛仔夹克与同套短裤内搭。",
+        "uncertainty": "滚动速度极快致细节轻微模糊。",
+        "subject": "模特身穿复古落肩浅蓝牛仔外套，内搭红吊带与牛仔短裤。",
+        "effects": "黑白双孔老式胶片垂直滚轴移动特效。",
+        "transition": "胶片滚动划出切入实拍画面。",
+        "reconstructionPrompt": "Vertical film strip rolling motion effect overlay. The model poses wearing an oversized light-wash denim trucker jacket, red top, and denim shorts against a white backdrop.",
+        "evidenceFrames": [
+          {
+            "at": 3.7,
+            "reason": "胶片框定格展示牛仔外套穿搭造型"
+          }
+        ],
+        "motionBeats": [
+          {
+            "start": 2.8,
+            "end": 4.6,
+            "kind": "effect",
+            "description": "黑色胶片条边框由上至下垂直快速滚动"
+          },
+          {
+            "start": 3.5,
+            "end": 4.5,
+            "kind": "subject",
+            "description": "模特保持插兜静态酷感姿势"
+          }
+        ],
+        "focusPoints": [
+          {
+            "category": "editing",
+            "text": "垂直胶卷滚动换装转场特效",
+            "evidenceAt": 3.2,
+            "selected": true,
+            "id": "83c4ea9a-6bf4-45ff-b82a-0a8b679e6a5a",
+            "source": "ai",
+            "userEdited": false
+          },
+          {
+            "category": "product",
+            "text": "浅蓝牛仔夹克短裤套装穿搭",
+            "evidenceAt": 3.8,
+            "selected": true,
+            "id": "02b4d505-2bd8-4f95-9d80-11bb15ae8f33",
+            "source": "ai",
+            "userEdited": false
+          }
+        ]
+      },
+      {
+        "id": "shot-3",
+        "start": 4.6,
+        "end": 6.8,
+        "role": "demo",
+        "visual": "全景白底背景，背后陈列多色Pantone卡纸，模特换穿明黄色V领T恤、卡其棕高腰短裤及高筒深蓝雨靴。",
+        "action": "模特单手叉腰、单手插兜，身体微微律动摆拍。",
+        "camera": "正面平视全景固定机位。",
+        "narration": "",
+        "onScreenText": "PANTONE 17-1350 TCX 等",
+        "sound": "原片无音轨。",
+        "productPresence": "黄色短袖V领上衣、棕色工装/西装短裤、蓝色高筒靴。",
+        "uncertainty": "无明显不确定性。",
+        "subject": "模特齐刘海低马尾，黄色短袖T恤扎入棕色高腰短裤内，搭配深蓝光面雨靴。",
+        "effects": "无额外特效，实拍置景。",
+        "transition": "直接硬切至下一穿搭走步镜头。",
+        "reconstructionPrompt": "Full-body view in studio against white wall and fan of Pantone paper cards. Model poses in a fitted yellow v-neck T-shirt, high-waisted brown tailored shorts, and navy blue tall boots. Static eye-level shot.",
+        "evidenceFrames": [
+          {
+            "at": 5.7,
+            "reason": "模特全身站姿完整展示黄色T恤与短裤雨靴搭配"
+          }
+        ],
+        "motionBeats": [
+          {
+            "start": 4.6,
+            "end": 6.8,
+            "kind": "subject",
+            "description": "模特重心轻微左右调整，手部插兜摆造型"
+          }
+        ],
+        "focusPoints": [
+          {
+            "category": "product",
+            "text": "黄色V领上衣搭配棕色高腰短裤与雨靴",
+            "evidenceAt": 5.5,
+            "selected": true,
+            "id": "4afb6845-8911-4608-bc2d-494901db0403",
+            "source": "ai",
+            "userEdited": false
+          },
+          {
+            "category": "camera",
+            "text": "全身定焦平视机位",
+            "evidenceAt": 5.8,
+            "selected": false,
+            "id": "b6cd08c6-70b5-44fe-b901-165a18c76499",
+            "source": "ai",
+            "userEdited": false
+          }
+        ]
+      },
+      {
+        "id": "shot-4",
+        "start": 6.8,
+        "end": 8.8,
+        "role": "demo",
+        "visual": "中景推进，模特身着天蓝色连帽拉链夹克外套及棕色百褶短裙，迎着镜头迈步走来。",
+        "action": "模特自信向前行走步态展示，衣摆自然晃动。",
+        "camera": "中景，略微跟随向前微移或模特走入景深。",
+        "narration": "",
+        "onScreenText": "PANTONE 12-0737 TCX",
+        "sound": "原片无音轨。",
+        "productPresence": "天蓝色抽绳连帽防风外套、咖啡色双层百褶短裙。",
+        "uncertainty": "无明显不确定性。",
+        "subject": "披肩卷发模特，穿着鲜亮天蓝色纽扣拉链风衣外套与深棕色百褶裙。",
+        "effects": "背景漂浮几何色块装点。",
+        "transition": "镜头下切并结合黑色圆形遮罩快门收缩。",
+        "reconstructionPrompt": "Medium shot of model walking forward toward camera, wearing a sky-blue hooded windbreaker jacket layered over a brown pleated miniskirt. White background with floating color swatches.",
+        "evidenceFrames": [
+          {
+            "at": 7.8,
+            "reason": "模特向前迈步展现天蓝色夹克版型与下摆设计"
+          }
+        ],
+        "motionBeats": [
+          {
+            "start": 6.8,
+            "end": 8.8,
+            "kind": "subject",
+            "description": "模特从纵深处向前平稳走步，双臂自然摆动"
+          }
+        ],
+        "focusPoints": [
+          {
+            "category": "action",
+            "text": "模特正面走步动态展示服装垂坠感",
+            "evidenceAt": 7.5,
+            "selected": true,
+            "id": "7785b3f6-d8af-42a7-8545-d5a901891340",
+            "source": "ai",
+            "userEdited": false
+          },
+          {
+            "category": "product",
+            "text": "天蓝色轻薄连帽夹克外观细节",
+            "evidenceAt": 7.8,
+            "selected": true,
+            "id": "ff435b0f-3b17-4974-bc67-bf0ff44344de",
+            "source": "ai",
+            "userEdited": false
+          }
+        ]
+      },
+      {
+        "id": "shot-5",
+        "start": 8.8,
+        "end": 10,
+        "role": "cta",
+        "visual": "下半身特写，模特换着粉色百褶裙配绑带平底凉鞋，圆形快门光圈逐渐向中心闭合收尾。",
+        "action": "模特微微迈步展示粉色裙摆飘动，圆形光圈收拢关闭视窗。",
+        "camera": "下半身平视仰拍固定角度。",
+        "narration": "",
+        "onScreenText": "PANTONE 12-1339 TC",
+        "sound": "原片无音轨。",
+        "productPresence": "浅粉色高腰百褶短裙。",
+        "uncertainty": "无明显不确定性。",
+        "subject": "模特下半身，身穿粉红高腰学院风百褶短裙及米白绑带凉鞋。",
+        "effects": "黑色相机快门圆孔缩放遮罩转场收尾效果（Iris Out）。",
+        "transition": "圆形光阑遮罩闭合黑屏结束全片。",
+        "reconstructionPrompt": "Close-up on lower body showing pink pleated tennis skirt and beige flat sandals. Camera iris / circular shutter blades close down to black around the subject to end the video.",
+        "evidenceFrames": [
+          {
+            "at": 9.4,
+            "reason": "快门遮罩收缩瞬间清晰展示粉色百褶裙外观"
+          }
+        ],
+        "motionBeats": [
+          {
+            "start": 8.8,
+            "end": 10,
+            "kind": "effect",
+            "description": "黑色多边形快门圈由外周向中心快速闭合缩小直至黑屏"
+          },
+          {
+            "start": 8.8,
+            "end": 9.5,
+            "kind": "subject",
+            "description": "模特双腿轻微走动调整站姿"
+          }
+        ],
+        "focusPoints": [
+          {
+            "category": "editing",
+            "text": "镜头快门光圈闭合收尾动画",
+            "evidenceAt": 9.5,
+            "selected": true,
+            "id": "d728b507-6849-4034-ae30-85d843e08b88",
+            "source": "ai",
+            "userEdited": false
+          },
+          {
+            "category": "product",
+            "text": "粉色短款百褶裙细节展示",
+            "evidenceAt": 9.2,
+            "selected": true,
+            "id": "534ad5fb-64e6-428c-bb95-3932d54683e8",
+            "source": "ai",
+            "userEdited": false
+          }
+        ]
+      }
+    ],
+    "uncertainties": [
+      "视频无配音解说，未标明具体的服装品牌或型号系列。"
+    ],
+    "focusPoints": [
+      {
+        "category": "subject",
+        "text": "年轻女模特多种夏日轻快风格多套换装演示",
+        "evidenceAt": 2,
+        "selected": true,
+        "id": "fcb479ad-1098-4d23-8323-73cdb8904daa",
+        "source": "ai",
+        "userEdited": false
+      },
+      {
+        "category": "scene",
+        "text": "Pantone色卡风格极简纯白棚拍布景",
+        "evidenceAt": 5.5,
+        "selected": true,
+        "id": "bed21bf6-3b7b-4dcb-adc0-2753d2f5d970",
+        "source": "ai",
+        "userEdited": false
+      },
+      {
+        "category": "editing",
+        "text": "复古胶卷滚轴移动转场动效",
+        "evidenceAt": 3.3,
+        "selected": true,
+        "id": "3e7cf8ed-497e-496d-9095-20bb4d1b1258",
+        "source": "ai",
+        "userEdited": false
+      },
+      {
+        "category": "editing",
+        "text": "快门光阑收缩闭合特效转场",
+        "evidenceAt": 9.5,
+        "selected": true,
+        "id": "2f7425af-fffe-4fc6-9f2b-d4a68f89985d",
+        "source": "ai",
+        "userEdited": false
+      }
+    ]
+  },
+  "storyboardGrids": [
+    {
+      "id": "2a58c6c0-6b6c-41d9-b0f3-337faccc0e22",
+      "start": 0,
+      "end": 10,
+      "gridSize": 3,
+      "frameTimes": [
+        0.556,
+        1.4,
+        2.778,
+        3.7,
+        5,
+        5.7,
+        7.222,
+        7.8,
+        9.4
+      ],
+      "filename": "storyboard-grid-2e4128fc-8407-4e48-909c-f4a6a6b77e0a.jpg",
+      "url": "/media/storyboard-grid-2e4128fc-8407-4e48-909c-f4a6a6b77e0a.jpg",
+      "prompt": "生成一条10.00秒、16:9画幅视频。\n\n【参考图的读取方式】\n上传的参考图是一张3行×3列的连续分镜板，共9格。\n按从左到右、从上到下的顺序，将每格编号为1至9。\n\n每一格是同一条视频中某一时刻的画面参考。\n请读取每格内部的有效画面，去掉宫格之间的白边和间隔。\n最终视频在任意时刻只显示一个完整的16:9镜头。\n\n【镜头组织】\n将9格按原片时间顺序整理为下列5个连续镜头。\n同一场景或同一动作的连续格子用于描述动作发展，不要在这些格子之间反复切镜。\n原片确有场景或剪辑点变化时，按参考画面直接切换到下一镜头。\n\n镜头1：0.00–2.80秒，参考第1–3格\n纯白背景，背后立有巨型Pantone色卡。模特背对镜头后转身正面微笑，着白色长袖衬衫内搭红色吊带与牛仔短裤，头戴红色发带。\n主体与造型：年轻女性模特，红发带扎发，白色宽松衬衫配红色内搭与浅蓝牛仔超短裤。\n动作发展：模特从背向镜头向左顺时针旋转转为正面，发丝飘动；镜头快速后拉缩放至全身景别；模特双手插兜，正对镜头微笑摆姿势\n机位与运镜：由半身特写拉远至全身固定镜头，正面平视。\n转场与效果：胶片卷动垂直位移转出至下一镜头。；背后色卡扇形展开式排布平面构图。\n\n镜头2：2.80–4.60秒，参考第4格\n胶片胶卷边框上下快速卷动转场，画中模特换穿蓝色破洞牛仔外套配红底吊带与短裤。\n主体与造型：模特身穿复古落肩浅蓝牛仔外套，内搭红吊带与牛仔短裤。\n动作发展：黑色胶片条边框由上至下垂直快速滚动；模特保持插兜静态酷感姿势\n机位与运镜：模拟胶卷上下滚动运动，中远景固定。\n转场与效果：胶片滚动划出切入实拍画面。；黑白双孔老式胶片垂直滚轴移动特效。\n\n镜头3：4.60–6.80秒，参考第5–6格\n全景白底背景，背后陈列多色Pantone卡纸，模特换穿明黄色V领T恤、卡其棕高腰短裤及高筒深蓝雨靴。\n主体与造型：模特齐刘海低马尾，黄色短袖T恤扎入棕色高腰短裤内，搭配深蓝光面雨靴。\n动作发展：模特重心轻微左右调整，手部插兜摆造型\n机位与运镜：正面平视全景固定机位。\n转场与效果：直接硬切至下一穿搭走步镜头。；无额外特效，实拍置景。\n\n镜头4：6.80–8.80秒，参考第7–8格\n中景推进，模特身着天蓝色连帽拉链夹克外套及棕色百褶短裙，迎着镜头迈步走来。\n主体与造型：披肩卷发模特，穿着鲜亮天蓝色纽扣拉链风衣外套与深棕色百褶裙。\n动作发展：模特从纵深处向前平稳走步，双臂自然摆动\n机位与运镜：中景，略微跟随向前微移或模特走入景深。\n转场与效果：镜头下切并结合黑色圆形遮罩快门收缩。；背景漂浮几何色块装点。\n\n镜头5：8.80–10.00秒，参考第9格\n下半身特写，模特换着粉色百褶裙配绑带平底凉鞋，圆形快门光圈逐渐向中心闭合收尾。\n主体与造型：模特下半身，身穿粉红高腰学院风百褶短裙及米白绑带凉鞋。\n动作发展：黑色多边形快门圈由外周向中心快速闭合缩小直至黑屏；模特双腿轻微走动调整站姿\n机位与运镜：下半身平视仰拍固定角度。\n转场与效果：圆形光阑遮罩闭合黑屏结束全片。；黑色相机快门圆孔缩放遮罩转场收尾效果（Iris Out）。\n\n【剪辑要求】\n各镜头依次播放，保持原片的顺序、动作节奏和转场逻辑。\n同一连续动作要生成完整的运动过程，不要把每格生成为独立的定格画面。\n参考图中的模糊过渡格只用于理解运动方向，不要将模糊画面长时保留。\n不要通过移动相机浏览整张宫格来代替剪辑。\n\n【画面与运动】\n根据每个参考格的内容重新构成完整的16:9画面，优先保留人物、主体、商品、地标和关键动作。\n保持同一主体的外观、服装、道具和空间关系连续稳定。\n区分主体自身运动、物体或图形运动、运镜和剪辑转场，避免把所有元素当作一张静态图片整体摇晃。\n\n【内容依据】\n时尚女装穿搭展示视频，模特在白色极简棚拍背景及Pantone色卡道具前快速切换多种夏季服饰搭配，配合胶片滚动与快门开合特效展现多套夏秋季穿搭造型。\n\n【输出限制】\n最终输出单一全画幅视频，总时长不得超过10.00秒。\n不要出现3×3宫格、多窗口、分屏、分镜边框、格子编号或白色间隔。\n不要添加参考图以外的人物、物品、字幕、标志或新场景。\n保持人物面部、手部、肢体、物体外形和背景结构稳定。",
+      "generatedAt": "2026-11-13T12:45:14.066Z",
+      "included": true
+    }
+  ],
+  "subjects": [
+    {
+      "id": "c9a2a5ea-81dd-45dc-8f0e-ec9a3f5194a4",
+      "name": "女模特",
+      "kind": "person",
+      "note": "年轻时尚女模特，切换多种发型与穿搭风格，在镜头前展示全身与半身造型",
+      "shotIds": [
+        "shot-1",
+        "shot-2",
+        "shot-3",
+        "shot-4",
+        "shot-5"
+      ],
+      "images": [],
+      "sources": [
+        {
+          "filename": "tier-source-cb9664bd-68c4-4398-b6c2-f88fb00a3a47.jpg",
+          "url": "/media/tier-source-cb9664bd-68c4-4398-b6c2-f88fb00a3a47.jpg",
+          "shotId": "shot-3",
+          "at": 5.7,
+          "width": 338,
+          "height": 720
+        },
+        {
+          "filename": "tier-source-34b951cd-3a85-4707-b348-d147eeff3a4e.jpg",
+          "url": "/media/tier-source-34b951cd-3a85-4707-b348-d147eeff3a4e.jpg",
+          "shotId": "shot-1",
+          "at": 2.799,
+          "width": 276,
+          "height": 720
+        },
+        {
+          "filename": "tier-source-d6da7f25-ce8e-4a0e-a70f-4168fcd7e6a3.jpg",
+          "url": "/media/tier-source-d6da7f25-ce8e-4a0e-a70f-4168fcd7e6a3.jpg",
+          "shotId": "shot-4",
+          "at": 7.8,
+          "width": 508,
+          "height": 720
+        }
+      ]
+    },
+    {
+      "id": "99476bf2-c19a-4b8a-8371-4fed5fda3d41",
+      "name": "浅蓝牛仔短裤",
+      "kind": "product",
+      "note": "浅蓝色水洗高腰牛仔超短裤，搭配红色内搭与外套穿着",
+      "shotIds": [
+        "shot-1",
+        "shot-2"
+      ],
+      "images": [],
+      "sources": [
+        {
+          "filename": "tier-source-85b330be-bfcb-474b-af2c-c99ec107bc93.jpg",
+          "url": "/media/tier-source-85b330be-bfcb-474b-af2c-c99ec107bc93.jpg",
+          "shotId": "shot-1",
+          "at": 2.799,
+          "width": 178,
+          "height": 140
+        },
+        {
+          "filename": "tier-source-8ded8326-27c3-40dd-b35c-088d32544437.jpg",
+          "url": "/media/tier-source-8ded8326-27c3-40dd-b35c-088d32544437.jpg",
+          "shotId": "shot-2",
+          "at": 3.7,
+          "width": 222,
+          "height": 208
+        },
+        {
+          "filename": "tier-source-f97915af-ec8d-4374-a243-0a8b67fdbd80.jpg",
+          "url": "/media/tier-source-f97915af-ec8d-4374-a243-0a8b67fdbd80.jpg",
+          "shotId": "shot-3",
+          "at": 4.6,
+          "width": 214,
+          "height": 208
+        }
+      ]
+    },
+    {
+      "id": "7cb5cd31-2c80-4c53-ba23-38d2027b3181",
+      "name": "红色吊带内搭",
+      "kind": "product",
+      "note": "鲜红色抹胸吊带短款上衣，鲜艳抢眼",
+      "shotIds": [
+        "shot-1",
+        "shot-2"
+      ],
+      "images": [],
+      "sources": [
+        {
+          "filename": "tier-source-578692fb-4f81-4757-9271-feecaef7827c.jpg",
+          "url": "/media/tier-source-578692fb-4f81-4757-9271-feecaef7827c.jpg",
+          "shotId": "shot-1",
+          "at": 2.799,
+          "width": 124,
+          "height": 144
+        },
+        {
+          "filename": "tier-source-393540c9-f6fe-4cc3-936f-d8ca56e9deec.jpg",
+          "url": "/media/tier-source-393540c9-f6fe-4cc3-936f-d8ca56e9deec.jpg",
+          "shotId": "shot-2",
+          "at": 3.7,
+          "width": 76,
+          "height": 178
+        },
+        {
+          "filename": "tier-source-055e3d27-1f01-4e13-bd9b-1806f67fbfc2.jpg",
+          "url": "/media/tier-source-055e3d27-1f01-4e13-bd9b-1806f67fbfc2.jpg",
+          "shotId": "shot-3",
+          "at": 4.6,
+          "width": 74,
+          "height": 182
+        }
+      ]
+    },
+    {
+      "id": "232e5902-7ff8-46a4-8442-e8611b4a8766",
+      "name": "白色宽松长袖衬衫",
+      "kind": "product",
+      "note": "纯白色宽松廓形长袖衬衫，敞开穿着搭配红色内搭",
+      "shotIds": [
+        "shot-1"
+      ],
+      "images": [],
+      "sources": [
+        {
+          "filename": "tier-source-dea29d26-832b-4111-a08f-e8382af05d1e.jpg",
+          "url": "/media/tier-source-dea29d26-832b-4111-a08f-e8382af05d1e.jpg",
+          "shotId": "shot-1",
+          "at": 2.799,
+          "width": 252,
+          "height": 278
+        }
+      ]
+    },
+    {
+      "id": "263b3a46-b560-4bd4-a011-3f47520ee4e3",
+      "name": "浅蓝复古牛仔外套",
+      "kind": "product",
+      "note": "复古浅蓝落肩破洞廓形牛仔夹克",
+      "shotIds": [
+        "shot-2"
+      ],
+      "images": [],
+      "sources": [
+        {
+          "filename": "tier-source-df23f253-ebad-4b56-b316-e347097c453c.jpg",
+          "url": "/media/tier-source-df23f253-ebad-4b56-b316-e347097c453c.jpg",
+          "shotId": "shot-2",
+          "at": 3.7,
+          "width": 368,
+          "height": 450
+        },
+        {
+          "filename": "tier-source-182b8bbf-db22-4405-87c5-0047b5864236.jpg",
+          "url": "/media/tier-source-182b8bbf-db22-4405-87c5-0047b5864236.jpg",
+          "shotId": "shot-3",
+          "at": 4.6,
+          "width": 368,
+          "height": 448
+        }
+      ]
+    },
+    {
+      "id": "a3e9409e-1794-45aa-b22a-275ae2f53ca2",
+      "name": "黄色V领短袖T恤",
+      "kind": "product",
+      "note": "亮黄色短袖V领休闲T恤上衣，扎入短裤中穿着",
+      "shotIds": [
+        "shot-3"
+      ],
+      "images": [],
+      "sources": [
+        {
+          "filename": "tier-source-1f2821e3-dd02-476b-89a6-d69a8f889c81.jpg",
+          "url": "/media/tier-source-1f2821e3-dd02-476b-89a6-d69a8f889c81.jpg",
+          "shotId": "shot-3",
+          "at": 5.7,
+          "width": 244,
+          "height": 178
+        },
+        {
+          "filename": "tier-source-28f2e607-e216-4cf0-b27f-4d16459d8a80.jpg",
+          "url": "/media/tier-source-28f2e607-e216-4cf0-b27f-4d16459d8a80.jpg",
+          "shotId": "shot-4",
+          "at": 6.8,
+          "width": 248,
+          "height": 178
+        }
+      ]
+    },
+    {
+      "id": "363dc60c-23d7-4076-9729-d2bc2da95f12",
+      "name": "天蓝色连帽防风外套",
+      "kind": "product",
+      "note": "天蓝色抽绳连帽拉链休闲风衣夹克",
+      "shotIds": [
+        "shot-4"
+      ],
+      "images": [],
+      "sources": [
+        {
+          "filename": "tier-source-f0b66dc4-bbc5-45c2-81d1-3dd20a64adce.jpg",
+          "url": "/media/tier-source-f0b66dc4-bbc5-45c2-81d1-3dd20a64adce.jpg",
+          "shotId": "shot-4",
+          "at": 7.8,
+          "width": 472,
+          "height": 520
+        },
+        {
+          "filename": "tier-source-4381492a-49de-409b-b664-fc209877d988.jpg",
+          "url": "/media/tier-source-4381492a-49de-409b-b664-fc209877d988.jpg",
+          "shotId": "shot-5",
+          "at": 8.8,
+          "width": 560,
+          "height": 590
+        }
+      ]
+    },
+    {
+      "id": "b274e1d8-9b4b-4a3a-8270-12c76765c334",
+      "name": "学院风百褶短裙",
+      "kind": "product",
+      "note": "双层高腰百褶短裙，包含深棕色与浅粉色款式",
+      "shotIds": [
+        "shot-4",
+        "shot-5"
+      ],
+      "images": [],
+      "sources": [
+        {
+          "filename": "tier-source-462a1a5f-5e66-49b5-aa9e-441c5c555a0c.jpg",
+          "url": "/media/tier-source-462a1a5f-5e66-49b5-aa9e-441c5c555a0c.jpg",
+          "shotId": "shot-5",
+          "at": 9.4,
+          "width": 362,
+          "height": 202
+        },
+        {
+          "filename": "tier-source-8315d3fd-29b3-463e-b044-11dda9d5b06c.jpg",
+          "url": "/media/tier-source-8315d3fd-29b3-463e-b044-11dda9d5b06c.jpg",
+          "shotId": "shot-4",
+          "at": 7.8,
+          "width": 350,
+          "height": 170
+        }
+      ]
+    }
+  ]
+}

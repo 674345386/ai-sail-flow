@@ -253,7 +253,7 @@ export default function ProjectNavigation({ groups, creatives, currentId, curren
             if (open) { setMoreOpenFor(null); setViewAll(previous => ({ ...previous, [group.id]: false })); }
           }} title={group.title}>
             <span className="project-tree-indicator" aria-hidden="true"><FolderOpen size={17} /></span>
-            <span>{group.title}</span><small>{children.length}</small>
+            <span>{group.title}</span>
           </button>
           <button className="project-tree-action" aria-label={`重命名工作空间：${group.title}`} title="重命名工作空间" disabled={busy} onClick={() => onRenameProject(group)}><Pencil size={13} /></button>
           <NewCreativeButton group={group} current={isCurrentProject} busy={busy} onCreate={onNewCreative} />

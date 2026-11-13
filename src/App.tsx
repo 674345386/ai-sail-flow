@@ -45,6 +45,8 @@ import AnimatedBrandMark from './AnimatedBrandMark';
 import ShaderBackdrop from './ShaderBackdrop';
 import LandingHero from './LandingHero';
 import LandingPromptHero from './LandingPromptHero';
+import LandingLightPath from './LandingLightPath';
+import LandingPlayground from './LandingPlayground';
 import LandingPageEditor from './LandingPageEditor';
 import LandingAnnouncement from './LandingAnnouncement';
 import ScrollBrand from "./ScrollBrand";
@@ -1109,8 +1111,7 @@ export default function App() {
     {profileDialog}
     {authDialog}
   </>;
-  if (showLanding || (!project && publicAuthRequired && !auth.session)) return <div className="landing-page landing-dark landing-prompt-page">
-    <LandingBackground />
+  if (showLanding || (!project && publicAuthRequired && !auth.session)) return <div className="landing-page landing-dark landing-prompt-page landing-vgpu-page">
     <LandingAnnouncement onEnter={() => enterWorkspace()} />
     <header className="landing-nav">
       <button className="landing-brand" onClick={() => setShowLanding(true)} aria-label={L.nav.home}><img className="landing-brand-logo" src="/assets/brand/sail-mark-dark-bold.svg" alt="" width={30} height={30} /><ScrollBrand /></button>
@@ -1143,6 +1144,8 @@ export default function App() {
       ].map(([question, answer]) => <details key={question}><summary><span>{question}</span><Plus size={18} /></summary><p>{answer}</p></details>)}</div>
     </section>
     <footer className="gf-footer"><strong>AI Creative Lab</strong><span>{L.footer.meta}</span><nav><a href="#create">{L.footer.top}</a><button onClick={() => enterWorkspace()}>{L.footer.enter}</button></nav></footer>
+    <LandingLightPath />
+    <LandingPlayground />
     <LandingPageEditor accountKey={auth.user?.id || ''} />
     {profileDialog}
     {authDialog}

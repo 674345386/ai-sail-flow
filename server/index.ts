@@ -53,6 +53,7 @@ const { MinimaxError } = await import('./minimax-h3');
 const { listTtsVoices } = await import('./compose');
 const { launchTask, TaskError } = await import('./tasks');
 const { agentInternalToken, getAgentState, getAgentActivity, getAgentImageReferences, subscribeAgent, startAgentTurn, steerAgentTurn, queueAgentMessage, removeQueuedAgentMessage, editQueuedAgentMessage, steerQueuedAgentMessage, resumeAgentQueue, AgentTurnConflictError, interruptAgentTurn, setAgentModel, setAgentAdaptation, setAgentPresentation, listAgentModels, noteAgentVideoChanged, showAgentCanvasComponent, showAgentIntelligentUI, updateAgentCanvasComponent, closeAgentCanvasComponent, setAgentExperiment, mutateAgentExperiment } = await import('./creative-agent');
+const { registerRadarSpaceInternal, registerRadarSpaceMedia } = await import('./radar-space-agent');
 const { programmaticEnabled, experimentWorkspace, publishExperimentFile, publishExperimentFileInput } = await import('./experiment-runtime');
 const { registerSkillInternalRoutes, registerSkillExperimentRoutes, registerSkillAssetRoutes, applyInitialSkills, prepareSkillSelections, verifySkillAsset } = await import('./skill-asset-routes');
 const { officialJobFor, getSkillAsset } = await import('./skill-assets');
@@ -152,6 +153,7 @@ function editable(project: Project) {
   if (project.job?.status === 'running' || workflowBusy(project) || uploadsInProgress.has(project.id)) throw new HttpError(409, '当前任务正在处理，请等待完成或接管制作。');
 }
 // The MCP child can only reach its own creative through this loopback-only capability.
+registerRadarSpaceInternal(app);
 app.use('/api/agent-internal/:id', (req, res, next) => {
   const remote = req.socket.remoteAddress || '';
   if (!['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(remote) || req.get('X-SOP-Agent-Token') !== agentInternalToken) return res.sendStatus(403);
@@ -1169,6 +1171,7 @@ app.get('/api/projects/:id/export', async (req, res) => {
   res.setHeader('Content-Disposition', `attachment; filename="sop-studio-${project.id.slice(0, 8)}.zip"; filename*=UTF-8''${encodeURIComponent(project.title + '.zip')}`);
   res.type('application/zip').send(buffer);
 });
+registerRadarSpaceMedia(app);
 app.use('/media', express.static(uploadDir, { dotfiles: 'deny', fallthrough: false, setHeaders(res, filepath) {
   setShotMediaCacheHeaders(res, filepath);
   const imageExtension = /\.(png|jpe?g|webp)$/i.exec(filepath)?.[1].toLowerCase();

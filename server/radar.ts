@@ -60,6 +60,8 @@ function writeJson(file: string, value: unknown) {
     fs.rmSync(temporary, { force: true });
   }
 }
+
+export { inputSchema as radarInputSchema, loadRun as getRadarRun };
 function readJson<T>(file: string, fallback: T): T {
   try {
     return JSON.parse(fs.readFileSync(file, "utf8")) as T;
