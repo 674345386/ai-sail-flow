@@ -245,6 +245,11 @@ function configFor(id: string) {
     command: process.execPath,
     args: [path.join(process.cwd(), 'node_modules/tsx/dist/cli.mjs'), path.join(process.cwd(), 'server/creative-agent-mcp.ts')],
     env: { SOP_AGENT_PROJECT_ID: id, SOP_AGENT_INTERNAL_TOKEN: agentCapabilities.issue(id), SOP_AGENT_INTERNAL_URL: `http://127.0.0.1:${process.env.SOP_PORT || '4317'}` },
+    tools: {
+      get_creative: { approval_mode: 'approve' },
+      get_current_weather: { approval_mode: 'approve' },
+      generate_image: { approval_mode: 'approve' },
+    },
     startup_timeout_sec: 15,
     tool_timeout_sec: 650,
     required: true,
