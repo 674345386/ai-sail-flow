@@ -42,8 +42,9 @@ export async function getCurrentWeather(input: z.infer<typeof currentWeatherInpu
   if (input.station) {
     const source = new URL(`https://api.weather.gov/stations/${input.station}/observations/latest`);
     const { properties } = observationSchema.parse(await fetchWeather(source));
+    const minutesSinceObservation = Math.floor((Date.now() - Date.parse(properties.timestamp)) / 60_000);
     return { kind: 'observation', station: input.station, timestamp: properties.timestamp, celsius: properties.temperature.value,
-      condition: properties.textDescription || undefined, source: source.href };
+      minutesSinceObservation, condition: properties.textDescription || undefined, source: source.href };
   }
   const source = new URL('https://api.met.no/weatherapi/locationforecast/2.0/compact');
   source.searchParams.set('lat', input.latitude!.toFixed(4));
