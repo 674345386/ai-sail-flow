@@ -34,6 +34,7 @@ import { prepareExperimentProposal } from './experiment-planner';
 import { importExperimentSkillInput, bindExperimentInput, readGitHubSkill, attachExperimentSkill, bindExperimentSource, experimentSources, syncExperimentSources } from './experiment-workbench';
 import { skillSelectionSchema } from '../shared/skill-assets';
 import { createLandingPageStore, registerLandingPageReadRoutes, registerLandingPageWriteRoutes } from './landing-editor';
+import { currentWeatherInput, getCurrentWeather } from './current-weather';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 try { process.loadEnvFile(path.join(root, '.env')); } catch (err) { if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err; }
@@ -171,6 +172,12 @@ app.use('/api/agent-internal/:id', (req, res, next) => {
   return capability.accountId ? withWorkspaceAccount(capability.accountId, next) : next();
 });
 registerSkillInternalRoutes(app, skillAgentAccess);
+app.post('/api/agent-internal/:id/weather', async (req, res) => {
+  record(req);
+  const input = currentWeatherInput.parse(req.body);
+  try { res.json(await getCurrentWeather(input)); }
+  catch { throw new HttpError(502, '暂时无法取得该地点的气象数据。'); }
+});
 app.get('/api/agent-internal/:id', (req, res) => {
   const p = record(req);
   res.json({ id: p.id, title: p.title, revision: p.revision, video: p.assets.find(asset => asset.kind === 'video') ? (() => { const v = p.assets.find(asset => asset.kind === 'video')!; return { id: v.id, name: v.name, duration: v.duration }; })() : null,

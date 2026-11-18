@@ -252,6 +252,7 @@ function configFor(id: string) {
 }
 
 const workToolLabels: Record<string, string> = {
+  get_current_weather: '查询实时天气',
   discover_experiment_methods: '寻找创作方法', read_experiment_method: '阅读方法与运行条件',
   get_creative: '读取创意素材', analyze_reference: '读取参考视频画面', save_reference_analysis: '保存场景表与分镜', save_reference_shot_review: '保存变动镜头的分析建议',
   generate_image: '生成图片', generate_video: '生成视频', generate_minimax_video: '使用 MiniMax H3 生成视频',
