@@ -1,6 +1,5 @@
 /* Workspace folders own the sidebar; creation stages live in the main view. */
 .app-shell .sidebar-workspaces { --workspace-nav-label-size: 14px; flex: 1 1 auto; min-width: 0; min-height: 0; overflow: hidden; }
-.app-shell[data-agent-theme="compact"] .sidebar-workspaces { --workspace-nav-label-size: 12px; }
 .app-shell .sidebar-workspaces-heading { flex: none; align-items: center; justify-content: space-between; gap: 8px; min-height: 32px; margin: 12px 0 4px; padding: 0 6px; color: var(--muted); font-size: 13px; font-weight: 400; }
 .sidebar-workspaces-actions { display: flex; align-items: center; gap: 2px; }
 .app-shell .sidebar-workspaces-heading .icon-btn { display: grid; place-items: center; width: 28px; height: 28px; padding: 0; }

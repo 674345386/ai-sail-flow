@@ -15,6 +15,7 @@ import './creative-showcase.css';
 import './workspace-refinement.css';
 import './intelligent-ui/components/theme.css';
 import './agent-shell-theme.css';
+import './studio-white-agent.css';
 import './typography/workspace.css';
 import './project-navigation.css';
 

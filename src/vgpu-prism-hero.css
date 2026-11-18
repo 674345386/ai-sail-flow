@@ -6,10 +6,16 @@
   height: calc(100svh - var(--lp-chrome-height, var(--lp-nav-height)));
   min-height: 680px; max-height: 1100px;
   padding: 56px clamp(32px, 8vw, 168px) 96px;
-  overflow: hidden; isolation: isolate; background: #000; color: #f7f7f7;
+  overflow: hidden; isolation: isolate; color: #f7f7f7;
   --lp-ink: #f7f7f7; --lp-muted: #aaa;
 }
-.lp-prism-hero > .vgpu-prism { position: absolute; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; background: #000; }
+.lp-prism-hero > .vgpu-prism {
+  position: absolute; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; background: #000;
+  /* Reveal the live page backdrop at the showcase boundary. */
+  --prism-fade-start: calc(100% - clamp(72px, 13svh, 136px));
+  -webkit-mask-image: linear-gradient(to bottom, #000 var(--prism-fade-start), transparent);
+  mask-image: linear-gradient(to bottom, #000 var(--prism-fade-start), transparent);
+}
 .vgpu-prism-canvas { display: block; width: 100%; height: 100%; }
 .vgpu-prism-framing { position: absolute; top: 8%; right: 4%; bottom: 8%; left: 51%; }
 .vgpu-prism-poster { position: absolute; inset: 0; z-index: 1; background: url('/vendor/vgpu/poster.webp') center / 100% 100% no-repeat; clip-path: inset(0 0 0 53%); opacity: 1; transition: opacity .35s ease; }
@@ -19,29 +25,33 @@
 .lp-prism-hero .lp-model-group { gap: 25px; padding-right: 25px; }
 .lp-prism-hero .lp-model { gap: 8px; font-size: 11px; color: #bcbcbc; }
 .lp-prism-hero .lp-model img { width: 17px; height: 17px; }
-.lp-prism-hero .lp-heading { margin-bottom: 30px; text-align: left; }
-.lp-prism-hero .lp-heading h1 { max-width: 6em; font-size: clamp(43px, 4.6vw, 78px); font-weight: 700; line-height: 1.23; letter-spacing: -.045em; text-wrap: balance; }
+.lp-prism-hero .lp-heading { container-type: inline-size; margin-bottom: 30px; text-align: left; }
+.lp-prism-hero .lp-heading h1 { font-size: min(56px, 9.4cqi); line-height: 1.15; white-space: pre-line; }
+.lp-prism-hero .lp-heading h1:lang(zh) { font-size: min(56px, 10.5cqi); line-height: 1.23; letter-spacing: -.035em; white-space: nowrap; }
 .lp-prism-hero .lp-heading .lp-subtitle { margin-top: 20px; color: #b0b0b0; font-size: clamp(14px, 1.25vw, 19px); line-height: 1.7; }
-.lp-prism-hero .lp-composer { min-height: 190px; padding: 23px 21px 18px; border: 1px solid #393939; border-radius: 16px; background: #0b0b0bf5; color: #f5f5f5; box-shadow: none; }
+.lp-prism-hero .lp-composer {
+  min-height: 190px; padding: 23px 21px 18px; border: 1px solid rgb(255 255 255 / 18%); border-radius: 16px;
+  background: rgb(38 38 38 / 76%); color: #f5f5f5; box-shadow: none;
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+}
 .lp-prism-hero .lp-composer:focus-within { border-color: #777; }
 .lp-prism-hero .lp-composer textarea { min-height: 89px; padding: 0; color: #f5f5f5; caret-color: #fff; font-size: 14px; line-height: 1.85; }
-.lp-prism-hero .lp-composer textarea::placeholder { color: #aaa; }
+.lp-prism-hero .lp-composer textarea::placeholder { color: #d6d6d6; }
 .lp-prism-hero .lp-toolbar { gap: 12px; margin-top: 14px; }
 .lp-prism-hero .lp-tools { gap: 10px; }
-.lp-prism-hero .lp-attach, .lp-prism-hero .lp-media-types { color: #bcbcbc; }
+.lp-prism-hero .lp-attach, .lp-prism-hero .lp-media-types { color: #d6d6d6; }
 .lp-prism-hero .lp-media-types { gap: 12px; }
 .lp-prism-hero .lp-media-types > span { gap: 5px; font-size: 11px; }
 .lp-prism-hero .lp-submit { min-height: 42px; gap: 13px; padding: 10px 17px; background: #f5f5f5; color: #111; font-size: 12px; }
 .lp-prism-hero .lp-submit:hover { background: #ddd; }
+.lp-prism-hero .lp-submit:disabled > [data-uic-layer] { visibility: hidden; }
 .lp-prism-hero .lp-scroll-cue { right: 40px; bottom: 27px; left: auto; transform: none; color: #b0b0b0; }
 .lp-prism-hero :is(button, a, .lp-marquee):focus-visible { outline-color: #fff; }
-.landing-vgpu-page > .lvs-showcase { padding: 32px 0 60px; background: #000; color: #f5f5f5; }
+.landing-vgpu-page > .lvs-showcase { padding: 32px 0 60px; color: #f5f5f5; }
 .landing-vgpu-page > .lvs-showcase .lvs-heading > div > span { color: #aaa; }
-@media (min-width: 1800px) { .lp-prism-hero .lp-heading h1 { max-width: 6.4em; } }
 @media (max-width: 1200px) {
   .landing-page.landing-vgpu-page > .lp-prism-hero { padding-left: 6vw; padding-right: 6vw; }
   .lp-prism-hero > .lp-body { width: 46%; }
-  .lp-prism-hero .lp-heading h1 { font-size: clamp(40px, 4.8vw, 60px); }
   .lp-prism-hero .lp-composer { padding: 20px 17px 16px; }
   .lp-prism-hero .lp-media-types { gap: 8px; }
   .lp-prism-hero .lp-media-types > span { font-size: 10px; }
@@ -51,7 +61,7 @@
   .landing-page.landing-vgpu-page > .lp-prism-hero { min-height: 920px; height: auto; max-height: none; align-items: flex-start; padding: 50px 28px 430px; }
   .lp-prism-hero > .lp-body { width: min(100%, 620px); margin: 0 auto; }
   .lp-prism-hero .lp-marquee { margin-bottom: 25px; }
-  .lp-prism-hero .lp-heading h1 { max-width: none; font-size: clamp(34px, 5.7vw, 48px); }
+  .lp-prism-hero .lp-heading h1:lang(zh) { font-size: min(42px, 10.5cqi); }
   .lp-prism-hero .lp-heading .lp-subtitle { margin-top: 15px; font-size: 15px; }
   .vgpu-prism-framing { top: 54%; right: 9%; bottom: 5%; left: 30%; }
   .vgpu-prism-poster { top: 42%; left: -30%; }
@@ -59,7 +69,6 @@
 }
 @media (max-width: 580px) {
   .landing-page.landing-vgpu-page > .lp-prism-hero { min-height: 880px; padding: 35px 20px 400px; }
-  .lp-prism-hero .lp-heading h1 { max-width: 6em; font-size: 43px; }
   .lp-prism-hero .lp-heading .lp-subtitle { font-size: 13px; }
   .lp-prism-hero .lp-composer { min-height: 205px; padding: 20px 15px 15px; border-radius: 14px; }
   .lp-prism-hero .lp-composer textarea { min-height: 98px; font-size: 13px; }

@@ -24,7 +24,7 @@ export function normalizeExperimentPolicy(policy?: ExperimentPolicy): Experiment
   return policy ? { ...policy, level: experimentLevel(policy.level).level } : defaultExperimentPolicy();
 }
 export const routeReadinessLabels = { ready: '可开始', 'needs-input': '待补素材', 'needs-setup': '待准备环境', unverified: '待核实', unavailable: '暂不可用' } as const;
-export const routeToolSchema = z.enum(['generate_image', 'generate_video', 'generate_minimax_video', 'generate_first_last_frame_video', 'generate_grid_video', 'programmatic', 'agent', 'manual']);
+export const routeToolSchema = z.enum(['generate_image', 'generate_video', 'generate_minimax_video', 'generate_first_last_frame_video', 'generate_grid_video', 'build_video_storyboard', 'compose_video', 'programmatic', 'agent', 'manual']);
 export const routeStepSchema = z.object({
   title: text(120), description: z.string().max(2000).default(''), prompt: z.string().max(16000).default(''),
   tool: routeToolSchema, model: z.string().max(120).default(''), referenceIds: z.array(id).max(20).default([]),

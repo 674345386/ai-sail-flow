@@ -394,7 +394,7 @@ export default function ProductPipelineCanvas({
         </div>
         <button type="button" className="pp-btn" onClick={onOpenMaterials}>素材</button>
         {isGrid && <button type="button" className="pp-btn pp-run" disabled={disabled || focusStep < 2 || !includedGrids.length} onClick={generateAll}><Clapperboard size={13} />生成全部（已勾选）</button>}
-        <span className="pp-model">{isGrid ? '本地测试视频 · 前三个网格' : 'Omni Flash'}</span>
+        <span className="pp-model">{isGrid ? 'H3 · 3×3 故事板' : 'Omni Flash'}</span>
         <button type="button" className="pp-icon" title="模型连接" aria-label="模型连接" onClick={onSettings}><Settings2 size={16} /></button>
       </div>
     </header>
@@ -433,8 +433,8 @@ export default function ProductPipelineCanvas({
         proOptions={{ hideAttribution: true }}
         ariaLabelConfig={{ 'node.a11yDescription.default': '使用方向键移动节点。' }}
       >
-        <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="#dedede" />
-        <MiniMap className="pp-minimap" ariaLabel="全流程小地图，可拖动查看当前视口之外的节点" pannable zoomable nodeComponent={MiniMapOverviewNode} nodeColor={node => node.id.startsWith('asset-') ? '#cfcfcf' : node.id === 'breakdown' ? '#aebdce' : '#bdbdbd'} nodeStrokeColor="#999999" nodeStrokeWidth={0.7} maskColor="rgba(20, 20, 20, 0.18)" maskStrokeColor="#777777" maskStrokeWidth={1.2} bgColor="#ffffff" />
+        <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="var(--pp-dot)" />
+        <MiniMap className="pp-minimap" ariaLabel="全流程小地图，可拖动查看当前视口之外的节点" pannable zoomable nodeComponent={MiniMapOverviewNode} nodeColor={node => node.id.startsWith('asset-') ? '#cfcfcf' : node.id === 'breakdown' ? '#aebdce' : '#bdbdbd'} nodeStrokeColor="#999999" nodeStrokeWidth={0.7} bgColor="var(--pp-minimap-surface, white)" />
       </ReactFlow>
 
       {whisper && <div className="pp-whisper">拖动卡片 · 滚动平移 · 双指缩放</div>}

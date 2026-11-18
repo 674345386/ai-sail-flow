@@ -1,15 +1,35 @@
 import { generationKey, providerRequest } from './veo';
 import { type RemixSettings } from '../shared/remix';
+import { OMNI_FLASH_12, OMNI_FLASH_12_SECONDS } from '../shared/video-production';
 
 const endpoint = 'https://gaorui.cc/v1/videos';
 type Progress = (n: number, message: string) => void;
-export type OmniVideoSettings = Pick<RemixSettings, 'resolution' | 'aspectRatio'> & { duration?: 8 | 10; firstLastFrame?: boolean };
+export type OmniVideoSettings = Pick<RemixSettings, 'resolution' | 'aspectRatio'> & {
+  model?: typeof OMNI_FLASH_12; duration?: (typeof OMNI_FLASH_12_SECONDS)[number]; firstLastFrame?: boolean; sourceVideoUrl?: string;
+};
+function httpsReference(value: string) {
+  try { const url = new URL(value); return url.protocol === 'https:' && !url.username && !url.password; }
+  catch { return false; }
+}
 export function omniRequestBody(prompt: string, settings: OmniVideoSettings, referenceUrl?: string | string[]) {
   const references = typeof referenceUrl === 'string' ? [referenceUrl] : referenceUrl || [];
   if (!prompt.trim()) throw new Error('请填写视频提示词。');
+  if (references.some(value => !httpsReference(value))) throw new Error('Omni 参考图需要公网 HTTPS 链接。');
+  if (settings.model === OMNI_FLASH_12) {
+    if (settings.resolution !== '720p') throw new Error('当前制作流程的 Omni Flash 1.2 固定使用 720p。');
+    const base = { model: OMNI_FLASH_12, prompt, resolution: settings.resolution, ...(references.length ? { input_reference: references } : {}) };
+    if (settings.sourceVideoUrl) {
+      if (!httpsReference(settings.sourceVideoUrl) || settings.duration !== undefined || settings.firstLastFrame || references.length > 5) throw new Error('Omni 编辑需提供 HTTPS 源视频，最多 5 张参考图，且不可指定时长或首尾帧。');
+      return { ...base, source_video_url: settings.sourceVideoUrl };
+    }
+    const seconds = settings.duration ?? 10;
+    if (!OMNI_FLASH_12_SECONDS.includes(seconds) || !['16:9', '9:16'].includes(settings.aspectRatio)) throw new Error('Omni Flash 1.2 生成支持 8、10、12、15 秒及 16:9 或 9:16。');
+    if (settings.firstLastFrame ? references.length < 1 || references.length > 2 || references.length === 2 && seconds > 10 : references.length > 7) throw new Error('首帧需要 1 张图，首尾帧需要 2 张图且最长 10 秒；普通参考图最多 7 张。');
+    return { ...base, seconds, aspect_ratio: settings.aspectRatio, ...(settings.firstLastFrame ? { first_last_frame: true } : {}) };
+  }
+  if (settings.sourceVideoUrl) throw new Error('请使用 Omni Flash 1.2 编辑视频。');
   if (!['720p', '1080p'].includes(settings.resolution) || !['16:9', '9:16'].includes(settings.aspectRatio) || ![8, 10].includes(settings.duration ?? 10)) throw new Error('Omni 视频参数无效。');
   if (references.length > (settings.firstLastFrame ? 2 : 7) || (settings.firstLastFrame && references.length !== 2)) throw new Error('参考图最多 7 张；首尾帧模式必须按顺序提供首帧、尾帧各一张。');
-  if (references.some(value => { try { const url = new URL(value); return url.protocol !== 'https:' || !!url.username || !!url.password; } catch { return true; } })) throw new Error('Omni 参考图需要公网 HTTPS 链接。');
   return {
     model: settings.duration === 8 ? 'omni_flash_8s' as const : 'omni_flash_10s' as const, prompt, resolution: settings.resolution, aspect_ratio: settings.aspectRatio,
     ...(references.length ? { input_reference: references } : {}), first_last_frame: settings.firstLastFrame ?? false,

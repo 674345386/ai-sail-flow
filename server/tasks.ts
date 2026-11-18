@@ -6,27 +6,31 @@ import { validateMarket } from '../shared/domain';
 import { buildVeoUnitPrompt } from '../shared/export';
 import { buildVeoPlan } from '../shared/veo-plan';
 import { finalVideo, productionSources, videoCurrent } from '../shared/workflow';
-import { analyze, analyzeChangedShots, rewrite, configured, keyframeRequest, generateKeyframe } from './gemini';
+import { rewrite, configured, keyframeRequest, generateKeyframe } from './gemini';
 import { VEO_MODELS, VEO_DURATION, generateVideo, resumeVideo, generationConfigured, saveGeneratedVideo, requestBody, type GenerationInput } from './veo';
-import { composeVideo, composeUnitVideo, composeNativeVideo, TimingConfirmationRequired } from './compose';
-import { dataDir, uploadDir, getProject, saveProject } from './store';
+import { composeVideo, composeUnitVideo, composeNativeVideo, composeProductionVideo, TimingConfirmationRequired, type ProductionClip } from './compose';
+import { getProject, saveProject } from './store';
+import { workspacePath, workspaceUploadPath } from './workspace-storage';
 import { shotReconstructionPrompt } from '../shared/shot-evidence';
 import { mergeFocusPoints, selectedFocus, selectedShotFocus } from '../shared/focus';
 import { keyframeBasis, keyframeCurrent } from '../shared/storyboard';
-import { keyframeStorageStatus, publishKeyframe, publishReferenceImage } from './keyframe-storage';
+import { keyframeStorageStatus, publishKeyframe, publishReferenceImage, publishReferenceVideo } from './keyframe-storage';
 import { tierPlan, tierVideoPrompt } from '../shared/tier-prompt';
 import { tierGroupPrompt } from '../shared/tier-video-group';
-import { inspectMedia, sliceGeneratedVideo } from './media';
+import { inspectMedia, prepareReferenceSceneFrame, prepareVideoEditSource, sliceGeneratedVideo } from './media';
+import type { ReferenceSceneTable } from '../shared/agent-video-analysis';
 import { imageAttemptStatus, imageGenerationStatus } from './image-generation';
 import { generateStoryboardGrids } from './storyboard-grid';
 import { MAX_STORYBOARD_GRID_DURATION } from '../shared/storyboard-grid';
 import { REMIX_SECONDS } from '../shared/remix';
 import { generateOmniVideo, omniRequestBody, waitOmni } from './omni';
-import { getVideoAnalysisMethod } from './video-analysis-settings';
+import { creativeAgentEnabled } from './agent-provider';
+import { getAgentState } from './creative-agent';
+import { runReferenceAnalysis, type FullReferenceAnalysis } from './agent-video-analysis';
 
 export class TaskError extends Error { constructor(public status: number, message: string) { super(message); } }
-export type TaskSpec = { kind: 'analysis' } | { kind: 'analysis-refine' } | { kind: 'rewrite' } | { kind: 'keyframe'; shotId: string } | { kind: 'generation'; input: GenerationInput } |
-  { kind: 'recover'; videoId: string } | { kind: 'compose'; voice?: string; videoId?: string; timingApproval?: string };
+export type TaskSpec = { kind: 'analysis'; agentAnalysis?: FullReferenceAnalysis } | { kind: 'analysis-refine' } | { kind: 'rewrite' } | { kind: 'keyframe'; shotId: string } | { kind: 'generation'; input: GenerationInput } |
+  { kind: 'recover'; videoId: string } | { kind: 'compose'; voice?: string; videoId?: string; timingApproval?: string; production?: { clips: ProductionClip[]; width: number; height: number } };
 const activeProjects = new Set<string>();
 let occupied = 0;
 const queue: (() => void)[] = [];
@@ -39,11 +43,11 @@ function sources(project: Project) { const videos = productionSources(project); 
 function directAnalysisStoryboard(project: Project): Rewrite {
   const analysis = project.analysis!;
   return {
-    angle: '直接沿用 Gemini 对参考视频的分析，不进行市场或创意改写。',
+    angle: '直接沿用参考视频的分析。',
     audienceInsight: '',
     hookVariants: [{ label: '原片开头', text: analysis.shots[0]?.narration || analysis.shots[0]?.visual || '沿用原片开场' }],
     localizationNotes: [],
-    productionNotes: ['分镜内容直接来自 Gemini 原片分析；生成前可在 Veo Prompt 中编辑。', '保留原片时间线、语言、画面动作、运镜、口播、屏幕文字和声音描述。'],
+    productionNotes: ['分镜内容来自原片分析，可在生成前编辑视频 Prompt。', '保留已记录的原片时间线、语言、动作、运镜、口播、屏幕文字和声音。'],
     globalPrompt: `Recreate the analyzed reference video faithfully. Preserve its original style, shot order, pacing, camera work, actions, language, narration, on-screen text, and sound. Apply only the user's explicitly allowed changes. Source summary: ${analysis.summary}. Selected global recreation priorities: ${selectedFocus(analysis.focusPoints).join('; ') || 'none specified'}.`,
     negativePrompt: '',
     shots: analysis.shots.map(shot => ({ ...shot, sourceShotId: shot.id, generationPrompt: `${shotReconstructionPrompt(shot)}${selectedShotFocus(shot).length ? ` Selected shot priorities: ${selectedShotFocus(shot).join('; ')}.` : ''}` })),
@@ -87,6 +91,50 @@ async function saveSource(id: string, videoId: string, local: Partial<GeneratedV
   }
 }
 
+async function saveReferenceAnalysis(
+  project: Project, analysis: FullReferenceAnalysis, breakdownType: Project['breakdownType'],
+  progress: (n: number, message: string) => void,
+) {
+  const video = project.assets.find(asset => asset.kind === 'video')!;
+  const { result, meta, scenes, masterPrompt } = analysis;
+  const rows: ReferenceSceneTable['rows'] = [];
+  for (const [index, scene] of scenes.entries()) {
+    if (index % 5 === 0) progress(68 + Math.floor(index / scenes.length * 10), `正在提取场景截图 ${index + 1}/${scenes.length}…`);
+    try {
+      const primary = await prepareReferenceSceneFrame(video, scene);
+      const keyframes = [{ at: primary.frameAt, url: primary.frameUrl }];
+      for (const frameAt of scene.additionalFrameTimes || []) {
+        const frame = await prepareReferenceSceneFrame(video, { ...scene, frameAt });
+        if (!keyframes.some(item => item.url === frame.frameUrl)) keyframes.push({ at: frame.frameAt, url: frame.frameUrl });
+      }
+      rows.push({ ...scene, ...primary, keyframes: keyframes.sort((a, b) => a.at - b.at) });
+    } catch (error) {
+      throw new Error(`第 ${index + 1} 个场景的原片截图提取失败。`, { cause: error });
+    }
+  }
+  const referenceSceneTable = { videoId: video.id, duration: result.duration, createdAt: meta.analyzedAt, masterPrompt, rows };
+  const storyboardGrids = breakdownType === 'storyboard-grid'
+    ? await generateStoryboardGrids(video, result, project.storyboardGridSize || 3, project.market.aspectRatio,
+      (done, total) => progress(78 + Math.round(done / total * 18), `正在生成分镜网格 ${done}/${total}…`))
+    : [];
+  update(project.id, current => {
+    const previous = current.analysis;
+    const oldShots = new Map(previous?.shots.map(shot => [shot.id, shot]));
+    const shots = result.shots.map(shot => {
+      const old = oldShots.get(shot.id);
+      const overlap = old ? Math.max(0, Math.min(old.end, shot.end) - Math.max(old.start, shot.start)) : 0;
+      const sameSegment = old && overlap / Math.max(old.end - old.start, shot.end - shot.start) > 0.5;
+      return { ...shot, focusPoints: mergeFocusPoints(sameSegment ? old.focusPoints : [], shot.focusPoints) };
+    });
+    return { ...current, isDemo: false, ttsTimingNotice: undefined,
+      analysis: previous ? { ...result, focusPoints: mergeFocusPoints(previous.focusPoints, result.focusPoints), shots } : result,
+      analysisReview: { pendingIds: [], suggestions: {} }, analysisMeta: meta, analysisRequest: null,
+      breakdownType, storyboardGrids, referenceSceneTable, rewriteStale: !!current.rewrite,
+      generatedVideos: current.generatedVideos.map(video => ({ ...video, stale: true })), composedVideos: current.composedVideos?.map(video => ({ ...video, stale: true })),
+    };
+  });
+}
+
 // Manual controls and the automatic runner both use this executor. Every launch
 // persists its input before provider submission, and its result before returning.
 export function launchTask(id: string, spec: TaskSpec): Promise<void> {
@@ -95,7 +143,10 @@ export function launchTask(id: string, spec: TaskSpec): Promise<void> {
   if (activeProjects.has(id) || p.job?.status === 'running') throw new TaskError(409, '当前任务正在处理，请等待完成。');
   if (spec.kind === 'generation' && spec.input.canvasTestVideo && (spec.input.storyboardGridId || spec.input.tierShotId || spec.input.tierShotIds?.length)) throw new TaskError(400, '独立测试视频不能同时绑定分镜。');
   const marketError = validateMarket(p.market); if (marketError) throw new TaskError(400, marketError);
-  if ((spec.kind === 'analysis' || spec.kind === 'analysis-refine' || spec.kind === 'rewrite' && (p.promptFlow || 'localized') === 'localized') && !configured()) throw new TaskError(503, '请先连接 Gemini 分析服务。');
+  const needsAgent = spec.kind === 'analysis' && !spec.agentAnalysis || spec.kind === 'analysis-refine';
+  if (needsAgent && !creativeAgentEnabled) throw new TaskError(503, '创作 Agent 未启用，暂时无法分析视频。');
+  if (needsAgent && getAgentState(id).status === 'running') throw new TaskError(409, '创作 Agent 正在执行，请等待当前任务完成。');
+  if (spec.kind === 'rewrite' && p.promptFlow !== 'direct-analysis' && !configured()) throw new TaskError(503, '请先连接 Gemini 本地化改写服务。');
   if ((spec.kind === 'keyframe' || spec.kind === 'rewrite' && (p.promptFlow || 'localized') === 'localized') && !imageGenerationStatus().configured) throw new TaskError(503, '请先连接图片生成服务。');
   if (spec.kind === 'analysis' && !p.assets.some(asset => asset.kind === 'video')) throw new TaskError(400, '请先上传参考视频。');
   if (spec.kind === 'analysis-refine' && (!p.analysis || !p.assets.some(asset => asset.kind === 'video') || !p.analysisReview?.pendingIds.length)) throw new TaskError(400, '没有待重新分析的镜头。');
@@ -105,7 +156,7 @@ export function launchTask(id: string, spec: TaskSpec): Promise<void> {
   if (['generation', 'recover'].includes(spec.kind) && !(spec.kind === 'generation' && ((spec.input.storyboardGridId || spec.input.canvasTestVideo) && !spec.input.omni)) && !generationConfigured()) throw new TaskError(503, '请先连接视频生成服务。');
   const tierShotId = spec.kind === 'generation' ? spec.input.tierShotId : undefined;
   const storyboardGridId = spec.kind === 'generation' ? spec.input.storyboardGridId : undefined;
-  if (['generation', 'compose'].includes(spec.kind) && !tierShotId && !(spec.kind === 'generation' && (spec.input.tierShotIds?.length || spec.input.canvasTestVideo || spec.input.omni)) && !storyboardGridId && (!p.rewrite || p.rewriteStale)) throw new TaskError(409, '请先生成与当前资料一致的分镜。');
+  if (['generation', 'compose'].includes(spec.kind) && !(spec.kind === 'compose' && spec.production) && !tierShotId && !(spec.kind === 'generation' && (spec.input.tierShotIds?.length || spec.input.canvasTestVideo || spec.input.omni)) && !storyboardGridId && (!p.rewrite || p.rewriteStale)) throw new TaskError(409, '请先生成与当前资料一致的分镜。');
   const generationInput = spec.kind === 'generation' ? { ...spec.input } : undefined;
   if (generationInput?.previewRevision !== undefined && generationInput.previewRevision !== p.revision) throw new TaskError(409, '镜头资料已更新，请重新打开生成预览。');
   const maxReferenceImages = generationInput?.omni ? (generationInput.omni.firstLastFrame ? 2 : 7) : generationInput?.tierShotIds?.length ? 3 : generationInput?.storyboardGridId ? 1 : 2;
@@ -115,17 +166,21 @@ export function launchTask(id: string, spec: TaskSpec): Promise<void> {
   const now = new Date().toISOString();
   if (spec.kind === 'generation' && generationInput?.omni && !storyboardGridId) {
     const input = generationInput;
+    const omni = input.omni!;
     if (input.canvasTestVideo || input.tierShotId || input.tierShotIds?.length || !input.prompt.trim() || input.prompt.length > 12000 || !['720p', '1080p'].includes(input.resolution)) throw new TaskError(400, 'Omni 视频参数无效。');
     const references = input.referenceImages || [];
-    if (input.omni!.firstLastFrame && references.length !== 2) throw new TaskError(400, '首尾帧模式需要首帧、尾帧各一张。');
-    if (references.length && !keyframeStorageStatus().configured) throw new TaskError(409, '请先连接 Supabase 私有图片存储。');
+    if (omni.firstLastFrame && (references.length < (omni.model ? 1 : 2) || references.length > 2)) throw new TaskError(400, '请按顺序提供有效的首帧或首尾帧。');
+    if ((references.length || omni.source) && !keyframeStorageStatus().configured) throw new TaskError(409, '请先连接 Supabase 私有素材存储。');
     const videoId = randomUUID();
-    Object.assign(input, { unitId: `agent-video-${videoId}`, mode: references.length ? 'r2v' : 't2v', images: [] });
-    video = { id: videoId, provider: 'omni-flash', model: input.omni!.duration === 8 ? 'omni_flash_8s' : 'omni_flash_10s',
-      mode: input.mode, productionMode: 'veo-native', imageUrls: [], referenceIds: input.omni!.referenceIds,
+    const model = omni.model || (omni.duration === 8 ? 'omni_flash_8s' : 'omni_flash_10s');
+    const editSource = omni.source && { videoId: omni.source.videoId, start: omni.source.start, end: omni.source.end };
+    Object.assign(input, { unitId: `agent-video-${videoId}`, mode: references.length || editSource ? 'r2v' : 't2v', images: [] });
+    video = { id: videoId, provider: 'omni-flash', model,
+      mode: input.mode, productionMode: 'veo-native', imageUrls: [], referenceIds: omni.referenceIds, editSource, requestKey: omni.requestKey, requestFingerprint: omni.requestFingerprint,
       resolution: input.resolution, shotId: videoId, unitId: input.unitId, sourceShotIds: [], status: 'running', prompt: input.prompt,
-      providerRequest: { model: input.omni!.duration === 8 ? 'omni_flash_8s' : 'omni_flash_10s', prompt: input.prompt, resolution: input.resolution, aspect_ratio: input.aspectRatio, first_last_frame: input.omni!.firstLastFrame },
-      duration: input.omni!.duration, aspectRatio: input.aspectRatio, startedAt: now };
+      providerRequest: { model, prompt: input.prompt, resolution: input.resolution, ...(!editSource ? { aspect_ratio: input.aspectRatio, first_last_frame: omni.firstLastFrame, ...(omni.model ? { seconds: omni.duration } : {}) } : {}) },
+      duration: editSource ? editSource.end - editSource.start : omni.duration ?? 10, ...(editSource ? { targetDuration: editSource.end - editSource.start } : {}),
+      aspectRatio: input.aspectRatio, startedAt: now };
   } else if (spec.kind === 'generation' && tierShotId) {
     const input = generationInput!;
     const shot = p.analysis?.shots.find(item => item.id === tierShotId);
@@ -226,10 +281,9 @@ export function launchTask(id: string, spec: TaskSpec): Promise<void> {
     if (!video || !videoCurrent(p, video)) throw new TaskError(409, '找不到当前方案的可用源片，请使用当前复刻关键帧重新生成。');
     if (spec.kind === 'recover' && (!video.requestId || video.status !== 'failed')) throw new TaskError(409, '没有可恢复的上游视频任务。');
     if (spec.kind === 'compose' && (p.productionMode !== 'tts-subtitles' || video.productionMode !== 'tts-subtitles' || video.status !== 'completed' || !video.filename)) throw new TaskError(409, '没有可本地配音的已完成画面源片。');
-  } else if (spec.kind === 'compose') sources(p);
+  } else if (spec.kind === 'compose' && !spec.production) sources(p);
   const job: Job = { id: randomUUID(), kind: spec.kind === 'recover' ? 'generation' : spec.kind === 'compose' ? 'composition' : spec.kind,
-    status: 'running', progress: 2, message: occupied >= 2 ? '排队中，正在等待空闲处理资源…' : '正在准备任务…', startedAt: now, videoId: video?.id, unitId: video?.unitId, shotId: spec.kind === 'keyframe' ? spec.shotId : undefined };
-  const analysisMethod = getVideoAnalysisMethod();
+    status: 'running', progress: 2, message: occupied >= 2 ? '排队中，正在等待空闲处理资源…' : needsAgent ? '正在通过创作 Agent 分析参考视频…' : '正在准备任务…', startedAt: now, videoId: video?.id, unitId: video?.unitId, shotId: spec.kind === 'keyframe' ? spec.shotId : undefined };
   const saved = saveProject({ ...p, job, generatedVideos: spec.kind === 'generation' ? [...p.generatedVideos, ...(groupVideos.length ? groupVideos : [video!])] : spec.kind === 'recover' ? p.generatedVideos.map(item => item.id === video!.id ? { ...item, status: 'running', error: undefined } : item) : p.generatedVideos });
   activeProjects.add(id);
   const progress = (n: number, message: string) => update(id, current => ({ ...current, job: { ...current.job!, progress: n, message } }));
@@ -243,40 +297,34 @@ export function launchTask(id: string, spec: TaskSpec): Promise<void> {
         message = '该镜头的复刻关键帧已更新';
       } else if (spec.kind === 'analysis-refine') {
         const pendingIds = saved.analysisReview!.pendingIds;
-        const result = await analyzeChangedShots(saved, pendingIds, progress, request => update(id, current => ({ ...current, analysisRequest: request })));
-        update(id, current => ({ ...current,
-          analysisReview: { pendingIds: (current.analysisReview?.pendingIds || []).filter(shotId => !pendingIds.includes(shotId)), suggestions: { ...current.analysisReview?.suggestions, ...result.suggestions }, globalFocusSuggestion: result.globalFocusSuggestion || current.analysisReview?.globalFocusSuggestion },
-          usage: { input: current.usage.input + result.usage.input, output: current.usage.output + result.usage.output },
-        }));
+        await runReferenceAnalysis(saved, {
+          kind: 'analysis-refine',
+          save: async result => {
+            update(id, current => ({ ...current,
+              analysisReview: {
+                pendingIds: (current.analysisReview?.pendingIds || []).filter(shotId => !pendingIds.includes(shotId)),
+                suggestions: { ...current.analysisReview?.suggestions, ...result.suggestions },
+                globalFocusSuggestion: result.globalFocusSuggestion || current.analysisReview?.globalFocusSuggestion,
+              },
+            }));
+          },
+        });
         message = `已分析 ${pendingIds.length} 个变动镜头，请核对 AI 建议`;
-      } else if (spec.kind === 'analysis' || spec.kind === 'rewrite') {
-        const snapshot = (request: NonNullable<Project['analysisRequest']>) => update(id, current => ({ ...current, [spec.kind === 'analysis' ? 'analysisRequest' : 'rewriteRequest']: request }));
-        const direct = spec.kind === 'rewrite' && saved.promptFlow === 'direct-analysis';
-        const result = spec.kind === 'analysis' ? await analyze(saved, progress, snapshot, analysisMethod) : direct
-          ? { result: directAnalysisStoryboard(saved), usage: { input: 0, output: 0 } }
-          : await rewrite(saved, progress, snapshot);
-        const storyboardGrids = spec.kind === 'analysis' && saved.breakdownType === 'storyboard-grid'
-          ? await generateStoryboardGrids(saved.assets.find(asset => asset.kind === 'video')!, result.result as NonNullable<Project['analysis']>, saved.storyboardGridSize || 3, saved.market.aspectRatio,
-            (done, total) => progress(78 + Math.round(done / total * 18), `正在生成分镜网格 ${done}/${total}…`))
-          : [];
-        update(id, current => ({ ...current, isDemo: false, ttsTimingNotice: undefined,
-          ...(spec.kind === 'analysis' ? { analysis: (() => {
-            const next = result.result as NonNullable<Project['analysis']>;
-            const previous = current.analysis;
-            if (!previous) return next;
-            const oldShots = new Map(previous.shots.map(shot => [shot.id, shot]));
-            return { ...next, focusPoints: mergeFocusPoints(previous.focusPoints, next.focusPoints),
-              shots: next.shots.map(shot => {
-                const old = oldShots.get(shot.id);
-                const overlap = old ? Math.max(0, Math.min(old.end, shot.end) - Math.max(old.start, shot.start)) : 0;
-                const sameSegment = old && overlap / Math.max(old.end - old.start, shot.end - shot.start) > 0.5;
-                return { ...shot, focusPoints: mergeFocusPoints(sameSegment ? old.focusPoints : [], shot.focusPoints) };
-              }) };
-          })(), analysisReview: { pendingIds: [], suggestions: {} }, analysisMeta: 'meta' in result ? result.meta : null, storyboardGrids, rewriteStale: !!current.rewrite } : { rewrite: result.result as Project['rewrite'], rewriteStale: false }),
+      } else if (spec.kind === 'analysis') {
+        const breakdownType = spec.agentAnalysis ? 'storyboard-grid' : saved.breakdownType;
+        const saveResult = (result: FullReferenceAnalysis) => saveReferenceAnalysis(saved, result, breakdownType, progress);
+        if (spec.agentAnalysis) await saveResult(spec.agentAnalysis);
+        else await runReferenceAnalysis(saved, { kind: 'analysis', save: saveResult });
+        message = breakdownType === 'storyboard-grid' ? '场景表与分镜网格已完成' : '参考视频拆解与场景表已完成';
+      } else if (spec.kind === 'rewrite') {
+        const direct = saved.promptFlow === 'direct-analysis';
+        const result = direct ? { result: directAnalysisStoryboard(saved), usage: { input: 0, output: 0 } }
+          : await rewrite(saved, progress, request => update(id, current => ({ ...current, rewriteRequest: request })));
+        update(id, current => ({ ...current, isDemo: false, ttsTimingNotice: undefined, rewrite: result.result, rewriteStale: false,
           generatedVideos: current.generatedVideos.map(video => ({ ...video, stale: true })), composedVideos: current.composedVideos?.map(video => ({ ...video, stale: true })),
           usage: { input: current.usage.input + result.usage.input, output: current.usage.output + result.usage.output } }));
-        message = spec.kind === 'analysis' ? saved.breakdownType === 'storyboard-grid' ? '分镜网格与生成 Prompt 已完成' : '参考视频拆解完成' : direct ? '原片分析已整理为可编辑 Veo Prompt' : '逐镜头描述与复刻关键帧已完成';
-        if (spec.kind === 'rewrite' && !direct) {
+        message = direct ? '原片分析已整理为可编辑的视频 Prompt' : '逐镜头描述与复刻关键帧已完成';
+        if (!direct) {
           update(id, current => ({ ...current, workflow: current.workflow && current.workflow.status === 'running' ? { ...current.workflow, stage: 'keyframe' } : current.workflow }));
           const shots = getProject(id)!.rewrite!.shots;
           for (const [index, shot] of shots.entries()) {
@@ -289,13 +337,13 @@ export function launchTask(id: string, spec: TaskSpec): Promise<void> {
         const index = generationInput.storyboardGridId
           ? (saved.storyboardGrids || []).findIndex(grid => grid.id === generationInput.storyboardGridId)
           : Math.max(0, saved.generatedVideos.filter(item => item.unitId?.startsWith('canvas-test-')).findIndex(item => item.id === video!.id)) % 3;
-        const source = path.join(dataDir, 'test-videos', `test_video_${index + 1}.mp4`);
+        const source = workspacePath('test-videos', `test_video_${index + 1}.mp4`);
         const filename = `local-test-${video!.id}.mp4`;
         progress(20, `正在准备本地测试视频 ${index + 1}…`);
-        try { await fs.copyFile(source, path.join(uploadDir, filename)); }
+        try { await fs.copyFile(source, workspaceUploadPath(filename)); }
         catch { throw new Error(`找不到本地测试视频 ${source}，请确认文件存在。`); }
         const metadata = await inspectMedia(filename, 'video');
-        await saveSource(id, video!.id, { ...metadata, filename, url: `/media/${filename}`, size: (await fs.stat(path.join(uploadDir, filename))).size }, progress);
+        await saveSource(id, video!.id, { ...metadata, filename, url: `/media/${filename}`, size: (await fs.stat(workspaceUploadPath(filename))).size }, progress);
         message = `本地测试视频 ${index + 1} 已就绪`;
       } else if (spec.kind === 'generation' || spec.kind === 'recover') {
         if (spec.kind === 'generation' && generationInput?.referenceImages && (generationInput.tierShotId || generationInput.tierShotIds?.length || generationInput.storyboardGridId || generationInput.omni)) {
@@ -308,7 +356,7 @@ export function launchTask(id: string, spec: TaskSpec): Promise<void> {
           }
           generationInput.images = imageUrls;
           update(id, current => ({ ...current, generatedVideos: current.generatedVideos.map(item => item.id === video!.id || (!!video!.tierGroupId && item.tierGroupId === video!.tierGroupId)
-            ? { ...item, imageUrls, providerRequest: (generationInput!.storyboardGridId || generationInput!.omni)
+            ? { ...item, imageUrls, providerRequest: generationInput!.omni?.source ? item.providerRequest : (generationInput!.storyboardGridId || generationInput!.omni)
               ? omniRequestBody(generationInput!.prompt, { resolution: generationInput!.resolution === '1080p' ? '1080p' : '720p', aspectRatio: generationInput!.aspectRatio, ...generationInput!.omni }, imageUrls)
               : requestBody(generationInput!, generationInput!.prompt) } : item) }));
         } else if (spec.kind === 'generation' && generationInput?.tierShotIds?.length) {
@@ -345,10 +393,20 @@ export function launchTask(id: string, spec: TaskSpec): Promise<void> {
         const rememberRequest = (requestId: string) => {
           update(id, current => ({ ...current, generatedVideos: current.generatedVideos.map(item => item.id === video!.id || (!!video!.tierGroupId && item.tierGroupId === video!.tierGroupId) ? { ...item, requestId } : item) }));
         };
+        const editSource = generationInput?.omni?.source;
+        let sourceVideoUrl: string | undefined;
+        if (editSource) {
+          const filename = `video-edit-source-${video!.id}.mp4`;
+          progress(10, '正在裁取并发布选定的待编辑视频区间…');
+          try {
+            await prepareVideoEditSource(editSource.filename, editSource.start, editSource.end, filename);
+            sourceVideoUrl = await publishReferenceVideo(saved.id, filename);
+          } finally { await fs.rm(workspaceUploadPath(filename), { force: true }).catch(() => {}); }
+        }
         const remote = spec.kind === 'recover'
           ? video!.provider === 'omni-flash' ? { id: video!.requestId!, url: await waitOmni(video!.requestId!, progress) } : await resumeVideo(video!.requestId!, progress)
           : generationInput!.omni || generationInput!.storyboardGridId
-            ? await generateOmniVideo(generationInput!.prompt, { resolution: generationInput!.resolution === '1080p' ? '1080p' : '720p', aspectRatio: generationInput!.aspectRatio, ...generationInput!.omni }, generationInput!.images, progress, rememberRequest)
+            ? await generateOmniVideo(generationInput!.prompt, { resolution: generationInput!.resolution === '1080p' ? '1080p' : '720p', aspectRatio: generationInput!.aspectRatio, ...generationInput!.omni, sourceVideoUrl }, generationInput!.images, progress, rememberRequest)
             : await generateVideo(generationInput!, generationInput!.prompt, progress, rememberRequest);
         const local = await saveGeneratedVideo(remote.url, video!.id, progress, { prefix: video!.provider === 'omni-flash' ? 'omni' : generationInput?.tierShotIds?.length ? 'tier-group-source' : 'veo', requestId: remote.id });
         if (spec.kind === 'generation' && generationInput?.tierShotIds?.length) {
@@ -365,6 +423,11 @@ export function launchTask(id: string, spec: TaskSpec): Promise<void> {
           }) }));
         } else await saveSource(id, video!.id, local, progress);
         message = saved.productionMode === 'tts-subtitles' && !video!.storyboardGridId && !video!.gridId && !video!.unitId?.startsWith('agent-video-') ? '画面、配音与字幕已完成' : `${video!.provider === 'omni-flash' ? 'Omni Flash' : 'Veo'} 视频片段已保存到本机`;
+      } else if (spec.kind === 'compose' && spec.production) {
+        const { clips, width, height } = spec.production;
+        const rendered = await composeProductionVideo(clips, width, height, progress);
+        update(id, current => ({ ...current, composedVideos: [...(current.composedVideos || []), rendered] }));
+        message = '选定片段已拼接成片';
       } else {
         let current = getProject(id)!;
         if (!spec.videoId && current.productionMode === 'tts-subtitles') {

@@ -2,14 +2,14 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
-import type { LibraryMedia } from '../shared/media-library';
-import { dataDir, uploadDir } from './store';
+import { cloudMediaFolder, type LibraryMedia } from '../shared/media-library';
+import { withWorkspaceAccount, workspaceAccountId, workspaceDirectory, workspaceUploadPath } from './workspace-storage';
 import { isUserUploadFilename, listLibraryMedia, removeLibraryMedia } from './media-library';
 import { compressUploadedVideo } from './video-compression';
 
 const extensions: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'video/mp4': 'mp4', 'video/quicktime': 'mov', 'video/webm': 'webm' };
 type SyncStatus = { jobId: string; status: 'running' | 'done' | 'error'; error?: string };
-type SyncJob = SyncStatus & { rerun: boolean };
+type SyncJob = SyncStatus & { userId: string; rerun: boolean };
 const jobs = new Map<string, SyncJob>();
 const users = new Map<string, SyncJob>();
 // One worker bounds CPU and upload memory, including simultaneous users.
@@ -30,10 +30,9 @@ async function storageSession(token: string) {
 }
 
 async function cloudFile(item: LibraryMedia) {
-  const original = { filename: path.join(uploadDir, item.filename!), mime: item.mime };
+  const original = { filename: workspaceUploadPath(item.filename!), mime: item.mime };
   if (item.kind !== 'video' || item.size < 8 * 1024 * 1024) return original;
-  const directory = path.join(dataDir, 'media-library-cache');
-  await fs.promises.mkdir(directory, { recursive: true });
+  const directory = workspaceDirectory('media-library-cache');
   const filename = path.join(directory, `${item.id}.mp4`);
   if (fs.existsSync(filename)) return { filename, mime: 'video/mp4' };
   const temporary = path.join(directory, `${item.id}.${randomUUID()}.tmp`);
@@ -52,9 +51,10 @@ async function cloudFile(item: LibraryMedia) {
 }
 
 async function synchronize(session: Awaited<ReturnType<typeof storageSession>>) {
+  const folder = cloudMediaFolder(session.userId);
   const uploaded = new Set<string>();
   for (let offset = 0; ; offset += 100) {
-    const { data, error } = await session.storage.list(session.userId, { limit: 100, offset });
+    const { data, error } = await session.storage.list(folder, { limit: 100, offset });
     if (error) throw error;
     for (const entry of data) {
       const id = entry.name.match(/^([a-f0-9]{64})--/)?.[1];
@@ -71,7 +71,7 @@ async function synchronize(session: Awaited<ReturnType<typeof storageSession>>) 
     const filename = `${item.id}--${name}.${extensions[file.mime] || (item.kind === 'video' ? 'mp4' : 'jpg')}`;
     const stream = fs.createReadStream(file.filename);
     try {
-      const { error } = await session.storage.upload(`${session.userId}/${filename}`, stream, {
+      const { error } = await session.storage.upload(`${folder}/${filename}`, stream, {
         contentType: file.mime, upsert: false, duplex: 'half',
         metadata: { originalName: item.name, mediaKind: item.kind, sourceCreatedAt: item.createdAt, sourceId: item.id, origin: 'user-upload', associations: item.associations || [] },
       });
@@ -82,19 +82,23 @@ async function synchronize(session: Awaited<ReturnType<typeof storageSession>>) 
 
 export function mediaSyncStatus(jobId: string): SyncStatus | undefined {
   const job = jobs.get(jobId);
-  return job && { jobId: job.jobId, status: job.status, ...(job.error ? { error: job.error } : {}) };
+  if (!job || job.userId !== workspaceAccountId()) return;
+  return { jobId: job.jobId, status: job.status, ...(job.error ? { error: job.error } : {}) };
 }
 
 export async function startMediaSync(token: string): Promise<SyncStatus> {
+  const userId = workspaceAccountId();
+  if (!userId) throw new Error('本机工作区素材保存在当前设备。');
   const session = await storageSession(token);
-  const existing = users.get(session.userId);
+  if (session.userId !== userId) throw new Error('登录状态已变化，请重新登录。');
+  const existing = users.get(userId);
   if (existing?.status === 'running') {
     existing.rerun = true; // Include files collected while the previous pass ran.
     return mediaSyncStatus(existing.jobId)!;
   }
-  const job: SyncJob = { jobId: randomUUID(), status: 'running', rerun: false };
-  jobs.set(job.jobId, job); users.set(session.userId, job);
-  worker = worker.catch(() => {}).then(async () => {
+  const job: SyncJob = { jobId: randomUUID(), userId, status: 'running', rerun: false };
+  jobs.set(job.jobId, job); users.set(userId, job);
+  worker = worker.catch(() => {}).then(() => withWorkspaceAccount(userId, async () => {
     try {
       do { job.rerun = false; await synchronize(session); } while (job.rerun);
       job.status = 'done';
@@ -107,18 +111,19 @@ export async function startMediaSync(token: string): Promise<SyncStatus> {
       const timer = setTimeout(() => jobs.delete(job.jobId), 60 * 60_000);
       timer.unref();
     }
-  });
+  }));
   return mediaSyncStatus(job.jobId)!;
 }
 
 async function selectedCloudPaths(session: Awaited<ReturnType<typeof storageSession>>, ids: Set<string>) {
+  const folder = cloudMediaFolder(session.userId);
   const paths: string[] = [];
   for (let offset = 0; ; offset += 100) {
-    const { data, error } = await session.storage.list(session.userId, { limit: 100, offset });
+    const { data, error } = await session.storage.list(folder, { limit: 100, offset });
     if (error) throw new Error('云端素材暂时无法读取，删除未完成，请重试。');
     for (const entry of data) {
       const id = entry.name.match(/^([a-f0-9]{64})--/)?.[1] || `cloud:${entry.name}`;
-      if (ids.has(id)) paths.push(`${session.userId}/${entry.name}`);
+      if (ids.has(id)) paths.push(`${folder}/${entry.name}`);
     }
     if (data.length < 100) return paths;
   }
@@ -152,5 +157,5 @@ export async function deleteMediaLibraryItems(ids: string[], token: string) {
 }
 
 export function queueMediaSync(token: string) {
-  if (token) void startMediaSync(token).catch(() => console.warn('Media cloud sync could not start; retry from the media library.'));
+  if (token && workspaceAccountId()) void startMediaSync(token).catch(() => console.warn('Media cloud sync could not start; retry from the media library.'));
 }

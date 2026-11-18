@@ -117,8 +117,9 @@ export function registerSkillAssetRoutes(app: Express, agent: AgentAccess, enabl
   app.post('/api/skill-assets/:assetId/use', async (req, res) => {
     const { projectId, releaseId, mode, expectedRevision } = z.object({ projectId: z.string().uuid(), releaseId: z.string().max(100), mode: z.enum(['skill', 'template']).default('template'), expectedRevision: z.number().int().nonnegative() }).parse(req.body);
     const prepared = await prepareSkillSelections([{ assetId: param(req, 'assetId'), releaseId }], ownerOf(res));
-    const project = getProject(projectId), state = agent.getAgentState(projectId);
+    const project = getProject(projectId);
     if (!project || project.archivedAt || officialJobFor(projectId)) throw new ExperimentError('请选择自己的可编辑创意。');
+    const state = agent.getAgentState(projectId);
     if (state.status === 'running') throw new ExperimentError('请等待当前 Agent 执行结束后再采用资产。');
     const graph = state.experiment || emptyExperiment();
     if (graph.revision !== expectedRevision) throw new ExperimentError('实验台已更新，请刷新后再采用资产。');

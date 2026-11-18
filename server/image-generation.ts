@@ -1,7 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
-import { dataDir, uploadDir } from './store';
+import { dataDir } from './store';
+import { workspaceDirectory, workspaceResource, workspaceUploadPath } from './workspace-storage';
 import { IMAGE_MODELS, IMAGE_QUALITIES, imageRequestSize, type ImageQuality } from '../shared/image-generation-options';
 
 export { IMAGE_MODELS };
@@ -14,18 +15,20 @@ export type ImageAttempt = { key: string; status: 'submitting' | 'completed' | '
 type Attempt = ImageAttempt;
 export type ImageReference = { data: Buffer; mime: 'image/png' | 'image/jpeg' | 'image/webp'; filename: string };
 const connectionFile = path.join(dataDir, '.image-generation.json');
-const attemptDir = path.join(dataDir, 'image-attempts');
-fs.mkdirSync(attemptDir, { recursive: true, mode: 0o700 });
-const attempts = new Map<string, Attempt>();
+const imageAttempts = workspaceResource(() => {
+  const directory = workspaceDirectory('image-attempts');
+  const records = new Map<string, Attempt>();
+  for (const filename of fs.readdirSync(directory)) {
+    if (!/^[a-f\d-]{36}\.json$/.test(filename)) continue;
+    try {
+      const attempt: Attempt = JSON.parse(fs.readFileSync(path.join(directory, filename), 'utf8'));
+      if (attempt.key && attempt.status && attempt.prompt) records.set(attempt.key, attempt);
+    } catch { /* One damaged legacy record must not hide the remaining history. */ }
+  }
+  return { directory, records };
+});
 const activeAttempts = new Set<string>();
-for (const filename of fs.readdirSync(attemptDir)) {
-  if (!/^[a-f\d-]{36}\.json$/.test(filename)) continue;
-  try {
-    const attempt: Attempt = JSON.parse(fs.readFileSync(path.join(attemptDir, filename), 'utf8'));
-    if (attempt.key && attempt.status && attempt.prompt) attempts.set(attempt.key, attempt);
-  } catch { /* One damaged legacy record must not hide the remaining history. */ }
-}
-export function listImageAttempts() { return [...attempts.values()]; }
+export function listImageAttempts() { return [...imageAttempts().records.values()]; }
 export function imageAttemptActive(key: string) { return activeAttempts.has(key); }
 const defaultBaseUrl = 'https://api.qzftech.top/v1';
 function savedConnection(): Partial<Connection> {
@@ -55,11 +58,11 @@ export function configureImageGeneration(input: { apiKey?: string; baseUrl?: str
   } catch (error) { fs.rmSync(temporary, { force: true }); throw error; }
   session = next;
 }
-function attemptPath(key: string) { return path.join(attemptDir, `${key}.json`); }
+function attemptPath(key: string) { return path.join(imageAttempts().directory, `${key}.json`); }
 function saveAttempt(attempt: Attempt) {
   const dest = attemptPath(attempt.key);
   const temporary = `${dest}.${randomUUID()}.tmp`;
-  try { fs.writeFileSync(temporary, JSON.stringify(attempt), { mode: 0o600, flag: 'wx' }); fs.renameSync(temporary, dest); attempts.set(attempt.key, attempt); }
+  try { fs.writeFileSync(temporary, JSON.stringify(attempt), { mode: 0o600, flag: 'wx' }); fs.renameSync(temporary, dest); imageAttempts().records.set(attempt.key, attempt); }
   catch (error) { fs.rmSync(temporary, { force: true }); throw error; }
 }
 export async function generateImage(input: { idempotencyKey: string; prompt: string; aspectRatio?: string; size?: string; quality?: ImageQuality; prefix: string; model?: ImageModel; references?: ImageReference[]; projectId?: string; taskId?: string; label?: string }): Promise<ImageResult> {
@@ -77,7 +80,7 @@ export async function generateImage(input: { idempotencyKey: string; prompt: str
   if (fs.existsSync(existing)) {
     const prior = JSON.parse(fs.readFileSync(existing, 'utf8')) as Attempt;
     if (prior.fingerprint ? prior.fingerprint !== fingerprint : prior.prompt !== input.prompt) throw new Error('同一图片任务不能使用不同请求参数。');
-    if (prior.status === 'completed' && prior.result && fs.existsSync(path.join(uploadDir, prior.result.filename))) return prior.result;
+    if (prior.status === 'completed' && prior.result && fs.existsSync(workspaceUploadPath(prior.result.filename))) return prior.result;
     if (prior.status === 'rejected') throw new Error(prior.error || '图片接口拒绝了该任务。');
     throw new Error('该图片任务已提交，结果待核对；为避免重复生成和扣费，不会自动重发。');
   }
@@ -93,7 +96,7 @@ export async function generateImage(input: { idempotencyKey: string; prompt: str
     if ((error as NodeJS.ErrnoException).code === 'EEXIST') throw new Error('该图片任务已提交，结果待核对；不会重复生成。');
     throw error;
   }
-  attempts.set(attempt.key, attempt);
+  imageAttempts().records.set(attempt.key, attempt);
   activeAttempts.add(attempt.key);
   let rejected = false;
   try {
@@ -141,7 +144,7 @@ export async function generateImage(input: { idempotencyKey: string; prompt: str
       ? `图片服务实际返回 ${width}x${height}，与请求尺寸 ${size} 不同；已保留原始结果，未裁切、拉伸、补边或重新生成。`
       : undefined;
     const filename = `${input.prefix}-${randomUUID()}.png`;
-    fs.writeFileSync(path.join(uploadDir, filename), bytes, { mode: 0o600, flag: 'wx' });
+    fs.writeFileSync(workspaceUploadPath(filename), bytes, { mode: 0o600, flag: 'wx' });
     const result: ImageResult = { filename, url: `/media/${filename}`, mime: 'image/png', generatedAt: new Date().toISOString(), model, width, height, ...(warning ? { warning } : {}) };
     saveAttempt({ ...attempt, status: 'completed', result, updatedAt: result.generatedAt, finishedAt: result.generatedAt });
     return result;

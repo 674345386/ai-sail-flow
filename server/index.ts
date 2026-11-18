@@ -13,6 +13,9 @@ import { buildExportFiles, buildVeoUnitPrompt } from '../shared/export';
 import { buildVeoPlan } from '../shared/veo-plan';
 import { workflowBusy } from '../shared/workflow';
 import { sentAgentAttachmentIds } from '../shared/agent-message';
+import { referenceFramesInput, referenceFramesPath, referenceFrameWindowSeconds, referenceSceneRanges, referenceSceneTableTitle, saveReferenceAnalysisInput, saveReferenceShotReviewInput } from '../shared/agent-video-analysis';
+import { H3_MAX_SECONDS, H3_MIN_SECONDS, OMNI_FLASH_12, OMNI_FLASH_12_SECONDS, productionCompositionInput, productionStoryboardInput, productionVideoInput, videoProductionInput } from '../shared/video-production';
+import { aiFocusPoints } from '../shared/focus';
 import { keyframeCurrent } from '../shared/storyboard';
 import type { GenerationInput } from './veo';
 import { createSessionVerifier } from './session-verifier';
@@ -41,7 +44,9 @@ if (process.env.NODE_USE_ENV_PROXY === '1') {
   setProxy?.(process.env);
 }
 // Load storage after .env so an optional data-directory override takes effect.
-const { createProject, getProject, listProjects, saveProject, uploadDir, defaultProjectId, createWorkspaceProject, getWorkspaceProject, listWorkspaceProjects, saveWorkspaceProject } = await import('./store');
+const { createProject, getProject, listProjects, saveProject, defaultProjectId, createWorkspaceProject, getWorkspaceProject, listWorkspaceProjects, saveWorkspaceProject } = await import('./store');
+const { workspaceUploadDir, workspaceUploadPath, workspaceAccountId, withWorkspaceAccount, isWorkspaceAccountId, workspaceAccounts, accountWorkspacesEnabled } = await import('./workspace-storage');
+const { workspaceUploader } = await import('./workspace-upload');
 const { configured, configureConnection, checkModelConnection, correctTierShot, detectTierSubjects, generateTierSubjectImage } = await import('./gemini');
 const { generateLlm, llmStatus } = await import('./llm');
 const { GptError } = await import('./gpt');
@@ -52,27 +57,32 @@ const { minimaxVideoStatus, startMinimaxVideo, recoverMinimaxVideo, getMinimaxVi
 const { MinimaxError } = await import('./minimax-h3');
 const { listTtsVoices } = await import('./compose');
 const { launchTask, TaskError } = await import('./tasks');
-const { agentInternalToken, getAgentState, getAgentActivity, getAgentImageReferences, subscribeAgent, startAgentTurn, steerAgentTurn, queueAgentMessage, removeQueuedAgentMessage, editQueuedAgentMessage, steerQueuedAgentMessage, resumeAgentQueue, AgentTurnConflictError, interruptAgentTurn, setAgentModel, setAgentAdaptation, setAgentPresentation, listAgentModels, noteAgentVideoChanged, showAgentCanvasComponent, showAgentIntelligentUI, updateAgentCanvasComponent, closeAgentCanvasComponent, setAgentExperiment, mutateAgentExperiment } = await import('./creative-agent');
+const { composeSelectedVideo, productionImages, productionSceneImage, productionScopeImages, saveVideoProductionPlan, startProductionVideo } = await import('./video-production');
+const { buildProductionStoryboard } = await import('./storyboard-grid');
+const { agentProvider, creativeAgentEnabled: agentEnabled } = await import('./agent-provider');
+const { pendingReferenceAnalysis } = await import('./agent-video-analysis');
+const { agentCapabilities, getAgentState, getAgentActivity, getAgentImageReferences, subscribeAgent, startAgentTurn, steerAgentTurn, queueAgentMessage, removeQueuedAgentMessage, editQueuedAgentMessage, steerQueuedAgentMessage, resumeAgentQueue, AgentTurnConflictError, interruptAgentTurn, setAgentModel, setAgentAdaptation, setAgentPresentation, listAgentModels, noteAgentVideoChanged, showAgentCanvasComponent, showAgentIntelligentUI, updateAgentCanvasComponent, closeAgentCanvasComponent, setAgentExperiment, mutateAgentExperiment } = await import('./creative-agent');
 const { registerRadarSpaceInternal, registerRadarSpaceMedia } = await import('./radar-space-agent');
 const { programmaticEnabled, experimentWorkspace, publishExperimentFile, publishExperimentFileInput } = await import('./experiment-runtime');
 const { registerSkillInternalRoutes, registerSkillExperimentRoutes, registerSkillAssetRoutes, applyInitialSkills, prepareSkillSelections, verifySkillAsset } = await import('./skill-asset-routes');
-const { officialJobFor, getSkillAsset } = await import('./skill-assets');
+const { officialJobFor, getSkillAsset, visibleSkillMedia } = await import('./skill-assets');
 const { discoverExperimentMethods, readExperimentMethod, methodSearchInput, methodReadInput } = await import('./experiment-methods');
 const { canvasComponentInput } = await import('../shared/agent-canvas-ui');
-const { getVideoAnalysisMethod, setVideoAnalysisMethod } = await import('./video-analysis-settings');
 const { launchRemix, RemixError } = await import('./remix');
 const { startWorkflow, setWorkflowMode } = await import('./workflow');
-const { inspectMedia, prepareShotMedia } = await import('./media');
+const { inspectMedia, prepareShotMedia, extractReferenceSheets, referenceSheetColumns, maxReferenceFrames, measureReferenceAudio } = await import('./media');
 const { generateTierFrame, undoNewFrame, withNewFrame } = await import('./tier-frames');
 const { collectUploadedAsset, listLibraryMedia, getLibraryMedia, libraryMime, initializeMediaLibrary } = await import('./media-library');
 const { startMediaSync, queueMediaSync, mediaSyncStatus, deleteMediaLibraryItems } = await import('./media-library-sync');
-await initializeMediaLibrary();
+if (accountWorkspacesEnabled) {
+  for (const id of workspaceAccounts()) await withWorkspaceAccount(id, initializeMediaLibrary);
+} else await initializeMediaLibrary();
 const { configureKeyframeStorage, keyframeStorageStatus } = await import('./keyframe-storage');
 const port = Number(process.env.SOP_PORT || 4317);
 const app = express();
 const skillAgentAccess = { getAgentState, setAgentExperiment, startAgentTurn, interruptAgentTurn, subscribeAgent };
 app.disable('x-powered-by');
-const publicAuthEnabled = process.env.SOP_REQUIRE_AUTH === 'true';
+const publicAuthEnabled = accountWorkspacesEnabled;
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
 const supabasePublishableKey = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY || '';
 const allowedHosts = new Set((process.env.SOP_ALLOWED_HOSTS || '').split(',').map(host => host.trim().toLowerCase()).filter(Boolean));
@@ -80,10 +90,10 @@ if (publicAuthEnabled && (!supabaseUrl || !supabasePublishableKey || !allowedHos
   throw new Error('公网模式需配置 Supabase URL、Publishable Key 和 SOP_ALLOWED_HOSTS。');
 }
 const authClient = publicAuthEnabled ? createClient(supabaseUrl, supabasePublishableKey, { auth: { persistSession: false, autoRefreshToken: false } }) : null;
-const verifiedSessions = createSessionVerifier(async token => {
+const verifiedSessions = createSessionVerifier(async (token): Promise<string | false> => {
   if (!authClient) return false;
   const { data, error } = await authClient.auth.getUser(token);
-  return !error && Boolean(data.user?.id);
+  return !error && isWorkspaceAccountId(data.user?.id) ? data.user.id : false;
 });
 const mediaCookie = 'sop_media_session';
 function bearerToken(req: Request) {
@@ -94,10 +104,6 @@ function cookieToken(req: Request) {
   const value = (req.headers.cookie || '').split(';').map(part => part.trim()).find(part => part.startsWith(`${mediaCookie}=`))?.slice(mediaCookie.length + 1);
   if (!value) return '';
   try { return decodeURIComponent(value); } catch { return ''; }
-}
-async function isAllowedToken(token: string) {
-  if (!authClient || !token) return false;
-  return verifiedSessions.isAllowed(token);
 }
 function sessionCookieHeader(token: string, maxAgeSeconds: number) {
   return `${mediaCookie}=${encodeURIComponent(token)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${Math.max(0, maxAgeSeconds)}`;
@@ -156,8 +162,9 @@ function editable(project: Project) {
 registerRadarSpaceInternal(app);
 app.use('/api/agent-internal/:id', (req, res, next) => {
   const remote = req.socket.remoteAddress || '';
-  if (!['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(remote) || req.get('X-SOP-Agent-Token') !== agentInternalToken) return res.sendStatus(403);
-  next();
+  const capability = agentCapabilities.verify(String(req.params.id), req.get('X-SOP-Agent-Token'));
+  if (!['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(remote) || !capability || (publicAuthEnabled && !capability.accountId)) return res.sendStatus(403);
+  return capability.accountId ? withWorkspaceAccount(capability.accountId, next) : next();
 });
 registerSkillInternalRoutes(app, skillAgentAccess);
 app.get('/api/agent-internal/:id', (req, res) => {
@@ -165,7 +172,8 @@ app.get('/api/agent-internal/:id', (req, res) => {
   res.json({ id: p.id, title: p.title, revision: p.revision, video: p.assets.find(asset => asset.kind === 'video') ? (() => { const v = p.assets.find(asset => asset.kind === 'video')!; return { id: v.id, name: v.name, duration: v.duration }; })() : null,
     imageGenerationConfigured: imageGenerationStatus().configured,
     imageGeneration: { model: imageGenerationStatus().model, ratioSizeConversions: IMAGE_RATIO_SIZES, sizeLimits: IMAGE_SIZE_LIMITS, defaultSize: 'auto', defaultQuality: 'auto', sizeSupport: 'OpenAI supports custom dimensions within sizeLimits. Third-party gateway errors are returned without substitution.' },
-    videoGeneration: { configured: generationConfigured(), referenceStorageConfigured: keyframeStorageStatus().configured, models: ['omni_flash_8s', 'omni_flash_10s'], supportedAspectRatios: ['16:9', '9:16'], defaultAspectRatio: p.market.aspectRatio === '16:9' ? '16:9' : '9:16', supportedDurations: [8, 10], defaultResolution: '720p' },
+    videoGeneration: { configured: generationConfigured(), referenceStorageConfigured: keyframeStorageStatus().configured, models: [OMNI_FLASH_12, 'omni_flash_8s', 'omni_flash_10s'], supportedAspectRatios: ['16:9', '9:16'], defaultAspectRatio: p.market.aspectRatio === '16:9' ? '16:9' : '9:16', supportedDurations: OMNI_FLASH_12_SECONDS, defaultResolution: '720p' },
+    productionVideoRouting: { default: 'h3', editingModel: OMNI_FLASH_12, minimumEditSeconds: H3_MIN_SECONDS, h3Durations: [H3_MIN_SECONDS, H3_MAX_SECONDS], h3Resolutions: ['480p', '720p'], maxSceneOrStoryboardSeconds: 10 },
     minimaxVideoGeneration: { ...minimaxVideoStatus(), defaultAspectRatio: ['16:9', '9:16', '1:1'].includes(p.market.aspectRatio) ? p.market.aspectRatio : '9:16' },
     canvasComponents: getAgentState(p.id).canvasComponents || [],
     experiment: experimentAgentContext(getAgentState(p.id).experiment || emptyExperiment()),
@@ -178,12 +186,18 @@ app.get('/api/agent-internal/:id', (req, res) => {
       ...getAgentImageReferences(p.id).filter(image => !p.assets.some(asset => asset.id === image.id)).map(image => ({ id: image.id, name: image.name })),
       ...(p.agentImages || []).filter(image => image.status === 'completed').map(image => ({ id: image.id, name: image.prompt.slice(0, 60) })),
       ...(p.storyboardGrids || []).map(grid => ({ id: grid.id, name: `${grid.start}–${grid.end} 秒连续分镜` })),
+      ...(p.productionStoryboards || []).map(grid => ({ id: grid.id, name: `${grid.start}–${grid.end} 秒制作故事板` })),
+      ...productionScopeImages(p).map(({ id, name }) => ({ id, name })),
     ],
-    images: (p.agentImages || []).map(image => ({ id: image.id, prompt: image.prompt, aspectRatio: image.aspectRatio, size: image.size, quality: image.quality, width: image.width, height: image.height, warning: image.warning, referenceIds: image.referenceIds, status: image.status, url: image.url, model: image.model, error: image.error })),
-    breakdownType: p.breakdownType, analysis: p.analysis && { summary: p.analysis.summary, duration: p.analysis.duration, shots: p.analysis.shots.map(shot => ({ id: shot.id, start: shot.start, end: shot.end, visual: shot.visual })) },
-    grids: (p.storyboardGrids || []).map(grid => ({ id: grid.id, start: grid.start, end: grid.end, prompt: grid.prompt, included: grid.included !== false })),
+    images: (p.agentImages || []).map(image => ({ id: image.id, prompt: image.prompt, aspectRatio: image.aspectRatio, size: image.size, quality: image.quality, width: image.width, height: image.height, warning: image.warning, referenceIds: image.referenceIds, productionSceneIndex: image.productionSceneIndex, status: image.status, url: image.url, model: image.model, error: image.error })),
+    breakdownType: p.breakdownType, analysis: p.analysis && { summary: p.analysis.summary, duration: p.analysis.duration, pendingShotIds: p.analysisReview?.pendingIds || [], shots: p.analysis.shots.map(({ id, start, end, visual, action, camera, transition }) => ({ id, start, end, visual, action, camera, transition })) },
+    referenceSceneTable: p.referenceSceneTable && { title: referenceSceneTableTitle, ...p.referenceSceneTable },
+    videoProductionPlan: p.videoProductionPlan,
+    referenceVideoAnalysis: { transport: 'agent-frames', model: getAgentState(p.id).model || agentProvider.model },
+    grids: [...p.storyboardGrids || [], ...p.productionStoryboards || []].map(grid => ({ id: grid.id, start: grid.start, end: grid.end, gridSize: grid.gridSize, prompt: grid.prompt, included: grid.included !== false, production: p.productionStoryboards?.some(item => item.id === grid.id) ?? false })),
+    composedVideos: p.composedVideos || [],
     job: p.job && { id: p.job.id, kind: p.job.kind, status: p.job.status, progress: p.job.progress, message: p.job.message },
-    videos: p.generatedVideos.map(video => ({ id: video.id, provider: video.provider, gridId: video.storyboardGridId, prompt: video.prompt, model: video.model, resolution: video.resolution, aspectRatio: video.aspectRatio, duration: video.duration, referenceIds: video.referenceIds, firstLastFrame: video.model === 'h3-video-frames' || video.providerRequest?.first_last_frame || false, requestId: video.requestId, upstreamStatus: video.minimax?.upstreamStatus, recoverable: video.provider === 'minimax-h3' ? minimaxVideoRecoverable(video) : video.status === 'failed' && Boolean(video.requestId), recoveryPending: video.minimax?.recoveryPending, status: video.status, url: video.url, error: video.error })),
+    videos: p.generatedVideos.map(video => ({ id: video.id, provider: video.provider, gridId: video.storyboardGridId, prompt: video.prompt, model: video.model, resolution: video.resolution, aspectRatio: video.aspectRatio, duration: video.duration, targetDuration: video.targetDuration, editSource: video.editSource, referenceIds: video.referenceIds, firstLastFrame: video.model === 'h3-video-frames' || video.providerRequest?.first_last_frame || false, requestId: video.requestId, upstreamStatus: video.minimax?.upstreamStatus, recoverable: video.provider === 'minimax-h3' ? minimaxVideoRecoverable(video) : video.status === 'failed' && Boolean(video.requestId), recoveryPending: video.minimax?.recoveryPending, status: video.status, url: video.url, error: video.error })),
   });
 });
 function registerExperimentRoutes(prefix: string) {
@@ -219,8 +233,12 @@ function registerExperimentRoutes(prefix: string) {
         ...getAgentImageReferences(p.id).map(image => image.id),
         ...(p.agentImages || []).filter(image => image.status === 'completed').map(image => image.id),
         ...(p.storyboardGrids || []).map(grid => grid.id),
+        ...(p.productionStoryboards || []).map(grid => grid.id),
+        ...productionScopeImages(p).map(image => image.id),
+        ...p.assets.filter(asset => asset.kind === 'video').map(asset => asset.id),
       ]);
-      const capabilities = { programmatic: programmaticEnabled(), image: imageGenerationStatus().configured, omni: generationConfigured(), minimax: minimaxVideoStatus().configured, referenceStorage: keyframeStorageStatus().configured };
+      const capabilities = { programmatic: programmaticEnabled(), image: imageGenerationStatus().configured, omni: generationConfigured(), minimax: minimaxVideoStatus().configured, referenceStorage: keyframeStorageStatus().configured,
+        videoDurations: Object.fromEntries(p.assets.filter(asset => asset.kind === 'video' && asset.duration).map(asset => [asset.id, asset.duration!])) };
       if (operation.op === 'propose-routes') operation = prepareExperimentProposal(operation, graph, capabilities, references);
       else {
         const { proposalId, routeIds } = operation;
@@ -274,7 +292,7 @@ registerExperimentRoutes('/api/agent-internal/:id');
 app.post('/api/agent-internal/:id/canvas-components', (req, res) => {
   const p = record(req);
   const input = canvasComponentInput.parse(req.body);
-  if (input.kind === 'storyboard' && input.selectedGridIds.some(id => !p.storyboardGrids?.some(grid => grid.id === id))) throw new HttpError(400, '分镜 ID 不属于当前创意。');
+  if (input.kind === 'storyboard' && input.selectedGridIds.some(id => ![...p.storyboardGrids || [], ...p.productionStoryboards || []].some(grid => grid.id === id))) throw new HttpError(400, '分镜 ID 不属于当前创意。');
   res.json(showAgentCanvasComponent(p.id, input));
 });
 app.post('/api/agent-internal/:id/intelligent-ui', (req, res) => {
@@ -300,32 +318,33 @@ function trackGenerationExperiment(req: Request, p: Project, sourceId: string) {
 }
 function startAgentImage(req: Request, res: Response) {
   const p = record(req);
-  checkGenerationExperiment(req, p, 'generate_image');
+  if (!req.path.includes('/production/') || req.body?.stepId) checkGenerationExperiment(req, p, 'generate_image');
   if (p.archivedAt) throw new HttpError(409, '请先恢复已归档创意。');
   if (!imageGenerationStatus().configured) throw new HttpError(503, '请先连接图片生成服务。');
   if (p.agentImages?.some(image => image.status === 'running')) throw new HttpError(409, '已有图片正在生成，请等待完成。');
   if ((p.agentImages?.length || 0) >= 50) throw new HttpError(409, '当前创意已达到 50 张图片上限。');
+  const sceneIndex = z.number().int().min(1).max(120).optional().parse(req.body?.sceneIndex);
   const { prompt, aspectRatio, size: requestedSize, quality, referenceIds } = z.object({
     prompt: z.string().min(1).max(12000).refine(value => !!value.trim(), '请填写生成提示词。'),
     aspectRatio: z.string().regex(IMAGE_RATIO_PATTERN).optional(),
     size: z.string().regex(IMAGE_SIZE_PATTERN).optional(),
     quality: z.enum(IMAGE_QUALITIES).default('auto'),
     referenceIds: z.array(z.string()).max(4).default([]),
-  }).parse(req.body);
+  }).parse(sceneIndex === undefined ? req.body : { ...req.body, ...productionSceneImage(p, sceneIndex) });
   let size: string | undefined;
   try { size = imageRequestSize(aspectRatio, requestedSize); }
   catch (error) { throw new HttpError(400, error instanceof Error ? error.message : '图片尺寸参数无效。'); }
   if (new Set(referenceIds).size !== referenceIds.length) throw new HttpError(400, '参考图不能重复。');
+  const sources = productionImages(p, getAgentImageReferences(p.id));
   const references = referenceIds.map(id => {
-    const asset = p.assets.find(item => item.id === id && item.kind === 'product') || getAgentImageReferences(p.id).find(item => item.id === id);
-    const generated = p.agentImages?.find(item => item.id === id && item.status === 'completed');
-    const grid = p.storyboardGrids?.find(item => item.id === id);
-    const filename = asset?.filename || generated?.filename || grid?.filename;
-    const mime = asset?.mime || (generated || grid ? filename?.endsWith('.jpg') || filename?.endsWith('.jpeg') ? 'image/jpeg' : filename?.endsWith('.webp') ? 'image/webp' : 'image/png' : '');
-    if (!filename || !['image/png', 'image/jpeg', 'image/webp'].includes(mime) || !fs.existsSync(path.join(uploadDir, filename))) throw new HttpError(400, `参考图 ${id} 不在当前创意中。`);
-    return { data: fs.readFileSync(path.join(uploadDir, filename)), mime: mime as 'image/png' | 'image/jpeg' | 'image/webp', filename };
+    const asset = sources.find(item => item.id === id);
+    const filename = asset?.filename;
+    const mime = asset?.mime || (/\.jpe?g$/i.test(filename || '') ? 'image/jpeg' : /\.webp$/i.test(filename || '') ? 'image/webp' : 'image/png');
+    if (!filename || !['image/png', 'image/jpeg', 'image/webp'].includes(mime) || !fs.existsSync(workspaceUploadPath(filename))) throw new HttpError(400, `参考图 ${id} 不在当前创意中。`);
+    return { data: fs.readFileSync(workspaceUploadPath(filename)), mime: mime as 'image/png' | 'image/jpeg' | 'image/webp', filename };
   });
-  const image = { id: randomUUID(), prompt, model: imageGenerationStatus().model, aspectRatio, size, quality, referenceIds, status: 'running' as const, createdAt: new Date().toISOString() };
+  const image = { id: randomUUID(), prompt, model: imageGenerationStatus().model, aspectRatio, size, quality, referenceIds, status: 'running' as const, createdAt: new Date().toISOString(),
+    ...(sceneIndex ? { productionSceneIndex: sceneIndex, productionPlanUpdatedAt: p.videoProductionPlan?.updatedAt } : {}) };
   const updated = saveProject({ ...p, agentImages: [...(p.agentImages || []), image] });
   trackGenerationExperiment(req, p, image.id);
   void (async () => {
@@ -343,47 +362,19 @@ function startAgentImage(req: Request, res: Response) {
 }
 app.post('/api/agent-internal/:id/images', startAgentImage);
 
-const agentVideoSchema = z.object({
-  prompt: z.string().min(1).max(12000).refine(value => !!value.trim(), '请填写生成提示词。'),
-  aspectRatio: z.enum(['16:9', '9:16'], { error: '视频画幅仅支持 16:9 或 9:16，不支持 1:1 等其他比例。' }).optional(),
-  resolution: z.enum(['720p', '1080p'], { error: '视频分辨率仅支持 720p 或 1080p。' }).default('720p'),
-  duration: z.union([z.literal(8), z.literal(10)], { error: '视频时长仅支持 8 或 10 秒，请使用数字。' }).default(10),
-  referenceIds: z.array(z.string().min(1)).max(7).default([]),
-});
+function generationScope(project: Project) {
+  return getAgentState(project.id).messages.filter(message => message.role === 'user').at(-1)?.id || project.id;
+}
 function startAgentVideo(firstLastFrame: boolean) {
-  return (req: Request, res: Response) => {
-    const p = record(req); editable(p);
-    checkGenerationExperiment(req, p, firstLastFrame ? 'generate_first_last_frame_video' : 'generate_video');
-    if (p.archivedAt) throw new HttpError(409, '请先恢复已归档创意。');
-    if (!generationConfigured()) throw new HttpError(503, '请先连接视频生成服务。');
-    if (p.generatedVideos.filter(video => video.unitId?.startsWith('agent-video-')).length >= 50) throw new HttpError(409, '当前创意已达到 50 个独立视频上限。');
-    const input = firstLastFrame
-      ? (() => {
-        const body = z.object({ firstFrameId: z.string().min(1), lastFrameId: z.string().min(1) }).parse(req.body);
-        return agentVideoSchema.parse({ ...req.body, referenceIds: [body.firstFrameId, body.lastFrameId] });
-      })()
-      : agentVideoSchema.parse(req.body);
-    if (new Set(input.referenceIds).size !== input.referenceIds.length) throw new HttpError(400, '参考图不能重复。');
-    if (input.referenceIds.length && !keyframeStorageStatus().configured) throw new HttpError(503, '请先连接 Supabase 私有图片存储。');
-    const refs = input.referenceIds.map(id => {
-      const source = p.assets.find(item => item.id === id && item.kind === 'product')
-        || getAgentImageReferences(p.id).find(item => item.id === id)
-        || p.agentImages?.find(item => item.id === id && item.status === 'completed')
-        || p.storyboardGrids?.find(item => item.id === id);
-      const filename = source?.filename;
-      const mime = source && 'mime' in source ? source.mime : filename?.endsWith('.jpg') ? 'image/jpeg' : filename?.endsWith('.webp') ? 'image/webp' : 'image/png';
-      if (!filename || path.basename(filename) !== filename || !['image/png', 'image/jpeg', 'image/webp'].includes(mime || '') || !fs.existsSync(path.join(uploadDir, filename))) throw new HttpError(400, `参考图 ${id} 不在当前创意中或无法读取。`);
-      return { filename, mime: mime! };
-    });
-    void launchTask(p.id, { kind: 'generation', input: {
-      unitId: '', prompt: input.prompt, mode: refs.length ? 'r2v' : 't2v', resolution: input.resolution,
-      aspectRatio: input.aspectRatio || (p.market.aspectRatio === '16:9' ? '16:9' : '9:16'), images: [],
-      ...(refs.length ? { referenceImages: refs.map(ref => `/media/${ref.filename}`) } : {}),
-      omni: { duration: input.duration, firstLastFrame, referenceIds: input.referenceIds, referenceMimes: refs.map(ref => ref.mime) },
-    } }).catch(error => console.warn(`Creative Omni: ${error instanceof Error ? error.message : String(error)}`));
-    const current = getProject(p.id)!;
-    if (current.job?.videoId) trackGenerationExperiment(req, p, current.job.videoId);
-    res.status(202).json({ videoId: current.job!.videoId, jobId: current.job!.id, status: 'running' });
+  return async (req: Request, res: Response) => {
+    const p = record(req);
+    if (uploadsInProgress.has(p.id)) throw new HttpError(409, '请等待素材上传完成。');
+    if (req.path.startsWith('/api/agent-internal/') || req.body?.stepId) checkGenerationExperiment(req, p, firstLastFrame ? 'generate_first_last_frame_video' : 'generate_video');
+    const input = productionVideoInput.parse(req.body);
+    if (firstLastFrame && !input.firstFrameId && !input.lastFrameId) throw new HttpError(400, '请提供首帧或尾帧素材。');
+    const result = await startProductionVideo(p, input, productionImages(p, getAgentImageReferences(p.id)), generationScope(p));
+    if (result.videoId) trackGenerationExperiment(req, p, result.videoId);
+    res.status(202).json(result);
   };
 }
 app.post('/api/agent-internal/:id/videos', startAgentVideo(false));
@@ -393,7 +384,7 @@ app.post('/api/agent-internal/:id/videos/minimax', (req, res) => {
   checkGenerationExperiment(req, p, 'generate_minimax_video');
   if (uploadsInProgress.has(p.id)) throw new HttpError(409, '请等待素材上传完成。');
   const userMessageId = getAgentState(p.id).messages.filter(message => message.role === 'user').at(-1)?.id;
-  const result = startMinimaxVideo(p, req.body, getAgentImageReferences(p.id), userMessageId || p.id);
+  const result = startMinimaxVideo(p, req.body, productionImages(p, getAgentImageReferences(p.id)), userMessageId || p.id);
   trackGenerationExperiment(req, p, result.videoId);
   res.status(202).json(result);
 });
@@ -406,45 +397,168 @@ app.post('/api/agent-internal/:id/videos/:videoId/recover', (req, res) => {
   res.status(202).json({ videoId, jobId: getProject(p.id)!.job!.id, status: 'running' });
 });
 
-app.post('/api/agent-internal/:id/analyze', (req, res) => {
-  let p = record(req); editable(p);
-  if (p.archivedAt) throw new HttpError(409, '请先恢复已归档创意。');
-  if (!p.assets.some(asset => asset.kind === 'video')) throw new HttpError(400, '请先上传参考视频。');
-  if (!configured()) throw new HttpError(503, '请先连接 Gemini 视频分析服务。');
-  if (p.breakdownType !== 'storyboard-grid') p = saveProject({ ...p, breakdownType: 'storyboard-grid' });
-  void launchTask(p.id, { kind: 'analysis' }).catch(error => console.warn(`Creative analysis: ${error instanceof Error ? error.message : String(error)}`));
-  const jobId = getProject(p.id)?.job?.id;
-  if (!jobId) throw new HttpError(503, '拆解任务未能启动。');
-  res.status(202).json({ started: true, jobId });
+app.post(`/api/agent-internal/:id${referenceFramesPath}`, async (req, res) => {
+  const p = record(req);
+  const video = p.assets.find(asset => asset.kind === 'video');
+  const duration = video?.duration;
+  if (!video || !duration) throw new HttpError(400, '请先上传含有效时长的参考视频。');
+  const { start = 0, end = duration, sampling, measureAudio } = referenceFramesInput.parse(req.body || {});
+  const until = Math.min(end, duration);
+  if (until <= start) throw new HttpError(400, '读取范围必须位于原片时长内，结束时间应晚于开始时间。');
+  const detailed = sampling === 'frame-by-frame';
+  if (detailed && until - start > referenceFrameWindowSeconds + 1e-6) throw new HttpError(400, `逐帧核对请指定不超过 ${referenceFrameWindowSeconds} 秒的原片区间。`);
+  if (measureAudio && !detailed) throw new HttpError(400, '请在逐帧核对模式下测量短窗口音轨。');
+  const sheets = await extractReferenceSheets(video.filename, start, until, sampling);
+  const frameCount = sheets.reduce((count, sheet) => count + sheet.times.length, 0);
+  const audio = measureAudio ? await measureReferenceAudio(video, start, until) : undefined;
+  res.json({ video: { id: video.id, name: video.name, duration, hasAudio: video.hasAudio }, revision: p.revision,
+    start, end: until, sampling, frameCount, frameLimitReached: detailed && frameCount >= maxReferenceFrames,
+    audio, columns: referenceSheetColumns, sheets });
 });
+function currentAnalysisVideo(p: Project, input: { videoId: string; revision: number }, task?: ReturnType<typeof pendingReferenceAnalysis>) {
+  const video = p.assets.find(asset => asset.kind === 'video');
+  const pausedDuringAnalysis = task && p.workflow?.status === 'pausing' && task.revision === input.revision && p.revision === task.revision + 1;
+  if (video?.id !== input.videoId || (p.revision !== input.revision && !pausedDuringAnalysis)) throw new HttpError(409, '分析期间参考视频或创意资料已更新，请核对当前内容再保存。');
+  return video;
+}
+
+app.post('/api/agent-internal/:id/analyze/save', async (req, res) => {
+  const p = record(req), task = pendingReferenceAnalysis(p);
+  if (task?.kind !== 'analysis') editable(p);
+  if (p.archivedAt) throw new HttpError(409, '请先恢复已归档创意。');
+  const input = saveReferenceAnalysisInput.parse(req.body);
+  const video = currentAnalysisVideo(p, input, task);
+  const duration = video.duration;
+  if (!duration || duration < 0.1) throw new HttpError(400, '参考视频的时长不足以保存分镜。');
+  const { shots: observed, scenes: observedScenes, focusPoints, uncertainties, masterPrompt, ...analysis } = input.analysis;
+  if (masterPrompt && observedScenes.some(scene => !scene.prompt || scene.camera === undefined || scene.entities === undefined)) {
+    throw new HttpError(400, '保存制作母版时，每张场景镜卡需提供镜头语言、实体和单镜 Prompt。');
+  }
+  const shots = observed.map(({ focusPoints: points, ...shot }, index) => {
+    const end = observed[index + 1]?.start ?? duration;
+    return { ...shot, id: `shot-${index + 1}`, end, narration: '', sound: '', focusPoints: aiFocusPoints(points || [], shot.start, end) };
+  });
+  const error = validateTimeline(shots, duration);
+  if (shots[0].start !== 0 || error) throw new HttpError(400, '第一个镜头必须从 0 秒开始。各镜头的起点应依次递增并位于原片时长内。');
+  for (const shot of shots) {
+    if (shot.evidenceFrames?.some(({ at }) => at < shot.start || at >= shot.end) ||
+        shot.motionBeats?.some(beat => beat.start < shot.start || beat.end > shot.end || beat.end <= beat.start)) {
+      throw new HttpError(400, `${shot.id} 的关键画面和动态时间线必须使用此镜头区间内的原片时间。`);
+    }
+  }
+  const scenes = (() => {
+    try { return referenceSceneRanges(observedScenes, shots); }
+    catch (error) { throw new HttpError(400, error instanceof Error ? error.message : '场景分组无效。'); }
+  })();
+  const limitations = video.hasAudio ? ['原片口播、音乐节拍和具体音效待听辨核对。', ...uncertainties].slice(0, 30) : uncertainties;
+  const agentAnalysis = {
+    result: { ...analysis, duration, shots, uncertainties: limitations, focusPoints: aiFocusPoints(focusPoints || [], 0, duration) },
+    scenes,
+    masterPrompt,
+    meta: { mode: 'sampled-frames' as const, transport: 'agent-frames' as const, audioSubmitted: false, requestedModel: getAgentState(p.id).model || agentProvider.model, analyzedAt: new Date().toISOString() },
+  };
+  if (task?.kind === 'analysis') await task.save(agentAnalysis);
+  else await launchTask(p.id, { kind: 'analysis', agentAnalysis });
+  const saved = record(req);
+  res.json({ saved: true, duration, shotCount: shots.length, sceneTable: { title: referenceSceneTableTitle, sceneCount: scenes.length }, grids: saved.storyboardGrids?.map(({ id, start, end }) => ({ id, start, end })) || [] });
+});
+
+app.post('/api/agent-internal/:id/analyze/review', async (req, res) => {
+  const p = record(req), task = pendingReferenceAnalysis(p);
+  if (task?.kind !== 'analysis-refine' || !p.analysis) throw new HttpError(409, '当前没有正在分析的变动镜头。');
+  const input = saveReferenceShotReviewInput.parse(req.body);
+  currentAnalysisVideo(p, input, task);
+  const targets = new Set(p.analysisReview?.pendingIds);
+  if (input.shots.length !== targets.size || new Set(input.shots.map(shot => shot.shotId)).size !== targets.size ||
+      input.shots.some(shot => !targets.has(shot.shotId))) {
+    throw new HttpError(400, '请为全部待分析镜头各提交一条建议。');
+  }
+  const analyzedAt = new Date().toISOString();
+  const suggestions = Object.fromEntries(input.shots.map(({ shotId, focusPoints, ...observed }) => {
+    const shot = p.analysis!.shots.find(item => item.id === shotId);
+    if (!shot) throw new HttpError(409, '待分析镜头已变更，请重新开始。');
+    if (observed.motionBeats?.some(beat => beat.start < shot.start || beat.end > shot.end || beat.end <= beat.start)) {
+      throw new HttpError(400, `${shotId} 的动态时间线必须位于此镜头的原片区间内。`);
+    }
+    return [shotId, { ...observed, narration: shot.narration, sound: shot.sound, analyzedAt, source: 'frames' as const,
+      focusPoints: aiFocusPoints(focusPoints || [], shot.start, shot.end) }];
+  }));
+  await task.save({ suggestions, globalFocusSuggestion: input.focusPoints && aiFocusPoints(input.focusPoints, 0, p.analysis.duration) });
+  res.json({ saved: true, shotCount: input.shots.length });
+});
+async function saveProductionPlanRoute(req: Request, res: Response) {
+  const p = record(req); editable(p);
+  if (p.archivedAt) throw new HttpError(409, '请先恢复已归档创意。');
+  res.json(await saveVideoProductionPlan(p, videoProductionInput.parse(req.body), productionImages(p, getAgentImageReferences(p.id))));
+}
+async function buildProductionStoryboardRoute(req: Request, res: Response) {
+  const p = record(req); editable(p);
+  if (p.archivedAt) throw new HttpError(409, '请先恢复已归档创意。');
+  if (req.body?.stepId) checkGenerationExperiment(req, p, 'build_video_storyboard');
+  const input = productionStoryboardInput.parse(req.body);
+  if (input.end <= input.start || input.end - input.start > 10 + 1e-6) throw new HttpError(400, '制作故事板每段须大于 0 秒且不超过 10 秒。');
+  const sources = productionImages(p, getAgentImageReferences(p.id));
+  const filenames = input.frameIds.map(id => {
+    const source = sources.find(item => item.id === id && ![...p.storyboardGrids || [], ...p.productionStoryboards || []].some(grid => grid.id === id));
+    if (!source?.filename || !fs.existsSync(workspaceUploadPath(source.filename))) throw new HttpError(400, `关键帧 ${id} 不在当前创意中。请提供单张关键帧。`);
+    return source.filename;
+  });
+  const grid = await buildProductionStoryboard(filenames, input.start, input.end, input.prompt, input.aspectRatio || (p.market.aspectRatio === '16:9' ? '16:9' : '9:16'));
+  try {
+    const current = record(req); editable(current);
+    if (current.revision !== p.revision) throw new HttpError(409, '创建故事板时创意已更新，请重试。');
+    saveProject({ ...current, productionStoryboards: [...current.productionStoryboards || [], grid] });
+  } catch (error) {
+    fs.rmSync(workspaceUploadPath(grid.filename), { force: true });
+    throw error;
+  }
+  trackGenerationExperiment(req, p, grid.id);
+  res.status(201).json(grid);
+}
+async function composeProductionRoute(req: Request, res: Response) {
+  const p = record(req); editable(p);
+  if (p.archivedAt) throw new HttpError(409, '请先恢复已归档创意。');
+  if (req.path.startsWith('/api/agent-internal/') || req.body?.stepId) checkGenerationExperiment(req, p, 'compose_video');
+  const video = await composeSelectedVideo(p, productionCompositionInput.parse(req.body));
+  trackGenerationExperiment(req, p, video.id);
+  res.status(201).json({ composedVideo: video });
+}
+app.post('/api/agent-internal/:id/production', saveProductionPlanRoute);
+app.post('/api/agent-internal/:id/production/storyboards', buildProductionStoryboardRoute);
+app.post('/api/agent-internal/:id/production/compose', composeProductionRoute);
+
 app.post('/api/agent-internal/:id/grids/:gridId/prompt', (req, res) => {
   const p = record(req); editable(p);
   if (p.archivedAt) throw new HttpError(409, '请先恢复已归档创意。');
   const { prompt } = z.object({ prompt: z.string().trim().min(1).max(100000) }).parse(req.body);
   const gridId = String(req.params.gridId);
-  if (!p.storyboardGrids?.some(grid => grid.id === gridId)) throw new HttpError(404, '分镜网格不存在。');
-  const updated = saveProject({ ...p, storyboardGrids: p.storyboardGrids.map(grid => grid.id === gridId ? { ...grid, prompt } : grid) });
+  const key = p.productionStoryboards?.some(grid => grid.id === gridId) ? 'productionStoryboards' : 'storyboardGrids';
+  if (!p[key]?.some(grid => grid.id === gridId)) throw new HttpError(404, '分镜网格不存在。');
+  const updated = saveProject({ ...p, [key]: p[key].map(grid => grid.id === gridId ? { ...grid, prompt } : grid) });
   res.json({ gridId, revision: updated.revision, prompt });
 });
-app.post('/api/agent-internal/:id/grids/:gridId/generate', (req, res) => {
-  const p = record(req); editable(p);
-  checkGenerationExperiment(req, p, 'generate_grid_video');
-  if (p.archivedAt) throw new HttpError(409, '请先恢复已归档创意。');
-  const grid = p.storyboardGrids?.find(item => item.id === String(req.params.gridId));
-  if (!grid || grid.included === false || !grid.prompt.trim()) throw new HttpError(409, '分镜网格未就绪。');
-  void launchTask(p.id, { kind: 'generation', input: { unitId: '', prompt: grid.prompt, mode: 'r2v', resolution: '720p', aspectRatio: p.market.aspectRatio === '16:9' ? '16:9' : '9:16', images: [], storyboardGridId: grid.id, referenceImages: [grid.url], omni: { duration: 10, firstLastFrame: false, referenceIds: [grid.id] }, previewRevision: p.revision } }).catch(error => console.warn(`Creative generation: ${error instanceof Error ? error.message : String(error)}`));
-  const jobId = getProject(p.id)?.job?.id;
-  if (!jobId) throw new HttpError(503, '视频任务未能启动。');
-  const videoId = getProject(p.id)?.job?.videoId;
-  if (videoId) trackGenerationExperiment(req, p, videoId);
-  res.status(202).json({ started: true, gridId: grid.id, videoId: getProject(p.id)?.job?.videoId, jobId });
-});
-app.get('/api/status', (_req, res) => res.json({ model: MODEL, keyframeModel: imageGenerationStatus().model, configured: configured(), llm: llmStatus(), imageGeneration: imageGenerationStatus(), local: !publicAuthEnabled, maxVideoMB: 250, maxImageMB: 10, videoAnalysisMethod: getVideoAnalysisMethod(), minimaxVideoGeneration: minimaxVideoStatus(), keyframeStorage: keyframeStorageStatus(), videoGeneration: { provider: 'veo-3.1', models: VEO_MODELS, configured: generationConfigured(), duration: VEO_DURATION } }));
+async function generateGridRoute(req: Request, res: Response) {
+  const p = record(req);
+  if (req.path.startsWith('/api/agent-internal/') || req.body?.stepId) checkGenerationExperiment(req, p, 'generate_grid_video');
+  if (uploadsInProgress.has(p.id)) throw new HttpError(409, '请等待素材上传完成。');
+  const grid = [...p.productionStoryboards || [], ...p.storyboardGrids || []].find(item => item.id === String(req.params.gridId));
+  if (!grid || grid.included === false || !grid.prompt.trim()) throw new HttpError(409, '故事板未就绪。');
+  if (grid.gridSize !== 3 || grid.end <= grid.start || grid.end - grid.start > 10 + 1e-6) throw new HttpError(400, '视频生产需要 3×3 故事板，每段最长 10 秒。');
+  const { gridId: _gridId, prompt: draftPrompt, ...body } = req.body || {};
+  const prompt = draftPrompt === undefined ? grid.prompt : z.string().trim().min(1).max(12000).parse(draftPrompt);
+  const input = productionVideoInput.pick({ referenceIds: true, referenceVideoIds: true, stepId: true, requestKey: true, aspectRatio: true, resolution: true, generateAudio: true }).parse(body);
+  const result = await startProductionVideo(p, { ...input, prompt, duration: Math.min(10, grid.end - grid.start), referenceIds: [grid.id, ...input.referenceIds] },
+    productionImages(p, getAgentImageReferences(p.id)), generationScope(p), grid.id);
+  if (result.videoId) trackGenerationExperiment(req, p, result.videoId);
+  res.status(202).json(result);
+}
+app.post('/api/agent-internal/:id/grids/:gridId/generate', generateGridRoute);
+app.get('/api/status', (_req, res) => res.json({ model: MODEL, keyframeModel: imageGenerationStatus().model, configured: configured(), llm: llmStatus(), imageGeneration: imageGenerationStatus(), local: !publicAuthEnabled, maxVideoMB: 250, maxImageMB: 10, videoAnalysis: { provider: agentProvider.id, defaultModel: agentProvider.model, transport: 'agent-frames', enabled: agentEnabled }, minimaxVideoGeneration: minimaxVideoStatus(), keyframeStorage: keyframeStorageStatus(), videoGeneration: { provider: 'veo-3.1', models: VEO_MODELS, configured: generationConfigured(), duration: VEO_DURATION } }));
 app.post('/api/auth/session', async (req, res) => {
   if (!publicAuthEnabled) return res.sendStatus(204);
   const token = bearerToken(req);
   try {
-    if (!(await isAllowedToken(token))) return res.status(401).json({ error: '登录状态无效，请重新登录。' });
+    if (!(await verifiedSessions.isAllowed(token))) return res.status(401).json({ error: '登录状态无效，请重新登录。' });
     const payload = JSON.parse(Buffer.from(token.split('.')[1] || '', 'base64url').toString('utf8'));
     const maxAge = Number.isFinite(payload.exp) ? Math.min(3600, payload.exp - Math.floor(Date.now() / 1000)) : 0;
     if (maxAge <= 0) return res.status(401).json({ error: '登录已过期，请重新登录。' });
@@ -463,13 +577,11 @@ app.use('/api', async (req, res, next) => {
   if (!publicAuthEnabled) return next();
   try {
     const started = performance.now();
-    const allowed = await isAllowedToken(bearerToken(req));
+    const accountId = await verifiedSessions.isAllowed(bearerToken(req));
     res.setHeader('Server-Timing', `auth;dur=${(performance.now() - started).toFixed(1)}`);
-    if (!allowed) return res.status(401).json({ error: '请先登录，或重新登录后继续。' });
-    const verifiedPayload = JSON.parse(Buffer.from(bearerToken(req).split('.')[1], 'base64url').toString('utf8'));
-    if (typeof verifiedPayload.sub !== 'string' || !verifiedPayload.sub) return res.status(401).json({ error: '登录身份无效。' });
-    res.locals.skillOwnerId = verifiedPayload.sub;
-    return next();
+    if (!accountId) return res.status(401).json({ error: '请先登录，或重新登录后继续。' });
+    res.locals.skillOwnerId = accountId;
+    return withWorkspaceAccount(accountId, next);
   } catch { return res.status(503).json({ error: '登录服务暂时不可用，请稍后重试。' }); }
 });
 const landingEditorUsers = new Set((process.env.SOP_LANDING_EDITOR_USER_IDS || '').split(',').map(value => value.trim()).filter(Boolean));
@@ -477,27 +589,27 @@ registerLandingPageWriteRoutes(app, landingPageStore, (_req, res) => !publicAuth
 app.post('/api/llm/responses', async (req, res) => { res.json(await generateLlm(req.body)); });
 app.use('/media', async (req, res, next) => {
   if (!publicAuthEnabled) return next();
+  res.setHeader('Cache-Control', 'private, no-store');
   try {
     const started = performance.now();
-    const allowed = await isAllowedToken(cookieToken(req));
+    const accountId = await verifiedSessions.isAllowed(cookieToken(req));
     res.setHeader('Server-Timing', `auth;dur=${(performance.now() - started).toFixed(1)}`);
-    if (!allowed) return res.status(401).json({ error: '请先登录后查看此素材。' });
-    return next();
+    if (!accountId) return res.status(401).json({ error: '请先登录后查看此素材。' });
+    return withWorkspaceAccount(accountId, next);
   } catch { return res.status(503).json({ error: '登录服务暂时不可用，请稍后重试。' }); }
 });
-const agentEnabled = !publicAuthEnabled || process.env.SOP_AGENT_ENABLED === 'true' && !!process.env.SOP_AGENT_CODEX_HOME;
 app.get('/api/agent/activity', (_req, res) => {
   if (!agentEnabled) return res.json({});
   res.json(Object.fromEntries(listProjects().filter(project => !officialJobFor(project.id)).map(project => [project.id, getAgentActivity(project.id)])));
 });
 app.use('/api/projects/:id', (req, res, next) => {
+  if (!getProject(String(req.params.id))) return res.status(404).json({ error: '找不到这个创意。' });
   if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method) && officialJobFor(String(req.params.id))) return res.status(403).json({ error: '官方实验记录只读。请采用资产，在自己的创意中继续创作。' });
   next();
 });
 registerSkillAssetRoutes(app, skillAgentAccess, agentEnabled);
 app.use('/api/projects/:id/agent', (req, res, next) => {
   if (!agentEnabled) return res.status(503).json({ error: '创作 Agent 当前仅开放内部体验。' });
-  if (!getProject(String(req.params.id))) return res.status(404).json({ error: '找不到这个创意。' });
   next();
 });
 app.post('/api/projects/:id/agent/images', startAgentImage);
@@ -516,10 +628,19 @@ app.post('/api/projects/:id/agent/intelligent-tool', async (req, res, next) => {
     const p = record(req);
     const { name, args } = z.object({ name: z.string().min(1).max(120), args: z.record(z.string(), z.unknown()).default({}) }).parse(req.body);
     const tool = name.replace(/^sail_creation\//, '');
+    if (tool === 'analyze_reference') {
+      editable(p);
+      if (p.archivedAt) throw new HttpError(409, '请先恢复已归档创意。');
+      if (!p.assets.some(asset => asset.kind === 'video')) throw new HttpError(400, '请先上传参考视频。');
+      if (getAgentState(p.id).status === 'running') throw new HttpError(409, '创作 Agent 正在执行，请等待当前任务完成。');
+      const state = await startAgentTurn(p.id, '请拆解当前创意的参考视频，重新分析镜头并保存分镜。只做分析。', [], [], [], []);
+      return res.status(202).json({ started: true, turnId: state.turnId });
+    }
     const routes: Record<string, string> = {
       discover_experiment_methods: '/experiment/methods/search', read_experiment_method: '/experiment/methods/read',
-      get_creative: '', show_intelligent_ui: '/intelligent-ui', show_canvas_component: '/canvas-components', analyze_reference: '/analyze',
+      get_creative: '', show_intelligent_ui: '/intelligent-ui', show_canvas_component: '/canvas-components',
       generate_image: '/images', generate_video: '/videos', generate_first_last_frame_video: '/videos/first-last-frame', generate_minimax_video: '/videos/minimax',
+      save_video_production: '/production', build_video_storyboard: '/production/storyboards', compose_video: '/production/compose',
       recover_video: `/videos/${encodeURIComponent(String(args.videoId || ''))}/recover`,
       edit_grid_prompt: `/grids/${encodeURIComponent(String(args.gridId || ''))}/prompt`,
       generate_grid_video: `/grids/${encodeURIComponent(String(args.gridId || ''))}/generate`,
@@ -530,7 +651,7 @@ app.post('/api/projects/:id/agent/intelligent-tool', async (req, res, next) => {
     if (p.archivedAt && tool !== 'get_creative') throw new HttpError(409, '请先恢复已归档创意。');
     const method = tool === 'get_creative' || tool === 'read_experiment_node' ? 'GET' : 'POST';
     const response = await fetch(`http://127.0.0.1:${port}/api/agent-internal/${p.id}${routes[tool]}`, {
-      method, headers: { 'X-SOP-Agent-Token': agentInternalToken, 'Content-Type': 'application/json', ...(req.headers.authorization ? { Authorization: req.headers.authorization } : {}) },
+      method, headers: { 'X-SOP-Agent-Token': agentCapabilities.issue(p.id), 'Content-Type': 'application/json' },
       ...(method === 'POST' ? { body: JSON.stringify(args) } : {}),
     });
     const body = await response.json();
@@ -632,6 +753,10 @@ app.post('/api/projects/:id/agent/presentation', (req, res, next) => {
 app.get('/api/tts/voices', async (req, res, next) => {
   try { res.json(await listTtsVoices()); } catch { next(new HttpError(503, '本机系统配音不可用，请确认 macOS 的 say 命令可运行。')); }
 });
+app.use('/api/settings', (req, res, next) => {
+  if (publicAuthEnabled && req.path !== '/check') return res.status(403).json({ error: '线上服务的模型与存储连接由服务端配置。' });
+  next();
+});
 app.post('/api/settings', (req, res) => {
   const { apiKey, baseUrl } = z.object({ apiKey: z.string().trim().min(16).max(300), baseUrl: z.string().trim().max(300).default('') }).parse(req.body);
   if (baseUrl && !/^https?:\/\//i.test(baseUrl)) throw new HttpError(400, '兼容接口地址必须以 http:// 或 https:// 开头。');
@@ -640,11 +765,6 @@ app.post('/api/settings', (req, res) => {
 });
 app.post('/api/settings/check', async (_req, res) => {
   try { res.json(await checkModelConnection()); } catch (error) { res.status(502).json({ error: error instanceof Error ? error.message : '模型连接检查失败。' }); }
-});
-app.post('/api/settings/video-analysis', (req, res) => {
-  const { method } = z.object({ method: z.enum(['full', 'segmented']) }).parse(req.body);
-  setVideoAnalysisMethod(method);
-  res.json({ method });
 });
 app.post('/api/settings/image-generation', (req, res) => {
   const { apiKey, baseUrl, model } = z.object({ apiKey: z.string().trim().min(16).max(300).optional(), baseUrl: z.url().max(300).optional(), model: z.enum(IMAGE_MODELS) }).parse(req.body);
@@ -814,10 +934,10 @@ app.put('/api/projects/:id', (req, res) => {
   const composedVideos = project.composedVideos?.map(video => inputsChanged || rewriteChanged && (video.mode === 'tts-subtitles' || !video.unitId || changedLocalUnit(video.unitId)) || settingsChanged || generationSettingsChanged || video.sourceVideoIds.some(id => staleIds.has(id)) ? { ...video, stale: true } : video);
   const workflow = project.workflow && (inputsChanged || rewriteChanged || settingsChanged || generationSettingsChanged || draftsChanged) ? { ...project.workflow, status: 'paused' as const, message: '制作内容已更新。继续自动制作时会复用仍有效的结果。', finishedAt: undefined } : project.workflow;
   const ttsTimingNotice = inputsChanged || rewriteChanged || settingsChanged ? undefined : project.ttsTimingNotice;
-  res.json(saveProject({ ...project, ...patch, generatedVideos, composedVideos, workflow, ttsTimingNotice, analysisMeta: patch.analysis ? project.analysisMeta : null, rewriteStale: project.rewriteStale || (!!patch.rewrite && inputsChanged) }));
+  res.json(saveProject({ ...project, ...patch, generatedVideos, composedVideos, workflow, ttsTimingNotice, analysisMeta: patch.analysis ? project.analysisMeta : null, referenceSceneTable: patch.analysis ? project.referenceSceneTable : undefined, rewriteStale: project.rewriteStale || (!!patch.rewrite && inputsChanged) }));
 });
-const uploader = multer({ dest: uploadDir, limits: { fileSize: 250 * 1024 * 1024, files: 1, fields: 0 } });
-const characterUploader = multer({ dest: uploadDir, limits: { fileSize: 10 * 1024 * 1024, files: 1, fields: 0 } });
+const uploader = workspaceUploader({ fileSize: 250 * 1024 * 1024, files: 1, fields: 0 });
+const characterUploader = workspaceUploader({ fileSize: 10 * 1024 * 1024, files: 1, fields: 0 });
 // 复刻等级 step 1: keyframe correction, subject detection and subject reference images. No image generation here.
 const tierBusy = new Set<string>();
 const tierRevision = (req: Request, project: Project) => {
@@ -908,7 +1028,7 @@ app.post('/api/projects/:id/tier/shots/:shotId/frames/:position/upload', (req, r
         const current = getProject(project.id)!;
         const extension = metadata.mime === 'image/png' ? 'png' : metadata.mime === 'image/webp' ? 'webp' : 'jpg';
         const filename = `tier-frame-${randomUUID()}.${extension}`;
-        fs.renameSync(req.file.path, path.join(uploadDir, filename));
+        fs.renameSync(req.file.path, workspaceUploadPath(filename));
         res.status(201).json(saveProject(withNewFrame(current, String(req.params.shotId), position, { filename, url: `/media/${filename}`, kind: 'uploaded', createdAt: new Date().toISOString() })));
       } catch (err) { next(err); }
       finally { if (req.file) fs.unlink(req.file.path, () => {}); uploadsInProgress.delete(project.id); }
@@ -934,7 +1054,7 @@ app.post('/api/projects/:id/tier/subjects/:subjectId/image', (req, res, next) =>
         if (!subject) throw new HttpError(404, '主体不存在。');
         if (subject.images.length >= 3) throw new HttpError(400, '每个主体最多 3 张参考图。');
         const filename = `tier-subject-${randomUUID()}.${mime === 'image/jpeg' ? 'jpg' : mime === 'image/webp' ? 'webp' : 'png'}`;
-        renamed = path.join(uploadDir, filename);
+        renamed = workspaceUploadPath(filename);
         await fs.promises.rename(req.file.path, renamed);
         const image = { filename, url: `/media/${filename}`, mime, name: Buffer.from(req.file.originalname, 'latin1').toString('utf8').slice(0, 200) };
         const subjects = rules.subjects!.map(item => item.id === subject.id ? { ...item, images: [...item.images, image] } : item);
@@ -962,7 +1082,7 @@ app.post('/api/projects/:id/tier/shots/:shotId/refs', (req, res, next) => {
         const metadata = await inspectMedia(req.file.filename, 'product');
         const mime = z.enum(['image/png', 'image/jpeg', 'image/webp']).parse(metadata.mime);
         const filename = `tier-ref-${randomUUID()}.${mime === 'image/jpeg' ? 'jpg' : mime === 'image/webp' ? 'webp' : 'png'}`;
-        renamed = path.join(uploadDir, filename);
+        renamed = workspaceUploadPath(filename);
         await fs.promises.rename(req.file.path, renamed);
         const image = { filename, url: `/media/${filename}`, mime, name: Buffer.from(req.file.originalname, 'latin1').toString('utf8').slice(0, 200) };
         // Only stores the file; the client adds it to the frame's input box, which is saved with the project.
@@ -993,7 +1113,7 @@ app.post('/api/projects/:id/remix-character', (req, res, next) => {
         if (current.revision !== revision) throw new HttpError(409, '创意已更新，请刷新后再上传人物参考图。');
         const extension = mime === 'image/jpeg' ? 'jpg' : mime === 'image/webp' ? 'webp' : 'png';
         const filename = `remix-character-${randomUUID()}.${extension}`;
-        renamed = path.join(uploadDir, filename);
+        renamed = workspaceUploadPath(filename);
         await fs.promises.rename(req.file.path, renamed);
         const remix = current.remix || { settings: { ...defaultRemixSettings }, videos: [] };
         res.status(201).json(saveProject({ ...current, job: null, remix: { ...remix, character: {
@@ -1026,6 +1146,8 @@ function attachAsset(current: Project, asset: Asset) {
   const updated = saveProject({ ...current, assets: video ? [...current.assets.filter(item => item.kind !== 'video'), asset] : [...current.assets, asset],
     ttsTimingNotice: undefined, isDemo: video ? false : current.isDemo, analysis: video ? null : current.analysis,
     analysisReview: video ? { pendingIds: [], suggestions: {} } : current.analysisReview, analysisMeta: video ? null : current.analysisMeta,
+    referenceSceneTable: video ? undefined : current.referenceSceneTable,
+    videoProductionPlan: video && current.videoProductionPlan?.sourceVideoId ? undefined : current.videoProductionPlan,
     storyboardGrids: video ? [] : current.storyboardGrids,
     rewrite: video ? null : current.rewrite, rewriteStale: !video && !!current.rewrite,
     generatedVideos: (current.generatedVideos || []).map(item => ({ ...item, stale: true })),
@@ -1097,7 +1219,7 @@ app.delete('/api/projects/:id/assets/:assetId', (req, res) => {
   if (!asset) throw new HttpError(404, '素材不存在。');
   if (asset.kind === 'audio') { res.json(saveProject({ ...p, assets: p.assets.filter(item => item.id !== asset.id) })); return; }
   // Remove the association; retain local source files so replacement is recoverable.
-  const updated = saveProject({ ...p, assets: p.assets.filter(a => a.id !== asset.id), ttsTimingNotice: undefined, analysis: asset.kind === 'video' ? null : p.analysis, analysisReview: asset.kind === 'video' ? { pendingIds: [], suggestions: {} } : p.analysisReview, analysisMeta: asset.kind === 'video' ? null : p.analysisMeta, storyboardGrids: asset.kind === 'video' ? [] : p.storyboardGrids, rewrite: asset.kind === 'video' ? null : p.rewrite, rewriteStale: asset.kind === 'product' && !!p.rewrite, generatedVideos: (p.generatedVideos || []).map(video => ({ ...video, stale: true })), composedVideos: (p.composedVideos || []).map(video => ({ ...video, stale: true })), job: null });
+  const updated = saveProject({ ...p, assets: p.assets.filter(a => a.id !== asset.id), ttsTimingNotice: undefined, analysis: asset.kind === 'video' ? null : p.analysis, analysisReview: asset.kind === 'video' ? { pendingIds: [], suggestions: {} } : p.analysisReview, analysisMeta: asset.kind === 'video' ? null : p.analysisMeta, referenceSceneTable: asset.kind === 'video' ? undefined : p.referenceSceneTable, videoProductionPlan: asset.id === p.videoProductionPlan?.sourceVideoId ? undefined : p.videoProductionPlan, storyboardGrids: asset.kind === 'video' ? [] : p.storyboardGrids, rewrite: asset.kind === 'video' ? null : p.rewrite, rewriteStale: asset.kind === 'product' && !!p.rewrite, generatedVideos: (p.generatedVideos || []).map(video => ({ ...video, stale: true })), composedVideos: (p.composedVideos || []).map(video => ({ ...video, stale: true })), job: null });
   if (asset.kind === 'video') noteAgentVideoChanged(updated.id);
   res.json(updated);
 });
@@ -1124,9 +1246,20 @@ app.post('/api/projects/:id/generations', (req, res) => {
   };
   acceptedTask(req, res, { kind: 'generation', input });
 });
-app.post('/api/projects/:id/generations/:videoId/recover', (req, res) => acceptedTask(req, res, { kind: 'recover', videoId: String(req.params.videoId) }));
+app.post('/api/projects/:id/generations/:videoId/recover', (req, res) => {
+  const p = record(req), videoId = String(req.params.videoId);
+  if (!p.generatedVideos.some(video => video.id === videoId && video.provider === 'minimax-h3')) return acceptedTask(req, res, { kind: 'recover', videoId });
+  recoverMinimaxVideo(p, videoId);
+  res.status(202).json(getProject(p.id));
+});
 app.post('/api/projects/:id/generations/:videoId/compose', (req, res) => acceptedTask(req, res, { kind: 'compose', videoId: String(req.params.videoId), voice: typeof req.body?.voice === 'string' ? req.body.voice : undefined }));
 app.post('/api/projects/:id/compose', (req, res) => acceptedTask(req, res, { kind: 'compose', voice: typeof req.body?.voice === 'string' ? req.body.voice : undefined, timingApproval: typeof req.body?.timingApproval === 'string' ? req.body.timingApproval : undefined }));
+app.post('/api/projects/:id/production', saveProductionPlanRoute);
+app.post('/api/projects/:id/production/keyframes', startAgentImage);
+app.post('/api/projects/:id/production/storyboards', buildProductionStoryboardRoute);
+app.post('/api/projects/:id/production/storyboards/:gridId/videos', generateGridRoute);
+app.post('/api/projects/:id/production/videos', startAgentVideo(false));
+app.post('/api/projects/:id/production/compose', composeProductionRoute);
 app.post('/api/projects/:id/jobs/:kind', (req, res) => {
   const kind = String(req.params.kind);
   if (kind !== 'analysis' && kind !== 'analysis-refine' && kind !== 'rewrite') throw new HttpError(400, '任务类型不正确。');
@@ -1151,17 +1284,17 @@ app.get('/api/projects/:id/export', async (req, res) => {
   for (const [filename, text] of Object.entries(buildExportFiles(project))) zip.file(filename, text);
   for (const [i, asset] of project.assets.filter(a => a.kind === 'product').entries()) {
     const ext = asset.mime === 'image/png' ? 'png' : asset.mime === 'image/webp' ? 'webp' : 'jpg';
-    zip.file(`product-references/reference-${i + 1}.${ext}`, fs.readFileSync(path.join(uploadDir, asset.filename)));
+    zip.file(`product-references/reference-${i + 1}.${ext}`, fs.readFileSync(workspaceUploadPath(asset.filename)));
   }
   for (const [index, grid] of (project.storyboardGrids || []).entries()) {
-    const source = path.join(uploadDir, grid.filename);
+    const source = workspaceUploadPath(grid.filename);
     if (fs.existsSync(source)) zip.file(`08-storyboard-grids/grid-${String(index + 1).padStart(2, '0')}.jpg`, fs.readFileSync(source));
   }
   const manifest = project.rewrite.shots.map((shot, index) => {
     const keyframe = shot.keyframe;
-    const file = keyframeCurrent(project, shot) && keyframe?.filename && /^recreation-[a-f\d-]+\.(png|jpg|webp)$/.test(keyframe.filename) && fs.existsSync(path.join(uploadDir, keyframe.filename)) ? keyframe.filename : undefined;
+    const file = keyframeCurrent(project, shot) && keyframe?.filename && /^recreation-[a-f\d-]+\.(png|jpg|webp)$/.test(keyframe.filename) && fs.existsSync(workspaceUploadPath(keyframe.filename)) ? keyframe.filename : undefined;
     const output = file ? `recreation-keyframes/shot-${String(index + 1).padStart(2, '0')}.${file.split('.').at(-1)}` : undefined;
-    if (file && output && fs.existsSync(path.join(uploadDir, file))) zip.file(output, fs.readFileSync(path.join(uploadDir, file)));
+    if (file && output && fs.existsSync(workspaceUploadPath(file))) zip.file(output, fs.readFileSync(workspaceUploadPath(file)));
     return { shotId: shot.id, sourceShotId: shot.sourceShotId || shot.id, sourceAt: keyframe?.sourceAt,
       sourceFrameUrl: keyframe?.sourceFrameUrl, keyframeFile: output, status: keyframe?.status === 'completed' && !file ? 'stale' : keyframe?.status || 'pending',
       keyframePrompt: shot.keyframePrompt, visual: shot.visual, generationPrompt: shot.generationPrompt };
@@ -1172,8 +1305,14 @@ app.get('/api/projects/:id/export', async (req, res) => {
   res.type('application/zip').send(buffer);
 });
 registerRadarSpaceMedia(app);
-app.use('/media', express.static(uploadDir, { dotfiles: 'deny', fallthrough: false, setHeaders(res, filepath) {
-  setShotMediaCacheHeaders(res, filepath);
+app.get('/media/:filename', (req, res, next) => {
+  if (!publicAuthEnabled) return next();
+  const file = visibleSkillMedia(req.params.filename, workspaceAccountId()!);
+  if (!file) return next();
+  res.sendFile(file, { cacheControl: false });
+});
+app.use('/media', (req, res, next) => express.static(workspaceUploadDir(), { dotfiles: 'deny', cacheControl: !publicAuthEnabled, setHeaders(res, filepath) {
+  if (!publicAuthEnabled) setShotMediaCacheHeaders(res, filepath);
   const imageExtension = /\.(png|jpe?g|webp)$/i.exec(filepath)?.[1].toLowerCase();
   if (imageExtension) { res.setHeader('Content-Type', imageExtension === 'png' ? 'image/png' : imageExtension === 'webp' ? 'image/webp' : 'image/jpeg'); return; }
   if (filepath.endsWith('.txt')) { res.setHeader('Content-Type', 'text/plain; charset=utf-8'); return; }
@@ -1192,7 +1331,8 @@ app.use('/media', express.static(uploadDir, { dotfiles: 'deny', fallthrough: fal
     }
     res.setHeader('Content-Type', 'application/octet-stream');
   }
-} }));
+} })(req, res, next));
+app.use('/media', (_req, res) => res.sendStatus(404));
 const { registerStudioRoutes } = await import('./studio');
 registerStudioRoutes(app);
 app.use('/api', (_req, res) => res.status(404).json({ error: '接口不存在。' }));

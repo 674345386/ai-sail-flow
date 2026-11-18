@@ -23,3 +23,4 @@ export type LibraryMedia = {
   cloudPath?: string;
   associations?: LibraryMediaAssociation[];
 };
+export const cloudMediaFolder = (userId: string) => `${userId}/workspace-media`;

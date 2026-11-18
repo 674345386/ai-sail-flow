@@ -2,7 +2,7 @@ import type { Dict } from './i18n';
 
 /* All landing-page + login copy. The Chinese entry is the source of truth for meaning; English mirrors it. */
 const zh = {
-  nav: { home: '回到首页', aria: '首页导航', overview: '概览', models: '拆解', tools: '工具', creator: 'AI Creative Lab 创作营', pricing: '价格', more: '更多选项', signIn: '登录' },
+  nav: { home: '回到首页', aria: '首页导航', overview: '概览', models: '拆解', tools: '工具', creator: 'AI Creative Lab 创作营', more: '更多选项', signIn: '登录' },
   announcement: { aria: '产品公告', message: '限时优惠：订阅享 8 折，活动截至 11 月 30 日', details: '了解功能', action: '立即体验', close: '关闭促销公告' },
   omniAnnouncement: { aria: 'Omni 1.2 新模型发布公告', title: 'Omni 1.2 全新登场！', message: '最新视频模型现已加入 AI Creative Lab，画质更清晰、参考控制更精准、视频更长。', action: '立即体验', close: '关闭 Omni 1.2 公告' },
   hero: {
@@ -118,34 +118,15 @@ const zh = {
       { name: '日韩', lang: '日语 · 韩语', tone: '细节特写、克制的口播' },
     ],
   },
-  cta: { title: ['挑一条你最想复刻的视频，', '现在就开始拆。'] as [string, string], primary: '拆解我的第一条视频', pricing: '查看价格' },
-  pricing: {
-    title: '价格', body: '本地版当前开放体验；云端与团队方案将在验证后公布。', use: '使用 AI Creative Lab', start: '立即开始', register: '登记意向',
-    note: '* 后续方案、额度和价格以正式发布信息为准。',
-    plans: [
-      { name: '免费', price: '¥0', note: '本地体验', features: ['1 个本地工作区', '视频与音轨理解', '基础提示词包'] },
-      { name: 'Creator', price: '即将推出', note: '个人创作者', features: ['完整视频拆解', '多市场改写', '可编辑分镜'] },
-      { name: 'Pro', price: '即将推出', note: '增长团队', features: ['批量创意方向', '团队交付格式', '品牌语气模板'] },
-      { name: 'Studio', price: '即将推出', note: '内容工作室', features: ['多项目管理', '制作资料包', '团队工作流'] },
-      { name: 'Enterprise', price: '联系我们', note: '企业方案', features: ['私有化部署', '自定义模型通道', '专属支持'] },
-    ],
-  },
-  faq: {
-    title: '有疑问?',
-    saveQ: 'AI Creative Lab 会保存我的视频吗？',
-    saveCloud: '公网部署版本会把项目和上传素材保存在授权工作区；只有获准登录的账号可以访问。',
-    saveLocal: '本地部署版本把上传素材、项目和导出结果保存在你的设备中。',
-    geminiQ: 'Gemini 3.8 Flash 如何理解完整视频？', geminiA: '视频与音轨通过原生多模态格式一起输入，用于识别镜头、口播、产品展示和节奏。',
-    handoffQ: '生成的方案可以直接交给制作团队吗？', handoffA: '可以。导出包包含分镜、字幕草稿、制作简报和视频生成提示词。',
-  },
-  footer: { meta: '本地部署 · Gemini 3.8 Flash · V1', top: '回到顶部', enter: '进入工作台' },
-  toc: { title: '本页目录', overview: '概览', tools: '工具', made: '作品', models: '拆解', compare: '对比', creator: 'AI Creative Lab 创作营', start: '开始创作', pricing: '价格' },
+  cta: { title: ['挑一条你最想复刻的视频，', '现在就开始拆。'] as [string, string], primary: '拆解我的第一条视频' },
+  footer: { top: '回到顶部', enter: '进入工作台' },
+  toc: { title: '本页目录', overview: '概览', tools: '工具', made: '作品', models: '拆解', compare: '对比', creator: 'AI Creative Lab 创作营', start: '开始创作' },
   boot: { restoring: '正在恢复工作台…' },
 };
 export type LandingMessages = typeof zh;
 
 const en: LandingMessages = {
-  nav: { home: 'Back to home', aria: 'Main navigation', overview: 'Overview', models: 'Breakdown', tools: 'Tools', creator: 'AI Creative Lab Studio', pricing: 'Pricing', more: 'More options', signIn: 'Sign in' },
+  nav: { home: 'Back to home', aria: 'Main navigation', overview: 'Overview', models: 'Breakdown', tools: 'Tools', creator: 'AI Creative Lab Studio', more: 'More options', signIn: 'Sign in' },
   announcement: { aria: 'Announcement', message: 'Limited-time offer: 20% off subscriptions, through November 30', details: 'See features', action: 'Try it now', close: 'Dismiss promotion' },
   omniAnnouncement: { aria: 'Omni 1.2 model launch announcement', title: 'Introducing Omni 1.2!', message: 'Our latest video model, now in AI Creative Lab. Better quality. More control. Longer clips.', action: 'Try it now', close: 'Dismiss Omni 1.2 announcement' },
   hero: {
@@ -261,28 +242,9 @@ const en: LandingMessages = {
       { name: 'Japan & Korea', lang: 'Japanese · Korean', tone: 'Detail close-ups, understated voiceover' },
     ],
   },
-  cta: { title: ['Pick the video you most want to recreate —', 'and start breaking it down now.'], primary: 'Break down my first video', pricing: 'See pricing' },
-  pricing: {
-    title: 'Pricing', body: 'The local edition is open to try now; cloud and team plans will be announced once validated.', use: 'Use AI Creative Lab', start: 'Get started', register: 'Register interest',
-    note: '* Future plans, quotas and prices are subject to the official release.',
-    plans: [
-      { name: 'Free', price: '¥0', note: 'Local trial', features: ['1 local workspace', 'Video and audio understanding', 'Basic prompt pack'] },
-      { name: 'Creator', price: 'Coming soon', note: 'Individual creators', features: ['Full video breakdown', 'Multi-market rewrites', 'Editable storyboards'] },
-      { name: 'Pro', price: 'Coming soon', note: 'Growth teams', features: ['Batch creative directions', 'Team delivery formats', 'Brand voice templates'] },
-      { name: 'Studio', price: 'Coming soon', note: 'Content studios', features: ['Multi-project management', 'Production kits', 'Team workflows'] },
-      { name: 'Enterprise', price: 'Contact us', note: 'Enterprise plans', features: ['Private deployment', 'Custom model routing', 'Dedicated support'] },
-    ],
-  },
-  faq: {
-    title: 'Questions?',
-    saveQ: 'Does AI Creative Lab store my videos?',
-    saveCloud: 'The hosted edition stores projects and uploads in an authorised workspace; only approved signed-in accounts can access it.',
-    saveLocal: 'The local edition keeps uploads, projects and exports on your own device.',
-    geminiQ: 'How does Gemini 3.8 Flash understand a whole video?', geminiA: 'Video and audio go in together in a native multimodal format, used to identify shots, voiceover, product showcases and pacing.',
-    handoffQ: 'Can I hand the generated plan straight to a production team?', handoffA: 'Yes. The export pack includes storyboards, draft subtitles, a production brief and video-generation prompts.',
-  },
-  footer: { meta: 'Local deployment · Gemini 3.8 Flash · V1', top: 'Back to top', enter: 'Open the workspace' },
-  toc: { title: 'On this page', overview: 'Overview', tools: 'Tools', made: 'Showcase', models: 'Breakdown', compare: 'Compare', creator: 'AI Creative Lab Studio', start: 'Get started', pricing: 'Pricing' },
+  cta: { title: ['Pick the video you most want to recreate —', 'and start breaking it down now.'], primary: 'Break down my first video' },
+  footer: { top: 'Back to top', enter: 'Open the workspace' },
+  toc: { title: 'On this page', overview: 'Overview', tools: 'Tools', made: 'Showcase', models: 'Breakdown', compare: 'Compare', creator: 'AI Creative Lab Studio', start: 'Get started' },
   boot: { restoring: 'Restoring your workspace…' },
 };
 export const LANDING: Dict<LandingMessages> = { en, 'zh-CN': zh };

@@ -1,6 +1,6 @@
 .acu-gallery-trigger { display: inline-flex; align-items: center; gap: 6px; padding: 6px 9px; border: 1px solid #dce4df; border-radius: 7px; background: #f4f8f5; color: #355847; font-size: 11px; cursor: pointer; }
 .acu-gallery-trigger:hover { background: #e7f2ea; }
-.acu-stack { position: absolute; z-index: 12; top: 12px; right: 12px; display: grid; gap: 10px; width: min(330px, calc(100% - 24px)); max-height: calc(100% - 24px); overflow-y: auto; pointer-events: none; }
+.acu-stack { display: grid; gap: 10px; width: 100%; max-height: min(320px, 34dvh); overflow-y: auto; }
 .acu-panel { pointer-events: auto; overflow: hidden; border: 1px solid #d7e3d9; border-radius: 14px; background: #fbfdfb; box-shadow: 0 16px 48px #1c38233b; animation: acu-appear .25s ease-out both; }
 @keyframes acu-appear { from { opacity: 0; transform: translateX(22px) scale(.98); } to { opacity: 1; transform: translateX(0) scale(1); } }
 .acu-panel > header { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; padding: 14px 15px 11px; border-bottom: 1px solid #e5ece6; }
@@ -24,7 +24,6 @@
 .acu-panel > footer { padding: 10px 15px 13px; border-top: 1px solid #e5ece6; }
 .acu-panel > footer button { width: 100%; padding: 9px; border: 0; border-radius: 7px; background: #25533a; color: #fff; font-size: 11px; cursor: pointer; }
 .acu-panel > footer button:hover { background: #346e4d; }
-.acu-error { position: absolute; z-index: 13; top: 12px; left: 12px; max-width: 260px; padding: 8px 10px; border: 1px solid #eab8ae; border-radius: 7px; background: #fff3f0; color: #9a382b; font-size: 11px; }
 .acu-gallery-backdrop { position: fixed; z-index: 1000; inset: 0; display: flex; justify-content: flex-end; background: #10201688; }
 .acu-gallery { width: min(780px, 100vw); height: 100%; display: flex; flex-direction: column; background: #fbfdfb; box-shadow: -20px 0 60px #08170d45; color: #253c2d; }
 .acu-gallery > header { display: flex; align-items: flex-start; justify-content: space-between; padding: 24px 26px 20px; border-bottom: 1px solid #dce7df; }

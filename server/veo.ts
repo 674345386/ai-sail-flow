@@ -1,7 +1,7 @@
-import path from 'node:path';
 import { unlink, writeFile } from 'node:fs/promises';
-import { uploadDir } from './store';
+import { workspaceUploadPath } from './workspace-storage';
 import { inspectMedia } from './media';
+import type { OmniVideoSettings } from './omni';
 
 const endpoint = 'https://gaorui.cc/v1/videos';
 export const VEO_DURATION = 8;
@@ -30,7 +30,11 @@ export type GenerationInput = {
   storyboardGridId?: string;
   canvasTestVideo?: boolean;
   /** Real Omni generation, independent of the storyboard workflow. */
-  omni?: { duration: 8 | 10; firstLastFrame: boolean; referenceIds?: string[]; referenceMimes?: string[] };
+  omni?: Pick<OmniVideoSettings, 'model' | 'duration' | 'firstLastFrame'> & {
+    referenceIds?: string[]; referenceMimes?: string[];
+    source?: { videoId: string; filename: string; start: number; end: number };
+    requestKey?: string; requestFingerprint?: string;
+  };
 };
 type Progress = (progress: number, message: string) => void;
 let sessionKey = '';
@@ -139,7 +143,7 @@ export async function saveGeneratedVideo(url: string, id: string, progress: Prog
   const buffer = Buffer.from(await response.arrayBuffer());
   if (buffer.length > 200 * 1024 * 1024) throw new Error('生成视频超过 200 MB，未保存到本机。');
   const filename = `${options?.prefix || 'veo'}-${id}.mp4`;
-  const file = path.join(uploadDir, filename);
+  const file = workspaceUploadPath(filename);
   await writeFile(file, buffer, { mode: 0o600 });
   try {
     const metadata = await inspectMedia(filename, 'video');

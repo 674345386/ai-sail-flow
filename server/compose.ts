@@ -8,7 +8,8 @@ import { createHash, randomUUID } from 'node:crypto';
 import type { GeneratedVideo, Project, Shot, TtsTimingNotice } from '../shared/domain';
 import { buildVeoPlan, clipTiming } from '../shared/veo-plan';
 import { planNarrationTiming, sliceNarrationTiming } from '../shared/narration-timing';
-import { dataDir, uploadDir } from './store';
+import { dataDir } from './store';
+import { workspaceUploadPath } from './workspace-storage';
 
 const exec = promisify(execFile);
 function audioTempoChain(tempo: number) {
@@ -80,8 +81,14 @@ async function mediaDuration(file: string) {
 }
 
 function localVideoFile(video: GeneratedVideo) {
-  if (!video.filename || !/^veo-[a-f\d-]{36}\.mp4$/.test(video.filename)) throw new Error('生成片段缺少可用的本地视频文件。');
-  return path.join(uploadDir, video.filename);
+  if (!video.filename || !/^(?:veo|minimax)-[a-f\d-]{36}\.mp4$/.test(video.filename)) throw new Error('生成片段缺少可用的本地视频文件。');
+  return workspaceUploadPath(video.filename);
+}
+
+function compositionSize(video: GeneratedVideo) {
+  const shortSide = video.resolution === '1080p' ? 1080 : video.resolution === '480p' ? 480 : 720;
+  const longSide = Math.round(shortSide * 8 / 9) * 2;
+  return video.aspectRatio === '16:9' ? { width: longSide, height: shortSide } : { width: shortSide, height: longSide };
 }
 
 async function render(project: Project, videos: GeneratedVideo[], requestedVoice: string, progress: Progress, unitId?: string, timingApproval?: string) {
@@ -96,13 +103,10 @@ async function render(project: Project, videos: GeneratedVideo[], requestedVoice
 
   const plan = buildVeoPlan(project.rewrite.shots);
   const units = unitId ? plan.filter(unit => unit.id === unitId) : plan;
-  if (!units.length || videos.length !== units.length || videos.some((video, index) => video.unitId !== units[index].id || video.status !== 'completed' || video.stale)) throw new Error('请先完成当前模式所需的 Veo 生产单元。');
+  if (!units.length || videos.length !== units.length || videos.some((video, index) => video.unitId !== units[index].id || video.status !== 'completed' || video.stale)) throw new Error('请先完成当前模式所需的视频片段。');
   const aspect = videos[0]?.aspectRatio;
   if (videos.some(video => video.aspectRatio !== aspect)) throw new Error('各生产单元的画幅不一致，请使用相同画幅重新生成。');
-  const shortSide = videos[0]?.resolution === '1080p' ? 1080 : 720;
-  const longSide = shortSide === 1080 ? 1920 : 1280;
-  const width = aspect === '16:9' ? longSide : shortSide;
-  const height = aspect === '16:9' ? shortSide : longSide;
+  const { width, height } = compositionSize(videos[0]);
   const rangeStart = units[0].start;
   const targetDuration = plan.at(-1)!.end;
   let rangeEnd = units.at(-1)!.end;
@@ -111,7 +115,7 @@ async function render(project: Project, videos: GeneratedVideo[], requestedVoice
   const temp = await mkdtemp(path.join(os.tmpdir(), 'sop-compose-'));
   const id = randomUUID();
   const prefix = unitId ? 'unit' : 'final';
-  const provisional = path.join(uploadDir, `${prefix}-${id}.part.mp4`);
+  const provisional = workspaceUploadPath(`${prefix}-${id}.part.mp4`);
   const filename = `${prefix}-${id}.mp4`;
   const subtitleFilename = `${prefix}-${id}.srt`;
   try {
@@ -176,10 +180,10 @@ async function render(project: Project, videos: GeneratedVideo[], requestedVoice
       '-c:a', 'aac', '-b:a', '160k', '-movflags', '+faststart', '-t', String(duration), provisional);
     progress(70, '正在合成画面、配音与字幕…');
     await exec('ffmpeg', args, { timeout: 600_000, maxBuffer: 3 * 1024 * 1024 });
-    await rename(provisional, path.join(uploadDir, filename));
-    await chmod(path.join(uploadDir, filename), 0o600);
-    await writeFile(path.join(uploadDir, subtitleFilename), captions.map((cue, index) => `${index + 1}\n${timecode(cue.start)} --> ${timecode(cue.end)}\n${cue.caption}\n`).join('\n'), { mode: 0o600 });
-    const size = (await stat(path.join(uploadDir, filename))).size;
+    await rename(provisional, workspaceUploadPath(filename));
+    await chmod(workspaceUploadPath(filename), 0o600);
+    await writeFile(workspaceUploadPath(subtitleFilename), captions.map((cue, index) => `${index + 1}\n${timecode(cue.start)} --> ${timecode(cue.end)}\n${cue.caption}\n`).join('\n'), { mode: 0o600 });
+    const size = (await stat(workspaceUploadPath(filename))).size;
     progress(95, '成片已写入本机…');
     return { id, mode: 'tts-subtitles' as const, unitId, sourceVideoIds: videos.map(video => video.id), voice: chosen.name,
       filename, url: `/media/${filename}`, subtitleFilename, subtitleUrl: `/media/${subtitleFilename}`,
@@ -197,18 +201,50 @@ async function render(project: Project, videos: GeneratedVideo[], requestedVoice
 export const composeVideo = (project: Project, videos: GeneratedVideo[], voice: string, progress: Progress, timingApproval?: string) => render(project, videos, voice, progress, undefined, timingApproval);
 export const composeUnitVideo = (project: Project, video: GeneratedVideo, voice: string, progress: Progress) => render(project, [video], voice, progress, video.unitId);
 
+export type ProductionClip = { id: string; filename: string; start: number; end: number; hasAudio?: boolean };
+
+export async function composeProductionVideo(clips: ProductionClip[], width: number, height: number, progress: Progress) {
+  const id = randomUUID(), filename = `final-${id}.mp4`;
+  const provisional = workspaceUploadPath(`final-${id}.part.mp4`);
+  const args = ['-nostdin', '-y', '-v', 'error'];
+  const filters: string[] = [];
+  for (const [index, clip] of clips.entries()) {
+    const file = workspaceUploadPath(clip.filename);
+    args.push('-protocol_whitelist', 'file,pipe', '-threads', '1', '-i', file);
+    let hasAudio = clip.hasAudio;
+    if (hasAudio === undefined) {
+      const { stdout } = await exec('ffprobe', ['-v', 'error', '-protocol_whitelist', 'file,pipe', '-select_streams', 'a:0', '-show_entries', 'stream=index', '-of', 'csv=p=0', file], { timeout: 20_000 });
+      hasAudio = !!stdout.trim();
+    }
+    const start = clip.start.toFixed(6), end = clip.end.toFixed(6), duration = (clip.end - clip.start).toFixed(6);
+    filters.push(`[${index}:V:0]trim=start=${start}:end=${end},setpts=PTS-STARTPTS,scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2,fps=30,setsar=1,format=yuv420p,tpad=stop_mode=clone:stop_duration=0.034,trim=duration=${duration}[v${index}]`);
+    filters.push(hasAudio
+      ? `[${index}:a:0]atrim=start=${start}:end=${end},asetpts=PTS-STARTPTS,aresample=48000,aformat=channel_layouts=stereo,apad,atrim=duration=${duration}[a${index}]`
+      : `anullsrc=channel_layout=stereo:sample_rate=48000,atrim=duration=${duration}[a${index}]`);
+  }
+  const duration = clips.reduce((sum, clip) => sum + clip.end - clip.start, 0);
+  filters.push(`${clips.map((_, index) => `[v${index}][a${index}]`).join('')}concat=n=${clips.length}:v=1:a=1[video][audio]`);
+  const startedAt = new Date().toISOString();
+  try {
+    progress(20, '正在按选定片段顺序拼接成片…');
+    await exec('ffmpeg', [...args, '-filter_complex_threads', '1', '-filter_complex', filters.join(';'), '-map', '[video]', '-map', '[audio]',
+      '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '22', '-threads', '2', '-c:a', 'aac', '-b:a', '160k', '-movflags', '+faststart', '-t', duration.toFixed(6), provisional],
+    { timeout: 600_000, maxBuffer: 3 * 1024 * 1024 });
+    await chmod(provisional, 0o600);
+    await rename(provisional, workspaceUploadPath(filename));
+    return { id, mode: 'veo-native' as const, sourceVideoIds: clips.map(clip => clip.id), voice: 'original', filename, url: `/media/${filename}`, duration, startedAt, finishedAt: new Date().toISOString() };
+  } finally { await rm(provisional, { force: true }).catch(() => {}); }
+}
+
 export async function composeNativeVideo(project: Project, videos: GeneratedVideo[], progress: Progress) {
   if (!project.rewrite) throw new Error('请先生成分镜。');
   const units = buildVeoPlan(project.rewrite.shots);
   if (videos.length !== units.length || videos.some((video, index) => video.unitId !== units[index].id || video.status !== 'completed' || video.stale)) throw new Error('请先完成当前模式的全部视频片段。');
   if (videos.some(video => video.aspectRatio !== videos[0].aspectRatio)) throw new Error('各视频片段的画幅不一致，请使用相同画幅。');
-  const shortSide = videos[0].resolution === '1080p' ? 1080 : 720;
-  const longSide = shortSide === 1080 ? 1920 : 1280;
-  const width = videos[0].aspectRatio === '16:9' ? longSide : shortSide;
-  const height = videos[0].aspectRatio === '16:9' ? shortSide : longSide;
+  const { width, height } = compositionSize(videos[0]);
   const id = randomUUID();
   const filename = `final-${id}.mp4`;
-  const provisional = path.join(uploadDir, `final-${id}.part.mp4`);
+  const provisional = workspaceUploadPath(`final-${id}.part.mp4`);
   const args = ['-y', '-v', 'error'];
   const filters: string[] = [];
   for (const [index, video] of videos.entries()) {
@@ -224,10 +260,10 @@ export async function composeNativeVideo(project: Project, videos: GeneratedVide
   filters.push(`${units.map((_, index) => `[v${index}][a${index}]`).join('')}concat=n=${units.length}:v=1:a=1[video][audio]`);
   args.push('-filter_complex', filters.join(';'), '-map', '[video]', '-map', '[audio]', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '22', '-c:a', 'aac', '-b:a', '160k', '-movflags', '+faststart', '-t', String(duration), provisional);
   try {
-    progress(20, '正在按分镜时间拼接视频，保留 Veo 原声…');
+    progress(20, '正在按分镜时间拼接视频，保留片段原声…');
     await exec('ffmpeg', args, { timeout: 600_000, maxBuffer: 3 * 1024 * 1024 });
-    await rename(provisional, path.join(uploadDir, filename));
-    await chmod(path.join(uploadDir, filename), 0o600);
+    await rename(provisional, workspaceUploadPath(filename));
+    await chmod(workspaceUploadPath(filename), 0o600);
     progress(95, '最终视频已写入本机');
     return { id, mode: 'veo-native' as const, sourceVideoIds: videos.map(video => video.id), voice: 'original', filename, url: `/media/${filename}`, duration, startedAt: new Date().toISOString(), finishedAt: new Date().toISOString() };
   } catch (error) { await rm(provisional, { force: true }).catch(() => {}); throw error; }

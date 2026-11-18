@@ -4,7 +4,7 @@ export type VideoReferenceMedia = { id: string; artifactId?: string; title: stri
 export type VideoDetailsLoader = (id: string, signal: AbortSignal) => Promise<GeneratedVideo>;
 
 export function videoModelLabel(model: string) {
-  return ({ 'h3-video': 'H3 Video', 'h3-video-flex': 'H3 Video Flex', 'h3-video-frames': 'H3 Video Frames', omni_flash_8s: 'Omni Flash 8s', omni_flash_10s: 'Omni Flash 10s' } as Record<string, string>)[model] || model;
+  return ({ 'h3-video': 'H3 Video', 'h3-video-flex': 'H3 Video Flex', 'h3-video-frames': 'H3 Video Frames', 'omni_flash-1.2': 'Omni Flash 1.2', omni_flash_8s: 'Omni Flash 8s', omni_flash_10s: 'Omni Flash 10s' } as Record<string, string>)[model] || model;
 }
 
 function elapsedLabel(milliseconds: number | undefined) {
@@ -28,6 +28,8 @@ export function videoGenerationFields(video: GeneratedVideo) {
     { label: '消耗积分', value: running ? (video.minimax?.credits?.held ? `预留 ${video.minimax.credits.held}` : '待结算') : video.minimax?.credits?.charged ?? (video.minimax?.credits?.held ? `预留 ${video.minimax.credits.held}` : '服务端未提供') },
     { label: '分辨率', value: request?.parameters.resolution || video.resolution || '未记录' },
     { label: '视频时长', value: `${request?.parameters.duration ?? video.duration} 秒` },
+    ...(video.targetDuration && Math.abs(video.targetDuration - video.duration) > 1e-3 ? [{ label: '拼接目标时长', value: `${Number(video.targetDuration.toFixed(3))} 秒` }] : []),
+    ...(video.editSource ? [{ label: '原片编辑区间', value: `${video.editSource.start}–${video.editSource.end} 秒` }] : []),
     { label: '画幅比例', value: request?.parameters.aspect_ratio || video.aspectRatio },
     { label: '输出数量', value: details?.outputCount?.toString() || (video.provider === 'omni-flash' ? '1' : running ? waiting : '未记录') },
     { label: '生成音频', value: flag(details?.generateAudio ?? request?.parameters.generate_audio ?? video.minimax?.generateAudio) },
@@ -40,13 +42,19 @@ export function videoGenerationFields(video: GeneratedVideo) {
 
 export function recreateVideoDraft(video: GeneratedVideo) {
   const request = video.minimax?.request;
-  const parameters: Record<string, unknown> = { model: video.model, duration: request?.parameters.duration ?? video.duration, resolution: request?.parameters.resolution || video.resolution, aspectRatio: request?.parameters.aspect_ratio || video.aspectRatio };
+  const parameters: Record<string, unknown> = { model: video.model, resolution: request?.parameters.resolution || video.resolution,
+    ...(video.editSource ? { sourceVideoId: video.editSource.videoId, start: video.editSource.start, end: video.editSource.end }
+      : { duration: video.targetDuration ?? request?.parameters.duration ?? video.duration, aspectRatio: request?.parameters.aspect_ratio || video.aspectRatio }) };
   if (request) { parameters.generateAudio = request.parameters.generate_audio; parameters.optimizePrompt = request.optimize_prompt; }
   if (video.model === 'h3-video-frames' || video.providerRequest?.first_last_frame) {
     (video.referenceIds || []).forEach((id, index) => {
       const role = request?.inputs[index]?.role || (index === 0 ? 'first_frame' : 'last_frame');
       parameters[role === 'last_frame' ? 'lastFrameId' : 'firstFrameId'] = id;
     });
-  } else parameters.referenceIds = video.referenceIds || (video.storyboardGridId ? [video.storyboardGridId] : []);
+  } else {
+    const videoReferences = video.referenceMedia?.filter(media => media.role === 'reference_video').map(media => media.id) || [];
+    parameters.referenceIds = (video.referenceIds || (video.storyboardGridId ? [video.storyboardGridId] : [])).filter(id => !videoReferences.includes(id));
+    if (videoReferences.length) parameters.referenceVideoIds = videoReferences;
+  }
   return `请基于视频产物 ${video.id} 再创作一个新版本。先读取当前创意，沿用以下实际提示词、参数和参考图；这次是新版本，不是恢复旧任务。\n\n生成参数：\n${JSON.stringify(parameters, null, 2)}\n\n完整提示词：\n${request?.prompt || video.providerRequest?.prompt || video.prompt}`;
 }

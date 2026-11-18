@@ -1,6 +1,6 @@
 # Public deployment on Tencent Lighthouse
 
-The public configuration runs the existing Express API behind Caddy. Caddy terminates HTTPS; the application binds only to `127.0.0.1:4317`. Project JSON and uploaded/generated files live in the persistent `./data` directory. Supabase handles login, and any authenticated Supabase account can access this deployment. All signed-in accounts currently share the same projects, media, settings, and generation credentials; the app does not provide per-user data isolation.
+The public configuration runs the existing Express API behind Caddy. Caddy terminates HTTPS; the application binds only to `127.0.0.1:4317`. Supabase verifies the account for every private API and media session. Projects, chats, task outputs and media are stored under `data/accounts/<Supabase user ID>/`. Server model and storage connections are managed by the operator.
 
 ## Before deployment
 
@@ -36,11 +36,13 @@ Check `systemctl status ai-sail-flow caddy` and `journalctl -u ai-sail-flow -n 1
 
 ## Supabase redirect URL
 
-In Supabase Authentication URL configuration, add the exact production redirect `https://lululib.cn/auth/callback` to the allowed redirect URLs and set the production site URL to `https://lululib.cn`. If a permitted temporary preview is used, allow its matching `/auth/callback` URL as well. Email OTP sign-in uses the existing Supabase project. Enable email signups if new visitors should create accounts. Any authenticated Supabase account can access workspace APIs and media files. All accounts currently operate on the same shared workspace, so only enable signup for people you trust with its projects and uploaded content.
+In Supabase Authentication URL configuration, add the exact production redirect `https://lululib.cn/auth/callback` to the allowed redirect URLs and set the production site URL to `https://lululib.cn`. If a permitted temporary preview is used, allow its matching `/auth/callback` URL as well. Email OTP sign-in uses the existing Supabase project. Enable email signups if new visitors should create accounts.
 
 ## Update and backup
 
 Replace the application source with the new release, rerun `npm ci --include=dev` and `npm run build`, then restart `ai-sail-flow`. Caddy stores certificates under `/var/lib/caddy`, and `data/` persists projects and uploaded media.
+
+When upgrading from a shared workspace, keep the existing `data/` and leave historical records in place until their owners are verified. The new server opens an independent workspace for each account. Apply `deploy/supabase/isolate-workspace-media.sql` on the Supabase database as part of the cutover. Current backups use `<user ID>/workspace-media/` and profile images keep `<user ID>/profile/`. The policy excludes old flat media paths from account access while retaining the objects for review. Existing signed URLs can remain valid until expiry. Use the configured bucket name in the SQL if the deployment overrides `ai-sail-flow-files`.
 
 ## US-West network pacing
 

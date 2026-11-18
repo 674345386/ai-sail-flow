@@ -19,7 +19,7 @@
 .app-shell .iua-generated {
   font-family: var(--sail-font-prose);
   font-size: 16px;
-  font-weight: 400;
+  font-weight: var(--iui-prose-weight, 400);
   line-height: 24px;
   letter-spacing: 0;
   word-spacing: 0;
@@ -47,7 +47,7 @@
 }
 
 .app-shell .iua-generated .iui-weight-normal {
-  font-weight: 400;
+  font-weight: var(--iui-prose-weight, 400);
 }
 
 .app-shell .iua-generated [class*="iui-"] {
@@ -84,6 +84,8 @@
   font-size: 18px;
   font-weight: 500;
   line-height: 24px;
+  letter-spacing: .03em;
+  word-spacing: .07em;
   font-variation-settings: "opsz" 18;
   white-space: normal;
 }

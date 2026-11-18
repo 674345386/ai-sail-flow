@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import type { Project } from '../shared/domain';
+import { referenceSceneImages } from '../shared/agent-video-analysis';
 import { activeExperimentMethod, applyExperimentOperation, emptyExperiment, invalidateExperimentNodes, normalizeExperimentGraph, methodMatchesRun, ExperimentError, type ExperimentGraph, type ExperimentNode, type ExperimentSkill, type ExperimentFile, type ExperimentRun, type ExperimentMethod } from '../shared/experiment';
 
 export const importExperimentSkillInput = z.object({ url: z.string().url().max(2000), path: z.string().max(500).optional(), nodeId: z.string().regex(/^[\w-]{1,100}$/).optional(), targetStepId: z.string().regex(/^[\w-]{1,100}$/).optional() });
@@ -14,6 +15,9 @@ export function experimentSources(project: Project, files: ExperimentFile[] = []
     // Audio is available through chat's audio player; it is not a text preview.
     ...project.assets.filter(a => a.kind !== 'audio').map(a => ({ id: a.id, title: a.name, url: a.url, mediaType: a.mime.startsWith('video/') ? 'video' as const : a.mime.startsWith('image/') ? 'image' as const : 'text' as const, status: 'completed' as const, error: undefined as string | undefined })),
     ...(project.storyboardGrids || []).map(a => ({ id: a.id, title: `${a.start}–${a.end} 秒连续分镜`, url: a.url, mediaType: 'image' as const, status: 'completed' as const })),
+    ...(project.productionStoryboards || []).map(a => ({ id: a.id, title: `${a.start}–${a.end} 秒制作故事板`, url: a.url, mediaType: 'image' as const, status: 'completed' as const, prompt: a.prompt })),
+    ...referenceSceneImages(project.referenceSceneTable).map(a => ({ id: a.id, title: a.name, url: a.url, mediaType: 'image' as const, status: 'completed' as const })),
+    ...(project.videoProductionPlan?.scenes || []).flatMap(scene => (scene.originalFrames || []).map(a => ({ id: a.id, title: scene.title, url: a.url, mediaType: 'image' as const, status: 'completed' as const }))),
     ...(project.agentImages || []).map(a => ({ id: a.id, title: a.prompt.slice(0, 80), url: a.url, mediaType: 'image' as const, status: a.status, error: a.error, prompt: a.prompt, referenceIds: a.referenceIds, model: a.model, parameters: { ...(a.size ? { size: a.size } : {}), ...(a.quality ? { quality: a.quality } : {}), ...(a.aspectRatio ? { aspectRatio: a.aspectRatio } : {}) } })),
     ...project.generatedVideos.map(a => ({ id: a.id, title: a.prompt.slice(0, 80), url: a.url, mediaType: 'video' as const, status: a.stale ? 'stale' as const : a.status, error: a.error, prompt: a.prompt, referenceIds: a.referenceIds, model: a.model, parameters: { ...(a.resolution ? { resolution: a.resolution } : {}), ...(a.aspectRatio ? { aspectRatio: a.aspectRatio } : {}), ...(a.duration ? { duration: a.duration } : {}) } })),
     ...(project.composedVideos || []).map(a => ({ id: a.id, title: '剪辑合成成片', url: a.url, mediaType: 'video' as const, status: a.stale ? 'stale' as const : 'completed' as const, error: undefined as string | undefined })),

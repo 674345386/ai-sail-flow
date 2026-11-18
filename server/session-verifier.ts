@@ -1,19 +1,19 @@
 // Share remote verification across API, image and video requests for the same session.
-export function createSessionVerifier(verify: (token: string) => Promise<boolean>, now = Date.now) {
-  const cached = new Map<string, { allowed: boolean; expiresAt: number }>();
-  const pending = new Map<string, Promise<boolean>>();
+export function createSessionVerifier<T extends string | boolean>(verify: (token: string) => Promise<T>, now = Date.now) {
+  const cached = new Map<string, { allowed: T; expiresAt: number }>();
+  const pending = new Map<string, Promise<T>>();
   const successTTL = 5 * 60_000;
   const failureTTL = 15_000;
   const maxEntries = 128;
 
-  async function isAllowed(token: string): Promise<boolean> {
+  async function isAllowed(token: string): Promise<T | false> {
     if (!token) return false;
     const entry = cached.get(token);
     if (entry && entry.expiresAt > now()) return entry.allowed;
     const existing = pending.get(token);
     if (existing) return existing;
 
-    const request: Promise<boolean> = Promise.resolve().then(async () => {
+    const request = Promise.resolve().then(async () => {
       const allowed = await verify(token);
       let expiresAt = now() + failureTTL;
       try {

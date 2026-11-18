@@ -4,38 +4,44 @@ import { createHash, randomUUID } from 'node:crypto';
 import { fileTypeFromFile } from 'file-type';
 import type { Asset } from '../shared/domain';
 import type { LibraryMedia, LibraryMediaAssociation } from '../shared/media-library';
-import { dataDir, uploadDir, getProject, listProjects, getWorkspaceProject, defaultProjectId } from './store';
+import { getProject, listProjects, getWorkspaceProject, defaultProjectId } from './store';
+import { workspaceDirectory, workspacePath, workspaceResource, workspaceUploadDir, workspaceUploadPath } from './workspace-storage';
 
-const catalogFile = path.join(dataDir, 'media-library.json');
 type StoredLibraryMedia = LibraryMedia & { deletedAt?: string; aliases?: string[]; purgePending?: boolean };
-const media = new Map<string, StoredLibraryMedia>();
+const catalog = workspaceResource(() => {
+  const filename = path.join(workspaceDirectory(), 'media-library.json');
+  const entries = new Map<string, StoredLibraryMedia>();
+  if (fs.existsSync(filename)) {
+    const records: StoredLibraryMedia[] = JSON.parse(fs.readFileSync(filename, 'utf8'));
+    for (const record of records) if (/^[a-f0-9]{64}$/.test(record.id) && isUserUploadFilename(record.filename)) entries.set(record.id, { ...record, origin: 'user-upload' });
+    // Repair old automatic Agent-image entries without deleting the task files.
+    if (records.length !== entries.size || records.some(record => record.origin !== 'user-upload')) writeCatalog(filename, entries);
+  }
+  return { filename, entries };
+});
 // Multer assigns this format only to explicit user uploads. Task images and
 // rendered outputs have separate prefixes and must never enter this catalog.
 export function isUserUploadFilename(filename: string | undefined): boolean {
   return typeof filename === 'string' && /^[a-f0-9]{32}$/.test(filename);
 }
-if (fs.existsSync(catalogFile)) {
-  const records: StoredLibraryMedia[] = JSON.parse(fs.readFileSync(catalogFile, 'utf8'));
-  for (const record of records) if (/^[a-f0-9]{64}$/.test(record.id) && isUserUploadFilename(record.filename)) media.set(record.id, { ...record, origin: 'user-upload' });
-  // Repair old automatic Agent-image entries without deleting the task files.
-  if (records.length !== media.size || records.some(record => record.origin !== 'user-upload')) persist();
-}
-function persist() {
+function writeCatalog(catalogFile: string, media: Map<string, StoredLibraryMedia>) {
   const temporary = `${catalogFile}.${randomUUID()}.tmp`;
   fs.writeFileSync(temporary, JSON.stringify([...media.values()]), { mode: 0o600 });
   fs.renameSync(temporary, catalogFile);
 }
+function persist() { const { filename, entries } = catalog(); writeCatalog(filename, entries); }
 async function fileHash(filename: string) {
   const hash = createHash('sha256');
-  for await (const chunk of fs.createReadStream(path.join(uploadDir, filename))) hash.update(chunk);
+  for await (const chunk of fs.createReadStream(workspaceUploadPath(filename))) hash.update(chunk);
   return hash.digest('hex');
 }
 export async function collectUploadedAsset(asset: Asset, createdAt = new Date().toISOString(), restoreDeleted = true) {
   if (!isUserUploadFilename(asset.filename)) throw new Error('任务素材仅保存在本机，不能自动收录到素材库。');
   const id = await fileHash(asset.filename);
+  const { entries: media } = catalog();
   const existing = media.get(id);
   if (existing?.deletedAt && !restoreDeleted) return existing;
-  if (existing && !existing.deletedAt && fs.existsSync(path.join(uploadDir, existing.filename!))) {
+  if (existing && !existing.deletedAt && fs.existsSync(workspaceUploadPath(existing.filename!))) {
     if (asset.filename !== existing.filename && !existing.aliases?.includes(asset.filename)) {
       existing.aliases = [...(existing.aliases || []), asset.filename]; persist();
     }
@@ -46,7 +52,8 @@ export async function collectUploadedAsset(asset: Asset, createdAt = new Date().
   return item;
 }
 export function listLibraryMedia(): LibraryMedia[] {
-  const records = [...media.values()].filter(item => !item.deletedAt && item.origin === 'user-upload' && isUserUploadFilename(item.filename) && fs.existsSync(path.join(uploadDir, item.filename!)));
+  const { entries: media } = catalog();
+  const records = [...media.values()].filter(item => !item.deletedAt && item.origin === 'user-upload' && isUserUploadFilename(item.filename) && fs.existsSync(workspaceUploadPath(item.filename!)));
   const byFilename = new Map(records.flatMap(item => [item.filename!, ...(item.aliases || [])].map(filename => [filename, item.id] as const)));
   const associations = new Map<string, LibraryMediaAssociation[]>();
   for (const summary of listProjects()) {
@@ -64,9 +71,10 @@ export function listLibraryMedia(): LibraryMedia[] {
   return records.map(({ aliases, deletedAt, purgePending, ...item }) => ({ ...item, associations: associations.get(item.id) || [] })).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 export function getLibraryMedia(id: string) { return listLibraryMedia().find(item => item.id === id); }
-export function libraryMime(filename: string) { return [...media.values()].find(item => item.filename === filename)?.mime; }
+export function libraryMime(filename: string) { return [...catalog().entries.values()].find(item => item.filename === filename)?.mime; }
 
 export function removeLibraryMedia(ids: string[]) {
+  const { entries: media } = catalog();
   const deletedAt = new Date().toISOString();
   const previous = new Map<string, StoredLibraryMedia>();
   for (const id of new Set(ids)) {
@@ -82,11 +90,11 @@ export function removeLibraryMedia(ids: string[]) {
     for (const item of previous.values()) {
       for (const filename of new Set([item.filename, ...(item.aliases || [])])) {
         if (!isUserUploadFilename(filename)) continue;
-        fs.rmSync(path.join(uploadDir, filename!), { force: true });
-        fs.rmSync(path.join(uploadDir, `${filename}.jpg`), { force: true });
+        fs.rmSync(workspaceUploadPath(filename!), { force: true });
+        fs.rmSync(workspaceUploadPath(`${filename}.jpg`), { force: true });
       }
     }
-    const cache = path.join(dataDir, 'media-library-cache');
+    const cache = workspacePath('media-library-cache');
     if (fs.existsSync(cache)) for (const filename of fs.readdirSync(cache)) {
       const id = /^([a-f0-9]{64})\.(?:mp4|[a-f0-9-]{36}\.tmp)$/.exec(filename)?.[1];
       if (id && previous.has(id)) fs.rmSync(path.join(cache, filename), { force: true });
@@ -98,6 +106,7 @@ export function removeLibraryMedia(ids: string[]) {
 
 // Recover existing uploads, including files retained after removal from a creative.
 export async function initializeMediaLibrary() {
+  const { entries: media } = catalog();
   // Only resume permanent deletions explicitly requested through this flow.
   // Legacy tombstones did not authorize removing the physical files.
   removeLibraryMedia([...media.values()].filter(item => item.purgePending).map(item => item.id));
@@ -107,13 +116,13 @@ export async function initializeMediaLibrary() {
     if (project.isDemo) continue;
     for (const asset of project.assets) {
       if (asset.kind === 'audio') continue;
-      if (!isUserUploadFilename(asset.filename) || known.has(asset.filename) || !fs.existsSync(path.join(uploadDir, asset.filename))) continue;
-      await collectUploadedAsset(asset, fs.statSync(path.join(uploadDir, asset.filename)).birthtime.toISOString(), false); known.add(asset.filename);
+      if (!isUserUploadFilename(asset.filename) || known.has(asset.filename) || !fs.existsSync(workspaceUploadPath(asset.filename))) continue;
+      await collectUploadedAsset(asset, fs.statSync(workspaceUploadPath(asset.filename)).birthtime.toISOString(), false); known.add(asset.filename);
     }
   }
-  for (const filename of fs.readdirSync(uploadDir)) {
+  for (const filename of fs.readdirSync(workspaceUploadDir())) {
     if (known.has(filename) || !isUserUploadFilename(filename)) continue;
-    const absolute = path.join(uploadDir, filename);
+    const absolute = workspaceUploadPath(filename);
     const type = await fileTypeFromFile(absolute).catch(() => undefined);
     if (!type || !['image/jpeg', 'image/png', 'image/webp', 'video/mp4', 'video/quicktime', 'video/webm'].includes(type.mime)) continue;
     const info = fs.statSync(absolute), video = type.mime.startsWith('video/');

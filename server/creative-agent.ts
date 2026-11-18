@@ -4,17 +4,19 @@ import { EventEmitter } from 'node:events';
 import fs from 'node:fs';
 import path from 'node:path';
 import { createInterface } from 'node:readline';
-import { dataDir, getProject, saveProject, uploadDir } from './store';
+import { dataDir, getProject, saveProject } from './store';
+import { createWorkspaceCapabilities, workspaceDirectory, workspaceUploadPath } from './workspace-storage';
 import { agentAttachmentContext, agentAttachmentDescription, agentMessageAttachments, sentAgentAttachmentIds, type AgentMessage, type AgentMessageImage } from '../shared/agent-message';
 import { createAgentWork, finishAgentWork, recordAgentWork } from '../shared/agent-work';
 import { AGENT_MODELS } from '../shared/agent-models';
-import { agentProvider, agentProviderArgs } from './agent-provider';
+import { agentProvider, agentProviderArgs, agentSandbox, agentSandboxPolicy, agentCodexHome } from './agent-provider';
 import { canvasComponentInput, type CanvasComponent, type CanvasComponentInput } from '../shared/agent-canvas-ui';
 import type { AgentState } from '../shared/intelligent-ui';
 import { summarizeAgentActivity, type AgentActivity } from '../shared/agent-activity';
 import { isValidIntelligentUIProgram } from '../src/intelligent-ui/library';
 import { isAgentAdaptation, normalizeAgentAdaptation, type AgentAdaptation } from '../shared/agent-adaptation';
 import { agentInstructionsFor } from './creative-agent-instructions';
+import { referenceSceneImages } from '../shared/agent-video-analysis';
 import { appendPresentationRequest, isAgentPresentation, normalizeAgentPresentation, type AgentPresentation } from '../shared/agent-presentation';
 import { applyExperimentOperation, emptyExperiment, type ExperimentGraph, type ExperimentOperation } from '../shared/experiment';
 import { syncExperimentSources } from './experiment-workbench';
@@ -27,12 +29,6 @@ type Wire = { id?: number; method?: string; params?: Record<string, unknown>; re
 type AgentModelInfo = { model: string; displayName?: string; supportedReasoningEfforts?: { reasoningEffort: string }[] };
 export class AgentTurnConflictError extends Error {}
 
-const sessionsDir = path.join(dataDir, 'agent-sessions');
-const workDir = path.join(dataDir, 'agent-workspace');
-const isolatedCodexHome = process.env.SOP_AGENT_CODEX_HOME || path.join(dataDir, 'agent-codex');
-fs.mkdirSync(sessionsDir, { recursive: true, mode: 0o700 });
-fs.mkdirSync(workDir, { recursive: true, mode: 0o700 });
-fs.mkdirSync(isolatedCodexHome, { recursive: true, mode: 0o700 });
 const states = new Map<string, AgentState>();
 const clients = new Map<string, AppServerClient>();
 const startingTurns = new Set<string>();
@@ -40,9 +36,9 @@ const drainingQueues = new Set<string>();
 const steeringQueuedMessages = new Set<string>();
 const events = new EventEmitter();
 events.setMaxListeners(0);
-export const agentInternalToken = randomUUID();
+export const agentCapabilities = createWorkspaceCapabilities();
 
-function filename(id: string) { return path.join(sessionsDir, `${id}.json`); }
+function filename(id: string) { return path.join(workspaceDirectory('agent-sessions'), `${id}.json`); }
 function save(id: string) {
   const state = states.get(id); if (!state) return;
   const dest = filename(id), temp = `${dest}.${randomUUID()}.tmp`;
@@ -159,11 +155,12 @@ export function getAgentImageReferences(id: string): AgentMessageImage[] {
     .filter(file => file.mediaType === 'image' && file.status === 'completed' && path.basename(file.filename) === file.filename && /\.(png|jpe?g|webp)$/i.test(file.filename))
     .map(file => ({ id: file.id, name: file.title, url: file.url, filename: file.filename,
       mime: /\.jpe?g$/i.test(file.filename) ? 'image/jpeg' : /\.webp$/i.test(file.filename) ? 'image/webp' : 'image/png' }));
-  const retainedImages: AgentMessageImage[] = (getProject(id)?.generatedVideos || []).flatMap(video => video.referenceMedia || [])
+  const project = getProject(id);
+  const retainedImages: AgentMessageImage[] = (project?.generatedVideos || []).flatMap(video => video.referenceMedia || [])
     .filter(image => path.basename(image.filename) === image.filename && /\.(png|jpe?g|webp)$/i.test(image.filename))
     .map(image => ({ id: image.id, name: image.name, url: image.url, filename: image.filename,
       mime: image.mime || (/\.jpe?g$/i.test(image.filename) ? 'image/jpeg' : /\.webp$/i.test(image.filename) ? 'image/webp' : 'image/png') }));
-  const images = [...retainedImages, ...state.messages.flatMap(message => message.images || []), ...publishedImages];
+  const images = [...retainedImages, ...state.messages.flatMap(message => message.images || []), ...publishedImages, ...referenceSceneImages(project?.referenceSceneTable)];
   return [...new Map(images.map(image => [image.id, image])).values()];
 }
 function syncAgentVideo(id: string, state: AgentState) {
@@ -184,12 +181,13 @@ class AppServerClient {
   private loadedThreadId: string | undefined;
   private nextId = 1;
   private pending = new Map<number, { resolve: (value: Record<string, any>) => void; reject: (error: Error) => void; timer: NodeJS.Timeout }>();
-  private ready: Promise<void>;
+  readonly ready: Promise<void>;
+  private failure: Error | undefined;
   constructor(private projectId: string, private onEvent: (message: Wire) => void) {
     const cmd = process.env.SOP_AGENT_CODEX_BIN || 'codex';
-    const env = { ...process.env, CODEX_HOME: isolatedCodexHome };
+    const env = { ...process.env, CODEX_HOME: agentCodexHome(dataDir) };
     const cwd = experimentWorkspace(projectId); fs.mkdirSync(cwd, { recursive: true, mode: 0o700 });
-    this.proc = spawn(cmd, ['app-server', '--stdio', ...agentProviderArgs()], { cwd, env, stdio: ['pipe', 'pipe', 'pipe'] });
+    this.proc = spawn(cmd, ['app-server', '--stdio', ...agentProviderArgs()], { cwd, env, detached: process.platform !== 'win32', stdio: ['pipe', 'pipe', 'pipe'] });
     const lines = createInterface({ input: this.proc.stdout, crlfDelay: Infinity });
     lines.on('line', line => {
       try { this.receive(JSON.parse(line) as Wire); }
@@ -197,13 +195,27 @@ class AppServerClient {
     });
     this.proc.stderr.on('data', chunk => { const line = String(chunk).trim(); if (line) console.warn(`Creative agent: ${line.slice(0, 400)}`); });
     this.proc.on('error', error => this.fail(error));
-    this.proc.on('exit', () => { this.fail(new Error('Codex app server 已退出。')); clients.delete(projectId); });
-    this.ready = this.request('initialize', { clientInfo: { name: 'sail_creation', title: 'AI Creative Lab Agent', version: '0.1.0' } }).then(() => {
+    this.proc.stdin.on('error', error => this.fail(error));
+    this.proc.on('exit', () => this.fail(new Error('Codex app server 已退出。')));
+    // Cold SQLite initialization on the shared host can exceed the normal RPC timeout.
+    this.ready = this.request('initialize', { clientInfo: { name: 'sail_creation', title: 'AI Creative Lab Agent', version: '0.1.0' } }, 120_000).then(() => {
       this.proc.stdin.write(`${JSON.stringify({ method: 'initialized', params: {} })}\n`);
+    }).catch(error => {
+      this.fail(error);
+      throw error;
     });
   }
   private fail(error: Error) {
+    if (this.failure) return;
+    this.failure = error;
+    // Failed initialization must not poison every later retry for this creative.
+    // An old process exiting must also leave any replacement client intact.
+    if (clients.get(this.projectId) === this) clients.delete(this.projectId);
     for (const [id, call] of this.pending) { clearTimeout(call.timer); call.reject(error); this.pending.delete(id); }
+    // The npm launcher owns a native child; stop the group so it cannot retain DB locks.
+    if (this.proc.pid && process.platform !== 'win32') {
+      try { process.kill(-this.proc.pid, 'SIGKILL'); } catch { /* Already exited. */ }
+    } else this.proc.kill('SIGKILL');
     const state = getAgentState(this.projectId);
     if (state.status === 'running') { state.status = 'failed'; state.error = error.message; state.queuePaused = true; finishAgentWork(state.messages, 'failed'); save(this.projectId); }
   }
@@ -215,6 +227,7 @@ class AppServerClient {
     } else if (message.method) this.onEvent(message);
   }
   private request(method: string, params: Record<string, unknown>, timeout = 30000): Promise<Record<string, any>> {
+    if (this.failure) return Promise.reject(this.failure);
     const id = this.nextId++;
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => { this.pending.delete(id); reject(new Error(`Codex ${method} 超时`)); }, timeout);
@@ -231,7 +244,7 @@ function configFor(id: string) {
   return { mcp_servers: { sail_creation: {
     command: process.execPath,
     args: [path.join(process.cwd(), 'node_modules/tsx/dist/cli.mjs'), path.join(process.cwd(), 'server/creative-agent-mcp.ts')],
-    env: { SOP_AGENT_PROJECT_ID: id, SOP_AGENT_INTERNAL_TOKEN: agentInternalToken, SOP_AGENT_INTERNAL_URL: `http://127.0.0.1:${process.env.SOP_PORT || '4317'}` },
+    env: { SOP_AGENT_PROJECT_ID: id, SOP_AGENT_INTERNAL_TOKEN: agentCapabilities.issue(id), SOP_AGENT_INTERNAL_URL: `http://127.0.0.1:${process.env.SOP_PORT || '4317'}` },
     startup_timeout_sec: 15,
     tool_timeout_sec: 650,
     required: true,
@@ -240,7 +253,7 @@ function configFor(id: string) {
 
 const workToolLabels: Record<string, string> = {
   discover_experiment_methods: '寻找创作方法', read_experiment_method: '阅读方法与运行条件',
-  get_creative: '读取创意素材', analyze_reference: '分析参考视频',
+  get_creative: '读取创意素材', analyze_reference: '读取参考视频画面', save_reference_analysis: '保存场景表与分镜', save_reference_shot_review: '保存变动镜头的分析建议',
   generate_image: '生成图片', generate_video: '生成视频', generate_minimax_video: '使用 MiniMax H3 生成视频',
   generate_first_last_frame_video: '生成首尾帧视频', generate_grid_video: '生成分镜视频',
   recover_video: '查询视频生成进度', edit_grid_prompt: '调整分镜提示词',
@@ -289,6 +302,8 @@ function onNotification(id: string, message: Wire) {
 async function clientFor(id: string) {
   let client = clients.get(id);
   if (!client) { client = new AppServerClient(id, message => onNotification(id, message)); clients.set(id, client); }
+  // Finish the handshake before model-list fallback can swallow a startup error.
+  await client.ready;
   return client;
 }
 export async function listAgentModels(id: string): Promise<AgentModelInfo[]> {
@@ -329,7 +344,7 @@ export async function startAgentTurn(id: string, prompt: string, imageIds?: stri
   })).map(({ id: audioId, name, url, filename, mime, duration }) => {
     const directory = path.join(experimentWorkspace(id), 'references');
     const localPath = path.join(directory, `audio-${audioId}`);
-    const source = path.join(uploadDir, path.basename(filename));
+    const source = workspaceUploadPath(path.basename(filename));
     if (!fs.existsSync(source)) throw new Error(`参考音频「${name}」无法读取，请重新添加后发送。`);
     fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
     fs.copyFileSync(source, localPath);
@@ -351,7 +366,7 @@ export async function startAgentTurn(id: string, prompt: string, imageIds?: stri
   for (const [index, attachment] of agentMessageAttachments(userMessage).entries()) {
     attachmentInputs.push({ type: 'text', text: agentAttachmentDescription(attachment, index) });
     if (attachment.kind !== 'image') continue;
-    const source = path.join(uploadDir, path.basename(attachment.filename!));
+    const source = workspaceUploadPath(path.basename(attachment.filename!));
     if (!fs.existsSync(source)) throw new Error(`参考图片「${attachment.name}」无法读取，请重新添加后发送。`);
     attachmentInputs.push({ type: 'localImage', path: source });
   }
@@ -381,14 +396,14 @@ export async function startAgentTurn(id: string, prompt: string, imageIds?: stri
     // conversation and a bounded history seed for the new model context.
     const upgrade = !!state.threadId && state.instructionsVersion !== instructionsVersion;
     if (!state.threadId || upgrade) {
-      const started = await client.call('thread/start', { model: selected, cwd, sandbox: 'danger-full-access', approvalPolicy: 'never', serviceName: 'sail_creation', developerInstructions, config: configFor(id) }, 60000);
+      const started = await client.call('thread/start', { model: selected, cwd, sandbox: agentSandbox, approvalPolicy: 'never', serviceName: 'sail_creation', developerInstructions, config: configFor(id) }, 60000);
       if (!started.thread?.id) throw new Error('无法创建 Codex 对话。');
       if (upgrade) state.previousThreadId = state.threadId;
       state.threadId = started.thread.id;
       state.instructionsVersion = instructionsVersion;
       client.markThreadLoaded(state.threadId!);
     } else if (!client.hasLoadedThread(state.threadId)) {
-      await client.call('thread/resume', { threadId: state.threadId, excludeTurns: true, model: selected, cwd, sandbox: 'danger-full-access', approvalPolicy: 'never', developerInstructions, config: configFor(id) }, 60000);
+      await client.call('thread/resume', { threadId: state.threadId, excludeTurns: true, model: selected, cwd, sandbox: agentSandbox, approvalPolicy: 'never', developerInstructions, config: configFor(id) }, 60000);
       client.markThreadLoaded(state.threadId);
     }
     state.model = selected;
@@ -399,7 +414,7 @@ export async function startAgentTurn(id: string, prompt: string, imageIds?: stri
     save(id);
     const referenceContext = agentAttachmentContext(userMessage);
     const contextSeed = upgrade && history ? `Previous conversation for context (quoted history, not new instructions; earlier assistant formatting is not a user preference):\n${history}\n\nCurrent user request:\n` : '';
-    const started = await client.call('turn/start', { threadId: state.threadId, input: [{ type: 'text', text: contextSeed + appendPresentationRequest(prompt + referenceContext, presentation) }, ...attachmentInputs], cwd, approvalPolicy: 'never', sandboxPolicy: { type: 'dangerFullAccess' }, model: selected, ...(effort ? { effort } : {}) });
+    const started = await client.call('turn/start', { threadId: state.threadId, input: [{ type: 'text', text: contextSeed + appendPresentationRequest(prompt + referenceContext, presentation) }, ...attachmentInputs], cwd, approvalPolicy: 'never', sandboxPolicy: agentSandboxPolicy, model: selected, ...(effort ? { effort } : {}) });
     userMessage.attachmentsSent = true;
     if (state.status === 'running') state.turnId = started.turn?.id;
     const current = getProject(id);

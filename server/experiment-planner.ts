@@ -1,8 +1,20 @@
 import type { ExperimentGraph, ExperimentOperation } from '../shared/experiment';
 import { ExperimentPlanningError } from '../shared/experiment-planning';
+import { H3_MIN_SECONDS } from '../shared/video-production';
 
 type ProposalOperation = Extract<ExperimentOperation, { op: 'propose-routes' }>;
-export type PlanningCapabilities = { programmatic: boolean; image: boolean; omni: boolean; minimax: boolean; referenceStorage: boolean };
+export type PlanningCapabilities = { programmatic: boolean; image: boolean; omni: boolean; minimax: boolean; referenceStorage: boolean; videoDurations?: Record<string, number> };
+
+function needsOmni(step: ExperimentRouteStep, capabilities: PlanningCapabilities) {
+  if (!['generate_video', 'generate_first_last_frame_video'].includes(step.tool)) return false;
+  const { sourceVideoId, start, end } = step.parameters;
+  if (typeof sourceVideoId === 'string') {
+    const finish = typeof end === 'number' ? end : capabilities.videoDurations?.[sourceVideoId];
+    return finish !== undefined && finish - (typeof start === 'number' ? start : 0) >= H3_MIN_SECONDS - 1e-6;
+  }
+  return step.model.startsWith('omni_flash');
+}
+type ExperimentRouteStep = ProposalOperation['routes'][number]['steps'][number];
 
 /** Check claims against this creative's real inputs and currently connected capabilities. */
 export function prepareExperimentProposal(operation: ProposalOperation, graph: ExperimentGraph, capabilities: PlanningCapabilities, referenceIds: Set<string>): ProposalOperation {
@@ -17,11 +29,11 @@ export function prepareExperimentProposal(operation: ProposalOperation, graph: E
     const unavailable = route.steps.find(step =>
       step.tool === 'programmatic' ? !capabilities.programmatic
         : step.tool === 'generate_image' ? !capabilities.image
-          : step.tool === 'generate_minimax_video' ? !capabilities.minimax
-            : step.tool === 'manual' ? true : step.tool === 'agent' ? false : !capabilities.omni);
+          : step.tool === 'manual' ? true : ['agent', 'build_video_storyboard', 'compose_video'].includes(step.tool) ? false
+            : needsOmni(step, capabilities) ? !capabilities.omni : !capabilities.minimax);
     if (unavailable) return { ...route, readiness: unavailable.tool === 'programmatic' || unavailable.tool === 'manual' ? 'needs-setup' as const : 'unavailable' as const,
       readinessReason: unavailable.tool === 'programmatic' ? '当前空间未开放程序化执行，需要可用的执行环境。' : unavailable.tool === 'manual' ? '这条路线需要人工操作，完成准备后再更新提案。' : '当前空间尚未连接这条路线需要的生成服务。' };
-    if (!capabilities.referenceStorage && route.steps.some(step => ['generate_video', 'generate_first_last_frame_video', 'generate_grid_video'].includes(step.tool) && step.referenceIds.length)) return { ...route, readiness: 'needs-setup' as const, readinessReason: '这条参考图生成路线需要先连接图片存储。' };
+    if (!capabilities.referenceStorage && route.steps.some(step => needsOmni(step, capabilities) && (step.referenceIds.length || step.parameters.sourceVideoId))) return { ...route, readiness: 'needs-setup' as const, readinessReason: '此 Omni 路线需要配置 Supabase 私有素材存储。' };
     return route;
   });
   return { ...operation, routes };

@@ -5,7 +5,8 @@ import type { Express, Request, Response, NextFunction } from 'express';
 import multer from 'multer';
 import { fileTypeFromFile } from 'file-type';
 import { z } from 'zod';
-import { dataDir, uploadDir } from './store';
+import { workspaceDirectory, workspaceResource, workspaceUploadPath } from './workspace-storage';
+import { workspaceUploader } from './workspace-upload';
 import { generateImage, imageGenerationStatus, type ImageReference } from './image-generation';
 import type { GenerationTask } from '../shared/generation-task';
 import { findRadarItem, registerRadarRoutes } from './radar';
@@ -13,14 +14,6 @@ import { registerRadarSpaceRoutes } from './radar-space-agent';
 
 /** FEATURE_STUDIO defaults true; set FEATURE_STUDIO=0|false to disable API. */
 export const FEATURE_STUDIO = !['0', 'false', 'off'].includes(String(process.env.FEATURE_STUDIO || 'true').toLowerCase());
-
-const studioDir = path.join(dataDir, 'studio');
-const projectsDir = path.join(studioDir, 'projects');
-const jobsDir = path.join(studioDir, 'jobs');
-const refsDir = path.join(studioDir, 'refs');
-fs.mkdirSync(projectsDir, { recursive: true, mode: 0o700 });
-fs.mkdirSync(jobsDir, { recursive: true, mode: 0o700 });
-fs.mkdirSync(refsDir, { recursive: true, mode: 0o700 });
 
 export type TrendItem = {
   id: string;
@@ -131,8 +124,6 @@ export function buildCreativePrompt(kind: CreativeKind, brief: string): string {
   return [...byKind[kind], ...shared].join('\n');
 }
 
-const projects = new Map<string, StudioProject>();
-const jobs = new Map<string, CreativeJob>();
 const runningJobs = new Set<string>();
 
 function writeJson(dir: string, id: string, value: unknown) {
@@ -156,41 +147,49 @@ function loadDir<T extends { id?: string; jobId?: string }>(dir: string, map: Ma
   }
 }
 
-loadDir(projectsDir, projects, 'id');
-loadDir(jobsDir, jobs, 'jobId');
+const studioState = workspaceResource(() => {
+  const projectsDir = workspaceDirectory('studio', 'projects');
+  const jobsDir = workspaceDirectory('studio', 'jobs');
+  const projects = new Map<string, StudioProject>();
+  const jobs = new Map<string, CreativeJob>();
+  loadDir(projectsDir, projects, 'id');
+  loadDir(jobsDir, jobs, 'jobId');
 
-// Interrupted creative jobs must not look successful after restart (same idea as keyframe/tasks).
-for (const [jobId, job] of jobs) {
-  if (job.status === 'queued' || job.status === 'running') {
-    const now = new Date().toISOString();
-    const assets = job.assets.map(asset => asset.status === 'completed' ? asset : {
-      ...asset,
-      status: 'failed' as const,
-      error: asset.error || '服务已重启，图片请求结果可能未知；请先核对，避免重复生成。',
-      updatedAt: now,
-    });
-    const updated: CreativeJob = {
-      ...job,
-      status: 'failed',
-      progress: job.progress,
-      message: '服务已重启，上次套图任务已中断。可以重新发起。',
-      assets,
-      productRefs: job.productRefs || [],
-      updatedAt: now,
-    };
-    writeJson(jobsDir, jobId, updated);
-    jobs.set(jobId, updated);
-    const project = projects.get(updated.projectId);
-    if (project) {
-      const next = { ...project, status: 'failed' as const, creatives: assets, updatedAt: now };
-      writeJson(projectsDir, next.id, next);
-      projects.set(next.id, next);
+  // Interrupted creative jobs must not look successful after restart (same idea as keyframe/tasks).
+  for (const [jobId, job] of jobs) {
+    if (job.status === 'queued' || job.status === 'running') {
+      const now = new Date().toISOString();
+      const assets = job.assets.map(asset => asset.status === 'completed' ? asset : {
+        ...asset,
+        status: 'failed' as const,
+        error: asset.error || '服务已重启，图片请求结果可能未知；请先核对，避免重复生成。',
+        updatedAt: now,
+      });
+      const updated: CreativeJob = {
+        ...job,
+        status: 'failed',
+        progress: job.progress,
+        message: '服务已重启，上次套图任务已中断。可以重新发起。',
+        assets,
+        productRefs: job.productRefs || [],
+        updatedAt: now,
+      };
+      writeJson(jobsDir, jobId, updated);
+      jobs.set(jobId, updated);
+      const project = projects.get(updated.projectId);
+      if (project) {
+        const next = { ...project, status: 'failed' as const, creatives: assets, updatedAt: now };
+        writeJson(projectsDir, next.id, next);
+        projects.set(next.id, next);
+      }
     }
   }
-}
+  return { projectsDir, jobsDir, projects, jobs };
+});
 
 export function studioGenerationTasks(): GenerationTask[] {
   if (!FEATURE_STUDIO) return [];
+  const { projects, jobs } = studioState();
   const images = new Map<string, { asset: CreativeAsset; projectId: string; referenceCount: number }>();
   for (const job of jobs.values()) for (const asset of job.assets) images.set(asset.id, { asset, projectId: job.projectId, referenceCount: job.productRefs?.length || 0 });
   for (const project of projects.values()) for (const asset of project.creatives || []) if (!images.has(asset.id)) images.set(asset.id, { asset, projectId: project.id, referenceCount: project.productRefs?.length || 0 });
@@ -207,6 +206,7 @@ export function studioGenerationTasks(): GenerationTask[] {
 }
 
 function saveProject(project: StudioProject) {
+  const { projectsDir, projects } = studioState();
   const updated = { ...project, updatedAt: new Date().toISOString() };
   writeJson(projectsDir, updated.id, updated);
   projects.set(updated.id, updated);
@@ -214,6 +214,7 @@ function saveProject(project: StudioProject) {
 }
 
 function saveJob(job: CreativeJob) {
+  const { jobsDir, jobs } = studioState();
   const updated = { ...job, updatedAt: new Date().toISOString() };
   writeJson(jobsDir, updated.jobId, updated);
   jobs.set(updated.jobId, updated);
@@ -224,15 +225,12 @@ class StudioHttpError extends Error {
   constructor(public status: number, message: string, public extra?: Record<string, unknown>) { super(message); }
 }
 
-const studioUploader = multer({
-  dest: uploadDir,
-  limits: { fileSize: 10 * 1024 * 1024, files: 4, fields: 12 },
-});
+const studioUploader = workspaceUploader({ fileSize: 10 * 1024 * 1024, files: 4, fields: 12 });
 
 async function loadReferences(refs: CreativeJob['productRefs']): Promise<ImageReference[]> {
   const out: ImageReference[] = [];
   for (const [index, ref] of refs.entries()) {
-    const absolute = path.join(uploadDir, path.basename(ref.filename));
+    const absolute = workspaceUploadPath(path.basename(ref.filename));
     if (!fs.existsSync(absolute)) throw new Error(`产品参考图丢失：${ref.filename}`);
     const data = fs.readFileSync(absolute);
     const ext = ref.mime === 'image/jpeg' ? 'jpg' : ref.mime === 'image/webp' ? 'webp' : 'png';
@@ -243,6 +241,7 @@ async function loadReferences(refs: CreativeJob['productRefs']): Promise<ImageRe
 
 async function runCreativeJob(jobId: string) {
   if (runningJobs.has(jobId)) return;
+  const { projects, jobs } = studioState();
   runningJobs.add(jobId);
   try {
     let job = jobs.get(jobId);
@@ -386,10 +385,10 @@ async function persistUploadedRefs(files: Express.Multer.File[]) {
       const mime = z.enum(['image/png', 'image/jpeg', 'image/webp']).parse(detected?.mime);
       const ext = mime === 'image/jpeg' ? 'jpg' : mime === 'image/webp' ? 'webp' : 'png';
       const filename = `studio-ref-${randomUUID()}.${ext}`;
-      const dest = path.join(uploadDir, filename);
+      const dest = workspaceUploadPath(filename);
       fs.renameSync(file.path, dest);
       // Keep a pointer under data/studio/refs for inventory (same bytes live in uploads for /media).
-      try { fs.copyFileSync(dest, path.join(refsDir, filename)); } catch { /* non-fatal */ }
+      try { fs.copyFileSync(dest, path.join(workspaceDirectory('studio', 'refs'), filename)); } catch { /* non-fatal */ }
       refs.push({ filename, url: `/media/${filename}`, mime });
     } catch (error) {
       fs.unlink(file.path, () => {});
@@ -410,7 +409,7 @@ export function registerStudioRoutes(app: Express) {
   registerRadarSpaceRoutes(app);
 
   app.get('/api/studio/projects', (_req, res) => {
-    const list = [...projects.values()].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    const list = [...studioState().projects.values()].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
     res.json(list);
   });
 
@@ -438,7 +437,7 @@ export function registerStudioRoutes(app: Express) {
   });
 
   app.get('/api/studio/projects/:id', (req, res) => {
-    const project = projects.get(String(req.params.id));
+    const project = studioState().projects.get(String(req.params.id));
     if (!project) throw new StudioHttpError(404, '工作室项目不存在。');
     res.json(project);
   });
@@ -482,7 +481,7 @@ export function registerStudioRoutes(app: Express) {
 
         const refs = await persistUploadedRefs(tempFiles);
         const now = new Date().toISOString();
-        let project = projectId ? projects.get(projectId) : undefined;
+        let project = projectId ? studioState().projects.get(projectId) : undefined;
         if (projectId && !project) throw new StudioHttpError(404, '工作室项目不存在。');
         if (!project) {
           project = saveProject({
@@ -548,7 +547,7 @@ export function registerStudioRoutes(app: Express) {
   });
 
   app.get('/api/studio/creatives/status/:jobId', (req, res) => {
-    const job = jobs.get(String(req.params.jobId));
+    const job = studioState().jobs.get(String(req.params.jobId));
     if (!job) throw new StudioHttpError(404, '生成任务不存在。');
     // Resume worker if process still has an unfinished job after a soft stall.
     if ((job.status === 'queued' || job.status === 'running') && !runningJobs.has(job.jobId)) {
@@ -570,7 +569,7 @@ export function registerStudioRoutes(app: Express) {
       projectId: z.string().uuid(),
       brief: z.string().trim().max(2000).optional(),
     }).parse(req.body || {});
-    const project = projects.get(body.projectId);
+    const project = studioState().projects.get(body.projectId);
     if (!project) throw new StudioHttpError(404, '工作室项目不存在。');
     const updated = saveProject({
       ...project,
@@ -580,7 +579,7 @@ export function registerStudioRoutes(app: Express) {
       tvcStatus: 'queued',
     });
     setTimeout(() => {
-      const current = projects.get(updated.id);
+      const current = studioState().projects.get(updated.id);
       if (!current) return;
       saveProject({ ...current, status: 'ready', tvcStatus: 'completed' });
     }, 2500);
@@ -612,7 +611,7 @@ export function registerStudioRoutes(app: Express) {
       updatedAt: now,
     });
     setTimeout(() => {
-      const current = projects.get(project.id);
+      const current = studioState().projects.get(project.id);
       if (!current) return;
       saveProject({ ...current, status: 'ready', remakeStatus: 'completed' });
     }, 2200);

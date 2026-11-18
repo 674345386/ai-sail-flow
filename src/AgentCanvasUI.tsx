@@ -75,13 +75,13 @@ function describe(component: CanvasComponent) {
     case 'storyboard': return `请查看画布中选择的分镜网格：${component.selectedGridIds.length ? component.selectedGridIds.join('、') : '尚未选择'}，并说明下一步；不要直接生成视频。`;
   }
 }
-export default function AgentCanvasUI({ components, grids, onUpdate, onClose, onDraft, triggerOnly = false, panelsOnly = false }: { components: CanvasComponent[]; grids: StoryboardGrid[]; onUpdate: (id: string, input: Partial<CanvasComponentInput>) => void; onClose: (id: string) => void; onDraft: (text: string) => void; triggerOnly?: boolean; panelsOnly?: boolean }) {
+export default function AgentCanvasUI({ components, grids, onUpdate, onClose, onDraft }: { components: CanvasComponent[]; grids: StoryboardGrid[]; onUpdate: (id: string, input: Partial<CanvasComponentInput>) => void; onClose: (id: string) => void; onDraft: (text: string) => void; triggerOnly?: boolean; panelsOnly?: boolean; inline?: boolean }) {
   const [showGallery, setShowGallery] = useState(false);
   const [selected, setSelected] = useState('custom-camera');
   const [preview, setPreview] = useState<CanvasComponentInput>(examples[0]);
   return <>
-    {!panelsOnly && <button type="button" className="acu-gallery-trigger" onClick={() => setShowGallery(true)} title="预览 Open Intelligent UI 与创作组件"><SlidersHorizontal size={14} />组件库</button>}
-    {!triggerOnly && !!components.length && <div className="acu-stack" aria-label="Agent 动态画布组件">{components.map(component => <section key={component.id} className="acu-panel" aria-label={canvasComponentLabels[component.kind]}>
+    <button type="button" className="acu-gallery-trigger" onClick={() => setShowGallery(true)} title="预览 Open Intelligent UI 与创作组件"><SlidersHorizontal size={14} />组件库</button>
+    {!!components.length && <div className="acu-stack" aria-label="Agent 创作组件">{components.map(component => <section key={component.id} className="acu-panel" aria-label={canvasComponentLabels[component.kind]}>
       <header><div><small>AGENT · {customNames[component.kind]}</small><h3>{canvasComponentLabels[component.kind]}</h3></div><button type="button" aria-label={`关闭${canvasComponentLabels[component.kind]}`} onClick={() => onClose(component.id)}><X size={17} /></button></header>
       <Controller component={component} grids={grids} onUpdate={input => onUpdate(component.id, input)} />
       <footer><button type="button" onClick={() => onDraft(describe(component))}>把参数填入聊天框</button></footer>

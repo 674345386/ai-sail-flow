@@ -40,20 +40,25 @@ export function buildPipeline(project: Project, mode: ProductionMode, unitId: st
   const shots = unit && project.rewrite ? project.rewrite.shots.filter(shot => unit.sourceShotIds.includes(shot.id)) : [];
   const cues = unit ? shots.map(shot => ({ shotId: shot.id, start: Math.max(0, shot.start - unit.start), end: Math.min(unit.targetDuration, shot.end - unit.start), narration: shot.narration, onScreenText: shot.onScreenText })) : [];
   const defaultPrompt = unit && project.rewrite ? video?.defaultPrompt || buildVeoUnitPrompt(project, unit, mode) : null;
+  const agentAnalysis = project.analysisMeta?.transport === 'agent-frames';
+  const analysisRunning = project.job?.kind === 'analysis' && project.job.status === 'running';
+  const legacyAnalysis = !agentAnalysis && Boolean(project.analysisMeta || project.analysisRequest);
 
   add({ id: 'project', title: '创意输入', eyebrow: '01 · 外部输入', status: reference ? 'done' : 'waiting', evidence: 'recorded', inputs: [],
     outputs: [port('reference', '参考视频', reference ? { name: reference.name, mime: reference.mime, size: reference.size, duration: reference.duration, hasAudio: reference.hasAudio } : null),
       port('images', '产品图片', products.map(asset => ({ name: asset.name, mime: asset.mime, size: asset.size }))), port('product', '目标产品资料', project.product), port('market', '市场与语言设置', project.market)],
     transform: '用户上传与填写的资料。媒体只展示元数据，不把视频二进制或 base64 放进画布。', links: reference?.url ? [{ label: '打开参考视频', url: reference.url }] : [] });
-  add({ id: 'analysis-request', title: '原片拆解请求', eyebrow: '02 · Gemini 输入', status: project.job?.kind === 'analysis' && project.job.status === 'running' ? 'running' : project.analysis ? 'done' : 'waiting', evidence: project.analysisRequest ? 'recorded' : project.analysis ? 'missing' : 'reconstructed',
-    inputs: [input('reference', '参考视频', 'project', 'reference'), input('images', '产品图片', 'project', 'images')], outputs: [port('request', '模型请求快照', project.analysisRequest || null)],
-    transform: '视频与可选产品图进入多模态分析。新任务记录请求文字与参数；历史请求若未留存，不伪造原文。密钥与媒体 base64 不记录。' });
-  add({ id: 'analysis', title: '原片分析结果', eyebrow: '03 · Gemini 输出', status: project.analysis ? 'done' : 'waiting', evidence: project.analysis ? 'recorded' : 'missing',
-    inputs: [input('request', '模型请求', 'analysis-request', 'request')], outputs: [port('analysis', '结构化原片分析', project.analysis)], transform: '保存 Gemini 返回的场景、动作、原片口播与画面文字。历史请求快照缺失不代表此结果缺失。' });
+  const legacyRequest = legacyAnalysis && !analysisRunning;
+  add({ id: 'analysis-request', title: '原片拆解请求', eyebrow: legacyRequest ? '02 · Gemini 输入' : '02 · 创作 Agent 输入', status: analysisRunning ? 'running' : project.analysis ? 'done' : 'waiting', evidence: analysisRunning ? 'reconstructed' : agentAnalysis || project.analysisRequest ? 'recorded' : project.analysis ? 'missing' : 'reconstructed',
+    inputs: [input('reference', '参考视频', 'project', 'reference'), ...(legacyRequest ? [input('images', '产品图片', 'project', 'images')] : [])],
+    outputs: [port('request', legacyRequest ? '模型请求快照' : '分析来源', analysisRunning ? null : legacyRequest ? project.analysisRequest || null : project.analysisMeta || null)],
+    transform: legacyRequest ? '查看历史模型请求文字、参数和媒体元数据。' : '本地提取带时间戳的参考画面，由当前创意的 Agent 模型分析。' });
+  add({ id: 'analysis', title: '原片分析结果', eyebrow: legacyAnalysis ? '03 · Gemini 输出' : '03 · 创作 Agent 输出', status: project.analysis ? 'done' : 'waiting', evidence: project.analysis ? 'recorded' : 'missing',
+    inputs: [input('request', legacyRequest ? '模型请求' : '分析来源', 'analysis-request', 'request')], outputs: [port('analysis', '结构化原片分析', project.analysis)], transform: '保存原片镜头、场景、动作和已观察到的细节。' });
   const direct = project.promptFlow === 'direct-analysis';
   add({ id: 'rewrite-request', title: direct ? '原片分析直连 Prompt' : '逐镜头产品与创意改写请求', eyebrow: direct ? '04 · 本地整理' : '04 · Gemini 输入', status: project.job?.kind === 'rewrite' && project.job.status === 'running' ? 'running' : project.rewrite ? 'done' : 'waiting', evidence: direct ? 'reconstructed' : project.rewriteRequest ? 'recorded' : project.rewrite ? 'missing' : 'reconstructed',
     inputs: direct ? [input('analysis', '原片分析', 'analysis', 'analysis')] : [input('analysis', '原片分析与关键帧', 'analysis', 'analysis'), input('product', '目标产品', 'project', 'product'), input('images', '产品参考图', 'project', 'images'), input('market', '市场设置', 'project', 'market')], outputs: [port('request', direct ? '无需 Gemini 请求' : '改写请求快照', direct ? null : project.rewriteRequest || null)],
-    transform: direct ? '不发起第二次 Gemini 请求。直接将 Gemini 原片分析整理成分镜，再由用户编辑最终 Veo Prompt。' : '以每个原片镜头的分析与关键帧为依据，结合产品资料和参考图，一一生成镜头描述与复刻关键帧。历史真实请求以快照为准。' });
+    transform: direct ? '直接将原片分析整理成分镜，再由用户编辑最终 Veo Prompt。' : '以每个原片镜头的分析与关键帧为依据，结合产品资料和参考图，一一生成镜头描述与复刻关键帧。历史真实请求以快照为准。' });
   add({ id: 'rewrite', title: direct ? '原片分镜 / 可编辑' : '交付分镜 JSON', eyebrow: direct ? '05 · 分析结果整理' : '05 · Gemini 输出 / 可编辑', status: project.rewrite ? 'done' : 'waiting', evidence: direct ? 'reconstructed' : project.rewrite ? 'recorded' : 'missing',
     inputs: [input('request', direct ? '原片分析' : '改写请求', direct ? 'analysis' : 'rewrite-request', direct ? 'analysis' : 'request')], outputs: [port('storyboard', '当前分镜 JSON', project.rewrite), port('keyframes', '逐镜头复刻关键帧', project.rewrite?.shots.map(shot => ({ shotId: shot.id, sourceShotId: shot.sourceShotId, keyframe: shot.keyframe, current: keyframeCurrent(project, shot) })) || []), port('narration', '整条视频台词', project.rewrite?.shots.map(shot => ({ shotId: shot.id, preferredStart: shot.start, narration: shot.narration })) || [])], transform: direct ? '分镜字段来自原片分析；最终生成 Prompt 可在 Veo 卡片中检查和编辑。' : '模型输出后可由用户编辑。这里展示当前保存的分镜与关键帧，不一定等于模型最初返回的版本。' });
   add({ id: 'plan', title: '生产单元规划', eyebrow: '06 · 本地转换', status: plan.length ? 'done' : 'waiting', evidence: 'reconstructed',

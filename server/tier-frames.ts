@@ -5,10 +5,10 @@ import { fileTypeFromBuffer } from 'file-type';
 import type { Project, TierNewFrame } from '../shared/domain';
 import { tierPlan, type FramePosition } from '../shared/tier-prompt';
 import { generateImage, type ImageReference } from './image-generation';
-import { uploadDir } from './store';
+import { workspaceUploadPath } from './workspace-storage';
 
 export const MAX_REFERENCE_IMAGES = 16;
-const mediaFile = (url: string) => path.join(uploadDir, path.basename(url));
+const mediaFile = (url: string) => workspaceUploadPath(path.basename(url));
 
 /** Project frame ratio (width / height): source video first, then the market setting. */
 export function projectRatio(project: Project) {

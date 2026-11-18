@@ -7,6 +7,7 @@ import type { Project } from '../shared/domain';
 import { activeExperimentMethod, emptyExperiment, normalizeExperimentGraph, ExperimentError, type ExperimentGraph, type ExperimentNode } from '../shared/experiment';
 import { evaluationProtocol, reproducibilityInterval, snapshotHasOutput, type EvaluationInput, type SkillAsset, type SkillAssetDetail, type SkillAssetSummary, type SkillReference, type SkillRelease, type SkillSelection, type SkillSnapshot, type VerificationJob } from '../shared/skill-assets';
 import { dataDir, uploadDir } from './store';
+import { workspaceUploadPath } from './workspace-storage';
 import { experimentSources, githubJSON, readGitHubSkill } from './experiment-workbench';
 import { collectSkillSourceFiles, restoreSkillFiles, sha256 } from './skill-environment';
 
@@ -128,11 +129,14 @@ export function snapshotSkillExperiment(project: Project, graph: ExperimentGraph
     const source = sources.find(source => source.id === id), original = originals.find(file => file.id === id);
     if (!source || source.status !== 'completed') return [];
     if (!original?.filename || path.basename(original.filename) !== original.filename) throw new ExperimentError(`实验素材「${source.title}」缺少可交付文件。`);
-    const absolute = path.join(uploadDir, original.filename);
+    const absolute = workspaceUploadPath(original.filename);
     if (!fs.existsSync(absolute)) throw new ExperimentError(`实验素材「${source.title}」已不存在，请先恢复。`);
     const size = fs.statSync(absolute).size; bytes += size;
     if (bytes > 250 * 1024 * 1024) throw new ExperimentError('参考现场的素材合计超过 250 MB，请选择更小的实验。');
-    const extension = path.extname(original.filename).replace(/[^.\w]/g, '') || '.txt', filename = `skill-${randomUUID()}${extension}`;
+    const mime = 'mime' in original ? original.mime : undefined;
+    const extension = path.extname(original.filename).replace(/[^.\w]/g, '') || (mime === 'image/png' ? '.png' : mime === 'image/jpeg' ? '.jpg' : mime === 'image/webp' ? '.webp' : '.txt');
+    const filename = `skill-${randomUUID()}${extension}`;
+    fs.mkdirSync(uploadDir, { recursive: true, mode: 0o700 });
     fs.copyFileSync(absolute, path.join(uploadDir, filename));
     return [{ id, title: source.title, mediaType: source.mediaType, status: 'completed' as const, filename, url: `/media/${filename}`, size, storage: 'local' as const }];
   });
@@ -197,7 +201,14 @@ export function adoptSkillSelection(graph: ExperimentGraph, asset: SkillAsset, r
       }
       added.push(node);
     }
-    graph.files = [...(graph.files || []), ...(source.files || []).filter(file => !graph.files?.some(existing => existing.id === file.id))];
+    const files = (source.files || []).filter(file => !graph.files?.some(existing => existing.id === file.id));
+    for (const file of files) {
+      if (!isSkillMediaFilename(file.filename)) throw new ExperimentError('参考实验素材路径无效。');
+      const destination = workspaceUploadPath(file.filename);
+      const original = path.join(uploadDir, file.filename);
+      if (destination !== original && !fs.existsSync(destination)) fs.copyFileSync(original, destination);
+    }
+    graph.files = [...(graph.files || []), ...files];
   }
   if (graph.nodes.length + added.length > 160) throw new ExperimentError('采用后节点将超过 160 个，请在新的创意中使用。');
   graph.nodes.push(...added);
@@ -218,6 +229,16 @@ export function resolveSkillReference(reference: SkillReference): SkillReference
 
 export function officialJobFor(projectId: string): { asset: SkillAsset; job: VerificationJob } | undefined {
   for (const asset of assets.values()) { const job = asset.jobs.find(job => job.projectId === projectId); if (job) return { asset, job }; }
+}
+function isSkillMediaFilename(filename: string) { return /^skill-[a-f0-9-]{36}\.[\w]+$/.test(filename); }
+
+export function visibleSkillMedia(filename: string, owner: string) {
+  if (!isSkillMediaFilename(filename)) return;
+  for (const asset of assets.values()) {
+    if (asset.visibility !== 'public' && asset.ownerId !== owner) continue;
+    const snapshots = [...asset.releases.map(release => release.snapshot), ...asset.reports.map(report => report.snapshot)];
+    if (snapshots.some(snapshot => snapshot?.graph.files?.some(file => file.filename === filename))) return path.join(uploadDir, filename);
+  }
 }
 export async function checkSkillUpstream(id: string, owner: string) {
   const asset = getSkillAsset(id, owner), release = skillRelease(asset);

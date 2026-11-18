@@ -24,7 +24,9 @@ Agent mode 以一个创意对应一条 Codex app-server 对话。进入创意时
 
 Provider 设置集中在 `server/agent-provider.ts`，只通过启动参数传给独立的 Codex app server，不修改开发者的 Codex 配置。替换为其他 Responses 兼容服务时，修改 `SOP_AGENT_PROVIDER`、`SOP_AGENT_BASE_URL`、`SOP_AGENT_MODEL`、`SOP_AGENT_API_KEY_ENV`（保存 key 的环境变量名）；如需声明模型能力，再设置 `SOP_AGENT_MODEL_CATALOG`。恢复原来的 Codex 登录方式则设置 `SOP_AGENT_PROVIDER=codex`、`SOP_AGENT_MODEL=gpt-6.1-terra`，并在专用目录登录（例如 `CODEX_HOME="$PWD/data/agent-codex" codex login`）。变更 provider 后，下次发消息会创建新的模型上下文，并带入最近的对话摘要，界面保留已有消息。
 
-Agent 模型与 Gemini 分析配置相互独立。专用 Codex 目录避免创作 Agent 继承开发者的其它插件和 MCP 工具。公网默认关闭 Agent 内部体验；只在单用户内部环境配置 `SOP_AGENT_ENABLED=true` 和独立的 `SOP_AGENT_CODEX_HOME` 后开放。
+流程页面、自动制作和变动镜头重分析使用同一创意的 Agent 模型。专用 Codex 目录避免创作 Agent 继承开发者的其它插件和 MCP 工具。公网默认关闭 Agent 内部体验；只在单用户内部环境配置 `SOP_AGENT_ENABLED=true` 和独立的 `SOP_AGENT_CODEX_HOME` 后开放。
+
+创作 Agent 的视频复刻分析共五档，依次为快速看风格、分段拆结构、逐镜头拆解、逐帧和声音对齐、复刻制作方案。五档共用本地抽帧和原片时间码，升级时补查所需证据。完整拆解保存可编辑镜头、分镜网格和「视频复刻 · 场景表」。只制作指定场景时，沿用已有分析并按目标片段取证。逐帧核对可测量短窗口音轨能量，具体鼓点、口播和音效需听辨确认。
 
 需要 Node.js 22.12+（推荐 24）、npm、FFmpeg / ffprobe。本机配音与字幕模式还需要 macOS 的 `say` 与 `swift`。
 
@@ -79,21 +81,16 @@ Veo 3.1 视频生成使用独立的 `SOP_VEO_API_KEY`（或模型设置中的 Ve
 
 生成适配器原样转发最终 Prompt 和参考图片，保留上游返回的 PNG 字节，并记录实际宽高及尺寸不一致警告；不通过裁切、补边、拉伸、扩图或重新生成来掩盖差异。分帧生成不再近似替换源比例或裁切结果，上传帧保留原文件及格式。参考图若超过接口大小限制会明确拒绝，不再在分帧提交时偷偷降采样或重编码。
 
-默认视频拆解使用 Gemini 3.8 Flash 静态模式；兼容中转通过原生 `streamGenerateContent` 流式接收结果，视频和音频仍作为完整视频输入。可显式设置 `SOP_VIDEO_ANALYSIS_MODE=agentic` 让模型动态检查时间线、画面和音轨，或设置 `SOP_VIDEO_ANALYSIS_MODE=frames` 使用无音轨抽帧模式。文字改写在兼容网关模式下继续使用 `/v1/chat/completions`。
+视频拆解由当前创意的 Agent 模型读取本地提取的带时间戳画面。流程页面和工作台沿用选好的逐镜头或分镜网格输出。变动镜头重分析保留已编辑的时间区间，并保存待采纳的建议。分析记录包含请求模型、取证方式及音轨提交状态。抽帧分析不识别原片口播和音效。
 
-Agentic 模式在原有 `generateContent` 请求内传输 Base64 视频；视频超过兼容渠道的内联请求上限时会失败。抽帧模式不分析音轨，结果会明确标记。分析模式与是否提交音轨会保存到项目和导出清单。
-
-在 `.env` 配置 Gemini API Key 和可选兼容网关，或在页面「模型连接」设置中输入对应密钥与地址。页面输入的 Gemini 密钥保存在服务端 `data/.gemini-connection.json`（权限 `0600`），服务重启后继续生效；不会写入浏览器存储、项目记录或导出包。备份或迁移服务端 `data/` 时应将此文件作为密钥管理。`.env.example` 是配置模板。模型固定为 **`gemini-3.8-flash`**，不静默替换为其他版本。点击分析时，视频及产品图会发送给当前配置的模型服务商。
-
-当前未配置密钥时，可以创建明确标注的手写示例项目体验编辑和导出；真实分析接口会返回未配置错误，不伪造结果。
+Gemini 可用于本地化改写。通过本机环境变量或「模型连接」设置配置 Gemini API Key 和可选兼容网关。页面输入的 Gemini 密钥保存在服务端 `data/.gemini-connection.json`（权限 `0600`），服务重启后继续生效。兼容网关使用 `/v1/chat/completions`。手写示例项目可用于体验编辑和导出。
 
 ## V1 功能
 
 - 一条参考视频：MP4 / MOV / WebM，最大 250 MB、最长 10 分钟；保留音轨，读取真实时长及分辨率，生成本地封面。上传完成并检查后即可预览、引用，原文件保存在 Sail。登录用户的素材由服务端后台同步到 Supabase，浏览器只查询同步状态，不再下载素材后重新上传。≥8 MB 的视频先生成独立的 H.264/AAC MP4 压缩副本（CRF 27、fast、音频 128k），同步压缩副本；结果未变小或压缩失败时同步原文件。原文件及其内容 ID 保持不变，压缩副本缓存在 `data/media-library-cache/`。同步失败可从素材库重试，关闭网页不影响已启动任务；服务重启后需再次打开素材库或手动同步以补齐未完成素材。8 MB 是触发阈值，不保证输出小于 8 MB；压缩使用 `ffmpeg-static`，读取视频及其他制作步骤仍使用系统 FFmpeg / ffprobe。
 - 最多 3 张产品参考图：JPEG / PNG / WebP，每张最大 10 MB，服务端识别实际文件格式。
-- Gemini 分析：分镜时间段、作用、画面、动作、口播、画面文字、声音、商品展示及不确定项。
-- 模型设置支持 Google 官方 Gemini API，也支持填写网关 API Base URL；视频走 Gemini 原生输入，结果由本地 Schema 和时间轴校验。
-- 拆解按一镜头一行展示：从原片截取可播放、可下载的 MP4，保留原声；每镜头提取 1–3 张可放大、下载的关键帧，标明原片绝对时间和选帧依据。Gemini 新分析补充主体外观、动作、运镜、动效、转场/分段依据、英文重建 Prompt 和建议证据时间点。媒体由本机 FFmpeg 按可见行准备并缓存，不追加模型调用；旧分析也可按现有时间线补齐媒体，未记录的字段保持明确标注。编辑镜头边界后切片和关键帧按新区间生成，步骤视图与画布预览共享镜头行。
+- 创作 Agent 拆解：分镜时间段、作用、画面、动作、画面文字、商品展示及不确定项。服务端校验拆解结果及原片时间轴。
+- 拆解按一镜头一行展示：从原片截取可播放、可下载的 MP4，保留原声；每镜头提取 1–3 张可放大、下载的关键帧，标明原片绝对时间和选帧依据。创作 Agent 可补充主体外观、动作、运镜、动效、转场/分段依据、英文重建 Prompt 和建议证据时间点。媒体由本机 FFmpeg 按可见行准备并缓存，不追加模型调用；旧分析也可按现有时间线补齐媒体，未记录的字段保持明确标注。编辑镜头边界后切片和关键帧按新区间生成，步骤视图与画布预览共享镜头行。
 - 原片对照与编辑：点击镜头定位播放；编辑时间、文本、动作；拆分镜头。保存前校验时间不重叠、不越界。
 - 本地化：7 个目标市场与对应语言、TikTok / Reels / Shorts 创意设置、站内商品卡或独立站路径、用户提供的售价币种与优惠、人物/时长/画幅/字幕设置。
 - 产品事实作为改写依据；参考片里的功效、优惠和购买路径不会自动变成目标产品事实。不根据市场自动换算价格。
@@ -150,26 +147,19 @@ Smoke 检查使用独立临时目录和临时端口，验证项目持久化、�
 产品与创意改写承接视频拆解的每个镜头、证据关键帧和分析描述。改写保持原镜头数量、编号与顺序，目标时长按比例缩放；产品资料和必填产品图控制替换商品的事实与外观。生成每个镜头的中文描述、英文视频生成指令和单张复刻关键帧。图片调用配置好的 Images API 多图编辑接口；渠道需支持所选模型的 `/images/edits`。图像失败保留描述；结果未知时阻止同一输入重复提交，确定未提交的错误可在镜头卡重新生成。修改描述或产品资料后提示更新图片。ZIP 包含复刻图片和原镜头对应清单。
 
 
-### 创作 Agent 生成工具
+### 视频复刻与局部制作
 
-创作 Agent 使用 `sail_creation` MCP：
+创作 Agent 和制作接口共用场景制作流程。参考视频拆解保存中英双版母版 Prompt、通用负面词、参数建议，以及带 1–3 张原片关键帧的场景镜卡。调整按复刻等级和用户的保留、替换范围保存，原片分析和调整稿均可在右侧「素材与产物」查看。局部任务可保存目标范围的镜卡和 Prompt，再生成所选场景，用于单独交付或替换回原片。
 
-- `generate_image`：文生图；传入 `referenceIds` 时编辑参考图，沿用当前图片服务。
-- `generate_video`：Omni 文生视频／参考图视频，`referenceIds` 可省略或提供最多 7 个当前创意图片 ID。
-- `generate_minimax_video`：独立的 MiniMax H3 视频工具，支持文生视频、最多 9 张参考图，以及单首帧、单尾帧或首尾帧生成。
-- `generate_first_last_frame_video`：通过 `firstFrameId`、`lastFrameId` 指定首尾帧，按此顺序提交 `input_reference`，并设置 `first_last_frame: true`。
-- `generate_grid_video`：使用已有网格及其提示词调用真实 Omni 服务。旧 Studio 本地测试入口保持独立。
-- `recover_video`：通过项目视频 ID 恢复已有上游任务查询，不重新提交生成。
-
-生成 Prompt 尽可能忠实于用户表达的意图：已有完整 Prompt 时优先直接复用，用户要求优化、翻译或修改时再对应调整；用户明确要求逐字保留时遵守原文。只有简略想法时才组织生成所需的描述，避免增加无关创作设定；迭代只改用户指定内容及为保持一致所必需的关联细节，其余已确定内容保持不变。Agent 可以结合对话指代并将明确参数映射到工具选项，优先做最少必要调整，保留主体、动作、构图、明确指定的风格与参考、配色、画幅及排除项，避免自行换风格、加入冲突细节或追加惯用模板。因模型／provider 限制必须实质改变要求时，应说明变化；普通整理不额外增加预览或确认步骤。聊天入口保留用户原文，生成接口和 provider 适配器将最终工具 Prompt 原样传递（包括首尾空白），空白校验不会修改内容。画布生成记录中的 `prompt` 就是提交给 provider 的文本。图片请求另在 `data/image-attempts/<imageId>.json` 保存 Prompt、模型、请求 ID、接口地址、尺寸和提交时间，不保存 API Key；这是应用发往所配置服务的请求记录，不能据此判断第三方服务内部是否另作处理。
-
-视频默认 `720p`、10 秒，支持显式选择 `1080p` 或 8 秒；模型分别为 `omni_flash_10s` 和 `omni_flash_8s`。画幅为 `16:9`／`9:16`，默认跟随创意。参考图可来自本次／历史聊天上传、当前创意素材、Agent 已完成图片或分镜网格；服务端校验所属创意后发布为私有存储临时链接。无需先分析视频或创建分镜，即可独立生成。任务及上游 ID、请求参数、结果记录到项目，视频显示在 Agent 画布上。
-
-Omni 接口参数依据：https://gaoruitech.apifox.cn/doc-8842676 。文生图继续使用图片服务配置；720p／1080p 是视频分辨率选项。
+- `save_video_production` 保存调整后的母版和各场景的关键帧、视频 Prompt；`generate_image` 可用 `sceneIndex` 按调整方案生图。
+- `generate_video` 按已保存场景或显式 Prompt 生成片段；`build_video_storyboard` 将按时序选择的关键帧排成 3×3 故事板，`generate_grid_video` 使用保存的网格和 Prompt。两条制作路线的单段目标时长均不超过 10 秒。
+- `generate_first_last_frame_video` 支持共享首尾帧以保持衔接；`compose_video` 按顺序拼接片段，可指定裁剪位置或将成片片段接回原视频的指定区间。
+- 新流程的 H3 使用 480p 或 720p，模型请求为 4–15 秒。实际编辑原视频且区间至少 4 秒时，使用 `omni_flash-1.2` 的 720p 编辑模式；源视频通过 Supabase 私有视频桶的临时链接发送。显式选择 Omni Flash 1.2 生成时支持 8、10、12、15 秒，双首尾帧最长 10 秒。编辑沿用源视频画幅和时长。[Omni Flash 接口](https://doc.gaoruitech.cn/doc-8842676)
+- 工作台的 3×3 故事板可生成真实 H3 片段，完成勾选片段后可直接拼接。制作接口位于 `/api/projects/:id/production`；已提交任务可用 `recover_video` 恢复查询。
 
 ### MiniMax H3 独立生成服务
 
-按 [Hi/SparkCine 开发文档](https://hi.hi.run/developers) 接入。文档提供原生 `/api/open/v1`、OpenAI 兼容 `/api/openai/v1`、H3 兼容 `/api/h3` 三种协议入口；本实现使用原生接口，直接上传平台参考图，并以 `Idempotency-Key` 防止重复创建任务。默认 Omni/Veo 入口保持各自配置，MiniMax 作为额外生成方式供 Agent 按需选择。
+按 [Hi/SparkCine 开发文档](https://hi.hi.run/developers) 接入。文档提供原生 `/api/open/v1`、OpenAI 兼容 `/api/openai/v1`、H3 兼容 `/api/h3` 三种协议入口；本实现使用原生接口，直接上传平台参考图，并以 `Idempotency-Key` 防止重复创建任务。新制作流程默认使用此服务生成视频片段；独立接口也可按自身能力使用。
 
 服务端 `.env` 配置 `SOP_MINIMAX_API_KEY`，可用 `SOP_MINIMAX_BASE_URL` 覆盖默认 `https://hi.hi.run/api/open/v1`。密钥不进入前端、工具参数或项目记录。`get_creative.minimaxVideoGeneration` 提供配置状态、模型、画幅和分辨率；`/api/status` 也包含该状态。参考图通过原生 uploads 接口上传，不依赖 Supabase 私有参考图存储。
 
@@ -188,11 +178,11 @@ Agent 调用示例：
 }
 ```
 
-默认模型 `h3-video`、6 秒、768p，画幅跟随创意，未支持的创意画幅默认使用 9:16。支持 480p／720p／768p／960p／1080p，以及 16:9、9:16、21:9、4:3、1:1、3:4；720p 仅限 16:9 和 9:16。H3 Video 为 4–30 整数秒，768p 21:9 最长 20 秒，960p／1080p 最长 15 秒。`h3-video-flex` 最长 15 秒，其中 1080p 21:9 最长 10 秒。`h3-video-frames` 为 4–15 秒，传 `firstFrameId` 和／或 `lastFrameId`，不能混入普通 `referenceIds`。普通参考图 ID 来自当前创意的 `imageReferences` 或 `grids`。当前平台工具开放图片参考；底层客户端的素材输入类型也支持音视频角色。
+默认模型 `h3-video`、6 秒、768p，画幅跟随创意，未支持的创意画幅默认使用 9:16。支持 480p／720p／768p／960p／1080p，以及 16:9、9:16、21:9、4:3、1:1、3:4；720p 仅限 16:9 和 9:16。H3 Video 为 4–30 整数秒，768p 21:9 最长 20 秒，960p／1080p 最长 15 秒。`h3-video-flex` 最长 15 秒，其中 1080p 21:9 最长 10 秒。`h3-video-frames` 为 4–15 秒，传 `firstFrameId` 和／或 `lastFrameId`，不能混入普通 `referenceIds`。普通参考图 ID 来自当前创意的 `imageReferences` 或 `grids`。普通 H3 可附加当前创意中的参考视频。
 
 `generateAudio` 默认 true；`optimizePrompt` 默认 false，原样提交提示词。只有明确要求上游改写时才启用优化，会按官方规则另收积分。模型实时能力和价格可通过独立客户端 `listModels()` 查询。
 
-代码分为三层：`shared/minimax-video.ts` 定义参数与 MCP tool；`server/minimax-h3.ts` 提供无项目状态依赖的 `MinimaxH3Client`（上传、提交、查询、轮询、下载）；`server/minimax-video.ts` 负责项目任务、参考图归属校验和结果入库。HTTP 路由只负责转接，不向旧 `tasks.ts` 或 Omni/Veo 适配器增加分支。独立函数 `startMinimaxVideo`、`recoverMinimaxVideo` 可供其他服务端入口复用。
+代码分为三层：`shared/minimax-video.ts` 定义参数与 MCP tool；`server/minimax-h3.ts` 提供无项目状态依赖的 `MinimaxH3Client`（上传、提交、查询、轮询、下载）；`server/minimax-video.ts` 负责项目任务、参考图归属校验和结果入库。制作路由在 `server/video-production.ts` 统一选择模型并复用任务和入库逻辑。独立函数 `startMinimaxVideo`、`recoverMinimaxVideo` 可供其他服务端入口复用。
 
 请求体和幂等键在付费提交前写入项目，上游 ID 返回后立即保存。`recover_video` 根据 provider 分派：已有 ID 时仅恢复查询；提交响应丢失时使用原请求体和原幂等键恢复，避免重复生成。`get_creative.videos[].recoverable` 标识可恢复记录。轮询约 5 秒一次，长任务降至 15 秒；工具等待结束后后台继续执行，勿因 pending 重发任务。成功结果校验下载长度后保存至本地 `/media/minimax-<id>.mp4`，不把上游临时链接作为永久素材地址。结果进入现有 `generatedVideos`、画布和实验台步骤绑定。
 

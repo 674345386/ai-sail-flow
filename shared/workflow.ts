@@ -2,6 +2,7 @@ import type { GeneratedVideo, Project, WorkflowStage, WorkflowTarget } from './d
 import { validateMarket } from './domain';
 import { buildVeoPlan } from './veo-plan';
 import { buildVeoUnitPrompt } from './export';
+import { minimaxVideoRecoverable } from './minimax-video';
 import { keyframeCurrent } from './storyboard';
 
 export const workflowStages: { id: WorkflowStage; label: string; description: string }[] = [
@@ -68,10 +69,10 @@ export function estimatedClips(project: Project) {
   return project.rewrite && !project.rewriteStale ? buildVeoPlan(project.rewrite.shots).length : project.analysis?.shots.length || Math.ceil(duration / 8);
 }
 
-export function editableUnitPrompt(project: Project, unit: ReturnType<typeof buildVeoPlan>[number]) {
+export function editableUnitPrompt(project: Project, unit: ReturnType<typeof buildVeoPlan>[number], defaultPrompt?: string) {
   const basis = buildVeoUnitPrompt(project, unit);
   const draft = project.veoPromptDrafts?.[`${project.productionMode || 'veo-native'}:${unit.id}`];
-  return draft?.basis === basis ? draft.prompt : basis;
+  return draft?.basis === basis ? draft.prompt : defaultPrompt ?? basis;
 }
 
 export type WorkflowAction = { kind: 'analysis' | 'rewrite' | 'compose' } | { kind: 'keyframe'; shotId: string } | { kind: 'generation'; unitId: string; recoverId?: string } | { kind: 'completed' };
@@ -90,8 +91,8 @@ export function nextWorkflowAction(project: Project, target: WorkflowTarget = pr
   const index = sources.findIndex(video => !video);
   if (index >= 0) {
     const unitId = units[index].id;
-    const latest = [...project.generatedVideos].reverse().find(video => video.unitId === unitId && videoCurrent(project, video) && (video.productionMode || 'veo-native') === (project.productionMode || 'veo-native'));
-    return { kind: 'generation', unitId, recoverId: latest?.requestId && latest.status === 'failed' ? latest.id : undefined };
+    const latest = [...project.generatedVideos].reverse().find(video => video.provider === 'minimax-h3' && video.unitId === unitId && videoCurrent(project, video) && (video.productionMode || 'veo-native') === (project.productionMode || 'veo-native'));
+    return { kind: 'generation', unitId, recoverId: latest && minimaxVideoRecoverable(latest) ? latest.id : undefined };
   }
   return finalVideo(project) ? { kind: 'completed' } : { kind: 'compose' };
 }

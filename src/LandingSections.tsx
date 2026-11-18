@@ -288,7 +288,6 @@ function CtaBand({ onEnter }: { onEnter: () => void }) {
       <h2 id="ls-cta-title">{t.title[0]}<br className="ls-br-desktop" />{t.title[1]}</h2>
       <div className="ls-actions">
         <button className="ls-btn ls-btn-light" onClick={onEnter}>{t.primary} <ArrowRight size={16} /></button>
-        <a className="ls-btn ls-btn-outline-light" href="#pricing">{t.pricing}</a>
       </div>
     </div>
   </section>;

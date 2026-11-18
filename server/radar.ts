@@ -5,7 +5,8 @@ import type { Express, Request, Response, NextFunction } from "express";
 import multer from "multer";
 import { fileTypeFromBuffer } from "file-type";
 import { z } from "zod";
-import { dataDir } from "./store";
+import { workspaceDirectory, workspaceResource } from "./workspace-storage";
+import { scopedMultipart } from "./workspace-upload";
 import {
   collectRadarSources,
   radarImportSchema,
@@ -23,9 +24,6 @@ import {
   type RadarCalendarEvent,
 } from "../shared/radar";
 
-const radarDir = path.join(dataDir, "studio", "radar");
-const runsDir = path.join(radarDir, "runs");
-fs.mkdirSync(runsDir, { recursive: true, mode: 0o700 });
 const inputSchema = z.object({
   workflow: z
     .enum(["top", "product", "breakout", "resonance", "calendar"])
@@ -69,7 +67,6 @@ function readJson<T>(file: string, fallback: T): T {
     return fallback;
   }
 }
-const itemsFile = path.join(radarDir, "items.json");
 function normalizeStoredItem(item: RadarItem): RadarItem {
   if (item.platform !== "Google News" || item.provenance !== "live" || item.metrics.rank == null) return item;
   const { rank: _rank, ...metrics } = item.metrics;
@@ -78,10 +75,16 @@ function normalizeStoredItem(item: RadarItem): RadarItem {
     return { ...snapshot, metrics: observedMetrics };
   }) };
 }
-let library = readJson<RadarItem[]>(itemsFile, []).map(normalizeStoredItem);
-let bookmarks = readJson<string[]>(path.join(radarDir, "bookmarks.json"), []);
+const radarState = workspaceResource(() => {
+  const directory = workspaceDirectory("studio", "radar");
+  const runsDir = workspaceDirectory("studio", "radar", "runs");
+  const itemsFile = path.join(directory, "items.json");
+  const bookmarksFile = path.join(directory, "bookmarks.json");
+  return { runsDir, itemsFile, bookmarksFile, library: readJson<RadarItem[]>(itemsFile, []).map(normalizeStoredItem), bookmarks: readJson<string[]>(bookmarksFile, []) };
+});
 function saveItems(incoming: RadarItem[]) {
-  const all = new Map(library.map((item) => [item.id, item]));
+  const state = radarState();
+  const all = new Map(state.library.map((item) => [item.id, item]));
   for (const item of incoming) {
     const old = all.get(item.id);
     // A stale feed must never replace a newer observation or generate reverse-time velocity.
@@ -107,10 +110,10 @@ function saveItems(incoming: RadarItem[]) {
         .slice(-48),
     });
   }
-  library = [...all.values()]
+  state.library = [...all.values()]
     .sort((a, b) => b.capturedAt.localeCompare(a.capturedAt))
     .slice(0, 3000);
-  writeJson(itemsFile, library);
+  writeJson(state.itemsFile, state.library);
 }
 function relevant(items: RadarItem[], input: RadarInput) {
   const keywords = input.query.toLocaleLowerCase().split(/\s+/).filter(Boolean);
@@ -204,7 +207,7 @@ export async function executeRadarRun(
     : await collectRadarSources(input);
   saveItems(collected.items);
   const items = orderRadarItems(
-    scoreRadarItems(relevant(library, input)),
+    scoreRadarItems(relevant(radarState().library, input)),
     input.workflow,
   ).slice(0, 100);
   const finishedAt = new Date().toISOString();
@@ -253,6 +256,7 @@ export async function executeRadarRun(
     ],
   };
   run.report = radarReport(run);
+  const { runsDir } = radarState();
   writeJson(path.join(runsDir, `${run.id}.json`), run);
   // Keep a bounded local history. Imported observations stay in items.json.
   const files = fs
@@ -363,7 +367,7 @@ export function radarCalendar(
 }
 function loadRun(id: string) {
   const parsed = z.string().uuid().parse(id);
-  const run = readJson<RadarRun | null>(path.join(runsDir, `${parsed}.json`), null);
+  const run = readJson<RadarRun | null>(path.join(radarState().runsDir, `${parsed}.json`), null);
   if (!run) return null;
   const normalized = run.items.map(normalizeStoredItem);
   if (!normalized.some((item, index) => item !== run.items[index])) return run;
@@ -372,7 +376,7 @@ function loadRun(id: string) {
   return corrected;
 }
 export function findRadarItem(id: string) {
-  return library.find((item) => item.id === id);
+  return radarState().library.find((item) => item.id === id);
 }
 
 export function registerRadarRoutes(app: Express) {
@@ -450,9 +454,10 @@ export function registerRadarRoutes(app: Express) {
       methodology: "radar-v1",
     }),
   );
-  app.get("/api/studio/radar/library", (_req, res) =>
-    res.json({ items: scoreRadarItems(library.slice(0, 300)), bookmarks }),
-  );
+  app.get("/api/studio/radar/library", (_req, res) => {
+    const { library, bookmarks } = radarState();
+    res.json({ items: scoreRadarItems(library.slice(0, 300)), bookmarks });
+  });
   app.get("/api/studio/radar/items/:id", (req, res) => {
     const item = findRadarItem(String(req.params.id));
     if (!item)
@@ -471,6 +476,7 @@ export function registerRadarRoutes(app: Express) {
     res.json(radarCalendar(region));
   });
   app.get("/api/studio/radar/runs", (_req, res) => {
+    const { runsDir } = radarState();
     const list = fs
       .readdirSync(runsDir)
       .filter((name) => /^[\da-f-]{36}\.json$/.test(name))
@@ -557,11 +563,12 @@ export function registerRadarRoutes(app: Express) {
         .status(404)
         .json({ error: "只能收藏已采集或已导入的真实线索。" });
     const saved = z.boolean().parse(req.body?.saved);
-    bookmarks = saved
-      ? [...new Set([...bookmarks, id])].slice(-1000)
-      : bookmarks.filter((value) => value !== id);
-    writeJson(path.join(radarDir, "bookmarks.json"), bookmarks);
-    res.json({ bookmarks });
+    const state = radarState();
+    state.bookmarks = saved
+      ? [...new Set([...state.bookmarks, id])].slice(-1000)
+      : state.bookmarks.filter((value) => value !== id);
+    writeJson(state.bookmarksFile, state.bookmarks);
+    res.json({ bookmarks: state.bookmarks });
   });
   const imageUpload = multer({
     storage: multer.memoryStorage(),
@@ -569,7 +576,7 @@ export function registerRadarRoutes(app: Express) {
   });
   app.post(
     "/api/studio/radar/identify",
-    imageUpload.single("image"),
+    scopedMultipart(imageUpload.single("image")),
     async (req, res) => {
       if (!req.file)
         return res.status(400).json({ error: "请选择一张商品或灵感图片。" });
@@ -632,7 +639,7 @@ export function registerRadarRoutes(app: Express) {
         ...run,
         report: `${radarReport(run)}\n\n## AI 深入解读 · 待人工核验\n\n${result.text}`,
       };
-      writeJson(path.join(runsDir, `${run.id}.json`), next);
+      writeJson(path.join(radarState().runsDir, `${run.id}.json`), next);
       res.json(next);
     } finally {
       runLocks.delete(lock);

@@ -7,6 +7,7 @@ import type { Project, TierNewFrame, WorkspaceProject } from '../shared/domain';
 import { frameLabel, framePositions, shotLevel, type FramePosition } from '../shared/tier-prompt';
 import { levelInfo } from '../shared/replication-levels';
 import { deleteLibraryMedia, loadMediaLibrary, syncMediaLibrary, uploadLibraryFiles } from './mediaLibrary';
+import { publicAuthRequired } from './auth';
 import './asset-library.css';
 
 type Filter = 'all' | MediaKind | 'recent';
@@ -209,7 +210,7 @@ export function MediaLibraryPage({ user, onSelect, onUpload, onSignIn }: { user:
     setSyncing(true); setSyncError('');
     try { await syncMediaLibrary(user); } catch (error) { setSyncError(message(error)); } finally { setSyncing(false); }
   }, [user?.id]);
-  useEffect(() => { if (user) void sync(); }, [sync]);
+  useEffect(() => { if (publicAuthRequired && user) void sync(); }, [sync]);
   const visible = useMemo(() => filtered(items, filter, query, sort), [items, filter, query, sort]);
   const selectedItems = visible.filter(item => selectedIds.has(item.id));
   const allSelected = visible.length > 0 && selectedItems.length === visible.length;
@@ -222,7 +223,7 @@ export function MediaLibraryPage({ user, onSelect, onUpload, onSignIn }: { user:
   return <section className="all-media-page" tabIndex={-1}>
     <header className="all-media-heading"><div><h1>所有媒体</h1><p>上传过的图片与视频，随时查看、随时复用。</p></div><div className="all-media-heading-actions"><button className="btn" type="button" aria-pressed={selecting} disabled={deleting || (!items.length && !selecting)} onClick={() => { setSelecting(!selecting); setSelectedIds(new Set()); }}><ListChecks size={16} />{selecting ? '取消批量' : '批量管理'}</button><button className="btn primary" type="button" disabled={deleting} onClick={onUpload}><Upload size={16} />添加素材</button></div></header>
     <div className="all-media-toolbar"><div className="all-media-tabs"><Categories filter={filter} onFilter={next => { if (next !== 'recent') { setFilter(next); setSelectedIds(new Set()); } }} items={items} categories={libraryCategories} /></div><SearchTools query={query} onQuery={next => { setQuery(next); setSelectedIds(new Set()); }} sort={sort} onSort={setSort} /></div>
-    <div className="media-sync-note"><Cloud size={14} />{user ? <><span>{syncing ? '正在同步到云端…' : '已启用私有云端素材库'}</span><button type="button" disabled={syncing} onClick={() => void sync()}>同步素材</button></> : <><span>当前设备的素材已收录</span><button type="button" onClick={onSignIn}>登录后同步云端</button></>}</div>
+    <div className="media-sync-note"><Cloud size={14} />{!publicAuthRequired ? <span>本机上传的素材保存在当前设备</span> : user ? <><span>{syncing ? '正在同步到云端…' : '已启用私有云端素材库'}</span><button type="button" disabled={syncing} onClick={() => void sync()}>同步素材</button></> : <><span>登录后查看账号的私有素材库</span><button type="button" onClick={onSignIn}>登录</button></>}</div>
     {selecting && <div className="all-media-selection-bar"><label className="all-media-select-all"><input type="checkbox" checked={allSelected} ref={node => { if (node) node.indeterminate = selectedItems.length > 0 && !allSelected; }} disabled={deleting || !visible.length} onChange={() => setSelectedIds(allSelected ? new Set() : new Set(visible.map(item => item.id)))} />全选当前结果</label><span role="status">{`已选择 ${selectedItems.length} 个素材`}</span><button className="btn media-bulk-delete" type="button" disabled={deleting || !selectedItems.length} onClick={async () => { if (await remove(selectedItems)) setSelectedIds(new Set()); }}>{deleting ? <LoaderCircle className="spin" size={15} /> : <Trash2 size={15} />}{deleting ? '正在删除…' : `删除所选 (${selectedItems.length})`}</button></div>}
     {(warning || syncError || deleteError) && <div className="asset-library-error" role="alert">{deleteError || warning || syncError}<button type="button" disabled={deleting} onClick={() => { clearDeleteError(); void refresh(); if (user) void sync(); }}>重试</button></div>}
     {deleting && !selecting && <p className="media-delete-status" role="status"><LoaderCircle className="spin" size={14} />正在删除素材…</p>}
@@ -316,7 +317,7 @@ export default function AssetLibrary({ open, user, target, initialSelection, onC
       {(error || warning || deleteError) && <div className="asset-library-error" role="alert">{deleteError || error || warning}<button type="button" disabled={!!busy} onClick={() => { setError(''); clearDeleteError(); void refresh(); }}>重试读取</button></div>}
       <div className="asset-library-body">
         <aside className="asset-library-categories"><Categories filter={filter} onFilter={setFilter} items={items} categories={modalCategories} recentCount={recentItems.length} />
-          <div className="asset-library-account"><Cloud size={14} /><small>{user ? '私有云端素材' : '当前设备素材'}</small>{!user && <button type="button" disabled={!!busy} onClick={onSignIn}>登录同步</button>}</div>
+          <div className="asset-library-account"><Cloud size={14} /><small>{publicAuthRequired ? '私有云端素材' : '当前设备素材'}</small>{publicAuthRequired && !user && <button type="button" disabled={!!busy} onClick={onSignIn}>登录</button>}</div>
           <button className="asset-library-local-upload" type="button" disabled={!!busy} onClick={() => input.current?.click()}><Upload size={16} /><span>本地上传内容</span></button>
           <input ref={input} hidden type="file" multiple={target !== 'video'} accept={target === 'image' ? 'image/jpeg,image/png,image/webp' : target === 'video' ? 'video/mp4,video/quicktime,video/webm,.mov' : 'image/jpeg,image/png,image/webp,video/mp4,video/quicktime,video/webm,.mov'} onChange={event => { const files = Array.from(event.target.files || []); event.target.value = ''; void upload(files); }} />
         </aside>

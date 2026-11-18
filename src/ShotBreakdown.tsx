@@ -167,7 +167,7 @@ function ShotRow({ project, shot, index, number, selected, expanded, disabled, o
     </div>
     {pendingReview && <div className="shot-review-pending">此镜头的时间范围已改变，等待局部重新分析；当前描述仍为原记录。</div>}
     {onFocusChange && <details className="shot-focus"><summary>镜头关注重点 · {(shot.focusPoints || []).filter(point => point.selected).length}/{shot.focusPoints?.length || 0} 项已勾选</summary><FocusPointsEditor points={shot.focusPoints} onChange={onFocusChange} disabled={disabled} max={12} onSeek={onSeek} /></details>}
-    <details className="shot-row-prompt"><summary><span>镜头重建 Prompt<small>{shot.reconstructionPrompt ? 'Gemini 分析 / 当前编辑' : '由现有镜头描述整理'}</small></span><ChevronDown size={13} /></summary><div><p>用于描述如何重建这个镜头，可在编辑中调整。</p><pre>{prompt}</pre><button className="btn small" onClick={() => onCopy(prompt)}><Copy size={13} />复制 Prompt</button></div></details>
+    <details className="shot-row-prompt"><summary><span>镜头重建 Prompt<small>{shot.reconstructionPrompt ? '分析结果 / 当前编辑' : '由现有镜头描述整理'}</small></span><ChevronDown size={13} /></summary><div><p>用于描述如何重建这个镜头，可在编辑中调整。</p><pre>{prompt}</pre><button className="btn small" onClick={() => onCopy(prompt)}><Copy size={13} />复制 Prompt</button></div></details>
     {expanded && renderEditor && <div className="shot-row-editor">{renderEditor(shot, index)}{onSplit && <div className="scene-actions"><button className="text-button" disabled={disabled || shot.end - shot.start < .4 || (project.analysis?.shots.length || 0) >= 120} onClick={onSplit}><Scissors size={14} />拆分此镜头</button><span>修改自动保存；调整边界后重新提取片段</span></div>}</div>}
     {frame && <FramePreview frame={frame} onClose={() => setFrame(undefined)} />}
   </article>;

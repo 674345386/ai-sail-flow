@@ -113,19 +113,18 @@
   --ls-line: var(--atmo-line);
   --ls-panel: var(--atmo-surface);
 }
-.landing-page.landing-atmosphere :is(.ls-media, .ls-tool-actions button, .gf-plan-grid article) { background: color-mix(in srgb, var(--atmo-surface) 88%, transparent); color: var(--atmo-ink); border-color: var(--atmo-line); }
+.landing-page.landing-atmosphere :is(.ls-media, .ls-tool-actions button) { background: color-mix(in srgb, var(--atmo-surface) 88%, transparent); color: var(--atmo-ink); border-color: var(--atmo-line); }
 .landing-page.landing-atmosphere .ls-section :is(.ls-tool-label, .ls-tool-body) { color: var(--atmo-muted); }
-.landing-page.landing-atmosphere :is(.ls-btn-solid, .ls-btn-light, .ls-tool-actions button.is-primary, .gf-plan-grid article.active > button) { background: var(--atmo-ink); color: var(--atmo-base); border-color: var(--atmo-ink); }
-.landing-page.landing-atmosphere :is(.ls-btn-solid, .ls-btn-light, .ls-tool-actions button.is-primary, .gf-plan-grid article.active > button):hover { background: color-mix(in srgb, var(--atmo-ink) 88%, var(--atmo-base)); }
-.landing-page.landing-atmosphere :is(.ls-btn-ghost, .ls-btn-outline-light, .gf-small-outline, .gf-plan-grid article > button) { color: var(--atmo-ink); border-color: var(--atmo-line); }
-.landing-page.landing-atmosphere :is(.ls-btn-ghost, .ls-btn-outline-light):hover { background: color-mix(in srgb, var(--atmo-ink) 8%, transparent); border-color: var(--atmo-ink); }
-.landing-page.landing-atmosphere :is(.gf-pricing, .gf-faq, .gf-faq summary, .ls-cta h2, .landing-toc-title) { color: var(--atmo-ink); }
-.landing-page.landing-atmosphere :is(.gf-centered-heading p, .gf-pricing-note, .gf-plan-grid li, .gf-plan-grid article > small, .gf-faq details p, .gf-footer, .gf-footer a, .gf-footer button, .landing-toc a) { color: var(--atmo-muted); }
-.landing-page.landing-atmosphere :is(.gf-plan-price, .gf-plan-grid li, .gf-faq details, .landing-toc ol) { border-color: var(--atmo-line); }
-.landing-page.landing-atmosphere .gf-plan-grid article.active { border-color: var(--atmo-ink); }
+.landing-page.landing-atmosphere :is(.ls-btn-solid, .ls-btn-light, .ls-tool-actions button.is-primary) { background: var(--atmo-ink); color: var(--atmo-base); border-color: var(--atmo-ink); }
+.landing-page.landing-atmosphere :is(.ls-btn-solid, .ls-btn-light, .ls-tool-actions button.is-primary):hover { background: color-mix(in srgb, var(--atmo-ink) 88%, var(--atmo-base)); }
+.landing-page.landing-atmosphere .ls-btn-ghost { color: var(--atmo-ink); border-color: var(--atmo-line); }
+.landing-page.landing-atmosphere .ls-btn-ghost:hover { background: color-mix(in srgb, var(--atmo-ink) 8%, transparent); border-color: var(--atmo-ink); }
+.landing-page.landing-atmosphere :is(.ls-cta h2, .landing-toc-title) { color: var(--atmo-ink); }
+.landing-page.landing-atmosphere :is(.gf-centered-heading p, .gf-footer, .gf-footer a, .gf-footer button, .landing-toc a) { color: var(--atmo-muted); }
+.landing-page.landing-atmosphere .landing-toc ol { border-color: var(--atmo-line); }
 .landing-page.landing-atmosphere .landing-toc a:is(:hover, .is-active) { color: var(--atmo-ink); border-color: var(--atmo-ink); background: color-mix(in srgb, var(--atmo-base) 65%, transparent); }
 .landing-page.landing-atmosphere .ls-models svg path[fill="#0f0f10"] { fill: var(--atmo-ink); }
-.landing-page.landing-atmosphere :is(.landing-nav, .ls-section, .ls-cta, .gf-pricing, .gf-faq, .gf-footer) ::selection { color: var(--atmo-base); background: var(--atmo-ink); }
+.landing-page.landing-atmosphere :is(.landing-nav, .ls-section, .ls-cta, .gf-footer) ::selection { color: var(--atmo-base); background: var(--atmo-ink); }
 
 /* A continuous hero lets the new background lead the first screen. */
 .landing-atmosphere[data-atmosphere-hero="gradient"] .commerce-hero-stage { background: transparent; color: var(--atmo-ink); border-radius: 0; box-shadow: none; }

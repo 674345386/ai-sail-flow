@@ -9,7 +9,7 @@ const names: Record<string, string> = { 'landing-nav': '顶部导航', 'landing-
   'lp-body': '首屏内容', 'lp-heading': '首屏标题组', 'lp-composer': 'Prompt 输入框', 'lp-marquee': '模型跑马灯',
   'lvs-showcase': '创作案例', 'scenes-showcase': '应用场景', 'ls-statement': '创作展示', 'ls-steps': '制作流程',
   'ls-compare': '效果对比', 'ls-tools': '创作工具', 'ls-creator': '创作者', 'ls-cta': '开始创作区',
-  'gf-pricing': '价格方案', 'gf-faq': '常见问题', 'gf-footer': '页脚', lbg: '动态背景',
+  'gf-footer': '页脚', lbg: '动态背景',
 };
 const tagNames: Record<string, string> = { img: '图片', video: '视频', svg: '图标', canvas: '画布', button: '按钮', a: '链接',
   h1: '主标题', h2: '标题', h3: '小标题', p: '段落', span: '文字', textarea: '输入框', input: '输入', section: '区块', div: '容器', nav: '导航', figure: '媒体组' };

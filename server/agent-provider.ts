@@ -1,5 +1,8 @@
 import { fileURLToPath } from 'node:url';
 import { DEFAULT_AGENT_EFFORT, DEFAULT_AGENT_MODEL } from '../shared/agent-models';
+import { accountWorkspacesEnabled, workspaceDirectory } from './workspace-storage';
+import path from 'node:path';
+import fs from 'node:fs';
 
 // Codex owns the conversation, streaming and tools. Providers only supply
 // connection settings and, when needed, a model catalog for Codex.
@@ -18,6 +21,17 @@ export const agentProvider = {
   apiKeyEnv: process.env.SOP_AGENT_API_KEY_ENV?.trim() || (id === 'deepseek' ? 'DEEPSEEK_API_KEY' : 'SOP_AGENT_API_KEY'),
   catalog: process.env.SOP_AGENT_MODEL_CATALOG?.trim() || (id === 'deepseek' ? fileURLToPath(new URL('./providers/deepseek-models.json', import.meta.url)) : undefined),
 };
+
+export const agentSandbox = accountWorkspacesEnabled ? 'read-only' : 'danger-full-access';
+export const agentSandboxPolicy = accountWorkspacesEnabled ? { type: 'readOnly', networkAccess: false } : { type: 'dangerFullAccess' };
+export const creativeAgentEnabled = !accountWorkspacesEnabled || process.env.SOP_AGENT_ENABLED === 'true' && !!process.env.SOP_AGENT_CODEX_HOME;
+
+export function agentCodexHome(dataDirectory: string) {
+  const serviceHome = process.env.SOP_AGENT_CODEX_HOME || path.join(dataDirectory, 'agent-codex');
+  const directory = accountWorkspacesEnabled && custom ? workspaceDirectory('agent-codex') : serviceHome;
+  fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
+  return directory;
+}
 
 export function agentProviderArgs(): string[] {
   const config: Record<string, string | boolean> = { model: agentProvider.model, model_reasoning_effort: agentProvider.effort };
@@ -38,5 +52,9 @@ export function agentProviderArgs(): string[] {
   }
   if (agentProvider.catalog) config.model_catalog_json = agentProvider.catalog;
   // Passed directly to spawn, never through a shell; credentials stay in env.
+  if (accountWorkspacesEnabled) {
+    for (const feature of ['shell_tool', 'unified_exec', 'code_mode', 'apply_patch_freeform', 'skill_mcp_dependency_install']) config[`features.${feature}`] = false;
+    config['features.skip_host_skill_discovery'] = true;
+  }
   return Object.entries(config).flatMap(([key, value]) => ['-c', `${key}=${JSON.stringify(value)}`]);
 }

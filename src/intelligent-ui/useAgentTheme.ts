@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { loadActiveBackgroundBase } from '../landing-background-config';
-import { AGENT_SURFACE_DEFAULTS, AGENT_THEME_CANVAS_COLORS, AGENT_THEME_CONFIG, AGENT_THEME_TEXT_COLORS, agentBackgroundStyle, agentContrastColor, agentSurfaceStyle, agentTextColor, agentTextColorStyle, normalizeAgentSurface, readAgentThemePreferences, resolveAgentTheme, saveAgentThemePreferences, type AgentSurfacePreferences, type AgentSurfaceScope, type AgentThemePanel, type AgentThemePreferences, type AgentTextColorScope, type ThemeMode } from './theme';
+import { AGENT_SURFACE_DEFAULTS, AGENT_THEME_CANVAS_COLORS, AGENT_THEME_CONFIG, AGENT_THEME_TEXT_COLORS, activeAgentThemePreferences, agentBackgroundStyle, agentContrastColor, agentSurfaceStyle, agentTextColor, agentTextColorStyle, normalizeAgentSurface, readAgentThemePreferences, resolveAgentTheme, saveAgentThemePreferences, type AgentSurfacePreferences, type AgentSurfaceScope, type AgentThemePanel, type AgentThemePreferences, type AgentTextColorScope, type ThemeMode } from './theme';
 
 function loadPreferences(): AgentThemePreferences {
   try { return readAgentThemePreferences(window.localStorage); }
@@ -8,8 +8,8 @@ function loadPreferences(): AgentThemePreferences {
 }
 
 export function useAgentTheme() {
-  const [preferences, setPreferences] = useState(loadPreferences);
-  const preferencesRef = useRef(preferences);
+  const [storedPreferences, setPreferences] = useState(loadPreferences);
+  const preferencesRef = useRef(storedPreferences);
   const updatePreferences = (update: (current: AgentThemePreferences) => AgentThemePreferences) => {
     const next = update(preferencesRef.current);
     preferencesRef.current = next;
@@ -35,6 +35,7 @@ export function useAgentTheme() {
     return () => { media.removeEventListener('change', update); window.removeEventListener('storage', sync); };
   }, []);
 
+  const preferences = activeAgentThemePreferences(storedPreferences);
   const chatTheme = resolveAgentTheme(preferences.chat, systemDark);
   const resultsTheme = resolveAgentTheme(preferences.results, systemDark);
   const backgroundInk = agentContrastColor(backgroundBase);

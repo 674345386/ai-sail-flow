@@ -1,7 +1,7 @@
 export const AGENT_PRESENTATIONS = [
-  { value: 'openui', label: 'Open Intelligent UI 组件', description: '使用已有组件组织右侧结果。' },
+  { value: 'openui', label: 'Intelligent AIGC UI 组件', description: '使用已有组件组织右侧结果。' },
   { value: 'html', label: 'HTML 动态生成', description: '直接生成 HTML 页面，在右侧自由呈现结果。' },
-  { value: 'auto', label: '自动（混合）', description: '由模型选择组件、HTML，或在一次回答中混合使用。' },
+  { value: 'auto', label: '自动（混合）', description: '聊天默认用 Markdown，按需在右侧展示组件或 HTML。' },
 ] as const;
 
 export type AgentPresentation = typeof AGENT_PRESENTATIONS[number]['value'];
@@ -16,12 +16,12 @@ export function normalizeAgentPresentation(value: unknown): AgentPresentation {
 }
 
 const presentationRequests: Record<AgentPresentation, string> = {
-  openui: '请用已有的 Open Intelligent UI 组件充分承载本次回答，在右侧展示。输出以 root = 开头的完整组件程序；也可以先用文字解释，再把程序放在 openui 代码块中。使用已提供的组件，不使用 HtmlView 或另写 HTML。保持信息完整，不因组件排版省略必要解释。',
-  html: '请生成一个完整、自包含的 HTML 页面，更好地承载本次回答，并在右侧展示。按内容自由选择排版和必要的交互，充分解释结果。使用内联 CSS，必要时加入 JavaScript；将页面放在 html 代码块中。无需使用 Open Intelligent UI 组件语法。可以在代码块外补充自然语言说明。',
-  auto: '请按内容选择最合适的方式承载右侧结果：已有 Open Intelligent UI 组件、动态 HTML 页面，或两者混合。组件程序放在 openui 代码块中，完整 HTML 页面放在 html 代码块中；混合时分别输出对应区块，右侧会按顺序展示。也可以用一个 Open Intelligent UI 程序组合组件和 HtmlView。不要为了套用界面省略必要解释；简单对话可以直接用文字。',
+  openui: '先用 Markdown 简要说明结论或成果，再把完整的 Open Intelligent UI 程序放在 openui 代码块中供右侧展示。使用已提供的组件，不使用 HtmlView 或另写 HTML。',
+  html: '先用 Markdown 简要说明结论或成果，再把完整、自包含的 HTML 页面放在 html 代码块中供右侧展示。使用内联 CSS，必要时加入 JavaScript。',
+  auto: '聊天正文默认用 Markdown 直接回答。识图、解释、建议和普通对比用段落、列表或表格即可。用户要求独立的页面、可视化或交互界面，或者任务需要这类成果时，再把组件程序放在 openui 代码块中、完整 HTML 页面放在 html 代码块中供右侧展示。聊天正文概括主要结论或成果。',
 };
 
 export function appendPresentationRequest(prompt: string, presentation: AgentPresentation): string {
   const label = AGENT_PRESENTATIONS.find(option => option.value === presentation)!.label;
-  return `${prompt}\n\n[本次结果呈现：${label}]\n${presentationRequests[presentation]}`;
+  return `${prompt}\n\n[本次结果呈现：${label}]\n${presentationRequests[presentation]}\n视频复刻分析的场景表使用工作区自带组件，聊天简述结果即可。`;
 }

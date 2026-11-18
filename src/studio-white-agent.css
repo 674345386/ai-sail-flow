@@ -1,0 +1,36 @@
+/* The shared workspace chrome uses Studio's base rules. These selectors
+   apply its palette to surfaces that exist only in Agent mode. */
+.app-shell[data-agent-theme="studio-white"] .topbar-task-assets {
+  background: var(--studio-action);
+  color: var(--studio-paper);
+  border-color: var(--studio-action);
+}
+.app-shell[data-agent-theme="studio-white"] .topbar-task-assets:is(:hover, [aria-expanded="true"]) { background: var(--studio-ink); }
+.app-shell[data-agent-theme="studio-white"] .agent-chat { background: var(--studio-paper); border-color: var(--studio-line); }
+.intelligent-agent [data-theme="studio-white"] .iua-composer { border: 1px solid var(--iui-border-strong); }
+.intelligent-agent [data-theme="studio-white"] .iua-composer:has(textarea:focus-visible) { border-color: var(--iui-focus); }
+.intelligent-agent [data-theme="studio-white"] .iua-output-toolbar { background: var(--iui-canvas); }
+.intelligent-agent [data-theme="studio-white"] :is(.iua-message-assistant, .iua-generated, .iua-generated .iui-markdown) { font-family: var(--sail-font-ui); }
+.intelligent-agent [data-theme="studio-white"] .iua-generated { --iui-font: var(--sail-font-ui); }
+
+.iua-output[data-theme="studio-white"] :is(.acu-panel, .acu-gallery, .acu-gallery-trigger) {
+  background: var(--iui-canvas);
+  color: var(--iui-ink);
+  border-color: var(--iui-border-strong);
+}
+.iua-output[data-theme="studio-white"] :is(.acu-panel, .acu-gallery) { box-shadow: var(--iui-shadow); }
+.iua-output[data-theme="studio-white"] :is(.acu-fields, .acu-fields label strong, .acu-panel h3, .acu-fields select) { color: var(--iui-ink); }
+.iua-output[data-theme="studio-white"] :is(.acu-fields select, .acu-presets button, .acu-builtin-tabs button) { border-color: var(--iui-border-strong); }
+.iua-output[data-theme="studio-white"] :is(.acu-gallery-trigger:hover, .acu-panel header button:hover, .acu-gallery header button:hover, .acu-presets button.active, .acu-builtin-tabs button.active, .acu-gallery nav button:is(:hover, .active)) { background: var(--iui-hover); color: var(--iui-ink); }
+.iua-output[data-theme="studio-white"] .acu-panel > footer button { background: var(--studio-action); color: var(--iui-on-ink); }
+
+.iua-output[data-theme="studio-white"] .skill-center {
+  --sc-bg: var(--studio-canvas);
+  --sc-surface: var(--iui-canvas);
+  --sc-ink: var(--iui-ink);
+  --sc-muted: var(--iui-muted);
+  --sc-line: var(--iui-border);
+  --sc-accent: var(--studio-action);
+  --sc-soft: var(--iui-surface);
+  font-family: var(--iui-font);
+}

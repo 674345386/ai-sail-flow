@@ -44,7 +44,7 @@ function defaultPosition(index: number) {
 export function gridVideoState(project: Project, grid: StoryboardGrid) {
   const versions = project.generatedVideos.filter(video => (video.storyboardGridId || video.gridId) === grid.id);
   const latest = versions.at(-1);
-  const completed = versions.filter(video => video.status === 'completed' && video.url);
+  const completed = versions.filter(video => video.status === 'completed' && video.url && video.provider !== 'local-test');
   const running = latest?.status === 'running' && project.job?.kind === 'generation' && project.job.status === 'running'
     && (project.job.unitId === `storyboard-grid-${grid.id}` || project.job.videoId === latest.id);
   const failed = latest?.status === 'failed' || (latest?.status === 'running' && !running);
@@ -99,9 +99,9 @@ export function StoryboardGridCardBody({ grid, index, project, disabled, onPromp
   const [picked, setPicked] = useState<string | null>(null);
   const shown = state.completed.find(video => video.id === picked) || state.completed.at(-1);
   const label = `分镜网格 ${String(index + 1).padStart(2, '0')}`;
-  const meta = `${grid.gridSize}×${grid.gridSize} · ${grid.start.toFixed(2)}–${grid.end.toFixed(2)}s · ${state.duration ? `成片 ${state.duration.toFixed(1)}s` : '本地测试'}`;
+  const meta = `${grid.gridSize}×${grid.gridSize} · ${grid.start.toFixed(2)}–${grid.end.toFixed(2)}s · ${state.duration ? `成片 ${state.duration.toFixed(1)}s` : '待生成'}`;
   const included = grid.included !== false;
-  const canGenerate = !disabled && !state.running && !!state.prompt.trim();
+  const canGenerate = !disabled && grid.gridSize === 3 && !state.running && !!state.prompt.trim();
 
   return <article className={`sg-card${selected ? ' is-selected' : ''}${state.running ? ' is-running' : ''}${status.kind === 'fail' ? ' is-failed' : ''}${className ? ` ${className}` : ''}`}>
     <header className="sg-card-hd sg-card-drag">
@@ -151,7 +151,7 @@ export function StoryboardGridCardBody({ grid, index, project, disabled, onPromp
           </div>
           <div className="sg-vmeta">
             <div className="sg-vn">{state.running ? '新版本生成中…' : `已就绪 · v${state.completed.indexOf(shown) + 1}`}</div>
-            <div className="sg-vs">时长 {(shown.duration || 0).toFixed(1)}s · {shown.model === 'local-test' ? '本地测试视频' : shown.model === REMIX_MODEL ? 'Omni Flash' : shown.mode || 'r2v'}</div>
+            <div className="sg-vs">时长 {(shown.duration || 0).toFixed(1)}s · {shown.model === 'local-test' ? '本地测试视频' : shown.provider === 'minimax-h3' ? 'H3' : shown.model === REMIX_MODEL ? 'Omni Flash' : shown.mode || 'r2v'}</div>
             <div className="sg-vers">
               {state.completed.map((video, i) => <button type="button" key={video.id}
                 className={video.id === shown.id ? 'on' : ''}
@@ -284,7 +284,7 @@ function StoryboardGridCanvas({ project, disabled, onPrompt, onGenerate, onRecov
         <span className="sg-cv-mark" aria-hidden="true"><Grid2X2 size={17} /></span>
         <div>
           <h2>分镜网格视频生成</h2>
-          <p className="sg-cv-sub">已放入 <em>{grids.length}</em> 个分镜{hiddenCount > 0 ? <> · 已隐藏 {hiddenCount} 个未勾选</> : null} · 原片每段 ≤10 秒 · 使用本地测试视频（前三个网格）</p>
+          <p className="sg-cv-sub">已放入 <em>{grids.length}</em> 个分镜{hiddenCount > 0 ? <> · 已隐藏 {hiddenCount} 个未勾选</> : null} · 原片每段 ≤10 秒 · 3×3 · H3 图生视频</p>
         </div>
       </div>
       <div className="sg-cv-actions">
@@ -387,7 +387,7 @@ function GridVideoCard({ project, grid, index, disabled, onPrompt, onGenerate, o
   const [picked, setPicked] = useState<string | null>(null);
   const shown = state.completed.find(video => video.id === picked) || state.completed.at(-1);
   const label = `分镜网格 ${String(index + 1).padStart(2, '0')}`;
-  const spanLabel = `${grid.start.toFixed(2)}–${grid.end.toFixed(2)} 秒 · ${state.duration ? `成片 ${state.duration.toFixed(1)}s` : '本地测试'}`;
+  const spanLabel = `${grid.start.toFixed(2)}–${grid.end.toFixed(2)} 秒 · ${state.duration ? `成片 ${state.duration.toFixed(1)}s` : '待生成'}`;
   const included = grid.included !== false;
 
   return <article className="storyboard-grid-card storyboard-grid-video-card">
@@ -402,7 +402,7 @@ function GridVideoCard({ project, grid, index, disabled, onPrompt, onGenerate, o
       </div>
       <div className="storyboard-grid-actions">
         {state.latest?.status === 'failed' && state.latest.requestId && <button type="button" className="btn small" disabled={disabled} onClick={() => onRecover(state.latest!.id)}>恢复查询</button>}
-        <button type="button" className="btn small primary" disabled={disabled || state.running || !state.prompt.trim()}
+        <button type="button" className="btn small primary" disabled={disabled || grid.gridSize !== 3 || state.running || !state.prompt.trim()}
           onClick={() => onGenerate(grid.id)}>
           {state.running ? <LoaderCircle size={14} className="spin" /> : state.completed.length ? <RefreshCw size={14} /> : <Clapperboard size={14} />}
           {state.running ? `生成中${state.progress ? ` ${state.progress}%` : ''}` : state.completed.length ? '重新生成' : '生成视频'}
@@ -428,7 +428,7 @@ function GridVideoCard({ project, grid, index, disabled, onPrompt, onGenerate, o
           {state.completed.length > 1 ? <select className="input" value={shown.id} aria-label="视频版本" onChange={event => setPicked(event.target.value)}>
             {state.completed.map((video, i) => <option key={video.id} value={video.id}>版本 {i + 1}</option>)}
           </select> : <span>版本 {state.completed.indexOf(shown) + 1}</span>}
-          <span>{(shown.duration || 0).toFixed(1)}s · {shown.model === 'local-test' ? '本地测试视频' : shown.model === REMIX_MODEL ? 'Omni Flash' : shown.mode || 'r2v'}</span>
+          <span>{(shown.duration || 0).toFixed(1)}s · {shown.model === 'local-test' ? '本地测试视频' : shown.provider === 'minimax-h3' ? 'H3' : shown.model === REMIX_MODEL ? 'Omni Flash' : shown.mode || 'r2v'}</span>
           <a className="btn small" href={shown.url} download><Download size={13} />下载</a>
         </div>}
         {state.failed && shown && <p className="storyboard-grid-video-error">{state.error}</p>}
@@ -462,9 +462,9 @@ export default function StoryboardGridWorkbench({ project, disabled, onPrompt, o
 
   return <section className="panel storyboard-grid-workbench" aria-label="分镜网格视频">
     <div className="panel-heading">
-      <div><Grid2X2 size={18} /><h2>分镜网格视频生成</h2><span className="badge-inline">{grids.length} 张网格 · 原片每段 ≤10 秒 · 使用本地测试视频（前三个网格）</span></div>
+      <div><Grid2X2 size={18} /><h2>分镜网格视频生成</h2><span className="badge-inline">{grids.length} 张网格 · 原片每段 ≤10 秒 · 3×3 · H3 图生视频</span></div>
     </div>
-    <div className="storyboard-grid-intro"><Info size={15} /><p>每张分镜网格作为一张参考图，配合可编辑 Prompt 直接生成一段视频。不经过逐镜头关键帧与主体设定卡。</p></div>
+    <div className="storyboard-grid-intro"><Info size={15} /><p>每张 3×3 故事板配合可编辑 Prompt，生成一段 H3 视频。</p></div>
     <div className="storyboard-grid-results">
       {grids.map(grid => {
         const index = allGrids.findIndex(item => item.id === grid.id);

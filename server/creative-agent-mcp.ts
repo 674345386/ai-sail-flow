@@ -4,18 +4,15 @@ import { z } from 'zod';
 import { activeExperimentMethod, experimentAgentContext, experimentOperation, type ExperimentGraph, type ExperimentMethod } from '../shared/experiment';
 import { minimaxVideoTool } from '../shared/minimax-video';
 import { environmentSchema, evaluationInput } from '../shared/skill-assets';
+import { referenceFramesInput, referenceFramesPath, saveReferenceAnalysisInput, saveReferenceShotReviewInput } from '../shared/agent-video-analysis';
+import { productionCompositionInput, productionStoryboardInput, productionVideoInput, videoProductionInput } from '../shared/video-production';
+import { levelInfo } from '../shared/replication-levels';
 
 const projectId = process.env.SOP_AGENT_PROJECT_ID || '';
 const token = process.env.SOP_AGENT_INTERNAL_TOKEN || '';
 const base = process.env.SOP_AGENT_INTERNAL_URL || 'http://127.0.0.1:4317';
 
-const videoProperties = {
-  stepId: { type: 'string', description: 'Optional experiment step ID from get_creative.experiment. Validates completed inputs before submission and automatically links the real generation task and output to this step.' },
-  prompt: { type: 'string', description: 'Final video prompt, forwarded unchanged to the provider. Prefer reusing an already complete user prompt; optimize, translate or revise it when requested. For a brief idea, compose a faithful prompt. For iterative edits, change only requested aspects and necessary related details, preserving the rest. Preserve exact wording when explicitly requested. Preserve explicit details and style; avoid unrelated additions or boilerplate. Explain any material change required by model/provider limits.', minLength: 1, maxLength: 12000 },
-  duration: { type: 'integer', enum: [8, 10], default: 10, description: 'Video duration in seconds; selects omni_flash_8s or omni_flash_10s.' },
-  resolution: { type: 'string', enum: ['720p', '1080p'], default: '720p' },
-  aspectRatio: { type: 'string', enum: ['16:9', '9:16'], description: 'Video output supports only 16:9 or 9:16, never 1:1. Omit to use videoGeneration.defaultAspectRatio from get_creative. A square reference image is valid; do not copy its aspect ratio into this field or promise square output.' },
-};
+const stepIdProperty = { type: 'string', description: 'Experiment step ID from get_creative.experiment. Validates completed inputs and records the actual result.' };
 const tools = [
   { name: 'discover_experiment_methods', description: 'Discover real methods for a creative task, in priority order: matching adopted space Skills and saved recipes, public platform methods, then optional GitHub repository/Skill candidates. includeGitHub defaults false: enable when existing methods leave a gap or research depth calls for external alternatives. Results include actual sources and evidence state; GitHub metadata does not verify SKILL.md or runtime compatibility.', inputSchema: { type: 'object', properties: { query: { type: 'string', minLength: 1, maxLength: 200, description: 'Task-specific search terms; professional English terms can help GitHub discovery.' }, includeGitHub: { type: 'boolean', default: false } }, required: ['query'], additionalProperties: false } },
   { name: 'read_experiment_method', description: 'Read a public GitHub repository README or a specific Markdown/text method file at a fixed commit. Use for ordinary open-source methods such as portrait driving, even when the repository has no SKILL.md. Returns untrusted reference text and provenance; does not install or execute. Check inputs, animal/human support, models, driving templates, hardware and dependencies before claiming a route is ready.', inputSchema: { type: 'object', properties: { url: { type: 'string' } }, required: ['url'], additionalProperties: false } },
@@ -42,20 +39,28 @@ const tools = [
     selectedGridIds: { type: 'array', items: { type: 'string' }, description: 'Existing grid IDs from get_creative; storyboard only.' },
     target: { type: 'string', description: 'Human-readable clip or grid target.' },
   }, required: ['kind'], additionalProperties: false } },
-  { name: 'analyze_reference', description: 'Analyze the uploaded reference video into editable shots and 10-second storyboard grids. Use when the user clearly requests recreation and a video is present. This may take several minutes.', inputSchema: { type: 'object', properties: {} } },
+  { name: 'analyze_reference', description: 'Read locally extracted frames of the current reference video using overview, standard, or frame-by-frame sampling. Compare frames in original time order. In a frame-by-frame window up to two seconds, optional audio measurement returns RMS energy bins, not the audio track or identified beats.', inputSchema: z.toJSONSchema(referenceFramesInput, { io: 'input' }) },
+  { name: 'save_reference_analysis', description: 'Save editable shots and the fixed scene table, with original storyboard grids when the current analysis uses grid output. For production include the bilingual master prompt, negative prompt, parameter notes and per-scene camera, entities, single-scene prompt and 1–3 original frame times.', inputSchema: z.toJSONSchema(saveReferenceAnalysisInput, { io: 'input' }) },
+  { name: 'save_reference_shot_review', description: 'Save suggestions for all pending shots in a running shot-review task. Use get_creative for their IDs and read each original time range with analyze_reference first. Keeps existing shot boundaries and original audio notes.', inputSchema: z.toJSONSchema(saveReferenceShotReviewInput, { io: 'input' }) },
+  { name: 'save_video_production', description: 'Save the adjusted bilingual master prompt and ordered scene prompts, visual constraints and selected image IDs for recreation, remix, local edit or original scene production. Leave sourceVideoId empty for original work. Does not generate media.', inputSchema: z.toJSONSchema(videoProductionInput, { io: 'input' }) },
+  { name: 'build_video_storyboard', description: 'Build and save a 3×3 production storyboard from 1–9 ordered keyframe image IDs. Use one scope of at most 10 seconds and its segment master prompt. Repeats cells for fewer than nine images. Returns an image ID usable with generate_grid_video.', inputSchema: z.toJSONSchema(productionStoryboardInput, { io: 'input' }) },
+  { name: 'compose_video', description: 'Assemble ordered completed clips locally, preserving their audio where present. Defaults to each clip’s saved target duration. For a local replacement in the final original, provide replace with the original video ID and interval; the ordered clip trims must cover that interval.', inputSchema: z.toJSONSchema(productionCompositionInput, { io: 'input' }) },
   { name: 'edit_grid_prompt', description: 'Update one storyboard grid prompt after the user asks for a specific change. This changes the same project data shown in the canvas.', inputSchema: { type: 'object', properties: { gridId: { type: 'string' }, prompt: { type: 'string' } }, required: ['gridId', 'prompt'] } },
-  { name: 'generate_grid_video', description: 'Generate a real 10-second, 720p Omni video using an existing storyboard grid and its saved prompt. Use generate_video for an arbitrary reference image and custom prompt, or generate_first_last_frame_video for a transition between two frames. Only call when the user requests a video.', inputSchema: { type: 'object', properties: { gridId: { type: 'string' }, stepId: videoProperties.stepId }, required: ['gridId'] } },
-  { name: 'generate_video', description: 'Generate a real Omni video from a prompt and zero to seven reference images. With referenceIds this is reference-image video; without referenceIds it is text-to-video. No analysis or storyboard grid is required. Read get_creative for imageReferences or grid IDs; uploaded chat images, completed generated images and published images (including extracted video frames) can all be used. Defaults: 720p, 10 seconds. Call only when the user requests a video; never silently retry an uncertain submission.', inputSchema: { type: 'object', properties: { ...videoProperties, referenceIds: { type: 'array', items: { type: 'string' }, maxItems: 7, uniqueItems: true, default: [] } }, required: ['prompt'], additionalProperties: false } },
-  { name: 'generate_first_last_frame_video', description: 'Generate a real Omni transition video between an explicit first frame and last frame. Pass their IDs in firstFrameId and lastFrameId; order matters. Read get_creative for valid IDs. No storyboard or analysis is required. Defaults: 720p, 10 seconds. Only call when the user requests a video, and ask for a missing frame rather than inventing an ID.', inputSchema: { type: 'object', properties: { ...videoProperties, firstFrameId: { type: 'string' }, lastFrameId: { type: 'string' } }, required: ['prompt', 'firstFrameId', 'lastFrameId'], additionalProperties: false } },
+  { name: 'generate_grid_video', description: 'Generate an authorized H3 segment from a saved 3×3 storyboard of at most 10 seconds and its saved prompt. Optional reference image IDs and one video reference supplement the storyboard.', inputSchema: z.toJSONSchema(productionVideoInput.pick({ referenceIds: true, referenceVideoIds: true, stepId: true, requestKey: true, aspectRatio: true, resolution: true, generateAudio: true }).extend({ gridId: z.string().min(1) }), { io: 'input' }) },
+  { name: 'generate_video', description: 'Generate an authorized video. Defaults to H3 (480p/720p, 4–15 provider seconds). Actual edits pass sourceVideoId and optionally start/end: editing an interval at least 4 seconds uses Omni Flash 1.2 at 720p and inherits its length and ratio; shorter edits use H3 recreation. Use referenceVideoIds for a video used only as generation reference. H3 saves shorter target lengths for composition.', inputSchema: z.toJSONSchema(productionVideoInput, { io: 'input' }) },
+  { name: 'generate_first_last_frame_video', description: 'Generate an authorized continuity clip with H3 Frames. Use firstFrameId or lastFrameId, or both in order; use the previous scene’s actual ending frame as the next scene’s first frame when needed. Ordinary references cannot be mixed into this mode.', inputSchema: z.toJSONSchema(productionVideoInput.omit({ sourceVideoId: true, start: true, end: true, referenceVideoIds: true, referenceIds: true }), { io: 'input' }) },
   { name: 'recover_video', description: 'Resume a failed/interrupted video marked recoverable in get_creative. Uses the saved upstream requestId, or replays a saved MiniMax request with its original idempotency key when the submission response was lost. Does not create a duplicate generation. Read get_creative and pass the failed video ID, not its upstream requestId. Use instead of regenerating after a polling timeout.', inputSchema: { type: 'object', properties: { videoId: { type: 'string' } }, required: ['videoId'], additionalProperties: false } },
-  { name: 'generate_image', description: `OpenAI custom size constraints: ${JSON.stringify(IMAGE_SIZE_LIMITS)}. Text-to-image and image editing: generate one image from a text prompt, optionally using up to four image references from this creative. Use only when the user asks for an image or an image edit. Read get_creative for valid reference IDs, including published images and extracted video frames. The image appears on the canvas and can be used as a reference in a later call.`, inputSchema: { type: 'object', properties: { stepId: videoProperties.stepId, prompt: { type: 'string', description: 'Final image prompt, forwarded unchanged to the provider. Prefer reusing an already complete user prompt; optimize, translate or revise it when requested. For a brief idea, compose a faithful prompt. For iterative edits, change only requested aspects and necessary related details, preserving the rest. Preserve exact wording when explicitly requested. Preserve explicit details and style references; avoid unrelated additions or boilerplate. Explain any material change required by model/provider limits.', minLength: 1, maxLength: 12000 }, aspectRatio: { type: 'string', pattern: IMAGE_RATIO_PATTERN.source, description: `Optional output ratio. Exact size conversions: ${JSON.stringify(IMAGE_RATIO_SIZES)}. The configured Images API uses the adapter size constraints; third-party gateway support may differ. Other ratios require an explicit matching size. No automatic ratio substitution or cropping.` }, size: { type: 'string', pattern: IMAGE_SIZE_PATTERN.source, description: 'Optional auto or exact WIDTHxHEIGHT, e.g. 1536x864. Exact sizes are forwarded unchanged and must obey the documented limits. If aspectRatio is supplied, provide matching dimensions or omit size; do not use auto with a fixed ratio. Omitting both means auto, letting the model choose. No resizing, cropping or fallback on rejection.' }, quality: { type: 'string', enum: IMAGE_QUALITIES, default: 'auto', description: 'Rendering quality, forwarded unchanged; default auto lets the model choose. The configured gateway may reject unsupported quality values; no automatic substitution.' }, referenceIds: { type: 'array', items: { type: 'string' }, maxItems: 4 } }, required: ['prompt'] } },
+  { name: 'generate_image', description: `OpenAI custom size constraints: ${JSON.stringify(IMAGE_SIZE_LIMITS)}. Text-to-image and image editing: generate one image from a text prompt, optionally using up to four image references from this creative. For an authorized production keyframe, use sceneIndex to use the saved keyframe prompt and selected inputs; prompt is required when sceneIndex is omitted. Read get_creative for valid reference IDs, including published images and extracted video frames. The image appears on the canvas and can be used as a reference in a later call.`, inputSchema: { type: 'object', properties: { stepId: stepIdProperty, sceneIndex: { type: 'integer', minimum: 1, description: 'Use this saved production scene’s keyframe prompt and selected input images.' }, prompt: { type: 'string', description: 'Final image prompt, forwarded unchanged to the provider. Prefer reusing an already complete user prompt; optimize, translate or revise it when requested. For a brief idea, compose a faithful prompt. For iterative edits, change only requested aspects and necessary related details, preserving the rest. Preserve exact wording when explicitly requested. Preserve explicit details and style references; avoid unrelated additions or boilerplate. Explain any material change required by model/provider limits.', minLength: 1, maxLength: 12000 }, aspectRatio: { type: 'string', pattern: IMAGE_RATIO_PATTERN.source, description: `Optional output ratio. Exact size conversions: ${JSON.stringify(IMAGE_RATIO_SIZES)}. The configured Images API uses the adapter size constraints; third-party gateway support may differ. Other ratios require an explicit matching size. No automatic ratio substitution or cropping.` }, size: { type: 'string', pattern: IMAGE_SIZE_PATTERN.source, description: 'Optional auto or exact WIDTHxHEIGHT, e.g. 1536x864. Exact sizes are forwarded unchanged and must obey the documented limits. If aspectRatio is supplied, provide matching dimensions or omit size; do not use auto with a fixed ratio. Omitting both means auto, letting the model choose. No resizing, cropping or fallback on rejection.' }, quality: { type: 'string', enum: IMAGE_QUALITIES, default: 'auto', description: 'Rendering quality, forwarded unchanged; default auto lets the model choose. The configured gateway may reject unsupported quality values; no automatic substitution.' }, referenceIds: { type: 'array', items: { type: 'string' }, maxItems: 4 } }, required: [] } },
 ];
+
+const referenceRoutes: Record<string, string> = { analyze_reference: referenceFramesPath, save_reference_analysis: '/analyze/save', save_reference_shot_review: '/analyze/review',
+  save_video_production: '/production', build_video_storyboard: '/production/storyboards', compose_video: '/production/compose' };
 
 async function performCall(name: string, args: Record<string, unknown>): Promise<Record<string, any>> {
   if (!projectId || !token) throw new Error('创作工具未配置。');
   const skillRoutes: Record<string, string> = { read_skill_reference: `/experiment/references/${encodeURIComponent(String(args.referenceId || ''))}`, capture_skill_environment: '/experiment/environment', get_skill_verification: '/skill-verification', submit_skill_evaluation: '/skill-evaluation' };
   const methodRoutes: Record<string, string> = { discover_experiment_methods: '/experiment/methods/search', read_experiment_method: '/experiment/methods/read' };
-  const suffix = methodRoutes[name] ?? skillRoutes[name] ?? (name === 'read_experiment_node' ? `/experiment/nodes/${encodeURIComponent(String(args.nodeId || ''))}` : name === 'publish_experiment_file' ? '/experiment/file' : name === 'update_experiment' ? '/experiment' : name === 'import_experiment_skill' ? '/experiment/skill' : name === 'bind_experiment_source' ? '/experiment/bind' : name === 'get_creative' ? '' : name === 'show_intelligent_ui' ? '/intelligent-ui' : name === 'show_canvas_component' ? '/canvas-components' : name === 'analyze_reference' ? '/analyze' : name === 'edit_grid_prompt' ? `/grids/${encodeURIComponent(String(args.gridId || ''))}/prompt` : name === 'generate_grid_video' ? `/grids/${encodeURIComponent(String(args.gridId || ''))}/generate` : name === 'generate_image' ? '/images' : name === 'generate_minimax_video' ? '/videos/minimax' : name === 'generate_video' ? '/videos' : name === 'generate_first_last_frame_video' ? '/videos/first-last-frame' : name === 'recover_video' ? `/videos/${encodeURIComponent(String(args.videoId || ''))}/recover` : '');
+  const suffix = referenceRoutes[name] ?? methodRoutes[name] ?? skillRoutes[name] ?? (name === 'read_experiment_node' ? `/experiment/nodes/${encodeURIComponent(String(args.nodeId || ''))}` : name === 'publish_experiment_file' ? '/experiment/file' : name === 'update_experiment' ? '/experiment' : name === 'import_experiment_skill' ? '/experiment/skill' : name === 'bind_experiment_source' ? '/experiment/bind' : name === 'get_creative' ? '' : name === 'show_intelligent_ui' ? '/intelligent-ui' : name === 'show_canvas_component' ? '/canvas-components' : name === 'edit_grid_prompt' ? `/grids/${encodeURIComponent(String(args.gridId || ''))}/prompt` : name === 'generate_grid_video' ? `/grids/${encodeURIComponent(String(args.gridId || ''))}/generate` : name === 'generate_image' ? '/images' : name === 'generate_minimax_video' ? '/videos/minimax' : name === 'generate_video' ? '/videos' : name === 'generate_first_last_frame_video' ? '/videos/first-last-frame' : name === 'recover_video' ? `/videos/${encodeURIComponent(String(args.videoId || ''))}/recover` : '');
   if (!tools.some(tool => tool.name === name)) throw new Error('未知工具。');
   const method = ['get_creative', 'read_experiment_node', 'read_skill_reference', 'get_skill_verification'].includes(name) ? 'GET' : 'POST';
   const { experimentRunId: _runId, ...payload } = args;
@@ -65,6 +70,9 @@ async function performCall(name: string, args: Record<string, unknown>): Promise
   });
   const body = await response.json() as Record<string, unknown>;
   if (!response.ok) {
+    if (response.status === 404 && name === 'analyze_reference' && body.error === '接口不存在。') {
+      throw new Error('当前后端尚未加载创作 Agent 的本地抽帧接口，请更新后端后再分析。');
+    }
     const issues = Array.isArray(body.issues) ? body.issues : [];
     const details = issues.map(issue => {
       const item = issue as { field?: string; message?: string };
@@ -75,9 +83,9 @@ async function performCall(name: string, args: Record<string, unknown>): Promise
   }
   if (name === 'update_experiment' || name === 'bind_experiment_source') return experimentAgentContext(body as unknown as ExperimentGraph);
   if (name === 'import_experiment_skill' || name === 'publish_experiment_file') return { ...body, ...(body.graph ? { graph: experimentAgentContext(body.graph as ExperimentGraph) } : {}) };
-  if (Object.hasOwn(methodRoutes, name) || Object.hasOwn(skillRoutes, name) || ['read_experiment_node', 'get_creative', 'edit_grid_prompt', 'show_canvas_component', 'show_intelligent_ui'].includes(name)) return body;
+  if (Object.hasOwn(referenceRoutes, name) || Object.hasOwn(methodRoutes, name) || Object.hasOwn(skillRoutes, name) || ['read_experiment_node', 'get_creative', 'edit_grid_prompt', 'show_canvas_component', 'show_intelligent_ui'].includes(name)) return body;
   if (args.stepId && (body.imageId || body.videoId)) await performCall('bind_experiment_source', { stepId: args.stepId, sourceId: body.imageId || body.videoId, ...(args.experimentRunId ? { runId: args.experimentRunId } : {}) });
-  const deadline = Date.now() + (name === 'analyze_reference' ? 10 : 5) * 60_000;
+  const deadline = Date.now() + 5 * 60_000;
   while (Date.now() < deadline) {
     await new Promise(resolve => setTimeout(resolve, 1500));
     const current = await fetch(`${base}/api/agent-internal/${projectId}`, { headers: { 'X-SOP-Agent-Token': token } });
@@ -98,7 +106,6 @@ async function performCall(name: string, args: Record<string, unknown>): Promise
     }
     if (state.job?.id !== body.jobId || state.job?.status === 'running') continue;
     if (state.job?.status === 'failed') throw new Error(String(state.job.message || '任务失败'));
-    if (name === 'analyze_reference' && state.analysis) return state;
     if (name === 'generate_grid_video' && state.videos?.some((video: { gridId: string; status: string }) => video.gridId === args.gridId && video.status === 'completed')) return state;
     if (state.job?.status === 'completed') return state;
   }
@@ -107,7 +114,7 @@ async function performCall(name: string, args: Record<string, unknown>): Promise
 }
 
 async function call(name: string, args: Record<string, unknown>) {
-  const tracksStep = !!args.stepId && ['generate_video', 'generate_first_last_frame_video', 'generate_grid_video', 'generate_image', 'generate_minimax_video'].includes(name);
+  const tracksStep = !!args.stepId && ['generate_video', 'generate_first_last_frame_video', 'generate_grid_video', 'generate_image', 'generate_minimax_video', 'build_video_storyboard', 'compose_video'].includes(name);
   let runId: string | undefined;
   if (tracksStep) {
     const state = await performCall('get_creative', {});
@@ -117,8 +124,19 @@ async function call(name: string, args: Record<string, unknown>) {
     if (graph.nodes.some(n => n.kind === 'artifact' && n.inputs.includes(step.id) && n.status === 'running')) throw new Error('此步骤已有生成任务在运行，请查询或恢复现有任务，不要重复提交。');
     if (step.inputs.some(id => graph.nodes.find(n => n.id === id)?.status !== 'completed')) throw new Error('请先完成实验台步骤的上游输入，尚未提交生成任务。');
     const method = activeExperimentMethod(step);
-    if (args.referenceIds === undefined && !['generate_first_last_frame_video', 'generate_grid_video'].includes(name) && !args.firstFrameId && !args.lastFrameId && method?.referenceIds.length) args = { ...args, referenceIds: method.referenceIds };
-    const referenceIds = name === 'generate_grid_video' ? [String(args.gridId)] : args.firstFrameId || args.lastFrameId ? [args.firstFrameId, args.lastFrameId].filter((id): id is string => typeof id === 'string') : args.referenceIds;
+    if (name === 'generate_image' && typeof args.sceneIndex === 'number') {
+      const plan = state.videoProductionPlan;
+      const scene = plan?.scenes[args.sceneIndex - 1];
+      if (!scene?.keyframePrompt) throw new Error('请先保存此场景的关键帧 Prompt。');
+      args = { ...args, prompt: scene.keyframePrompt, referenceIds: [...new Set([...(levelInfo(plan.level).frameUse !== 'none' ? scene.sourceFrameIds : []), ...scene.referenceIds])] };
+    }
+    const videoIds = new Set([args.sourceVideoId, ...(Array.isArray(args.referenceVideoIds) ? args.referenceVideoIds : [])].filter(Boolean));
+    if (args.referenceIds === undefined && ['generate_video', 'generate_image', 'generate_minimax_video'].includes(name) && !args.firstFrameId && !args.lastFrameId && method?.referenceIds.length) args = { ...args, referenceIds: method.referenceIds.filter(id => !videoIds.has(id)) };
+    const images = Array.isArray(args.referenceIds) ? args.referenceIds : [];
+    const referenceIds = name === 'generate_grid_video' ? [String(args.gridId), ...images, ...videoIds]
+      : name === 'build_video_storyboard' ? args.frameIds
+      : name === 'compose_video' && Array.isArray(args.clips) ? args.clips.map(clip => clip.videoId)
+      : args.firstFrameId || args.lastFrameId ? [args.firstFrameId, args.lastFrameId].filter((id): id is string => typeof id === 'string') : [...images, ...videoIds];
     const parameters = Object.fromEntries(Object.entries(args).filter(([key, value]) => !['stepId', 'prompt', 'referenceIds', 'model'].includes(key) && (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean'))) as ExperimentMethod['parameters'];
     const updated = await performCall('update_experiment', { op: 'start-run', stepId: step.id, ...(typeof args.prompt === 'string' ? { prompt: args.prompt } : {}), ...(Array.isArray(referenceIds) ? { referenceIds } : {}), ...(typeof args.model === 'string' ? { model: args.model } : {}), parameters });
     runId = (updated.runs as ExperimentGraph['runs'])?.at(-1)?.id;
@@ -136,6 +154,32 @@ async function call(name: string, args: Record<string, unknown>) {
   }
 }
 
+function toolContent(name: string, output: Record<string, any>) {
+  if (name !== 'analyze_reference') return [{ type: 'text', text: JSON.stringify(output) }];
+  const { sheets, columns, ...reference } = output;
+  if (!Array.isArray(sheets) || !Number.isInteger(columns) || columns < 1) {
+    throw new Error('本地抽帧接口返回的格式与工具版本不一致，请核对后端版本。');
+  }
+  return [{ type: 'text', text: JSON.stringify(reference) }, ...sheets.flatMap(({ times, changeScores, data }: { times: number[]; changeScores?: number[]; data: string }, index: number) => {
+    const detailed = reference.sampling === 'frame-by-frame';
+    const labels = times.map((time, offset) => {
+      if (!detailed) return time.toFixed(3);
+      const frame = index * columns ** 2 + offset + 1;
+      const score = changeScores?.[offset];
+      return `F${frame}@${time.toFixed(6)}${score !== undefined && score >= 10 ? ` (change ${score.toFixed(1)})` : ''}`;
+    });
+    const rows = [];
+    for (let offset = 0; offset < labels.length; offset += columns) {
+      rows.push(labels.slice(offset, offset + columns).join('  '));
+    }
+    const timing = detailed ? 'F is a one-based frame number within this window. Change scores are visual hints.' : '';
+    return [
+      { type: 'text', text: `Sheet ${index + 1}. Original video seconds by row, left to right. Blank cells are padding. ${timing}\n${rows.join('\n')}` },
+      { type: 'image', mimeType: 'image/jpeg', data },
+    ];
+  })];
+}
+
 const input = createInterface({ input: process.stdin, crlfDelay: Infinity });
 input.on('line', line => { void (async () => {
   let id: string | number | undefined;
@@ -147,7 +191,8 @@ input.on('line', line => { void (async () => {
     if (message.method === 'initialize') result = { protocolVersion: '2025-06-18', capabilities: { tools: {} }, serverInfo: { name: 'sail-creation', version: '1.0.0' } };
     else if (message.method === 'tools/list') result = { tools };
     else if (message.method === 'tools/call') {
-      try { result = { content: [{ type: 'text', text: JSON.stringify(await call(String(message.params?.name || ''), (message.params?.arguments || {}) as Record<string, unknown>)) }] }; }
+      const name = String(message.params?.name || '');
+      try { result = { content: toolContent(name, await call(name, (message.params?.arguments || {}) as Record<string, unknown>)) }; }
       catch (error) { result = { isError: true, content: [{ type: 'text', text: error instanceof Error ? error.message : '工具执行失败' }] }; }
     } else throw new Error(`Unsupported method: ${message.method}`);
     process.stdout.write(`${JSON.stringify({ jsonrpc: '2.0', id, result })}\n`);

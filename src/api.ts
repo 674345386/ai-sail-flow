@@ -1,5 +1,11 @@
 import { publicAuthRequired, supabase } from './auth';
 
+async function assertSameAccount(userId?: string) {
+  if (!publicAuthRequired || !supabase || !userId) return;
+  const { data } = await supabase.auth.getSession();
+  if (data.session?.user.id !== userId) throw new Error('登录账号已变化，请重试。');
+}
+
 export async function api<T>(url: string, options: RequestInit = {}): Promise<T> {
   const headers = new Headers(options.headers);
   if (options.body && !(options.body instanceof FormData) && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
@@ -8,6 +14,7 @@ export async function api<T>(url: string, options: RequestInit = {}): Promise<T>
   else if (publicAuthRequired && url !== '/api/status') throw new Error('请先登录后再使用工作台。');
   const response = await fetch(url, { ...options, headers, credentials: 'same-origin' });
   const data = await response.json().catch(() => ({ error: '服务暂时不可用，请检查本地服务是否正在运行。' }));
+  await assertSameAccount(session?.user.id);
   if (!response.ok) throw new Error(data.error || `请求失败 (${response.status})`);
   return data as T;
 }
@@ -24,5 +31,7 @@ export async function apiBlob(url: string): Promise<Blob> {
   else if (publicAuthRequired) throw new Error('请先登录后下载交付包。');
   const response = await fetch(url, { headers, credentials: 'same-origin' });
   if (!response.ok) { const body = await response.json().catch(() => ({})); throw new Error(body.error || '交付包下载失败，请重试。'); }
-  return response.blob();
+  const blob = await response.blob();
+  await assertSameAccount(session?.user.id);
+  return blob;
 }

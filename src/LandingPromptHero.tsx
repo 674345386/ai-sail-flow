@@ -20,7 +20,7 @@ const messages = {
     attachmentPrompt: '请查看附件中的参考素材，帮我继续创作。',
   },
   en: {
-    title: 'Create inspiration. Become inspiration.',
+    title: 'Create inspiration.\nBecome inspiration.',
     subtitle: 'Explore. Discover. Put inspiration to the test.',
     placeholder: 'Describe what you want to create, e.g. a cinematic summer campaign for my perfume…',
     prompt: 'Describe your creative idea', models: 'AI creative models',
@@ -121,7 +121,7 @@ export default function LandingPromptHero({ onStart, busy, error }: {
             <input ref={fileInput} type="file" accept={promptMediaAccept} multiple hidden disabled={busy} onChange={event => { addReferences(Array.from(event.target.files || [])); event.target.value = ''; }} />
             <div className="lp-media-types" role="list" aria-label={t.kind}><span role="listitem"><Film size={15} aria-hidden="true" />{t.video}</span><span role="listitem"><Image size={15} aria-hidden="true" />{t.image}</span><span role="listitem"><AudioLines size={15} aria-hidden="true" />{t.audio}</span></div>
           </div>
-          <button type="submit" className="lp-submit" disabled={busy}>{busy && <LoaderCircle className="spin" size={16} />}<span>{busy ? t.preparing : t.start}</span>{!busy && <ArrowRight size={20} />}</button>
+          <button type="submit" className="lp-submit" data-ui-target="landing-start-creating" disabled={busy}>{busy && <LoaderCircle className="spin" size={16} />}<span>{busy ? t.preparing : t.start}</span>{!busy && <ArrowRight size={20} />}</button>
         </div>
       </form>
       {(inputError || error) && <p id="lp-error" className="lp-error" role="alert">{inputError || error}</p>}

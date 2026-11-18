@@ -1,9 +1,8 @@
-import path from 'node:path';
 import { readFile } from 'node:fs/promises';
 import { createClient } from '@supabase/supabase-js';
 import type { Project } from '../shared/domain';
 import { keyframeCurrent, type RewriteShot } from '../shared/storyboard';
-import { uploadDir } from './store';
+import { workspaceUploadPath } from './workspace-storage';
 
 let session: { url: string; key: string; bucket: string } | undefined;
 const signedImages = new Map<string, { url: string; expiresAt: number }>();
@@ -31,9 +30,20 @@ export async function publishKeyframe(project: Project, shot: RewriteShot) {
 }
 
 export async function publishReferenceImage(projectId: string, filename: string, mime: string, privateOnly = false) {
-  if (!/^(?:(?:recreation|remix-character|tier-frame|tier-ref|storyboard-grid|agent-image)-[a-f\d-]+\.(png|jpe?g|webp)|[a-f\d]{32})$/.test(filename) || !['image/png', 'image/jpeg', 'image/webp'].includes(mime)) throw new Error('参考图文件无效。');
-  const config = connection();
+  if (!/^(?:(?:recreation|remix-character|tier-frame|tier-ref|storyboard-grid|agent-image|reference-scene|experiment)-[a-f\d-]+\.(png|jpe?g|webp)|[a-f\d]{32})$/.test(filename) || !['image/png', 'image/jpeg', 'image/webp'].includes(mime)) throw new Error('参考图文件无效。');
+  return publishReferenceMedia(projectId, filename, mime, privateOnly);
+}
+
+export async function publishReferenceVideo(projectId: string, filename: string) {
+  if (!/^video-edit-source-[a-f\d-]{36}\.mp4$/.test(filename)) throw new Error('待编辑视频文件无效。');
+  return publishReferenceMedia(projectId, filename, 'video/mp4', true);
+}
+
+async function publishReferenceMedia(projectId: string, filename: string, mime: string, privateOnly: boolean) {
+  const video = mime === 'video/mp4';
+  const config = { ...connection() };
   if (!config.url || !config.key) throw new Error('请在模型连接设置中连接 Supabase 私有图片存储，再生成镜头视频。');
+  if (video) config.bucket = `${config.bucket}-video`;
   const cacheKey = `${config.url}:${config.bucket}:${privateOnly}:${projectId}:${filename}`;
   const cached = signedImages.get(cacheKey);
   if (cached && cached.expiresAt > Date.now() + 30 * 60_000) return cached.url;
@@ -43,7 +53,7 @@ export async function publishReferenceImage(projectId: string, filename: string,
     const { data, error } = await client.storage.getBucket(config.bucket);
     if (error) {
       const { error: creationError } = await client.storage.createBucket(config.bucket, {
-        public: false, fileSizeLimit: 20 * 1024 * 1024, allowedMimeTypes: ['image/png', 'image/jpeg', 'image/webp'],
+        public: false, ...(video ? { allowedMimeTypes: ['video/mp4'] } : { fileSizeLimit: 20 * 1024 * 1024, allowedMimeTypes: ['image/png', 'image/jpeg', 'image/webp'] }),
       });
       if (creationError) {
         const existing = await client.storage.getBucket(config.bucket);
@@ -54,7 +64,7 @@ export async function publishReferenceImage(projectId: string, filename: string,
     readyBuckets.add(bucketKey);
   }
   const objectPath = `${projectId}/${filename}`;
-  const buffer = await readFile(path.join(uploadDir, filename));
+  const buffer = await readFile(workspaceUploadPath(filename));
   const { error: uploadError } = await client.storage.from(config.bucket).upload(objectPath, buffer, {
     contentType: mime, upsert: true,
   });

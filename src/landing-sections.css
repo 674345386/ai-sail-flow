@@ -40,8 +40,6 @@
 .ls-btn-ghost { background: transparent; color: var(--ls-ink); border-color: var(--ls-line); }
 .ls-btn-ghost:hover { border-color: var(--ls-ink); }
 .ls-btn-light { background: #fff; color: var(--ls-ink); }
-.ls-btn-outline-light { color: #fff; border-color: rgba(255,255,255,.4); background: transparent; }
-.ls-btn-outline-light:hover { border-color: #fff; }
 .ls-link { display: inline-flex; align-items: center; gap: 6px; margin-top: 24px; padding: 0 0 4px; border: 0; border-bottom: 1px solid currentColor; background: none; color: var(--ls-ink); font: inherit; font-size: 15px; font-weight: 500; cursor: pointer; }
 .ls-link svg { transition: transform .25s var(--ls-ease); }
 .ls-link:hover svg { transform: translate(2px, -2px); }

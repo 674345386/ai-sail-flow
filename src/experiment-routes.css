@@ -1,5 +1,5 @@
 .experiment-workbench { container: experiment-workbench / inline-size; }
-.lab-experiment-policy { display: grid; grid-template-columns: minmax(135px, .65fr) minmax(200px, 1fr) auto; align-items: center; gap: 4px 22px; flex-shrink: 0; padding: 15px 20px 12px; border-bottom: 1px solid var(--lab-line); background: #fafbf8; }
+.lab-experiment-policy { display: grid; grid-template-columns: minmax(135px, .65fr) minmax(200px, 1fr) auto; align-items: center; gap: 4px 22px; flex-shrink: 0; padding: 15px 20px 12px; border-bottom: 1px solid var(--lab-line); background: var(--lab-paper); }
 .lab-policy-heading { display: flex; align-items: center; gap: 7px; }
 .lab-policy-heading > svg { color: var(--lab-accent); }
 .lab-policy-heading > strong { font-size: 12px; font-weight: 600; white-space: nowrap; }
@@ -28,7 +28,7 @@
 .lab-routes-empty h2 { margin: 0; font-size: clamp(21px, 2.6cqi, 29px); line-height: 1.5; font-weight: 550; letter-spacing: -.025em; text-wrap: balance; }
 .lab-routes-empty p { margin: 0; font-size: 13px; line-height: 1.9; color: var(--lab-muted); max-width: 42em; }
 .lab-routes-empty > span { color: var(--lab-muted); font-size: 11px; }
-.lab-routes-board { width: 100%; min-width: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #b9c7bd transparent; }
+.lab-routes-board { width: 100%; min-width: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--lab-dot) transparent; }
 .lab-routes-brief { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 12px 20px; margin: 0 24px; padding: 24px 0 19px; border-bottom: 1px solid var(--lab-line); }
 .lab-routes-brief > div { flex: 1; min-width: 180px; }
 .lab-routes-brief h2 { margin: 0 0 7px; font-size: 19px; line-height: 1.6; font-weight: 600; letter-spacing: -.02em; overflow-wrap: anywhere; text-wrap: pretty; }
@@ -49,7 +49,7 @@
 .lab-route-family > header > span { font-size: 10px; color: var(--lab-muted); white-space: nowrap; padding-top: 3px; }
 .lab-route-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(270px, 100%), 1fr)); gap: 12px; }
 .lab-route-card { min-width: 0; padding: 17px 18px 0; border: 1px solid var(--lab-line); border-radius: 12px; background: var(--lab-paper); overflow: hidden; }
-.lab-route-card.is-selected { border-color: var(--lab-accent); background: #fcfefa; }
+.lab-route-card.is-selected { border-color: var(--lab-accent); background: var(--lab-accent-bg); }
 .lab-route-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 9px; }
 .experiment-workbench .lab-route-choice { display: flex; align-items: flex-start; gap: 9px; margin: 0; font-size: 14px; font-weight: 600; line-height: 1.65; cursor: pointer; overflow-wrap: anywhere; }
 .experiment-workbench .lab-route-choice input[type='checkbox'] { flex-shrink: 0; width: 15px; height: 15px; margin: 4px 0 0; padding: 0; accent-color: var(--lab-accent); cursor: pointer; }
@@ -57,11 +57,11 @@
 .lab-route-recommended { flex-shrink: 0; color: var(--lab-accent); background: var(--lab-accent-bg); padding: 1px 6px; border-radius: 4px; margin-top: 2px; font-size: 10px; }
 .lab-route-outcome { margin: 12px 0 7px; font-size: 13px; line-height: 1.8; overflow-wrap: anywhere; }
 .lab-route-description { margin: 0; color: var(--lab-muted); font-size: 11px; line-height: 1.8; overflow-wrap: anywhere; }
-.lab-route-readiness { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin-top: 15px; color: #50695b; font-size: 10px; }
+.lab-route-readiness { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin-top: 15px; color: var(--iui-success); font-size: 10px; }
 .lab-route-readiness > span:last-child { flex-basis: 100%; color: var(--lab-muted); }
 .lab-route-readiness > strong { font-weight: 600; }
 .lab-route-state-dot { width: 5px; height: 5px; background: currentColor; border-radius: 50%; }
-.lab-route-card[data-readiness='unavailable'] .lab-route-readiness, .lab-route-card[data-readiness='needs-setup'] .lab-route-readiness, .lab-route-card[data-readiness='needs-input'] .lab-route-readiness, .lab-route-card[data-readiness='unverified'] .lab-route-readiness { color: #8a5a25; }
+.lab-route-card[data-readiness='unavailable'] .lab-route-readiness, .lab-route-card[data-readiness='needs-setup'] .lab-route-readiness, .lab-route-card[data-readiness='needs-input'] .lab-route-readiness, .lab-route-card[data-readiness='unverified'] .lab-route-readiness { color: var(--iui-warning); }
 .lab-route-tradeoff { margin: 10px 0 0; color: var(--lab-muted); font-size: 11px; line-height: 1.8; }
 .lab-route-details { margin: 14px 0; }
 .lab-route-details > summary { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--lab-accent); cursor: pointer; list-style: none; font-size: 11px; }
@@ -81,9 +81,9 @@
 .lab-route-card > footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; min-height: 41px; margin: 0 -18px; padding: 9px 18px; border-top: 1px solid var(--lab-line); color: var(--lab-muted); font-size: 10px; }
 .lab-route-card > footer > span:first-child { flex: 1; min-width: 150px; }
 .lab-route-card > footer > button { font-size: 10px; min-height: 28px; }
-.lab-route-failure { margin: 0 -18px; padding: 11px 18px; color: #974b38; background: #f8ece7; font-size: 11px; }
+.lab-route-failure { margin: 0 -18px; padding: 11px 18px; color: var(--iui-danger); background: var(--iui-danger-soft); font-size: 11px; }
 .lab-route-failure p { margin: 3px 0 0; overflow-wrap: anywhere; }
-.lab-route-selection { position: sticky; bottom: 0; z-index: 3; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 24px; background: #fafbf8; border-top: 1px solid var(--lab-line); }
+.lab-route-selection { position: sticky; bottom: 0; z-index: 3; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 24px; background: var(--lab-paper); border-top: 1px solid var(--lab-line); }
 .lab-route-selection > div { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .lab-route-selection > div:first-child { display: grid; gap: 2px; }
 .lab-route-selection strong { font-size: 12px; font-weight: 600; }

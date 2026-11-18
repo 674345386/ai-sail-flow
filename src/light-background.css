@@ -26,8 +26,6 @@
 .landing-light :is(.ls-btn-solid, .ls-btn-light):hover { background: #41453a; }
 .landing-light .ls-btn-ghost { border-color: rgb(39 41 35 / 22%); color: #272923; }
 .landing-light .ls-btn-ghost:hover { border-color: #272923; background: rgb(39 41 35 / 4%); }
-.landing-light .ls-btn-outline-light { color: #272923; border-color: rgb(39 41 35 / 28%); }
-.landing-light .ls-btn-outline-light:hover { border-color: #272923; }
 .landing-light .ls-cta h2 { color: #272923; }
 .landing-light .ls-section .ls-tool-label { color: #41453a; }
 .landing-light .ls-section .ls-tool-body { color: #62655d; }
@@ -40,17 +38,7 @@
 .landing-light .landing-toc a { color: #72766d; }
 .landing-light .landing-toc a:hover { color: #272923; }
 .landing-light .landing-toc a.is-active { border-left-color: #272923; background: rgb(39 41 35 / 5%); color: #272923; }
-.landing-light .gf-plan-grid article { background: rgb(255 255 255 / 76%); border-color: rgb(39 41 35 / 14%); }
-.landing-light .gf-plan-grid article.active { border-color: rgb(39 41 35 / 55%); }
-.landing-light :is(.gf-pricing, .gf-faq) { color: #272923; }
-.landing-light .gf-plan-price { border-color: rgb(39 41 35 / 14%); }
-.landing-light .gf-small-outline, .landing-light .gf-plan-grid article > button { color: #272923; border-color: rgb(39 41 35 / 28%); }
-.landing-light .gf-plan-grid article.active > button { color: #fff; border-color: #272923; background: #272923; }
-.landing-light .gf-plan-grid article > small, .landing-light .gf-plan-grid li, .landing-light .gf-centered-heading p, .landing-light .gf-pricing-note { color: #62655d; }
-.landing-light .gf-plan-grid li { border-top-color: rgb(39 41 35 / 10%); }
-.landing-light .gf-faq details { border-color: rgb(39 41 35 / 14%); }
-.landing-light .gf-faq summary { color: #272923; }
-.landing-light .gf-faq details p { color: #62655d; }
+.landing-light .gf-centered-heading p { color: #62655d; }
 .landing-light .gf-footer, .landing-light .gf-footer :is(a, button) { color: #62655d; }
 @media (max-width: 1679px) {
   .landing-light .landing-toc a::before { background: rgb(39 41 35 / 30%); }

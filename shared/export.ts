@@ -12,19 +12,19 @@ export function subtitles(shots: Shot[], mode: ProductionMode = 'veo-native') {
     `${i + 1}\n${stamp(s.start)} --> ${stamp(s.end)}\n${(mode === 'tts-subtitles' ? s.narration : s.onScreenText || s.narration).trim()}\n`,
   ).join('\n');
 }
-function veoUnitPromptData(project: Project, unit: VeoPlanUnit, mode: ProductionMode) {
+function unitPromptData(project: Project, unit: VeoPlanUnit, mode: ProductionMode, clipSeconds = VEO_CLIP_SECONDS, provider: 'veo' | 'h3' = 'veo') {
   const rewrite = project.rewrite!;
   const direct = project.promptFlow === 'direct-analysis';
   const shots = rewrite.shots.filter(shot => unit.sourceShotIds.includes(shot.id));
-  const renderScale = Math.min(1, VEO_CLIP_SECONDS / unit.targetDuration);
+  const renderScale = Math.min(1, clipSeconds / unit.targetDuration);
   const firstShot = shots[0];
   const imageInput = direct ? {} : { imageToVideo: {
     mode: 'i2v', sourceShotId: firstShot?.sourceShotId, keyframeShotId: firstShot?.id,
     keyframe: firstShot && keyframeCurrent(project, firstShot) ? firstShot.keyframe?.url : null,
     required: 'The supplied image is the first frame of this single shot. Preserve its product identity, people, composition, lighting and setting. Animate only this shot using the approved action progression, camera movement and visual effects. Do not create another shot, a montage or an internal cut.',
   } };
-  const editTiming = { ...clipTiming(unit.targetDuration), rule: unit.targetDuration > VEO_CLIP_SECONDS
-    ? 'The single source clip is slowed to the target editorial duration after generation. Complete this shot action within the generated 8 seconds.'
+  const editTiming = { ...clipTiming(unit.targetDuration, clipSeconds), rule: unit.targetDuration > clipSeconds
+    ? `The single source clip is slowed to the target editorial duration after generation. Complete this shot action within the generated ${clipSeconds} seconds.`
     : 'Complete this shot action within the target editorial duration; remaining provider seconds are trimmed.' };
   const replication = project.replication || defaultReplication;
   const referenceStyle = project.analysis ? {
@@ -49,12 +49,12 @@ function veoUnitPromptData(project: Project, unit: VeoPlanUnit, mode: Production
     },
   } : {};
   if (mode === 'tts-subtitles') return {
-    format: 'veo-visual-unit/v1',
+    format: `${provider}-visual-unit/v1`,
     task: direct
       ? 'Recreate this analyzed reference shot as ONE continuous video clip. The voiceover, captions and on-screen copy will be added after video generation.'
       : 'Animate the supplied first frame as ONE continuous product-video shot. The voiceover, captions and on-screen copy will be added after video generation.',
     output: {
-      clipDurationSeconds: VEO_CLIP_SECONDS,
+      clipDurationSeconds: clipSeconds,
       finalEditRangeSeconds: { start: unit.start, end: unit.end, duration: unit.targetDuration },
       aspectRatio: project.market.aspectRatio,
       editTiming,
@@ -87,12 +87,12 @@ function veoUnitPromptData(project: Project, unit: VeoPlanUnit, mode: Production
     sound: shot.sound,
   }));
   return {
-    format: 'veo-production-unit/v1',
+    format: `${provider}-production-unit/v1`,
     task: direct
       ? 'Recreate the analyzed reference video for this timeline range. Preserve its observed style, actions, camera, pacing, language, narration, text and sound; apply only the explicitly allowed changes below.'
       : 'Animate the supplied first frame as ONE continuous, finished product-video shot. Follow its action progression, camera movement, visual effects, audio and text cues. Do not introduce other shots or internal cuts.',
     output: {
-      clipDurationSeconds: VEO_CLIP_SECONDS,
+      clipDurationSeconds: clipSeconds,
       finalEditRangeSeconds: { start: unit.start, end: unit.end, duration: unit.targetDuration },
       aspectRatio: project.market.aspectRatio,
       marketLanguage: direct ? project.analysis?.sourceLanguage : project.market.language,
@@ -116,10 +116,13 @@ function veoUnitPromptData(project: Project, unit: VeoPlanUnit, mode: Production
   };
 }
 export function buildVeoUnitPrompt(project: Project, unit: VeoPlanUnit, mode: ProductionMode = project.productionMode || 'veo-native') {
-  return project.rewrite ? JSON.stringify(veoUnitPromptData(project, unit, mode), null, 2) : '';
+  return project.rewrite ? JSON.stringify(unitPromptData(project, unit, mode), null, 2) : '';
+}
+export function buildH3UnitPrompt(project: Project, unit: VeoPlanUnit, clipSeconds: number) {
+  return project.rewrite ? JSON.stringify(unitPromptData(project, unit, project.productionMode || 'veo-native', clipSeconds, 'h3')) : '';
 }
 export function buildVeoPromptPreview(project: Project, mode: ProductionMode = project.productionMode || 'veo-native') {
-  return project.rewrite ? JSON.stringify(buildVeoPlan(project.rewrite.shots).map(unit => veoUnitPromptData(project, unit, mode)), null, 2) : '';
+  return project.rewrite ? JSON.stringify(buildVeoPlan(project.rewrite.shots).map(unit => unitPromptData(project, unit, mode)), null, 2) : '';
 }
 export function buildPrompt(project: Project) {
   const r = project.rewrite;

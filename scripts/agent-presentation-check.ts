@@ -5,11 +5,14 @@ import { agentPanelId, htmlPageTitle, parseAgentAnswer } from '../shared/agent-a
 import { demoProject } from '../shared/demo';
 import { collectAgentArtifacts } from '../src/intelligent-ui/AgentArtifacts';
 import { SandboxedHtml } from '../src/intelligent-ui/components/html-view';
+import { isValidIntelligentUIProgram } from '../src/intelligent-ui/library';
 
 const ui = 'root = Col([Title("Repository")])';
 const html = '<!doctype html><html><head><title>项目说明</title></head><body><h1>完整结果</h1><script>window.ready = true;</script></body></html>';
 assert.deepEqual(parseAgentAnswer('普通回答'), { conversation: '普通回答', panels: [] });
 assert.equal(parseAgentAnswer(ui).panels[0].format, 'openui');
+assert(isValidIntelligentUIProgram('root = Col([Card([Text("模型", "xl"), Text("价格", "xl")])])'));
+assert(!isValidIntelligentUIProgram('root = Col([Text("模型", "unknown")])'));
 assert.equal(parseAgentAnswer(html).panels[0].source, html);
 assert.equal(parseAgentAnswer(html.slice(0, -7)).panels[0].complete, false);
 const mixed = `前面的说明\n\n\`\`\`openui\n${ui}\n\`\`\`\n\n中间的说明\n\n\`\`\`html\n${html}\n\`\`\`\n\n后面的说明`;

@@ -1,7 +1,7 @@
 import type { User } from '@supabase/supabase-js';
-import type { LibraryMedia, LibraryMediaAssociation, MediaKind } from '../shared/media-library';
+import { cloudMediaFolder, type LibraryMedia, type LibraryMediaAssociation, type MediaKind } from '../shared/media-library';
 import { api } from './api';
-import { supabase } from './auth';
+import { publicAuthRequired, supabase } from './auth';
 
 const bucket = import.meta.env.VITE_SUPABASE_STORAGE_BUCKET?.trim() || 'ai-sail-flow-files';
 type CloudObject = { name: string; id: string | null; created_at: string | null; metadata: Record<string, unknown> | null; user_metadata?: Record<string, unknown> | null };
@@ -23,7 +23,7 @@ async function cloudObjects(user: User) {
   if (!supabase) return [];
   const objects: CloudObject[] = [];
   for (let offset = 0; ; offset += 100) {
-    const { data, error } = await supabase.storage.from(bucket).list(user.id, { limit: 100, offset, sortBy: { column: 'created_at', order: 'desc' } });
+    const { data, error } = await supabase.storage.from(bucket).list(cloudMediaFolder(user.id), { limit: 100, offset, sortBy: { column: 'created_at', order: 'desc' } });
     if (error) throw error;
     objects.push(...data as CloudObject[]);
     if (data.length < 100) return objects.filter(item => item.id && cloudKind(item));
@@ -38,12 +38,13 @@ export async function loadMediaLibrary(user: User | null, onLocal?: (items: Libr
   const items = new Map<string, LibraryMedia>((local.status === 'fulfilled' ? local.value : []).map(item => [item.id, item]));
   let warning = local.status === 'rejected' ? '当前设备的素材暂时无法读取。' : remote.status === 'rejected' ? '云端暂时无法连接，当前设备素材仍可使用。' : '';
   if (remote.status === 'fulfilled' && user && supabase) {
+    const folder = cloudMediaFolder(user.id);
     for (let offset = 0; offset < remote.value.length; offset += 100) {
       const entries = remote.value.slice(offset, offset + 100);
-      const { data, error } = await supabase.storage.from(bucket).createSignedUrls(entries.map(item => `${user.id}/${item.name}`), 3600);
+      const { data, error } = await supabase.storage.from(bucket).createSignedUrls(entries.map(item => `${folder}/${item.name}`), 3600);
       if (error) { warning = '部分云端素材暂时无法预览。'; continue; }
       entries.forEach((entry, index) => {
-        const id = cloudId(entry), existing = items.get(id), cloudPath = `${user.id}/${entry.name}`;
+        const id = cloudId(entry), existing = items.get(id), cloudPath = `${folder}/${entry.name}`;
         if (existing) { items.set(id, { ...existing, cloudPath }); return; }
         const url = data?.[index]?.signedUrl;
         if (!url) return;
@@ -62,7 +63,7 @@ export async function loadMediaLibrary(user: User | null, onLocal?: (items: Libr
 
 const syncJobs = new Map<string, Promise<void>>();
 export function syncMediaLibrary(user: User | null): Promise<void> {
-  if (!supabase || !user) return Promise.resolve();
+  if (!publicAuthRequired || !supabase || !user) return Promise.resolve();
   const previous = syncJobs.get(user.id) || Promise.resolve();
   const job = previous.catch(() => {}).then(async () => {
     type SyncStatus = { jobId: string; status: 'running' | 'done' | 'error'; error?: string };

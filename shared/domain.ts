@@ -1,6 +1,8 @@
 import { replicationLevelIds } from './replication-levels';
 import { z } from 'zod';
 import type { RemixPromptPhase, RemixWorkflow } from './remix';
+import type { ReferenceSceneTable } from './agent-video-analysis';
+import type { VideoProductionPlan } from './video-production';
 
 export const MODEL = 'gemini-3.8-flash';
 export const countries = [
@@ -213,14 +215,17 @@ export type ModelRequestSnapshot = {
   recordedAt: string;
 };
 export type GeneratedVideo = {
-  id: string; provider: 'veo-3.1' | 'grok-imagine' | 'omni-flash' | 'minimax-h3' | 'local-test'; model: 'veo_3_1' | 'veo_3_1-fl' | 'veo_3_1-components' | 'grok-imagine-video-1.5' | 'omni_flash_8s' | 'omni_flash_10s' | 'h3-video' | 'h3-video-flex' | 'h3-video-frames' | 'local-test'; shotId: string;
+  id: string; provider: 'veo-3.1' | 'grok-imagine' | 'omni-flash' | 'minimax-h3' | 'local-test'; model: 'veo_3_1' | 'veo_3_1-fl' | 'veo_3_1-components' | 'grok-imagine-video-1.5' | 'omni_flash_8s' | 'omni_flash_10s' | 'omni_flash-1.2' | 'h3-video' | 'h3-video-flex' | 'h3-video-frames' | 'local-test'; shotId: string;
   mode?: 't2v' | 'i2v' | 'r2v'; imageUrls?: string[]; resolution?: '480p' | '720p' | '768p' | '960p' | '1080p' | 'lite';
   unitId?: string; sourceShotIds?: string[]; targetStart?: number; targetEnd?: number; targetDuration?: number;
   requestId?: string; status: 'running' | 'completed' | 'failed'; prompt: string; productionMode?: ProductionMode;
   duration: number; aspectRatio: Market['aspectRatio'] | '21:9' | '4:3' | '3:4'; startedAt: string; finishedAt?: string;
   filename?: string; url?: string; mime?: string; size?: number; width?: number; height?: number;
   hasAudio?: boolean; thumbnail?: string; stale?: boolean; error?: string;
-  defaultPrompt?: string; providerRequest?: { model: string; prompt: string; resolution: string; aspect_ratio: string; images?: string[]; input_reference?: string[]; first_last_frame?: boolean };
+  defaultPrompt?: string; providerRequest?: { model: string; prompt: string; resolution: string; aspect_ratio?: string; seconds?: number; images?: string[]; input_reference?: string[]; first_last_frame?: boolean };
+  editSource?: { videoId: string; start: number; end: number };
+  requestKey?: string;
+  requestFingerprint?: string;
   keyframeShotId?: string; keyframeFilename?: string; keyframeBasis?: string; keyframeUrl?: string;
   /** 档位工作台 step 2: the new first/last frame files this clip was made from. */
   tierShotId?: string; tierFirst?: string; tierLast?: string;
@@ -246,7 +251,7 @@ export type ComposedVideo = {
 };
 export type AnalysisMeta = {
   mode: 'agentic-video' | 'native-video' | 'sampled-frames' | 'segmented-video';
-  transport: 'gemini-inline' | 'gemini-files' | 'openai-images';
+  transport: 'gemini-inline' | 'gemini-files' | 'openai-images' | 'agent-frames';
   audioSubmitted: boolean; requestedModel: string; providerModel?: string; agenticTrace?: boolean; analyzedAt: string;
   requestedVideoFps?: number;
   segmentCount?: number;
@@ -274,6 +279,7 @@ export type AgentImage = {
   referenceIds: string[]; status: 'running' | 'completed' | 'failed';
   createdAt: string; filename?: string; url?: string; model?: string; error?: string;
   width?: number; height?: number; warning?: string;
+  productionSceneIndex?: number; productionPlanUpdatedAt?: string;
 };
 // The existing production record and its API retain the Project name for compatibility; each record represents one creative.
 export type Project = {
@@ -283,9 +289,12 @@ export type Project = {
   product: Product; market: Market; replication?: Replication; assets: Asset[]; analysis: Analysis | null; rewrite: Rewrite | null;
   analysisReview?: AnalysisReview;
   analysisMeta?: AnalysisMeta | null;
+  referenceSceneTable?: ReferenceSceneTable;
+  videoProductionPlan?: VideoProductionPlan;
   breakdownType?: BreakdownType;
   storyboardGridSize?: StoryboardGridSize;
   storyboardGrids?: StoryboardGrid[];
+  productionStoryboards?: StoryboardGrid[];
   analysisRequest?: ModelRequestSnapshot | null; rewriteRequest?: ModelRequestSnapshot | null;
   rewriteStale: boolean; generatedVideos: GeneratedVideo[]; composedVideos?: ComposedVideo[];
   productionMode?: ProductionMode; ttsVoice?: string; job: Job | null; model: string; usage: { input: number; output: number };

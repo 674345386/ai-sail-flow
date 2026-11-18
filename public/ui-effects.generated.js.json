@@ -1,4 +1,13 @@
 {
   "version": 1,
-  "records": []
+  "records": [
+    {
+      "effectId": "aws-gradient-glow",
+      "selector": "[data-ui-target=\"landing-start-creating\"]",
+      "settings": {
+        "mode": "hover"
+      },
+      "id": "4df4ed92-b070-4e9d-9032-d4eee93bb419"
+    }
+  ]
 }

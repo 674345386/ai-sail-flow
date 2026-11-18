@@ -72,7 +72,7 @@ export const experimentOperation = z.discriminatedUnion('op', [
   z.object({ op: z.literal('adopt-artifact'), planId: nodeId, artifactId: nodeId }),
   z.object({ op: z.literal('start-run'), stepId: nodeId, methodId: nodeId.optional(), prompt: z.string().max(16000).optional(), referenceIds: z.array(z.string().min(1).max(150)).max(20).optional(), model: z.string().max(120).optional(), parameters: experimentMethodInput.shape.parameters.optional() }),
   z.object({ op: z.literal('fail-run'), runId: nodeId, error: z.string().max(2000) }),
-  z.object({ op: z.literal('recipe'), recipe: z.enum(['programmatic', 'talking-head', 'keyframes', 'direct', 'grid', 'character']) }),
+  z.object({ op: z.literal('recipe'), recipe: z.enum(['video-production', 'programmatic', 'talking-head', 'keyframes', 'direct', 'grid', 'character']) }),
   z.object({ op: z.literal('freeze'), title: z.string().trim().min(1).max(120), planId: nodeId.optional() }),
   z.object({ op: z.literal('instantiate'), templateId: nodeId }),
   z.object({ op: z.literal('layout'), dimensions: z.array(z.object({ id: nodeId, width: z.number().finite().min(1).max(2000), height: z.number().finite().min(1).max(7200) })).max(160).optional() }),
@@ -91,6 +91,7 @@ export function experimentAgentContext(graph: ExperimentGraph) {
 }
 
 export const experimentRecipes = [
+  { id: 'video-production', title: '视频复刻与局部制作', subtitle: '按参考片复刻、替换或重做指定场景', steps: ['参考视频与制作要求', '拆解场景与关键帧', '原片母版与场景镜卡', '调整母版与场景 Prompt', '制作场景关键帧', '新关键帧', '生成片段或编辑目标区间', '视频片段', '按顺序拼接', '最终成片'], artifacts: ['原片母版与场景镜卡', '新关键帧', '视频片段', '最终成片'], methods: ['', '原片时间码抽帧', '', '按保留与替换要求调整', '图片模型', '', 'H3 / Omni Flash 1.2', '', '本机拼接', ''] },
   { id: 'programmatic', title: '程序化视频', subtitle: '代码控制排版、动画与节奏', steps: ['参考与创作目标', '视觉与动效拆解', '动画代码实现', '可编辑动画代码', '渲染与合成', '成片与源代码'], artifacts: ['可编辑动画代码', '成片与源代码'], methods: ['', '参考分析', '程序化动画', '', '代码渲染', ''] },
   { id: 'talking-head', title: '热门口播复刻', subtitle: '保留内容结构，重做你的表达', steps: ['参考口播与素材', '钩子、脚本与节奏', '口播脚本', '人物与配音制作', '口播素材', '字幕、B-roll 与剪辑', '口播成片'], artifacts: ['口播脚本', '口播素材', '口播成片'], methods: ['', '口播结构分析', '', '口播 / 数字人', '', '剪辑合成', ''] },
   { id: 'keyframes', title: '分镜与关键帧', subtitle: '适合苹果风格产品片与叙事短片', steps: ['产品与参考素材', '场景拆分与镜头提示词', '关键帧生成', '场景关键帧', '关键帧生成视频', '场景视频', '剪辑与声音', '产品成片'], artifacts: ['场景关键帧', '场景视频', '产品成片'], methods: ['', '场景拆分', '文生图 / 参考图生图', '', '关键帧图生视频', '', '剪辑合成', ''] },

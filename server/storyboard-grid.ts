@@ -1,11 +1,9 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type { Analysis, Asset, Market, Shot, StoryboardGrid, StoryboardGridSize } from '../shared/domain';
 import { MAX_STORYBOARD_GRID_DURATION } from '../shared/storyboard-grid';
-import { REMIX_SECONDS } from '../shared/remix';
-import { uploadDir } from './store';
+import { workspaceUploadPath } from './workspace-storage';
 
 const exec = promisify(execFile);
 
@@ -59,13 +57,11 @@ function clean(value?: string) {
 }
 
 function buildPrompt(analysis: Analysis, shots: Shot[], start: number, end: number, size: StoryboardGridSize, times: number[], aspectRatio: Market['aspectRatio']) {
-  const sourceDuration = fixed(end - start);
-  const duration = REMIX_SECONDS;
-  const timeScale = duration / sourceDuration;
+  const duration = fixed(end - start);
   const count = size * size;
   const shotSections = shots.map((shot, index) => {
-    const localStart = fixed((Math.max(start, shot.start) - start) * timeScale);
-    const localEnd = fixed((Math.min(end, shot.end) - start) * timeScale);
+    const localStart = fixed(Math.max(start, shot.start) - start);
+    const localEnd = fixed(Math.min(end, shot.end) - start);
     const cells = shotCells(shot, times);
     const motion = shot.motionBeats?.length
       ? shot.motionBeats.map(beat => beat.description).join('；')
@@ -78,7 +74,7 @@ ${clean(shot.visual)}
 转场与效果：${clean([shot.transition, shot.effects].filter(Boolean).join('；'))}`;
   }).join('\n\n');
 
-  return `生成一条${duration.toFixed(2)}秒、${aspectRatio}画幅视频。${sourceDuration !== duration ? `原片本段为${sourceDuration.toFixed(2)}秒，请按比例安排到生成时长，保持各镜头的相对节奏。` : ''}
+  return `生成${aspectRatio}视频，把所有指定镜头、动作和剪辑安排在开头${duration.toFixed(2)}秒内。
 
 【参考图的读取方式】
 上传的参考图是一张${size}行×${size}列的连续分镜板，共${count}格。
@@ -110,7 +106,7 @@ ${shotSections}
 ${analysis.summary}
 
 【输出限制】
-最终输出单一全画幅视频，总时长不得超过${duration.toFixed(2)}秒。
+最终输出单一全画幅视频。若模型输出长于${duration.toFixed(2)}秒，余下时间延续最后状态供后期裁剪。
 不要出现${size}×${size}宫格、多窗口、分屏、分镜边框、格子编号或白色间隔。
 不要添加参考图以外的人物、物品、字幕、标志或新场景。
 保持人物面部、手部、肢体、物体外形和背景结构稳定。`;
@@ -120,10 +116,32 @@ function overlappingShots(analysis: Analysis, start: number, end: number) {
   return analysis.shots.filter(shot => shot.end > start && shot.start < end);
 }
 
+async function renderStoryboardImage(inputs: string[], filename: string, size: StoryboardGridSize, cellWidth: number, cellHeight: number) {
+  const count = size * size;
+  const cells = Array.from({ length: count }, (_, cell) => `[${cell}:v]scale=${cellWidth}:${cellHeight}:force_original_aspect_ratio=decrease,pad=${cellWidth}:${cellHeight}:(ow-iw)/2:(oh-ih)/2:black[c${cell}]`);
+  const layout = Array.from({ length: count }, (_, cell) => `${cell % size * (cellWidth + 8)}_${Math.floor(cell / size) * (cellHeight + 8)}`).join('|');
+  const filter = `${cells.join(';')};${cells.map((_, cell) => `[c${cell}]`).join('')}xstack=inputs=${count}:layout=${layout}:fill=white[stack];[stack]pad=iw+24:ih+24:12:12:white[out]`;
+  await exec('ffmpeg', ['-nostdin', '-y', '-v', 'error', '-protocol_whitelist', 'file,pipe', ...inputs, '-filter_complex_threads', '1', '-filter_complex', filter, '-map', '[out]', '-frames:v', '1', '-threads', '1', '-pix_fmt', 'yuvj420p', '-q:v', '2', workspaceUploadPath(filename)], { timeout: 120000, maxBuffer: 1024 * 1024 });
+}
+
+export async function buildProductionStoryboard(filenames: string[], start: number, end: number, prompt: string, aspectRatio: '16:9' | '9:16'): Promise<StoryboardGrid> {
+  if (end <= start || end - start > MAX_STORYBOARD_GRID_DURATION + 1e-6 || !filenames.length || filenames.length > 9) throw new Error('3×3 制作故事板需要 1–9 张按时间排序的关键帧，片段最长 10 秒。');
+  const filename = `storyboard-grid-${randomUUID()}.jpg`;
+  const inputs = Array.from({ length: 9 }, (_, index) => filenames[Math.floor(index * filenames.length / 9)])
+    .flatMap(file => ['-threads', '1', '-i', workspaceUploadPath(file)]);
+  const portrait = aspectRatio === '9:16';
+  await renderStoryboardImage(inputs, filename, 3, portrait ? 270 : 480, portrait ? 480 : 270);
+  return {
+    id: randomUUID(), start, end, gridSize: 3, frameTimes: uniformFrameTimes(start, end, 9), filename, url: `/media/${filename}`,
+    generatedAt: new Date().toISOString(), included: true,
+    prompt: `${prompt}\n\nTreat the 3×3 reference as a time-ordered storyboard. Read cells left to right, top to bottom, and synthesize one full-frame shot at a time. Repeated cells hold the same visual state. Never show the grid, borders, or several panels in the output. Target segment length: ${(end - start).toFixed(3)} seconds.`,
+  };
+}
+
 export async function generateStoryboardGrids(video: Asset, analysis: Analysis, size: StoryboardGridSize, aspectRatio: Market['aspectRatio'], progress?: (done: number, total: number) => void): Promise<StoryboardGrid[]> {
   if (!video.duration || !video.width || !video.height) throw new Error('缺少参考视频的时长或尺寸信息。');
   const total = Math.ceil(video.duration / MAX_STORYBOARD_GRID_DURATION);
-  const source = path.join(uploadDir, video.filename);
+  const source = workspaceUploadPath(video.filename);
   const probe = await exec('ffprobe', ['-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=duration,r_frame_rate', '-of', 'json', source], { timeout: 20000 });
   const stream = JSON.parse(probe.stdout).streams?.[0];
   const [rateNumerator, rateDenominator] = String(stream?.r_frame_rate || '0/1').split('/').map(Number);
@@ -142,10 +160,7 @@ export async function generateStoryboardGrids(video: Asset, analysis: Analysis, 
     const times = representativeFrameTimes(analysis, start, end, count).map(at => fixed(Math.min(at, lastFrameTime)));
     const filename = `storyboard-grid-${randomUUID()}.jpg`;
     const inputs = times.flatMap(at => ['-ss', at.toFixed(3), '-threads', '1', '-i', source]);
-    const cells = times.map((_, cell) => `[${cell}:v]scale=${cellWidth}:${cellHeight}:force_original_aspect_ratio=decrease,pad=${cellWidth}:${cellHeight}:(ow-iw)/2:(oh-ih)/2:black[c${cell}]`).join(';');
-    const layout = times.map((_, cell) => `${cell % size * (cellWidth + 8)}_${Math.floor(cell / size) * (cellHeight + 8)}`).join('|');
-    const filter = `${cells};${times.map((_, cell) => `[c${cell}]`).join('')}xstack=inputs=${count}:layout=${layout}:fill=white[stack];[stack]pad=iw+24:ih+24:12:12:white[out]`;
-    await exec('ffmpeg', ['-nostdin', '-y', '-v', 'error', '-protocol_whitelist', 'file,pipe', ...inputs, '-filter_complex_threads', '1', '-filter_complex', filter, '-map', '[out]', '-frames:v', '1', '-threads', '1', '-pix_fmt', 'yuvj420p', '-q:v', '2', path.join(uploadDir, filename)], { timeout: 120000, maxBuffer: 1024 * 1024 });
+    await renderStoryboardImage(inputs, filename, size, cellWidth, cellHeight);
     const shots = overlappingShots(analysis, start, end);
     grids.push({ id: randomUUID(), start, end, gridSize: size, frameTimes: times, filename, url: `/media/${filename}`,
       prompt: buildPrompt(analysis, shots.length ? shots : analysis.shots.slice(0, 1), start, end, size, times, aspectRatio), generatedAt: new Date().toISOString(), included: true });

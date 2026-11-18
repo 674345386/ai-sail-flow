@@ -116,22 +116,14 @@
   .landing-dark .landing-toc a::after { background: #f4f3ef; color: #0e0f10; }
 }
 
-/* pricing / faq / footer: drop the opaque canvas, glass cards */
-.landing-page.landing-dark > .gf-pricing, .landing-page.landing-dark > .gf-faq, .landing-page.landing-dark > .gf-footer { background-color: transparent; }
-.landing-dark .gf-plan-grid article { background: rgba(10,10,12,.55); border-color: rgba(255,255,255,.1); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
-.landing-dark .gf-plan-grid article.active { border-color: rgba(255,255,255,.55); }
-.landing-dark .gf-plan-grid article > small { color: #8d8e92; }
-.landing-dark .gf-plan-grid li { color: #a3a4a7; border-top-color: rgba(255,255,255,.08); }
-.landing-dark .gf-centered-heading p, .landing-dark .gf-pricing-note { color: #a3a4a7; }
-.landing-dark .gf-faq details { border-color: rgba(255,255,255,.1); }
-.landing-dark .gf-faq summary { color: #d0d0cb; }
+.landing-dark .gf-centered-heading p { color: #a3a4a7; }
 
 /* ---------- Seamless: no section-level backgrounds, bands, borders, shadows or overlays ---------- */
 .landing-page.landing-dark { background: transparent; }
 .landing-page.landing-dark::before, .landing-page.landing-dark::after { content: none; display: none; }
 .landing-page.landing-dark > section, .landing-page.landing-dark > footer, .landing-page.landing-dark > main,
 .landing-page.landing-dark .ls-section, .landing-page.landing-dark .ls-cta, .landing-page.landing-dark .ls-dark,
-.landing-page.landing-dark > .commerce-hero, .landing-page.landing-dark > .gf-pricing, .landing-page.landing-dark > .gf-faq, .landing-page.landing-dark > .gf-footer {
+.landing-page.landing-dark > .commerce-hero {
   --ls-paper: transparent; background: none !important; border: 0 !important; box-shadow: none !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; -webkit-mask-image: none; mask-image: none;
 }
 .landing-page.landing-dark > section::before, .landing-page.landing-dark > section::after, .landing-page.landing-dark > footer::before, .landing-page.landing-dark > footer::after,

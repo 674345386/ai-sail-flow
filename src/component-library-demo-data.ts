@@ -68,7 +68,7 @@ $city = ""`;
     {
       id: 'camera', domain: 'video', title: '运镜参数', subtitle: '自定义画布控制器',
       prompt: '给当前片段加一个 3 秒推镜头，幅度设为 6。先把参数展示出来。',
-      answer: '运镜控制器已显示在视频画布。你可以继续调整时长、方向和幅度。',
+      answer: '运镜控制器已显示在创作实验台的流程页面。你可以继续调整时长、方向和幅度。',
       kind: 'canvas', components: ['CameraMotionController'], canvas: { kind: 'camera', duration: 3, strength: 6, direction: 'push', target: '当前片段' },
       tools: [{ name: 'show_canvas_component', args: { kind: 'camera', duration: 3, strength: 6, direction: 'push', target: '当前片段' } }],
       trigger: 'Agent 判断当前请求需要视频专属参数，并调用 show_canvas_component，kind=camera。',

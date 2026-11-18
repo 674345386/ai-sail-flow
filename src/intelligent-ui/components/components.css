@@ -51,6 +51,7 @@
 .iui-text-sm { font-size: var(--iui-text-sm-size); line-height: var(--iui-body-leading); }
 .iui-text-md { font-size: var(--iui-text-md-size); line-height: var(--iui-body-leading); }
 .iui-text-lg { font-size: 18px; line-height: 1.55; }
+.iui-text-xl { font-size: 20px; line-height: 1.5; }
 .iui-weight-normal { font-weight: 440; }
 .iui-weight-medium { font-weight: 560; }
 .iui-weight-semibold { font-weight: 640; }
@@ -382,7 +383,7 @@
 
 /* Inside a card or a grid cell, titles are card-sized (18/24) and body text is 15/22. */
 :is(.iui-card, .iui-grid > .iui-flow, .iui-carousel-item > .iui-flow) > :is(.iui-title-lg, .iui-title-xl, .iui-title-2xl, .iui-title-3xl) { font-size: 18px; line-height: 24px; letter-spacing: -0.3px; }
-:is(.iui-card, .iui-grid > .iui-flow, .iui-carousel-item > .iui-flow) > .iui-text:not(.iui-text-xs, .iui-text-sm, .iui-text-lg) { font-size: 15px; line-height: 22px; }
+:is(.iui-card, .iui-grid > .iui-flow, .iui-carousel-item > .iui-flow) > .iui-text:not(.iui-text-xs, .iui-text-sm, .iui-text-lg, .iui-text-xl) { font-size: 15px; line-height: 22px; }
 
 /* Media row: a photo beside text. The photo is a fixed 4:3, a third of the row
    (120-200px), 16px from text that starts at the photo's top edge. */

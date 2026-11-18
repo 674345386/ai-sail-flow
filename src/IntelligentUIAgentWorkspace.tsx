@@ -2,10 +2,10 @@ import { Component, Fragment, useCallback, useEffect, useId, useMemo, useRef, us
 import { Renderer, type ActionEvent } from '@openuidev/react-lang';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { ArrowUp, Check, ChevronDown, CornerUpRight, ListFilter, ListPlus, LoaderCircle, Package, Plus, SlidersHorizontal, Square, X } from 'lucide-react';
+import { ArrowUp, Check, ChevronDown, CornerUpRight, ListFilter, ListPlus, LoaderCircle, Plus, SlidersHorizontal, Square, X } from 'lucide-react';
 import type { GeneratedVideo, Project } from '../shared/domain';
 import { minimaxVideoRecoverable } from '../shared/minimax-video';
-import type { CanvasComponent } from '../shared/agent-canvas-ui';
+import type { CanvasComponentInput } from '../shared/agent-canvas-ui';
 import type { AgentMessage } from '../shared/agent-message';
 import { agentWorkHistory, createAgentWork } from '../shared/agent-work';
 import { summarizeAgentActivity, type AgentActivity } from '../shared/agent-activity';
@@ -21,7 +21,6 @@ import { groupAgentMedia, UNASSIGNED_MEDIA, type AgentMedia } from './agentMedia
 import { supabase } from './auth';
 import { library } from './intelligent-ui/library';
 import { runLibraryAction } from './intelligent-ui/actions';
-import { intelligentUIConversationText } from './intelligent-ui/conversation';
 import type { AgentThemeController } from './intelligent-ui/useAgentTheme';
 import { AgentWorkSummary } from './intelligent-ui/AgentWorkSummary';
 import { AgentAdaptationControl } from './intelligent-ui/AgentAdaptationControl';
@@ -29,6 +28,7 @@ import { AgentPresentationControl } from './intelligent-ui/AgentPresentationCont
 import { SandboxedHtml } from './intelligent-ui/components/html-view';
 import { AgentArtifacts, AgentArtifactIcon, AgentArtifactPreview, AgentTaskAssets, collectAgentArtifacts, type AgentArtifact } from './intelligent-ui/AgentArtifacts';
 import { useAgentWorkspaceSplit } from './intelligent-ui/useAgentWorkspaceSplit';
+import { hasAgentMediaTask } from './intelligent-ui/media-task';
 import { recreateVideoDraft } from './intelligent-ui/video-artifact';
 import 'katex/dist/katex.min.css';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -37,8 +37,16 @@ import './intelligent-ui/components/components.css';
 import './intelligent-ui/components/map/map.css';
 import './intelligent-ui-agent.css';
 import ExperimentWorkbench from './ExperimentWorkbench';
+import AgentCanvasUI from './AgentCanvasUI';
 import SkillAssetCenter from './SkillAssetCenter';
 import AgentQueuedMessages from './AgentQueuedMessages';
+
+const workspaceTabs = [
+  { id: 'lab', title: '创作实验台' },
+  { id: 'assets', title: '资产中心' },
+  { id: 'ui', title: '生成结果' },
+];
+const isMediaTab = (tab: string) => tab === 'assets';
 
 class PanelBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
   state = { failed: false };
@@ -48,21 +56,21 @@ class PanelBoundary extends Component<{ children: ReactNode }, { failed: boolean
 
 function ConversationText({ message, onOpenUI }: { message: AgentMessage; onOpenUI: (index: number) => void }) {
   const answer = useMemo(() => message.role === 'assistant' ? parseAgentAnswer(message.text) : { conversation: message.text, panels: [] }, [message.role, message.text]);
-  const readable = useMemo(() => [answer.conversation, ...answer.panels.filter(panel => panel.format === 'openui').map(panel => intelligentUIConversationText(panel.source))].filter(Boolean).join('\n\n'), [answer]);
+  const readable = answer.conversation.replace(/\uE200cite\uE202.*?\uE201/g, '');
   return <>
-    {readable ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{readable.replace(/\uE200cite\uE202.*?\uE201/g, '')}</ReactMarkdown>
+    {readable ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{readable}</ReactMarkdown>
       : !!answer.panels.length && <p className="iua-message-note">{answer.panels.some(panel => !panel.complete) ? '正在生成右侧内容…' : '结果已显示在右侧。'}</p>}
     {answer.panels.map((panel, index) => <button type="button" className="iua-answer-link" key={index} onClick={() => onOpenUI(index)}>{panel.format === 'html' ? '查看 HTML 页面' : '查看组件界面'}{answer.panels.length > 1 ? ` ${index + 1}` : ''}</button>)}
   </>;
 }
 
-export default function IntelligentUIAgentWorkspace({ theme, project, canvas, disabled, steerDisabled = disabled, onProjectUpdate, onBeforeSend, onCanvasState, onActivity, canvasDraft, onCanvasDraftConsumed, taskAssetsOpen, onOpenTaskAssets, onCloseTaskAssets, entryDraft, onEntryDraftConsumed }: {
+export default function IntelligentUIAgentWorkspace({ theme, project, videoRemixWorkflow, disabled, steerDisabled = disabled, onProjectUpdate, onBeforeSend, onActivity, taskAssetsOpen: taskAssetsRequested, onOpenTaskAssets, onCloseTaskAssets, onTaskAssetCountChange, entryDraft, onEntryDraftConsumed }: {
   theme: AgentThemeController;
-  project: Project; canvas: ReactNode; disabled: boolean; steerDisabled?: boolean;
-  onProjectUpdate: (project: Project) => void; onBeforeSend: () => Promise<unknown>; onCanvasState: (components: CanvasComponent[]) => void;
+  project: Project; videoRemixWorkflow?: ReactNode; disabled: boolean; steerDisabled?: boolean;
+  onProjectUpdate: (project: Project) => void; onBeforeSend: () => Promise<unknown>;
   onActivity?: (id: string, activity: AgentActivity) => void;
-  canvasDraft?: { text: string; version: number } | null; onCanvasDraftConsumed: () => void;
   taskAssetsOpen: boolean; onOpenTaskAssets: () => void; onCloseTaskAssets: () => void;
+  onTaskAssetCountChange: (projectId: string, count: number | null) => void;
   entryDraft?: { id: string; text: string } | null; onEntryDraftConsumed?: () => void;
 }) {
   const [agent, setAgent] = useState<AgentState>({ status: 'idle', messages: [] });
@@ -98,8 +106,12 @@ export default function IntelligentUIAgentWorkspace({ theme, project, canvas, di
   const preferencesPanel = useRef<HTMLDivElement>(null);
   const preferenceSavingRef = useRef(false);
   const [models, setModels] = useState<{ model: string; displayName?: string }[]>([]);
-  const [rightView, setRightView] = useState('lab');
-  const [tabs, setTabs] = useState<string[]>(['lab', 'assets', 'canvas', 'ui']);
+  const [selectedTab, setSelectedTab] = useState('lab');
+  const [openTabs, setOpenTabs] = useState(() => workspaceTabs.map(tab => tab.id));
+  const mediaTask = hasAgentMediaTask(project, agent);
+  const taskAssetsOpen = mediaTask && taskAssetsRequested;
+  const tabs = useMemo(() => mediaTask ? openTabs : openTabs.filter(tab => !isMediaTab(tab)), [mediaTask, openTabs]);
+  const rightView = tabs.includes(selectedTab) ? selectedTab : tabs[0] || '';
   const [tabMenu, setTabMenu] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [panelError, setPanelError] = useState('');
@@ -146,21 +158,24 @@ export default function IntelligentUIAgentWorkspace({ theme, project, canvas, di
     ? [...agent.messages, pendingUser] : agent.messages, [agent.messages, pendingUser]);
   const groupedMedia = useMemo(() => groupAgentMedia(messages, project.agentImages || [], project.generatedVideos), [messages, project.agentImages, project.generatedVideos]);
   const workHistory = useMemo(() => agentWorkHistory(messages, running), [messages, running]);
-  const artifacts = useMemo(() => collectAgentArtifacts(project, agent.messages, agent.intelligentPanel, agent.experiment), [project.assets, project.agentImages, project.generatedVideos, project.composedVideos, agent.messages, agent.intelligentPanel, agent.experiment]);
-  const taskAssetCount = artifacts.filter(artifact => artifact.kind !== 'ui').length;
+  const artifacts = useMemo(() => collectAgentArtifacts(project, agent.messages, agent.intelligentPanel, agent.experiment), [project.assets, project.agentImages, project.generatedVideos, project.composedVideos, project.referenceSceneTable, project.productionStoryboards, project.videoProductionPlan, agent.messages, agent.intelligentPanel, agent.experiment]);
+  const sceneTableArtifact = artifacts.find(artifact => artifact.kind === 'scene-table');
+  const productionPlanArtifact = artifacts.find(artifact => artifact.kind === 'video-production');
+  const taskAssetCount = mediaTask ? artifacts.filter(artifact => artifact.kind !== 'ui').length : null;
+  useEffect(() => { onTaskAssetCountChange(project.id, taskAssetCount); }, [project.id, taskAssetCount, onTaskAssetCountChange]);
   const activeArtifact = artifacts.find(artifact => artifact.id === rightView);
   const openTaskAssets = () => { onOpenTaskAssets(); setTabMenu(false); };
   const activate = (tab: string, automatic = false) => {
-    if (automatic && taskAssetsOpen) return;
-    closeTaskAssets.current(); setTabs(current => current.includes(tab) ? current : [...current, tab]); setRightView(tab); setTabMenu(false); setPanelError('');
+    if ((automatic && taskAssetsOpen) || (!mediaTask && isMediaTab(tab))) return;
+    closeTaskAssets.current(); setOpenTabs(current => current.includes(tab) ? current : [...current, tab]); setSelectedTab(tab); setTabMenu(false); setPanelError('');
   };
   const closeTab = (tab: string) => {
     const index = tabs.indexOf(tab);
     const next = tabs.filter(value => value !== tab);
-    setTabs(next);
+    setOpenTabs(current => current.filter(value => value !== tab));
     if (rightView === tab) {
-      setRightView(next[Math.min(index, next.length - 1)] || '');
-      if (!next.length) openTaskAssets();
+      setSelectedTab(next[Math.min(index, next.length - 1)] || '');
+      if (!next.length && mediaTask) openTaskAssets();
     }
   };
   useEffect(() => {
@@ -177,7 +192,6 @@ export default function IntelligentUIAgentWorkspace({ theme, project, canvas, di
     activate(artifact.id);
     if ((output.current?.clientWidth || 1200) <= 720) setSummaryOpen(false);
   };
-  const openCanvas = () => { activate('canvas'); if ((output.current?.clientWidth || 1200) <= 720) setSummaryOpen(false); };
 
   useEffect(() => {
     if (!taskAssetsOpen) return;
@@ -268,7 +282,6 @@ export default function IntelligentUIAgentWorkspace({ theme, project, canvas, di
     void connect();
     return () => { cancelled = true; controller.abort(); clearTimeout(retry); };
   }, [project.id]);
-  useEffect(() => { onCanvasState(agent.canvasComponents || []); }, [agent.canvasComponents, onCanvasState]);
   useEffect(() => { setModelDraft(agent.model || DEFAULT_AGENT_MODEL); }, [agent.model]);
   useEffect(() => { void api<{ model: string; displayName?: string }[]>(`/api/projects/${project.id}/agent/models`).then(setModels).catch(() => {}); }, [project.id]);
   useEffect(() => {
@@ -339,7 +352,7 @@ export default function IntelligentUIAgentWorkspace({ theme, project, canvas, di
     void send(`${event.humanFriendlyMessage || event.type}${fields}`);
   };
   const tools = useMemo(() => Object.fromEntries(
-    ['get_creative', 'discover_experiment_methods', 'read_experiment_method', 'show_intelligent_ui', 'show_canvas_component', 'analyze_reference', 'generate_image', 'generate_video', 'generate_minimax_video', 'generate_first_last_frame_video', 'recover_video', 'edit_grid_prompt', 'generate_grid_video', 'update_experiment', 'import_experiment_skill', 'bind_experiment_source'].flatMap(name =>
+    ['get_creative', 'discover_experiment_methods', 'read_experiment_method', 'show_intelligent_ui', 'show_canvas_component', 'analyze_reference', 'save_video_production', 'build_video_storyboard', 'compose_video', 'generate_image', 'generate_video', 'generate_minimax_video', 'generate_first_last_frame_video', 'recover_video', 'edit_grid_prompt', 'generate_grid_video', 'update_experiment', 'import_experiment_skill', 'bind_experiment_source'].flatMap(name =>
       [name, `sail_creation/${name}`].map(alias => [alias, (args: Record<string, unknown>) => api(`/api/projects/${project.id}/agent/intelligent-tool`, { method: 'POST', body: JSON.stringify({ name, args }) })]),
     ),
   ), [project.id]);
@@ -362,15 +375,45 @@ export default function IntelligentUIAgentWorkspace({ theme, project, canvas, di
     if (previous.loaded && latestPanelId && latestPanelId !== previous.id) activate('ui', true);
   }, [historyLoaded, latestPanelId]);
 
-  const canvasVersion = agent.canvasComponents?.map(component => component.updatedAt).join('|');
-  const previousCanvas = useRef(canvasVersion);
-  useEffect(() => { if (canvasVersion && previousCanvas.current !== undefined && previousCanvas.current !== canvasVersion) activate('canvas', true); previousCanvas.current = canvasVersion; }, [canvasVersion]);
+  const [workflowRequest, setWorkflowRequest] = useState(0);
+  const [componentError, setComponentError] = useState('');
+  const canvasComponents = agent.canvasComponents || [];
+  const componentIds = canvasComponents.map(component => component.id).join('|');
+  const previousComponents = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (!historyLoaded) return;
+    if (mediaTask && !taskAssetsOpen && componentIds && previousComponents.current !== undefined && previousComponents.current !== componentIds) {
+      const previousIds = new Set(previousComponents.current.split('|'));
+      if (canvasComponents.some(component => !previousIds.has(component.id))) {
+        activate('lab', true);
+        setWorkflowRequest(request => request + 1);
+      }
+    }
+    previousComponents.current = componentIds;
+  }, [historyLoaded, componentIds, mediaTask, taskAssetsOpen]);
+
+  const changeWorkflowComponent = (id: string, patch?: Partial<CanvasComponentInput>) => {
+    setComponentError('');
+    void api(`/api/projects/${project.id}/agent/canvas-components/${id}`, patch
+      ? { method: 'PATCH', body: JSON.stringify(patch) }
+      : { method: 'DELETE' })
+      .catch(error => setComponentError(error instanceof Error ? error.message : '组件更新失败'));
+  };
+  const workflowControls = mediaTask && <div className="lab-flow-controls">
+    <AgentCanvasUI components={canvasComponents} grids={project.storyboardGrids || []} onUpdate={changeWorkflowComponent} onClose={changeWorkflowComponent} onDraft={text => { setDraft(text); composerText.current?.focus({ preventScroll: true }); }} />
+    {componentError && <p className="iua-error" role="alert">{componentError}</p>}
+  </div>;
   const experimentRevision = agent.experiment?.revision;
   const previousExperiment = useRef<number | undefined>(undefined);
   useEffect(() => {
     if (experimentRevision !== undefined && previousExperiment.current !== undefined && experimentRevision !== previousExperiment.current) activate('lab', true);
     previousExperiment.current = experimentRevision;
   }, [experimentRevision]);
+  const previousSceneTable = useRef(sceneTableArtifact?.createdAt);
+  useEffect(() => {
+    if (sceneTableArtifact && previousSceneTable.current !== sceneTableArtifact.createdAt) activate(sceneTableArtifact.id, true);
+    previousSceneTable.current = sceneTableArtifact?.createdAt;
+  }, [sceneTableArtifact?.id, sceneTableArtifact?.createdAt]);
   const changeModel = async (model: string) => {
     if (disabled || running || preferenceSavingRef.current) return;
     preferenceSavingRef.current = true; setModelSaving(true);
@@ -431,7 +474,6 @@ export default function IntelligentUIAgentWorkspace({ theme, project, canvas, di
         <div className="iua-composer-area">
           <AgentQueuedMessages messages={queuedMessages} paused={!!agent.queuePaused} disabled={queueDisabled} canSteer={steering && !!agent.turnId} queueEnabled={queueEnabled} onResume={() => updateQueue('/resume', 'POST')} onRemove={id => updateQueue(`/${encodeURIComponent(id)}`, 'DELETE')} onSteer={id => updateQueue(`/${encodeURIComponent(id)}/steer`, 'POST', { expectedTurnId: agent.turnId })} onEdit={(id, text) => updateQueue(`/${encodeURIComponent(id)}`, 'PATCH', { prompt: text })} onAdd={text => updateQueue('', 'POST', { prompt: text })} onToggleQueue={toggleQueuing} />
           <form className="iua-composer" data-custom-surface={theme.preferences.surfaces.composer.enabled ? 'on' : 'off'} style={theme.surfaceStyle('composer')} onSubmit={event => { event.preventDefault(); void submitDraft(); }} onDragOver={event => { if (event.dataTransfer.types.includes('Files')) { event.preventDefault(); event.dataTransfer.dropEffect = mediaDisabled ? 'none' : 'copy'; } }} onDrop={event => { if (event.dataTransfer.files.length) { event.preventDefault(); media.upload(Array.from(event.dataTransfer.files)); } }} onPaste={event => { const files = clipboardMediaFiles(event.clipboardData); if (files.length) { if (!event.clipboardData.getData('text/plain')) event.preventDefault(); media.upload(files); } }}>
-            {canvasDraft && <div className="iua-canvas-draft"><span>{canvasDraft.text}</span><button type="button" onClick={() => { setDraft(canvasDraft.text); onCanvasDraftConsumed(); }}>填入输入框</button></div>}
             <input ref={mediaInput} type="file" accept={promptMediaAccept} multiple hidden aria-label="添加视频、图片或音频附件" disabled={mediaDisabled} onChange={event => { const files = Array.from(event.target.files || []); event.target.value = ''; media.upload(files); }} />
             <AgentPromptMedia assets={media.attachments} pending={media.pending} disabled={mediaDisabled} onRemove={media.remove} />
             <textarea ref={composerText} aria-label="发送给创作 Agent 的消息" aria-description={queueByDefault ? 'Enter 加入队列，Alt + Enter 立即调整，Shift + Enter 换行' : steering ? 'Enter 立即调整，Alt + Enter 加入队列，Shift + Enter 换行' : 'Enter 发送，Shift + Enter 换行'} placeholder={queueByDefault ? '继续输入，消息将在当前任务结束后发送…' : steering ? '补充要求，立即调整当前任务…' : '描述你想创作的图片、视频，或直接提问…'} maxLength={6000} rows={3} value={draft} onChange={event => setDraft(event.target.value)} onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); if (steering && (queueEnabled ? !event.altKey : event.altKey)) void queueDraft(); else void send(draft); } }} />
@@ -462,18 +504,27 @@ export default function IntelligentUIAgentWorkspace({ theme, project, canvas, di
       <div className="iua-resizer intelligent-ui-surface" data-theme={theme.chatTheme} style={theme.backgroundStyle} role="separator" aria-label="调整对话与工作区宽度" aria-orientation="vertical" aria-controls="iua-conversation" aria-valuemin={split.bounds.minimum} aria-valuemax={split.bounds.maximum} aria-valuenow={split.bounds.width} aria-valuetext={`对话区宽度 ${split.bounds.width} 像素`} title="左右拖拽调整宽度，双击恢复默认" tabIndex={0} {...split.separator} />
       <div className="iua-output intelligent-ui-surface" data-theme={theme.resultsTheme} style={{ ...theme.backgroundStyle, ...theme.resultsTextStyle }} ref={output}>
         <header className="iua-output-toolbar"><button type="button" className="iua-icon-button iua-summary-toggle" ref={summaryToggle} title="Toggle summary" aria-label={summaryOpen ? '收起产物' : '展开产物'} aria-expanded={!taskAssetsOpen && summaryOpen} aria-controls="iua-artifact-summary" onClick={() => { closeTaskAssets.current(); setSummaryOpen(open => !open); }}><ListFilter size={19} aria-hidden="true" /></button>
-          <button type="button" className={`iua-task-assets-tab${taskAssetsOpen ? ' active' : ''}`} aria-pressed={taskAssetsOpen} aria-controls="iua-task-assets" title="任务素材" onClick={openTaskAssets}><Package size={15} aria-hidden="true" /><span>任务素材</span><span className="iua-tab-count">{taskAssetCount}</span></button>
           <nav className="iua-tabs" ref={tabStrip} aria-label="右侧工作区标签页">{tabs.map(tab => {
           const artifact = artifacts.find(item => item.id === tab);
-          const title = tab === 'lab' ? '创作实验台' : tab === 'assets' ? '资产中心' : tab === 'canvas' ? '视频画布' : tab === 'ui' ? '生成结果' : artifact?.title || '产物';
+          const title = workspaceTabs.find(item => item.id === tab)?.title || artifact?.title || '产物';
           return <div className={!taskAssetsOpen && rightView === tab ? 'active' : ''} key={tab}><button type="button" className="iua-tab-title" aria-pressed={!taskAssetsOpen && rightView === tab} title={title} onClick={() => activate(tab)}>{artifact && <AgentArtifactIcon kind={artifact.kind} />}<span>{title}</span></button><button type="button" className="iua-tab-close" aria-label={`关闭${title}`} onClick={() => closeTab(tab)}><X size={14} /></button></div>;
-        })}</nav><div className="iua-tab-add"><button type="button" className="iua-icon-button" aria-label="添加标签页" aria-expanded={tabMenu} onClick={() => setTabMenu(open => !open)}><Plus size={19} /></button>{tabMenu && <div className="iua-menu"><button type="button" onClick={() => activate('lab')}>创作实验台</button><button type="button" onClick={() => activate('assets')}>资产中心</button><button type="button" onClick={() => activate('canvas')}>视频画布</button><button type="button" onClick={() => activate('ui')}>生成结果</button><button type="button" onClick={() => { closeTaskAssets.current(); setSummaryOpen(true); setTabMenu(false); }}>打开产物列表</button></div>}</div></header>
-        <div className="iua-task-assets-panel" id="iua-task-assets" ref={taskAssetsPanel} hidden={!taskAssetsOpen} tabIndex={-1} role="region" aria-label="任务素材"><AgentTaskAssets artifacts={artifacts} active={taskAssetsOpen} onOpen={openArtifact} onClose={tabs.length ? onCloseTaskAssets : undefined} /></div>
+        })}</nav>
+          <div className="iua-tab-add">
+            <button type="button" className="iua-icon-button" aria-label="添加标签页" aria-expanded={tabMenu} onClick={() => setTabMenu(open => !open)}><Plus size={19} /></button>
+            {tabMenu && <div className="iua-menu">
+              {workspaceTabs.filter(tab => mediaTask || !isMediaTab(tab.id)).map(tab => <button type="button" key={tab.id} onClick={() => activate(tab.id)}>{tab.title}</button>)}
+              {sceneTableArtifact && <button type="button" onClick={() => openArtifact(sceneTableArtifact)}>{sceneTableArtifact.title}</button>}
+              {productionPlanArtifact && <button type="button" onClick={() => openArtifact(productionPlanArtifact)}>{productionPlanArtifact.title}</button>}
+              <button type="button" onClick={() => { closeTaskAssets.current(); setSummaryOpen(true); setTabMenu(false); }}>打开产物列表</button>
+            </div>}
+          </div>
+        </header>
+        {mediaTask && <div className="iua-task-assets-panel" id="iua-task-assets" ref={taskAssetsPanel} hidden={!taskAssetsOpen} tabIndex={-1} role="region" aria-label="当前任务素材"><AgentTaskAssets artifacts={artifacts} active={taskAssetsOpen} onOpen={openArtifact} onClose={tabs.length ? onCloseTaskAssets : undefined} /></div>}
         <div className="iua-output-body" hidden={taskAssetsOpen}>
-          {summaryOpen && <AgentArtifacts artifacts={artifacts} activeId={rightView} onOpen={openArtifact} onCanvas={openCanvas} onClose={closeSummary} />}
+          {summaryOpen && <AgentArtifacts artifacts={artifacts} activeId={rightView} onOpen={openArtifact} onClose={closeSummary} />}
           <div className="iua-panels">
-            <div className="iua-experiment-tab" hidden={rightView !== 'lab' || !tabs.includes('lab')}><ExperimentWorkbench key={project.id} project={project} graph={agent.experiment} onGraph={experiment => setAgent(current => ({ ...current, experiment }))} onDraft={text => setDraft(text)} onExecute={text => { void send(text, false); }} onProjectUpdate={onProjectUpdate} onBeforeChange={onBeforeSend} disabled={disabled || running || sendDisabled || !historyLoaded} active={rightView === 'lab'} /></div>
-            <div className="iua-skill-assets-tab" hidden={rightView !== 'assets' || !tabs.includes('assets')}><SkillAssetCenter key={project.id} project={project} graph={agent.experiment} onGraph={experiment => setAgent(current => ({ ...current, experiment }))} onDraft={text => setDraft(text)} onContinue={() => { activate('lab'); composerText.current?.focus({ preventScroll: true }); }} disabled={disabled || running || !historyLoaded} active={rightView === 'assets' && !taskAssetsOpen} /></div>
+            <div className="iua-experiment-tab" hidden={rightView !== 'lab' || !tabs.includes('lab')}><ExperimentWorkbench key={project.id} project={project} graph={agent.experiment} onGraph={experiment => setAgent(current => ({ ...current, experiment }))} onDraft={text => setDraft(text)} onExecute={text => { void send(text, false); }} onProjectUpdate={onProjectUpdate} onBeforeChange={onBeforeSend} disabled={disabled || running || sendDisabled || !historyLoaded} active={rightView === 'lab'} theme={theme.resultsTheme} videoRemixWorkflow={videoRemixWorkflow} workflowControls={workflowControls} workflowRequest={workflowRequest} /></div>
+            {mediaTask && <div className="iua-skill-assets-tab" hidden={rightView !== 'assets'}><SkillAssetCenter key={project.id} project={project} graph={agent.experiment} onGraph={experiment => setAgent(current => ({ ...current, experiment }))} onDraft={text => setDraft(text)} onContinue={() => { activate('lab'); composerText.current?.focus({ preventScroll: true }); }} disabled={disabled || running || !historyLoaded} active={rightView === 'assets' && !taskAssetsOpen} /></div>}
             <div className="iua-generated" hidden={(rightView !== 'ui' && activeArtifact?.kind !== 'ui') || !tabs.includes(rightView)} onClick={event => {
               if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
               const link = (event.target as HTMLElement).closest<HTMLAnchorElement>('a[data-iui-media]');
@@ -482,7 +533,7 @@ export default function IntelligentUIAgentWorkspace({ theme, project, canvas, di
             }}>
               {shownPanels.length ? shownPanels.map(panel => {
                 const streaming = agent.status === 'running' && currentPanels.some(current => current.id === panel.id);
-                return <section className="iua-generated-panel" key={panel.id} aria-label={panel.format === 'html' ? htmlPageTitle(panel.source) : '组件界面'}><PanelBoundary>
+                return <section className="iua-generated-panel" data-format={panel.format} key={panel.id} aria-label={panel.format === 'html' ? htmlPageTitle(panel.source) : '组件界面'}><PanelBoundary>
                   {panel.format === 'html' ? panel.complete
                     ? <SandboxedHtml html={panel.source} title={htmlPageTitle(panel.source)} streaming={streaming} />
                     : <p className="iua-message-note" role="status">{streaming ? '正在生成 HTML 页面…' : 'HTML 页面尚未生成完整，请让 Agent 继续完成。'}</p>
@@ -491,9 +542,8 @@ export default function IntelligentUIAgentWorkspace({ theme, project, canvas, di
               }) : <p className="iua-empty">{running ? '正在准备回答，生成结果会显示在这里。' : '组件界面、HTML 页面和混合结果会显示在这里。'}</p>}
               {panelError && <p className="iua-error" role="alert">界面生成有误：{panelError}</p>}
             </div>
-            <div className="iua-canvas-tab" hidden={rightView !== 'canvas' || !tabs.includes('canvas')}><div className="iua-canvas">{canvas}</div></div>
             {activeArtifact && activeArtifact.kind !== 'ui' && <AgentArtifactPreview key={activeArtifact.id} artifact={activeArtifact} onOpen={activate} onLoadVideo={loadVideoDetails} disabled={disabled || running} onRecreate={video => { setDraft(current => [current.trim(), recreateVideoDraft(video)].filter(Boolean).join("\n\n")); composerText.current?.focus({ preventScroll: true }); }} />}
-            {tabs.includes(rightView) && !['lab', 'assets', 'ui', 'canvas'].includes(rightView) && !activeArtifact && <p className="iua-empty">这份产物已不在当前创意中，可以关闭标签页并从产物列表重新选择。</p>}
+            {tabs.includes(rightView) && !['lab', 'assets', 'ui'].includes(rightView) && !activeArtifact && <p className="iua-empty">这份产物已不在当前创意中，可以关闭标签页并从产物列表重新选择。</p>}
             {!tabs.length && <p className="iua-empty">点击 + 打开工作区标签页。</p>}
           </div>
         </div>

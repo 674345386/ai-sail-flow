@@ -1,15 +1,6 @@
-/* Media canvas, based on the user's Liblib reference. Route proposals keep their own surface. */
+/* Media canvas layout, based on the user's Liblib reference. */
 .experiment-workbench.lab-media-canvas {
-  --lab-bg: #191919;
-  --lab-paper: #242424;
-  --lab-ink: #e7e7e7;
-  --lab-muted: #a3a3a3;
-  --lab-line: #3b3b3b;
-  --lab-accent: #bce6c8;
-  --lab-accent-bg: #323a34;
-  --lab-canvas-blue: #9acbf5;
   position: relative;
-  color-scheme: dark;
   background: var(--lab-bg);
 }
 .lab-media-canvas ::selection { background: #b9d8ec; color: #18222c; }
@@ -40,9 +31,9 @@
 .lab-media-canvas .react-flow__pane.draggable { cursor: grab; }
 .lab-media-canvas .react-flow__pane.dragging { cursor: grabbing; }
 .lab-media-canvas .react-flow__node-experiment { background: transparent; border: 0; padding: 0; border-radius: 12px; }
-.lab-media-canvas .react-flow__nodesselection-rect, .lab-media-canvas .react-flow__selection { border: 1px solid #9acbf5; background: #9acbf512; }
+.lab-media-canvas .react-flow__nodesselection-rect, .lab-media-canvas .react-flow__selection { border: 1px solid var(--lab-accent); background: var(--iui-hover); }
 .lab-media-canvas .react-flow__edge-path { stroke-linecap: round; }
-.lab-media-canvas .react-flow__edge.selected .react-flow__edge-path, .lab-media-canvas .react-flow__edge:hover .react-flow__edge-path { stroke: #a8d8ff; stroke-width: 2; }
+.lab-media-canvas .react-flow__edge.selected .react-flow__edge-path, .lab-media-canvas .react-flow__edge:hover .react-flow__edge-path { stroke: var(--lab-accent); stroke-width: 2; }
 
 /* The title and metadata sit on the canvas; the image itself is the card. */
 .lab-media-canvas .lab-node { position: relative; width: 266px; padding: 0; border: 0; border-radius: 12px; background: transparent; color: #e7e7e7; outline: none; }

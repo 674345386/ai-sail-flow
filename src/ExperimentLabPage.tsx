@@ -14,8 +14,13 @@ export default function ExperimentLabPage() {
   const [error, setError] = useState(''), [loading, setLoading] = useState(true);
   const [projectId, setProjectId] = useState(() => new URLSearchParams(window.location.search).get('project') || '');
   const [creating, setCreating] = useState(false);
+  const [taskAssetSummary, setTaskAssetSummary] = useState<{ projectId: string; count: number } | null>(null);
   const [taskAssetsOpen, setTaskAssetsOpen] = useState(false);
   const closeTaskAssets = useCallback(() => setTaskAssetsOpen(false), []);
+  const receiveTaskAssetCount = useCallback((id: string, count: number | null) => {
+    setTaskAssetSummary(count === null ? null : { projectId: id, count });
+    if (count === null) closeTaskAssets();
+  }, [closeTaskAssets]);
   useEffect(() => {
     const abort = new AbortController();
     void api<ProjectSummary[]>('/api/projects', { signal: abort.signal }).then(items => { setProjects(items.filter(p => !p.archivedAt)); setLoading(false); }).catch(failure => { if (!abort.signal.aborted) { setError(failure.message); setLoading(false); } });
@@ -36,9 +41,13 @@ export default function ExperimentLabPage() {
     catch (failure) { setError(failure instanceof Error ? failure.message : '创建失败，请重试。'); }
     finally { setCreating(false); }
   };
-  return <main className="lab-page">
-    <header className="lab-page-header"><a href="/" aria-label="返回工作台"><ArrowLeft size={15} /><FlaskConical size={17} />AI Creative Lab 实验台</a><span>一次创作，也是一条可以复用的路径。</span><select aria-label="选择创意" value={projectId} onChange={e => selectProject(e.target.value)}><option value="">选择已有创意</option>{projects.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}</select>{project && !loading && <button type="button" aria-expanded={taskAssetsOpen} aria-controls="iua-task-assets" onClick={() => setTaskAssetsOpen(open => !open)}><Package size={13} />任务素材</button>}<button type="button" disabled={creating} onClick={() => void create()}>{creating ? <LoaderCircle size={13} /> : <Plus size={13} />}新建实验</button></header>
+  return <main className="lab-page intelligent-ui-surface" data-theme={theme.resultsTheme}>
+    <header className="lab-page-header"><a href="/" aria-label="返回工作台"><ArrowLeft size={15} /><FlaskConical size={17} />AI Creative Lab 实验台</a><span>一次创作，也是一条可以复用的路径。</span><select aria-label="选择创意" value={projectId} onChange={e => selectProject(e.target.value)}><option value="">选择已有创意</option>{projects.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}</select>
+      {project && !loading && taskAssetSummary?.projectId === project.id && <button type="button" className="lab-task-assets" aria-expanded={taskAssetsOpen} aria-controls="iua-task-assets" onClick={() => setTaskAssetsOpen(open => !open)}>
+        <Package size={13} aria-hidden="true" /><span>当前任务素材</span><span className="task-assets-count" aria-hidden="true">{taskAssetSummary.count}</span>
+      </button>}
+      <button type="button" disabled={creating} onClick={() => void create()}>{creating ? <LoaderCircle size={13} /> : <Plus size={13} />}新建实验</button></header>
     {error && <div className="lab-page-error" role="alert">{error}</div>}
-    <div className="lab-page-body">{loading ? <div className="lab-page-loading">正在打开实验台…</div> : project ? <IntelligentUIAgentWorkspace key={project.id} theme={theme} project={project} canvas={<div className="lab-page-loading"><p>在完整创作工作台中查看镜头与视频画布。</p><a href="/">打开工作台</a></div>} disabled={!!project.archivedAt} onProjectUpdate={setProject} onBeforeSend={async () => project} onCanvasState={() => {}} onCanvasDraftConsumed={() => {}} taskAssetsOpen={taskAssetsOpen} onOpenTaskAssets={() => setTaskAssetsOpen(true)} onCloseTaskAssets={closeTaskAssets} /> : <div className="lab-page-loading"><FlaskConical size={36} strokeWidth={1.3} style={{ margin: '0 auto 18px' }} /><h1>让创作过程，成为你的资产。</h1><p>选择已有创意继续，或新建一个实验，从参考、方法和素材开始。</p><button type="button" disabled={creating} onClick={() => void create()}>新建视频创作实验</button></div>}</div>
+    <div className="lab-page-body">{loading ? <div className="lab-page-loading">正在打开实验台…</div> : project ? <IntelligentUIAgentWorkspace key={project.id} theme={theme} project={project} disabled={!!project.archivedAt} onProjectUpdate={setProject} onBeforeSend={async () => project} taskAssetsOpen={taskAssetsOpen} onOpenTaskAssets={() => setTaskAssetsOpen(true)} onCloseTaskAssets={closeTaskAssets} onTaskAssetCountChange={receiveTaskAssetCount} /> : <div className="lab-page-loading"><FlaskConical size={36} strokeWidth={1.3} style={{ margin: '0 auto 18px' }} /><h1>让创作过程，成为你的资产。</h1><p>选择已有创意继续，或新建一个实验，从参考、方法和素材开始。</p><button type="button" disabled={creating} onClick={() => void create()}>新建视频创作实验</button></div>}</div>
   </main>;
 }

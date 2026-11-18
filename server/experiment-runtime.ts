@@ -3,7 +3,7 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { fileTypeFromFile } from 'file-type';
 import { z } from 'zod';
-import { dataDir, uploadDir } from './store';
+import { workspacePath, workspaceUploadPath } from './workspace-storage';
 import { inspectMedia } from './media';
 import { bindExperimentSource, experimentSources } from './experiment-workbench';
 import { emptyExperiment, ExperimentError, type ExperimentGraph, type ExperimentFile } from '../shared/experiment';
@@ -13,7 +13,7 @@ import { assertExperimentRouteExecution } from '../shared/experiment-planning';
 // Directory separation keeps creative files organised; it is not an OS sandbox.
 // Hosted code execution needs a separate isolated worker and is deliberately off.
 export const programmaticEnabled = () => process.env.SOP_REQUIRE_AUTH !== 'true' && process.env.SOP_AGENT_PROGRAMMATIC_ENABLED !== 'false';
-export const experimentWorkspace = (id: string) => path.join(dataDir, 'agent-workspace', id);
+export const experimentWorkspace = (id: string) => workspacePath('agent-workspace', id);
 export const publishExperimentFileInput = z.object({ stepId: z.string().regex(/^[\w-]{1,100}$/), path: z.string().min(1).max(2000), title: z.string().trim().min(1).max(120).optional(),
   runId: z.string().regex(/^[\w-]{1,100}$/).optional(),
   purpose: z.enum(['context', 'output']).optional(), sourceId: z.string().min(1).max(150).optional(), sourceTime: z.number().finite().nonnegative().optional(),
@@ -41,7 +41,7 @@ export async function publishExperimentFile(graph: ExperimentGraph | undefined, 
   const mediaType = detected && ['video/mp4', 'video/quicktime', 'video/webm'].includes(detected.mime) ? 'video' : detected && ['image/png', 'image/jpeg', 'image/webp'].includes(detected.mime) ? 'image' : 'text';
   const ext = mediaType === 'text' ? 'txt' : detected!.ext;
   if (mediaType === 'text' && (!/(?:\.(?:tsx?|jsx?|mjs|cjs|css|html|json|md|txt|srt|vtt|py|sh|ya?ml|toml|lock)|(?:^|\/)Dockerfile)$/i.test(absolute) || stat.size > 1024 * 1024)) throw new ExperimentError('非媒体产物支持小于 1 MB 的代码、依赖锁、环境配置、文本或字幕文件。');
-  const filename = `experiment-${randomUUID()}.${ext}`, destination = path.join(uploadDir, filename);
+  const filename = `experiment-${randomUUID()}.${ext}`, destination = workspaceUploadPath(filename);
   try {
     await fs.copyFile(absolute, destination);
     if (mediaType === 'video') await inspectMedia(filename, 'video');

@@ -8,8 +8,9 @@ import type { Express, Request, Response, NextFunction } from 'express';
 import multer from 'multer';
 import { fileTypeFromBuffer } from 'file-type';
 import { z } from 'zod';
-import { dataDir } from './store';
-import { agentProvider, agentProviderArgs } from './agent-provider';
+import { accountWorkspacesEnabled, createWorkspaceCapabilities, dataDir, withWorkspaceAccount, workspaceDirectory, workspacePath, workspaceResource } from './workspace-storage';
+import { scopedMultipart } from './workspace-upload';
+import { agentProvider, agentProviderArgs, agentCodexHome, agentSandbox, agentSandboxPolicy } from './agent-provider';
 import { createAgentWork, finishAgentWork, recordAgentWork } from '../shared/agent-work';
 import type { AgentMessage, AgentMessageImage } from '../shared/agent-message';
 import type { RadarInput, RadarRun } from '../shared/radar';
@@ -17,37 +18,33 @@ import type { RadarSpaceState } from '../shared/radar-space';
 import { executeRadarRun, getRadarRun, radarInputSchema, radarCalendar } from './radar';
 import { sourceStatus } from './radar-sources';
 
-const root = path.join(dataDir, 'studio', 'radar', 'space-agent');
-const sessionsDir = path.join(root, 'sessions');
-const isolatedCodexHome = process.env.SOP_AGENT_CODEX_HOME || path.join(dataDir, 'agent-codex');
-fs.mkdirSync(sessionsDir, { recursive: true, mode: 0o700 });
-fs.mkdirSync(isolatedCodexHome, { recursive: true, mode: 0o700 });
-const states = new Map<string, RadarSpaceState>();
+const sessionsDir = () => workspaceDirectory('studio', 'radar', 'space-agent', 'sessions');
+const states = workspaceResource(() => new Map<string, RadarSpaceState>());
 const clients = new Map<string, AppServerClient>();
-const tokens = new Map<string, string>();
+const capabilities = createWorkspaceCapabilities();
 const starting = new Set<string>();
 const cancelled = new Set<string>();
 const events = new EventEmitter(); events.setMaxListeners(0);
 type Wire = { id?: number; method?: string; params?: Record<string, unknown>; result?: Record<string, any>; error?: { message?: string } };
 const at = () => new Date().toISOString();
 const idOf = (id: unknown) => z.string().uuid().parse(id);
-const filename = (id: string) => path.join(sessionsDir, `${idOf(id)}.json`);
-const spaceWorkspace = (id: string) => path.join(root, 'workspaces', idOf(id));
+const filename = (id: string) => path.join(sessionsDir(), `${idOf(id)}.json`);
+const spaceWorkspace = (id: string) => workspacePath('studio', 'radar', 'space-agent', 'workspaces', idOf(id));
 class SpaceError extends Error { constructor(public status: number, message: string) { super(message); } }
 function errorMessage(error: unknown) { return (error instanceof Error ? error.message : '研究暂时未完成').replace(/sk-[\w-]+|Bearer\s+\S+/gi, '[REDACTED]').slice(0, 600); }
 function save(id: string) {
-  const state = states.get(id); if (!state) return;
+  const state = states().get(id); if (!state) return;
   state.updatedAt = at(); const file = filename(id), temporary = `${file}.${randomUUID()}.tmp`;
   try { fs.writeFileSync(temporary, JSON.stringify(state), { mode: 0o600 }); fs.renameSync(temporary, file); }
   finally { fs.rmSync(temporary, { force: true }); }
   events.emit(id, state);
 }
 function getAgentState(id: string): RadarSpaceState {
-  idOf(id); const cached = states.get(id); if (cached) return cached;
+  idOf(id); const cached = states().get(id); if (cached) return cached;
   let state: RadarSpaceState;
   try { state = JSON.parse(fs.readFileSync(filename(id), 'utf8')); }
   catch { throw new SpaceError(404, '研究空间不存在，请新建研究。'); }
-  states.set(id, state);
+  states().set(id, state);
   if (state.status === 'running') { state.status = 'failed'; state.turnId = undefined; state.activity = undefined; state.error = '服务已重启，上次对话已中断，已有研究结果仍可查看。'; finishAgentWork(state.messages, 'interrupted'); save(id); }
   if (state.provider !== agentProvider.key) { state.provider = agentProvider.key; state.model = agentProvider.model; state.effort = agentProvider.effort; state.instructionsVersion = undefined; save(id); }
   return state;
@@ -55,7 +52,7 @@ function getAgentState(id: string): RadarSpaceState {
 function createSession() {
   const time = at();
   const state: RadarSpaceState = { id: randomUUID(), title: '新的热点研究', createdAt: time, updatedAt: time, status: 'idle', provider: agentProvider.key, model: agentProvider.model, effort: agentProvider.effort, messages: [], images: [], runIds: [], scope: radarInputSchema.parse({}) };
-  states.set(state.id, state); save(state.id); return state;
+  states().set(state.id, state); save(state.id); return state;
 }
 class AppServerClient {
   private proc: ChildProcessWithoutNullStreams;
@@ -63,11 +60,12 @@ class AppServerClient {
   private nextId = 1;
   private pending = new Map<number, { resolve: (value: Record<string, any>) => void; reject: (error: Error) => void; timer: NodeJS.Timeout }>();
   private ready: Promise<void>;
+  private failure: Error | undefined;
   constructor(private projectId: string, private onEvent: (message: Wire) => void) {
     const cmd = process.env.SOP_AGENT_CODEX_BIN || 'codex';
-    const env = { ...process.env, CODEX_HOME: isolatedCodexHome };
+    const env = { ...process.env, CODEX_HOME: agentCodexHome(dataDir) };
     const cwd = spaceWorkspace(projectId); fs.mkdirSync(cwd, { recursive: true, mode: 0o700 });
-    this.proc = spawn(cmd, ['app-server', '--stdio', ...agentProviderArgs()], { cwd, env, stdio: ['pipe', 'pipe', 'pipe'] });
+    this.proc = spawn(cmd, ['app-server', '--stdio', ...agentProviderArgs()], { cwd, env, detached: process.platform !== 'win32', stdio: ['pipe', 'pipe', 'pipe'] });
     const lines = createInterface({ input: this.proc.stdout, crlfDelay: Infinity });
     lines.on('line', line => {
       try { this.receive(JSON.parse(line) as Wire); }
@@ -75,13 +73,24 @@ class AppServerClient {
     });
     this.proc.stderr.on('data', chunk => { const line = String(chunk).trim(); if (line) console.warn(`Radar space Agent: ${line.slice(0, 400)}`); });
     this.proc.on('error', error => this.fail(error));
-    this.proc.on('exit', () => { this.fail(new Error('Codex app server 已退出。')); clients.delete(projectId); });
-    this.ready = this.request('initialize', { clientInfo: { name: 'sail_radar_space', title: 'Radar Space Agent', version: '0.1.0' } }).then(() => {
+    this.proc.stdin.on('error', error => this.fail(error));
+    this.proc.on('exit', () => this.fail(new Error('Codex app server 已退出。')));
+    // Allow for cold SQLite initialization on the shared host.
+    this.ready = this.request('initialize', { clientInfo: { name: 'sail_radar_space', title: 'Radar Space Agent', version: '0.1.0' } }, 120_000).then(() => {
       this.proc.stdin.write(`${JSON.stringify({ method: 'initialized', params: {} })}\n`);
+    }).catch(error => {
+      this.fail(error);
+      throw error;
     });
   }
   private fail(error: Error) {
+    if (this.failure) return;
+    this.failure = error;
+    if (clients.get(this.projectId) === this) clients.delete(this.projectId);
     for (const [id, call] of this.pending) { clearTimeout(call.timer); call.reject(error); this.pending.delete(id); }
+    if (this.proc.pid && process.platform !== 'win32') {
+      try { process.kill(-this.proc.pid, 'SIGKILL'); } catch { /* Already exited. */ }
+    } else this.proc.kill('SIGKILL');
     const state = getAgentState(this.projectId);
     if (state.status === 'running') { state.status = 'failed'; state.error = error.message; state.queuePaused = true; finishAgentWork(state.messages, 'failed'); save(this.projectId); }
   }
@@ -93,6 +102,7 @@ class AppServerClient {
     } else if (message.method) this.onEvent(message);
   }
   private request(method: string, params: Record<string, unknown>, timeout = 30000): Promise<Record<string, any>> {
+    if (this.failure) return Promise.reject(this.failure);
     const id = this.nextId++;
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => { this.pending.delete(id); reject(new Error(`Codex ${method} 超时`)); }, timeout);
@@ -148,7 +158,7 @@ function onNotification(id: string, message: Wire) {
   }
 }
 function configFor(id: string) {
-  let token = tokens.get(id); if (!token) { token = randomUUID(); tokens.set(id, token); }
+  const token = capabilities.issue(id);
   return { mcp_servers: { sail_radar_space: { command: process.execPath, args: [path.join(process.cwd(), 'node_modules/tsx/dist/cli.mjs'), path.join(process.cwd(), 'server/radar-space-mcp.ts')], env: { SOP_SPACE_SESSION: id, SOP_SPACE_TOKEN: token, SOP_SPACE_URL: `http://127.0.0.1:${process.env.SOP_PORT || '4317'}` }, startup_timeout_sec: 15, tool_timeout_sec: 120, required: true } } };
 }
 async function startTurn(id: string, prompt: string, scope?: RadarInput, imageIds: string[] = [], action = 'research') {
@@ -164,15 +174,15 @@ async function startTurn(id: string, prompt: string, scope?: RadarInput, imageId
     let client = clients.get(id); if (!client) { client = new AppServerClient(id, message => onNotification(id, message)); clients.set(id, client); }
     const fresh = !state.threadId || state.instructionsVersion !== instructionsVersion;
     if (fresh) {
-      const result = await client.call('thread/start', { model: state.model, cwd: spaceWorkspace(id), sandbox: 'danger-full-access', approvalPolicy: 'never', developerInstructions: instructions, serviceName: 'sail_radar_space', config: configFor(id) }, 60000);
+      const result = await client.call('thread/start', { model: state.model, cwd: spaceWorkspace(id), sandbox: agentSandbox, approvalPolicy: 'never', developerInstructions: instructions, serviceName: 'sail_radar_space', config: configFor(id) }, 60000);
       if (!result.thread?.id) throw new Error('无法创建研究对话'); state.threadId = result.thread.id; state.instructionsVersion = instructionsVersion; client.markThreadLoaded(state.threadId!);
     } else if (!client.hasLoadedThread(state.threadId!)) {
-      await client.call('thread/resume', { threadId: state.threadId, excludeTurns: true, model: state.model, cwd: spaceWorkspace(id), sandbox: 'danger-full-access', approvalPolicy: 'never', developerInstructions: instructions, config: configFor(id) }, 60000); client.markThreadLoaded(state.threadId!);
+      await client.call('thread/resume', { threadId: state.threadId, excludeTurns: true, model: state.model, cwd: spaceWorkspace(id), sandbox: agentSandbox, approvalPolicy: 'never', developerInstructions: instructions, config: configFor(id) }, 60000); client.markThreadLoaded(state.threadId!);
     }
     if (cancelled.has(id)) return state;
     const input: Record<string, unknown>[] = [{ type: 'text', text: `${fresh && history ? `历史研究上下文：\n${history}\n\n` : ''}${prompt}\n\nAction: ${action}\n用户的结构化筛选条件：${JSON.stringify(state.scope)}${images.length ? `\n用户图片：${images.map(i => `${i.name} (imageId: ${i.id})`).join('、')}` : ''}` }];
     for (const image of images) input.push({ type: 'localImage', path: path.join(spaceWorkspace(id), path.basename(image.filename!)) });
-    const result = await client.call('turn/start', { threadId: state.threadId, input, cwd: spaceWorkspace(id), model: state.model, effort: state.effort, approvalPolicy: 'never', sandboxPolicy: { type: 'dangerFullAccess' } }, 60000);
+    const result = await client.call('turn/start', { threadId: state.threadId, input, cwd: spaceWorkspace(id), model: state.model, effort: state.effort, approvalPolicy: 'never', sandboxPolicy: agentSandboxPolicy }, 60000);
     if (cancelled.has(id)) { if (result.turn?.id) await client.call('turn/interrupt', { threadId: state.threadId, turnId: result.turn.id }); return state; }
     if (!result.turn?.id) throw new Error('未取得研究执行标识');
     user.attachmentsSent = true; if (state.status === 'running') { state.turnId = result.turn.id; state.activity = '正在研究…'; } save(id); return state;
@@ -187,7 +197,11 @@ function failures(error: unknown, _req: Request, res: Response, next: NextFuncti
 }
 export function registerRadarSpaceInternal(app: Express) {
   const base = '/api/radar-space-internal/:id';
-  app.use(base, (req, res, next) => { const token = tokens.get(String(req.params.id)); if (!token || req.get('X-Radar-Space-Token') !== token || !['127.0.0.1','::1','::ffff:127.0.0.1'].includes(req.socket.remoteAddress || '')) return res.sendStatus(403); next(); });
+  app.use(base, (req, res, next) => {
+    const capability = capabilities.verify(String(req.params.id), req.get('X-Radar-Space-Token'));
+    if (!capability || (accountWorkspacesEnabled && !capability.accountId) || !['127.0.0.1','::1','::ffff:127.0.0.1'].includes(req.socket.remoteAddress || '')) return res.sendStatus(403);
+    return capability.accountId ? withWorkspaceAccount(capability.accountId, next) : next();
+  });
   app.get(base, (req, res) => { const state = getAgentState(String(req.params.id)); res.json({ id: state.id, scope: state.scope, sources: sourceStatus(), images: state.images, runs: state.runIds.map(id => { const run = getRadarRun(id); return run ? { id, input: run.input, count: run.items.length } : null; }).filter(Boolean), report: state.report, calendar: state.calendar, notes:state.workspace?.nodes.filter(node=>node.type==='note'),selectedSignalIds:state.workspace?.candidates }); });
   app.get(`${base}/sources`, (_req, res) => res.json(sourceStatus()));
   app.post(`${base}/search`, async (req, res) => {
@@ -211,7 +225,7 @@ export function registerRadarSpaceInternal(app: Express) {
 export function registerRadarSpaceRoutes(app: Express) {
   const base = '/api/studio/radar-space';
   app.use(base, (_req, res, next) => { if (process.env.SOP_REQUIRE_AUTH === 'true' && !(process.env.SOP_AGENT_ENABLED === 'true' && process.env.SOP_AGENT_CODEX_HOME)) return res.status(503).json({ error: '服务端尚未启用 Agent，请使用现有 Agent 连接配置。' }); next(); });
-  app.get(`${base}/sessions`, (_req, res) => res.json(fs.readdirSync(sessionsDir).filter(f => /^[\da-f-]{36}\.json$/.test(f)).flatMap(file => { try { const s = getAgentState(file.slice(0,-5)); return [{ id:s.id,title:s.title,status:s.status,updatedAt:s.updatedAt,count:s.runIds.length }]; } catch { return []; } }).sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt)).slice(0,100)));
+  app.get(`${base}/sessions`, (_req, res) => res.json(fs.readdirSync(sessionsDir()).filter(f => /^[\da-f-]{36}\.json$/.test(f)).flatMap(file => { try { const s = getAgentState(file.slice(0,-5)); return [{ id:s.id,title:s.title,status:s.status,updatedAt:s.updatedAt,count:s.runIds.length }]; } catch { return []; } }).sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt)).slice(0,100)));
   app.post(`${base}/sessions`, (_req, res) => res.status(201).json(createSession()));
   app.get(`${base}/sessions/:id`, (req,res)=>res.json(getAgentState(String(req.params.id))));
   app.patch(`${base}/sessions/:id`, (req,res)=>{ const state=getAgentState(String(req.params.id)); const body=z.object({ title:z.string().trim().min(1).max(160).optional(),scope:radarInputSchema.optional() }).parse(req.body); if(body.title)state.title=body.title;if(body.scope)state.scope=body.scope;save(state.id);res.json(state); });
@@ -227,7 +241,7 @@ export function registerRadarSpaceRoutes(app: Express) {
   app.post(`${base}/sessions/:id/turns`,async(req,res)=>{const body=z.object({prompt:z.string().trim().min(1).max(12000),scope:radarInputSchema.optional(),imageIds:z.array(z.string().uuid()).max(4).default([]),action:z.string().max(60).default('research')}).parse(req.body);res.status(202).json(await startTurn(String(req.params.id),body.prompt,body.scope,body.imageIds,body.action));});
   app.post(`${base}/sessions/:id/interrupt`,async(req,res)=>{const state=getAgentState(String(req.params.id));cancelled.add(state.id);if(state.threadId&&state.turnId&&clients.has(state.id))await clients.get(state.id)!.call('turn/interrupt',{threadId:state.threadId,turnId:state.turnId});state.status='idle';state.turnId=undefined;state.activity=undefined;finishAgentWork(state.messages,'interrupted');save(state.id);res.json(state);});
   const upload=multer({storage:multer.memoryStorage(),limits:{fileSize:8*1024*1024,files:1,fields:0}});
-  app.post(`${base}/sessions/:id/images`,upload.single('image'),async(req,res)=>{const state=getAgentState(String(req.params.id));if(state.status==='running')throw new SpaceError(409,'请等待本轮结束后添加图片');if(!req.file)throw new SpaceError(400,'请选择图片');if(state.images.length>=100)throw new SpaceError(400,'本研究图片过多，请新建研究');const type=await fileTypeFromBuffer(req.file.buffer);if(!type||!['image/jpeg','image/png','image/webp'].includes(type.mime))throw new SpaceError(400,'请选择 JPG、PNG 或 WebP');const imageId=randomUUID(),file=`${imageId}.${type.ext}`;fs.mkdirSync(spaceWorkspace(state.id),{recursive:true,mode:0o700});fs.writeFileSync(path.join(spaceWorkspace(state.id),file),req.file.buffer,{mode:0o600});const image:AgentMessageImage={id:imageId,name:req.file.originalname.slice(0,160),filename:file,mime:type.mime,url:`/media/radar-space/${state.id}/${imageId}`};state.images.push(image);save(state.id);res.status(201).json(image);});
+  app.post(`${base}/sessions/:id/images`,scopedMultipart(upload.single('image')),async(req,res)=>{const state=getAgentState(String(req.params.id));if(state.status==='running')throw new SpaceError(409,'请等待本轮结束后添加图片');if(!req.file)throw new SpaceError(400,'请选择图片');if(state.images.length>=100)throw new SpaceError(400,'本研究图片过多，请新建研究');const type=await fileTypeFromBuffer(req.file.buffer);if(!type||!['image/jpeg','image/png','image/webp'].includes(type.mime))throw new SpaceError(400,'请选择 JPG、PNG 或 WebP');const imageId=randomUUID(),file=`${imageId}.${type.ext}`;fs.mkdirSync(spaceWorkspace(state.id),{recursive:true,mode:0o700});fs.writeFileSync(path.join(spaceWorkspace(state.id),file),req.file.buffer,{mode:0o600});const image:AgentMessageImage={id:imageId,name:req.file.originalname.slice(0,160),filename:file,mime:type.mime,url:`/media/radar-space/${state.id}/${imageId}`};state.images.push(image);save(state.id);res.status(201).json(image);});
   app.use(base,failures);
 }
 
@@ -237,7 +251,7 @@ export function registerRadarSpaceMedia(app: Express) {
     const state = getAgentState(String(req.params.id));
     const image = state.images.find(image => image.id === req.params.imageId);
     if (!image) return res.sendStatus(404);
-    res.setHeader('Cache-Control', 'private, max-age=3600');
+    if (!accountWorkspacesEnabled) res.setHeader('Cache-Control', 'private, max-age=3600');
     res.type(image.mime!).sendFile(path.join(spaceWorkspace(state.id), path.basename(image.filename!)));
   });
   app.use('/media/radar-space', failures);

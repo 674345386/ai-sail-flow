@@ -30,6 +30,7 @@ export const minimaxVideoInput = z.object({
   generateAudio: z.boolean().default(true),
   optimizePrompt: z.boolean().default(false),
   referenceIds: z.array(z.string().min(1)).max(9).default([]),
+  referenceVideoIds: z.array(z.string().min(1)).max(1).optional(),
   firstFrameId: z.string().min(1).optional(),
   lastFrameId: z.string().min(1).optional(),
 }).strict().superRefine((input, ctx) => {
@@ -38,6 +39,7 @@ export const minimaxVideoInput = z.object({
   if (input.model === 'h3-video-frames') {
     if (!input.firstFrameId && !input.lastFrameId) issue('firstFrameId', 'H3 Frames 至少需要首帧或尾帧。');
     if (input.referenceIds.length) issue('referenceIds', '首尾帧模型不能混入普通参考图。');
+    if (input.referenceVideoIds?.length) issue('referenceVideoIds', '首尾帧模型不能同时输入参考视频。');
   } else if (input.firstFrameId || input.lastFrameId) issue('model', '使用首尾帧时请选择 h3-video-frames。');
   const maxDuration = input.model !== 'h3-video' || ['960p', '1080p'].includes(input.resolution) ? 15 : input.resolution === '768p' && input.aspectRatio === '21:9' ? 20 : 30;
   if (input.duration > maxDuration) issue('duration', `此配置最长 ${maxDuration} 秒。`);
@@ -59,6 +61,6 @@ export type MinimaxGenerationRequest = {
 
 export const minimaxVideoTool = {
   name: 'generate_minimax_video',
-  description: 'Generate a real MiniMax H3 video via Hi/SparkCine, as an independent alternative to Omni. Use when MiniMax/H3 is requested or its capabilities fit the task. Default h3-video, 6 seconds, 768p, creative aspect ratio. h3-video supports text or up to 9 reference images; h3-video-flex supports up to 15 seconds; h3-video-frames takes firstFrameId and/or lastFrameId, no ordinary referenceIds. Image IDs must come from this creative imageReferences or grids. Published images, including extracted video frames and screenshots, are valid referenceIds or firstFrameId/lastFrameId; use publish_experiment_file then read get_creative.imageReferences. Supports 16:9, 9:16, 21:9, 4:3, 1:1, 3:4; 720p only supports 16:9/9:16. 960p/1080p max 15s; 768p 21:9 max 20s; Flex 1080p 21:9 max 10s. Prompt is forwarded unchanged. optimizePrompt is optional provider rewriting at extra cost; enable only when requested. Only call for an authorized video request. Pending means keep querying get_creative; use recover_video after interruption, never resubmit an uncertain request.',
+  description: 'Advanced MiniMax H3 tool via Hi/SparkCine. Use generate_video or generate_first_last_frame_video for the default video production workflow; this tool exposes independently configured H3 capabilities for explicit advanced requests. Default h3-video, 6 seconds, 768p, creative aspect ratio. h3-video supports text or up to 9 reference images; h3-video-flex supports up to 15 seconds; h3-video-frames takes firstFrameId and/or lastFrameId, no ordinary referenceIds. Image IDs must come from this creative imageReferences or grids. Published images, including extracted video frames and screenshots, are valid referenceIds or firstFrameId/lastFrameId; use publish_experiment_file then read get_creative.imageReferences. Supports 16:9, 9:16, 21:9, 4:3, 1:1, 3:4; 720p only supports 16:9/9:16. 960p/1080p max 15s; 768p 21:9 max 20s; Flex 1080p 21:9 max 10s. Prompt is forwarded unchanged. optimizePrompt is optional provider rewriting at extra cost; enable only when requested. Only call for an authorized video request. Pending means keep querying get_creative; use recover_video after interruption, never resubmit an uncertain request.',
   inputSchema: z.toJSONSchema(minimaxVideoInput, { io: 'input' }),
 };

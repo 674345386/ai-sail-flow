@@ -8,6 +8,7 @@ import { shotMotionPrompt } from '../shared/shot-evidence';
 const frameLabels = { first: '首帧', middle: '中间关键帧', last: '尾帧' };
 export function analysisModeLabel(project: Project) {
   if (project.isDemo) return '手写示例 · 未分析视频';
+  if (project.analysisMeta?.transport === 'agent-frames') return '创作 Agent 抽帧分析';
   const mode = project.analysisMeta?.mode;
   return mode === 'segmented-video' ? `10 秒分段并行分析 · ${project.analysisMeta?.segmentCount || 0} 段` : mode === 'agentic-video' ? '模型 Agentic 模式分析视频' : mode === 'native-video' ? '模型原生视频分析' : mode === 'sampled-frames' ? '模型抽帧分析' : '视频分析 · 模式未记录';
 }

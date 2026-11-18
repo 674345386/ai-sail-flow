@@ -31,6 +31,7 @@
   --iui-on-ink: #ffffff;
   --iui-muted: rgb(0 0 0 / 60%);
   --iui-faint: rgb(0 0 0 / 60%);
+  --iui-label-ink: var(--iui-muted);
   --iui-border: color-mix(in srgb, var(--iui-ink) 8%, transparent);
   --iui-border-strong: color-mix(in srgb, var(--iui-ink) 10%, transparent);
   --iui-range-track: color-mix(in srgb, var(--iui-ink) 6%, transparent);
@@ -99,13 +100,32 @@
   --iui-select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23676767' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
 }
 
+.intelligent-ui-surface[data-theme="studio-white"] {
+  --iui-canvas: var(--studio-paper);
+  --iui-ink: var(--studio-ink);
+  --iui-on-ink: var(--studio-paper);
+  --iui-muted: var(--studio-label);
+  --iui-faint: var(--studio-label);
+  --iui-hover: var(--studio-hover);
+  --iui-pressed: var(--studio-selected);
+  --iui-surface: var(--studio-sidebar);
+  --iui-surface-hover: var(--studio-hover);
+  --iui-surface-strong: var(--studio-selected);
+  --iui-border: var(--studio-line);
+  --iui-border-strong: var(--studio-dot);
+  --iui-focus: var(--studio-action);
+  --iui-success: var(--studio-success);
+}
+
 .intelligent-ui-surface[data-theme="dark"] {
   color-scheme: dark;
   --iui-canvas: #171717;
-  --iui-ink: #ededed;
+  --iui-ink: #fafafa;
   --iui-on-ink: #171717;
-  --iui-muted: #a6a6a6;
-  --iui-faint: #a6a6a6;
+  --iui-muted: #c2c2c2;
+  --iui-faint: #ababab;
+  --iui-label-ink: #e5e5e5;
+  --iui-prose-weight: 450;
   --iui-on-status: #121212;
   --iui-segmented-selected: var(--iui-surface-strong);
   --iui-map-icon-filter: invert(1);

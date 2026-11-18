@@ -14,13 +14,16 @@ import './experiment-routes.css';
 import { completedPlanArtifact, experimentNodePresentation, type ExperimentNodePresentation } from './experiment-status';
 import './experiment-canvas.css';
 import './experiment-canvas-v2.css';
+import './experiment-theme.css';
+import type { ResolvedTheme } from './intelligent-ui/theme';
 import { ExperimentCanvasNode, type ExperimentCanvasFlowNode as FlowNode } from './ExperimentCanvasNode';
 import ExperimentCanvasComposer from './ExperimentCanvasComposer';
+import ExperimentFlowPage from './ExperimentFlowPage';
 import { addCanvasReference, canvasModels, canvasNodeRatio, canvasOutputKind, canvasReference, composerStep, selectedCanvasRelations, type CanvasModel, type CanvasStatus } from './experiment-canvas-model';
 import { executionTurnCanvas, type TurnPosition } from './experiment-turns';
 
 const nodeTypes = { experiment: ExperimentCanvasNode };
-const recipeIcons = { programmatic: Code2, 'talking-head': FileText, keyframes: Image, direct: Sparkles, grid: LayoutGrid, character: Film };
+const recipeIcons = { 'video-production': Film, programmatic: Code2, 'talking-head': FileText, keyframes: Image, direct: Sparkles, grid: LayoutGrid, character: Film };
 type Draft = Pick<ExperimentNode, 'title' | 'content' | 'description'>;
 
 function WorkbenchPopover({ label, summary, children, className, closeOnAction = false }: {
@@ -49,18 +52,19 @@ function WorkbenchPopover({ label, summary, children, className, closeOnAction =
   </details>;
 }
 
-export default function ExperimentWorkbench({ project, graph: incoming, onGraph, onDraft, onExecute, onProjectUpdate, onBeforeChange, disabled = false, active = true }: {
-  project: Project; graph?: ExperimentGraph; onGraph: (graph: ExperimentGraph) => void; onDraft: (text: string) => void; onExecute?: (text: string) => void; onProjectUpdate?: (project: Project) => void; onBeforeChange?: () => Promise<unknown>; disabled?: boolean; active?: boolean;
+export default function ExperimentWorkbench({ project, graph: incoming, onGraph, onDraft, onExecute, onProjectUpdate, onBeforeChange, disabled = false, active = true, theme, videoRemixWorkflow, workflowControls, workflowRequest = 0 }: {
+  project: Project; graph?: ExperimentGraph; onGraph: (graph: ExperimentGraph) => void; onDraft: (text: string) => void; onExecute?: (text: string) => void; onProjectUpdate?: (project: Project) => void; onBeforeChange?: () => Promise<unknown>; disabled?: boolean; active?: boolean; theme: ResolvedTheme;
+  videoRemixWorkflow?: ReactNode; workflowControls?: ReactNode; workflowRequest?: number;
 }) {
   const graph = useMemo(() => normalizeExperimentGraph(incoming || emptyExperiment()), [incoming]);
   const graphRef = useRef(graph);
   if (graph.revision >= graphRef.current.revision) graphRef.current = graph;
   const proposal = activeExperimentProposal(graph);
-  const [view, setView] = useState<'routes' | 'execution'>(proposal ? proposal.selectedRouteIds.length ? 'execution' : 'routes' : graph.nodes.length ? 'execution' : 'routes');
+  const [view, setView] = useState<'routes' | 'execution' | 'workflow'>(proposal ? proposal.selectedRouteIds.length ? 'execution' : 'routes' : graph.nodes.length ? 'execution' : 'routes');
   const [canvasMode, setCanvasMode] = useState<'turns' | 'nodes'>('turns');
   const [overviewFocus, setOverviewFocus] = useState<string>();
-  useEffect(() => { if (graph.nodes.length && !proposal) setView('execution'); }, [!!graph.nodes.length]);
-  useEffect(() => { if (proposal) setView(proposal.selectedRouteIds.length ? 'execution' : 'routes'); }, [proposal?.id]);
+  useEffect(() => { if (graph.nodes.length && !proposal) setView(current => current === 'workflow' ? current : 'execution'); }, [!!graph.nodes.length]);
+  useEffect(() => { if (proposal) setView(current => current === 'workflow' ? current : proposal.selectedRouteIds.length ? 'execution' : 'routes'); }, [proposal?.id]);
   const [selectedId, setSelectedId] = useState<string>();
   const [planId, setPlanId] = useState('');
   const plan = graph.plans?.find(item => item.id === planId);
@@ -73,6 +77,7 @@ export default function ExperimentWorkbench({ project, graph: incoming, onGraph,
   const [working, setWorking] = useState(false), [error, setError] = useState(''), [notice, setNotice] = useState('');
   const [drawer, setDrawer] = useState<'recipes' | 'skill' | 'templates' | 'save' | 'plan' | 'compare' | 'methods' | null>(null);
   useEffect(() => { if (drawer) setView('execution'); }, [drawer]);
+  useEffect(() => { if (workflowRequest) { setDrawer(null); setView('workflow'); } }, [workflowRequest]);
   const workingRef = useRef(false);
   const [skillURL, setSkillURL] = useState(''), [skillPath, setSkillPath] = useState(''), [choices, setChoices] = useState<string[]>([]);
   const [templateTitle, setTemplateTitle] = useState('');
@@ -285,9 +290,9 @@ export default function ExperimentWorkbench({ project, graph: incoming, onGraph,
   const previewNode = turnCanvas.items.find(entry => entry.id === previewId)?.item || graph.nodes.find(node => node.id === previewId);
   const onNodesChange = useCallback((changes: NodeChange<FlowNode>[]) => setNodes(current => applyNodeChanges(changes, current)), []);
 
-  return <section className={`experiment-workbench${view === 'execution' ? ' lab-media-canvas' : ''}`} aria-label="视频创作实验台">
+  return <section className={`experiment-workbench intelligent-ui-surface${view === 'execution' ? ' lab-media-canvas' : ''}`} data-theme={theme} aria-label="视频创作实验台">
     <header className="lab-toolbar">
-      <nav className="lab-workbench-views" aria-label="实验台视图"><button type="button" aria-pressed={view === 'routes'} onClick={() => { setView('routes'); setDrawer(null); }}><GitBranch size={14} />路线提案{proposal && <span>{proposal.routes.length}</span>}</button><button type="button" aria-pressed={view === 'execution'} onClick={() => setView('execution')}><Workflow size={14} />执行画布{graph.nodes.length > 0 && <span>{graph.nodes.length}</span>}</button></nav>
+      <nav className="lab-workbench-views" aria-label="实验台视图"><button type="button" aria-pressed={view === 'routes'} onClick={() => { setView('routes'); setDrawer(null); }}><GitBranch size={14} />路线提案{proposal && <span>{proposal.routes.length}</span>}</button><button type="button" aria-pressed={view === 'execution'} onClick={() => setView('execution')}><Workflow size={14} />执行画布{graph.nodes.length > 0 && <span>{graph.nodes.length}</span>}</button><button type="button" aria-pressed={view === 'workflow'} onClick={() => { setDrawer(null); setView('workflow'); }}><BookOpen size={14} />流程页面</button></nav>
       {!!graph.nodes.length && <span className="lab-workbench-stats" title={`${graph.title} · ${graph.nodes.length} 个节点 · ${completed} 已完成${stale ? ` · ${stale} 需要更新` : ''}`}>{turnMode ? `${turnCanvas.turns.length} 轮尝试` : <>{completed} 已完成{stale > 0 && <span> · {stale} 需更新</span>}</>}</span>}
       <div className="lab-toolbar-actions">
         <button type="button" className="lab-new-plan" aria-label="新建方案" title="新建方案" disabled={busy} onClick={() => void addPlan()}><Plus size={14} /><span>新建方案</span></button>
@@ -311,7 +316,7 @@ export default function ExperimentWorkbench({ project, graph: incoming, onGraph,
     {view === 'execution' && !turnMode && untouchedAlternative && <div className="lab-message" role="status"><GitBranch size={14} /><span>{originalOutput ? '当前查看的是尚未执行的备选方案，原方案已有完成结果。' : '当前查看的是备选方案，尚未产生执行记录。'}</span>{originalOutput && <button type="button" onClick={() => selectNode(originalOutput.id)}>查看原方案结果<ArrowRight size={13} /></button>}</div>}
     {error && <div className="lab-message lab-error" role="alert"><span>{error}</span><button type="button" aria-label="关闭错误提示" onClick={() => setError('')}><X size={14} /></button></div>}
     {notice && <div className="lab-message" role="status"><Check size={14} /><span>{notice}</span></div>}
-    {view === 'routes' ? <div className="lab-route-stage"><ExperimentRoutes graph={graph} busy={busy} mutate={mutate} onDraft={onDraft} onExecute={onExecute} onExecution={() => { setView('execution'); setSelectedId(undefined); }} /></div> : <div className={`lab-stage${selected && inspectorOpen ? ' has-inspector' : ''}`}>
+    {view === 'workflow' ? <ExperimentFlowPage graph={graph} busy={busy} videoRemixWorkflow={videoRemixWorkflow} controls={workflowControls} mutate={mutate} /> : view === 'routes' ? <div className="lab-route-stage"><ExperimentRoutes graph={graph} busy={busy} mutate={mutate} onDraft={onDraft} onExecute={onExecute} onExecution={() => { setView('execution'); setSelectedId(undefined); }} /></div> : <div className={`lab-stage${selected && inspectorOpen ? ' has-inspector' : ''}`}>
       <div className="lab-viewport" ref={viewportElement}>
         {!graph.nodes.length ? <div className="lab-welcome">
           <div className="lab-welcome-symbol"><FlaskConical size={30} strokeWidth={1.4} /></div>
@@ -320,7 +325,7 @@ export default function ExperimentWorkbench({ project, graph: incoming, onGraph,
           <div className="lab-recipe-grid">{experimentRecipes.map(recipe => { const Icon = recipeIcons[recipe.id]; return <button type="button" disabled={busy} key={recipe.id} onClick={() => void addRecipe(recipe.id)}><Icon size={20} strokeWidth={1.5} /><span><strong>{recipe.title}</strong><small>{recipe.subtitle}</small></span><ArrowRight size={15} /></button>; })}</div>
           <div className="lab-welcome-bottom"><span>也可以直接在对话中描述目标，让 Agent 自己组织路径。</span><button type="button" disabled={busy} onClick={() => setDrawer('skill')}><Github size={14} />从 GitHub Skill 开始</button></div>
         </div> : <ReactFlow<FlowNode>
-          nodes={nodes} edges={turnMode ? turnCanvas.edges.map(edge => ({ ...edge, style: { stroke: '#879b91', strokeWidth: 1.4 } })) : graph.nodes.flatMap(n => n.inputs.map(id => ({ id: `${id}--${n.id}`, source: id, target: n.id, type: 'default', animated: n.status === 'running', style: { stroke: n.status === 'stale' ? '#c0a16e' : n.status === 'running' || selectedId && related?.has(n.id) && related.has(id) ? '#9acbf5' : '#747b82', opacity: selectedId && (!related?.has(n.id) || !related.has(id)) ? .2 : 1, strokeWidth: 1.6, strokeDasharray: n.status === 'stale' ? '5 5' : undefined } })))}
+          nodes={nodes} edges={turnMode ? turnCanvas.edges.map(edge => ({ ...edge, style: { stroke: 'var(--lab-wire)', strokeWidth: 1.4 } })) : graph.nodes.flatMap(n => n.inputs.map(id => ({ id: `${id}--${n.id}`, source: id, target: n.id, type: 'default', animated: n.status === 'running', style: { stroke: n.status === 'stale' ? 'var(--iui-warning)' : n.status === 'running' || selectedId && related?.has(n.id) && related.has(id) ? 'var(--lab-accent)' : 'var(--lab-wire)', opacity: selectedId && (!related?.has(n.id) || !related.has(id)) ? .2 : 1, strokeWidth: 1.6, strokeDasharray: n.status === 'stale' ? '5 5' : undefined } })))}
           nodeTypes={nodeTypes} onInit={instance => { flow.current = instance; }} onNodesChange={onNodesChange}
           onNodeClick={(_, node) => {
             if (!turnMode) { selectNode(node.id); return; }
@@ -350,10 +355,10 @@ export default function ExperimentWorkbench({ project, graph: incoming, onGraph,
             if (turnCanvas.turns.find(turn => turn.id === target.turnId)?.runId) { setNotice('这一轮已有执行记录。点击输出节点的 +，创建备选做法后再连接素材。'); return; }
             void connectFrom(source.canonicalId || source.item.sourceId || source.item.id, target.stepId).catch(failure => setError(failure instanceof Error ? failure.message : '连接失败。'));
           }}
-          nodesDraggable={!busy && canvasTool === 'select'} nodesConnectable={!busy && canvasTool === 'select'} panOnDrag={canvasTool === 'pan' ? true : [1, 2]} selectionOnDrag={canvasTool === 'select'} onMoveEnd={(_, viewport) => setCanvasZoom(viewport.zoom)} colorMode="dark" connectionLineStyle={{ stroke: '#9acbf5', strokeWidth: 1.8 }} edgesReconnectable={false} deleteKeyCode={null} minZoom={0.2} maxZoom={1.5} fitView={!turnMode} defaultViewport={{ x: 60, y: 40, zoom: .85 }} fitViewOptions={{ padding: 0.18, maxZoom: 1 }} proOptions={{ hideAttribution: true }}
+          nodesDraggable={!busy && canvasTool === 'select'} nodesConnectable={!busy && canvasTool === 'select'} panOnDrag={canvasTool === 'pan' ? true : [1, 2]} selectionOnDrag={canvasTool === 'select'} onMoveEnd={(_, viewport) => setCanvasZoom(viewport.zoom)} colorMode={theme === 'dark' ? 'dark' : 'light'} connectionLineStyle={{ stroke: 'var(--lab-accent)', strokeWidth: 1.8 }} edgesReconnectable={false} deleteKeyCode={null} minZoom={0.2} maxZoom={1.5} fitView={!turnMode} defaultViewport={{ x: 60, y: 40, zoom: .85 }} fitViewOptions={{ padding: 0.18, maxZoom: 1 }} proOptions={{ hideAttribution: true }}
         >
-          <Background variant={BackgroundVariant.Dots} gap={22} size={.7} color="#414141" bgColor="#191919" />
-          {minimapOpen && <MiniMap<FlowNode> pannable zoomable nodeColor={n => n.data.item.kind === 'skill' ? '#67665c' : n.data.item.kind === 'artifact' ? '#6e8496' : '#5c6065'} bgColor="#222222" maskColor="#111111b3" />}
+          <Background variant={BackgroundVariant.Dots} gap={theme === 'studio-white' ? 20 : 22} size={theme === 'studio-white' ? 1 : .7} color="var(--lab-dot)" bgColor="var(--lab-bg)" />
+          {minimapOpen && <MiniMap<FlowNode> pannable zoomable nodeColor="var(--lab-minimap-node)" bgColor="var(--lab-paper)" maskColor="var(--lab-minimap-mask)" />}
         </ReactFlow>}
         {!!graph.nodes.length && <>
           <div className="lab-canvas-tools" role="toolbar" aria-label="画布工具">

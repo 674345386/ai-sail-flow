@@ -39,6 +39,7 @@ try {
   assert(ready, logs);
   const status = await (await request('/api/status')).json();
   assert.equal(status.model, 'gemini-3.8-flash'); assert.equal(status.configured, false);
+  assert.equal(status.videoAnalysis.transport, 'agent-frames');
   assert.equal(status.videoGeneration.configured, false);
   assert.deepEqual(status.videoGeneration.models, { t2v: 'veo_3_1', i2v: 'veo_3_1-fl', r2v: 'veo_3_1-components' });
   assert.match(await (await request('/')).text(), /AI-Sail Flow/);
@@ -72,7 +73,7 @@ try {
   pass('source changes invalidate exports and stale writes are rejected');
 
   let p: Project = await (await request('/api/projects', 'POST', {})).json();
-  assert.equal((await request(`/api/projects/${p.id}/jobs/analysis`, 'POST', {})).status, 503);
+  assert.equal((await request(`/api/projects/${p.id}/jobs/analysis`, 'POST', {})).status, 400);
   assert.equal((await request(`/api/projects/${p.id}/generations`, 'POST', {})).status, 503);
   const fake = new FormData(); fake.append('file', new Blob(['not a video'], { type: 'video/mp4' }), 'fake.mp4');
   assert.equal((await fetch(`${base}/api/projects/${p.id}/assets/video`, { method: 'POST', body: fake })).status, 400);

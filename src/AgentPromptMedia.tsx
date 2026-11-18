@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { createPortal } from 'react-dom';
 import { AudioLines, Film, LoaderCircle, Play, X } from 'lucide-react';
 import type { Asset, Project } from '../shared/domain';
 import { agentAttachmentLabel, agentMessageAttachments, sentAgentAttachmentIds, type AgentMessage } from '../shared/agent-message';
@@ -94,14 +95,64 @@ export function useAgentPromptMedia({ project, messages, disabled, onBeforeChang
 export function AgentPromptMedia({ assets, pending, disabled, onRemove }: {
   assets: Asset[]; pending: PendingMedia[]; disabled: boolean; onRemove: (id: string) => void;
 }) {
-  if (!assets.length && !pending.length) return null;
+  const [preview, setPreview] = useState<{ id: string; position: CSSProperties; imageStyle: CSSProperties } | null>(null);
+  const items = [...assets, ...pending];
+  const activePreview = preview && items.some(item => item.id === preview.id) ? preview : null;
+
+  useEffect(() => {
+    if (!activePreview) return;
+    const close = () => setPreview(null);
+    const dismiss = (event: KeyboardEvent) => { if (event.key === 'Escape') close(); };
+    window.addEventListener('keydown', dismiss);
+    window.addEventListener('resize', close);
+    window.addEventListener('scroll', close, true);
+    return () => {
+      window.removeEventListener('keydown', dismiss);
+      window.removeEventListener('resize', close);
+      window.removeEventListener('scroll', close, true);
+    };
+  }, [activePreview]);
+
+  const showPreview = (id: string, anchor: HTMLElement) => {
+    const rect = anchor.getBoundingClientRect();
+    const margin = 12;
+    const gap = 8;
+    const above = rect.top - margin - gap;
+    const below = window.innerHeight - rect.bottom - margin - gap;
+    const openAbove = above >= 260 || above >= below;
+    const maxWidth = Math.min(320, document.documentElement.clientWidth - margin * 2);
+    const maxHeight = Math.min(260, openAbove ? above : below);
+    if (maxHeight <= 0 || maxWidth <= 0) return;
+    const theme = getComputedStyle(anchor);
+    setPreview({
+      id,
+      position: {
+        left: Math.max(margin, Math.min(rect.left, document.documentElement.clientWidth - maxWidth - margin)),
+        ...(openAbove ? { bottom: window.innerHeight - rect.top, paddingBottom: gap } : { top: rect.bottom, paddingTop: gap }),
+      },
+      imageStyle: {
+        maxWidth, maxHeight,
+        backgroundColor: theme.getPropertyValue('--iua-bg'),
+        borderRadius: theme.getPropertyValue('--iui-radius-md'),
+        boxShadow: theme.getPropertyValue('--iui-shadow'),
+      },
+    });
+  };
+  const hidePreview = (id: string) => setPreview(current => current?.id === id ? null : current);
+
+  if (!items.length) return null;
   return <ul className="iua-prompt-media" aria-label="消息附件">
-    {[...assets, ...pending].map((item, index) => {
+    {items.map((item, index) => {
       const uploading = pending.some(entry => entry.id === item.id);
       const kind = item.kind === 'product' ? 'image' : item.kind;
       const label = agentAttachmentLabel(index, kind);
-      return <li className="iua-prompt-media-item" key={item.id} title={`${label}：${item.name}`} aria-label={`${label}：${item.name}`}>
-        {item.kind === 'product' ? <img src={item.url} alt={item.name} /> : item.kind === 'audio' ? <AudioLines className="iua-prompt-video-fallback" size={24} aria-hidden="true" />
+      const isImage = kind === 'image';
+      return <li className="iua-prompt-media-item" key={item.id} title={isImage ? undefined : `${label}：${item.name}`} aria-label={`${label}：${item.name}`}
+        onPointerEnter={isImage ? event => { if (event.pointerType !== 'touch') showPreview(item.id, event.currentTarget); } : undefined}
+        onPointerLeave={isImage ? () => hidePreview(item.id) : undefined}>
+        {isImage ? <img src={item.url} alt={item.name} tabIndex={0}
+          onFocus={event => { if (event.currentTarget.matches(':focus-visible')) showPreview(item.id, event.currentTarget); }}
+          onBlur={() => hidePreview(item.id)} /> : item.kind === 'audio' ? <AudioLines className="iua-prompt-video-fallback" size={24} aria-hidden="true" />
           : <><Film className="iua-prompt-video-fallback" size={22} aria-hidden="true" />{item.thumbnail
             ? <img src={item.thumbnail} alt={item.name} />
             : <video src={item.url} preload="metadata" muted playsInline aria-label={item.name} />}
@@ -109,6 +160,9 @@ export function AgentPromptMedia({ assets, pending, disabled, onRemove }: {
         <span className="iua-prompt-media-number" aria-hidden="true">{index + 1} · {kind === 'video' ? '视频' : kind === 'audio' ? '音频' : '图片'}</span>
         {uploading ? <span className="iua-prompt-media-loading" role="status" aria-label={`正在上传 ${item.name}`}><LoaderCircle size={18} className="spin" /></span>
           : <button type="button" className="iua-prompt-media-remove" disabled={disabled} title={`移除 ${item.name}`} aria-label={`移除附件 ${item.name}`} onClick={() => onRemove(item.id)}><X size={13} /></button>}
+        {activePreview?.id === item.id && createPortal(<div className="iua-prompt-image-preview" style={activePreview.position} aria-hidden="true">
+          <img src={item.url} alt="" draggable={false} style={activePreview.imageStyle} onError={() => hidePreview(item.id)} />
+        </div>, document.body)}
       </li>;
     })}
   </ul>;

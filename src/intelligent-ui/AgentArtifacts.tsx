@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { CircleAlert, Download, ExternalLink, FileText, Film, Image as ImageIcon, LayoutDashboard, LoaderCircle, X } from 'lucide-react';
+import { CircleAlert, Download, ExternalLink, FileText, Film, Image as ImageIcon, LayoutDashboard, LoaderCircle, Table2, X } from 'lucide-react';
 import type { AgentImage, GeneratedVideo, Project } from '../../shared/domain';
+import { referenceSceneTableTitle, type ReferenceSceneTable } from '../../shared/agent-video-analysis';
 import type { AgentMessage } from '../../shared/agent-message';
 import type { IntelligentPanel } from '../../shared/intelligent-ui';
 import type { ExperimentGraph } from '../../shared/experiment';
@@ -8,10 +9,12 @@ import { agentPanelId, htmlPageTitle, parseAgentAnswer, type AgentAnswerPanel } 
 import { intelligentUIConversationText } from './conversation';
 import { VideoArtifactDetails } from './VideoArtifactDetails';
 import { ImageArtifactDetails } from './GenerationArtifactDetails';
+import { productionPlanTitle, ReferenceSceneTablePreview, VideoProductionPlanPreview } from './ReferenceSceneTable';
+import type { VideoProductionPlan } from '../../shared/video-production';
 import type { VideoDetailsLoader, VideoReferenceMedia } from './video-artifact';
 
 export type AgentArtifact = {
-  id: string; kind: 'image' | 'video' | 'text' | 'ui'; title: string; createdAt: string;
+  id: string; kind: 'image' | 'video' | 'text' | 'ui' | 'scene-table' | 'video-production'; title: string; createdAt: string;
   origin: 'input' | 'process' | 'output' | 'interface'; sourceId?: string; stepTitle?: string;
   sourceTitle?: string; sourceTime?: number; usedBy?: { id: string; title: string }[];
   url?: string; filename?: string; thumbnail?: string; source?: string;
@@ -19,6 +22,8 @@ export type AgentArtifact = {
   status: 'running' | 'completed' | 'failed'; error?: string; warning?: string;
   width?: number; height?: number;
   generation?: GeneratedVideo; imageGeneration?: AgentImage; references?: VideoReferenceMedia[];
+  sceneTable?: ReferenceSceneTable;
+  productionPlan?: VideoProductionPlan;
 };
 
 export function collectAgentArtifacts(project: Project, messages: AgentMessage[], published?: IntelligentPanel, experiment?: ExperimentGraph): AgentArtifact[] {
@@ -41,7 +46,17 @@ export function collectAgentArtifacts(project: Project, messages: AgentMessage[]
     ...(project.agentImages || []).map(image => ({ ...image, imageGeneration: image, id: `image:${image.id}`, sourceId: image.id, origin: 'output' as const, kind: 'image' as const, title: image.prompt || image.filename || '生成图片' })),
     ...project.generatedVideos.map(video => ({ ...video, generation: video, id: `video:${video.id}`, sourceId: video.id, origin: 'output' as const, kind: 'video' as const, title: video.prompt || video.filename || '生成视频', createdAt: video.startedAt })),
     ...(project.composedVideos || []).map(video => ({ ...video, id: `composed:${video.id}`, sourceId: video.id, origin: 'output' as const, kind: 'video' as const, title: video.filename || '合成视频', createdAt: video.startedAt, status: 'completed' as const })),
+    ...(project.productionStoryboards || []).map(grid => ({ ...grid, id: `storyboard:${grid.id}`, sourceId: grid.id, origin: 'process' as const, kind: 'image' as const, title: `制作故事板 · ${grid.start}–${grid.end} 秒`, createdAt: grid.generatedAt, status: 'completed' as const })),
   ];
+  const sceneTable = project.referenceSceneTable;
+  const referenceVideo = sceneTable && project.assets.find(asset => asset.kind === 'video' && asset.id === sceneTable.videoId);
+  if (sceneTable && referenceVideo) artifacts.push({
+    id: `scene-table:${referenceVideo.id}`, kind: 'scene-table', origin: 'output', status: 'completed',
+    title: referenceSceneTableTitle, createdAt: sceneTable.createdAt, sourceTitle: referenceVideo.name,
+    thumbnail: sceneTable.rows[0]?.frameUrl, sceneTable,
+  });
+  if (project.videoProductionPlan) artifacts.push({ id: `production-plan:${project.id}`, kind: 'video-production', title: productionPlanTitle,
+    createdAt: project.videoProductionPlan.updatedAt, productionPlan: project.videoProductionPlan, origin: 'output', status: 'completed' });
   for (const message of messages) {
     if (message.role !== 'assistant') continue;
     parseAgentAnswer(message.text).panels.forEach((panel, index) => {
@@ -54,8 +69,9 @@ export function collectAgentArtifacts(project: Project, messages: AgentMessage[]
     artifacts.push({ id: `ui:${published.id}`, kind: 'ui', origin: 'interface', title: published.title, source: published.source, createdAt: published.createdAt, status: 'completed' });
   }
   for (const video of project.generatedVideos) for (const reference of video.referenceMedia || []) {
-    if (!artifacts.some(artifact => artifact.sourceId === reference.id && artifact.kind === 'image')) artifacts.push({
-      id: `reference:${reference.id}`, sourceId: reference.id, kind: 'image', origin: 'process', title: reference.name,
+    const kind = reference.role === 'reference_video' ? 'video' : 'image';
+    if (!artifacts.some(artifact => artifact.sourceId === reference.id && artifact.kind === kind)) artifacts.push({
+      id: `reference:${reference.id}`, sourceId: reference.id, kind, origin: 'process', title: reference.name,
       filename: reference.filename, url: reference.url, createdAt: video.startedAt, status: 'completed',
     });
   }
@@ -69,9 +85,9 @@ export function collectAgentArtifacts(project: Project, messages: AgentMessage[]
     const video = artifact.generation;
     const ids = artifact.imageGeneration?.referenceIds || video?.referenceIds || (video?.storyboardGridId ? [video.storyboardGridId] : []);
     artifact.references = ids.map((id, index) => {
-      const source = artifacts.find(item => item.sourceId === id && item.kind === 'image');
-      const grid = project.storyboardGrids?.find(grid => grid.id === id);
       const snapshot = video?.referenceMedia?.find(reference => reference.id === id);
+      const source = artifacts.find(item => item.sourceId === id && item.kind === (snapshot?.role === 'reference_video' ? 'video' : 'image'));
+      const grid = [...project.storyboardGrids || [], ...project.productionStoryboards || []].find(grid => grid.id === id);
       return { id, artifactId: source?.id, title: snapshot?.name || source?.title || (grid ? '分镜网格' : id), filename: snapshot?.filename || source?.filename || grid?.filename, url: snapshot?.url || source?.url || grid?.url,
         role: snapshot?.role || video?.minimax?.request?.inputs[index]?.role || (video?.providerRequest?.first_last_frame ? index === 0 ? 'first_frame' : 'last_frame' : 'reference_image') };
     });
@@ -80,7 +96,7 @@ export function collectAgentArtifacts(project: Project, messages: AgentMessage[]
 }
 
 const originLabels = { input: '原始素材', process: '过程素材', output: '生成结果', interface: '界面' };
-const kindLabels = { image: '图片', video: '视频', text: '其它', ui: '界面' };
+const kindLabels = { image: '图片', video: '视频', text: '其它', ui: '界面', 'scene-table': '场景表', 'video-production': '制作方案' };
 
 function ArtifactThumbnail({ artifact }: { artifact: AgentArtifact }) {
   const [failed, setFailed] = useState(false);
@@ -104,8 +120,8 @@ export function AgentTaskAssets({ artifacts, active = true, onOpen, onClose }: {
   const matches = (artifact: AgentArtifact, value: string) => value === 'all' || (value === 'used' ? !!artifact.usedBy?.length : artifact.origin === value);
   const kindMedia = media.filter(artifact => matchesKind(artifact, kind));
   const visible = kindMedia.filter(artifact => matches(artifact, filter));
-  return <section className="iua-task-assets" aria-label="任务素材" ref={list} onScroll={event => { if (active) scrollPosition.current = event.currentTarget.scrollTop; }}>
-    <header><div><h2>任务素材 <span>{media.length}</span></h2><p>过程素材仅保存在本机，不会自动加入素材库或同步云端。</p></div>{onClose && <button type="button" className="iua-icon-button" aria-label="关闭任务素材" title="关闭任务素材" onClick={onClose}><X size={18} /></button>}</header>
+  return <section className="iua-task-assets" aria-label="当前任务素材" ref={list} onScroll={event => { if (active) scrollPosition.current = event.currentTarget.scrollTop; }}>
+    <header><div><h2>当前任务素材 <span>{media.length}</span></h2><p>过程素材仅保存在本机，不会自动加入素材库或同步云端。</p></div>{onClose && <button type="button" className="iua-icon-button" aria-label="关闭任务素材" title="关闭任务素材" onClick={onClose}><X size={18} /></button>}</header>
     <div className="iua-asset-filters iua-asset-kind-filters" role="group" aria-label="素材类型">{kinds.map(({ id, label, icon: Icon }) => <button type="button" key={id} aria-pressed={kind === id} onClick={() => { setKind(id); setFilter('all'); }}><Icon size={15} aria-hidden="true" />{label}<span>{media.filter(artifact => matchesKind(artifact, id)).length}</span></button>)}</div>
     <div className="iua-asset-source-filters"><span>来源与用途</span><div className="iua-asset-filters" role="group" aria-label="筛选任务素材">{filters.map(item => <button type="button" key={item.id} aria-pressed={filter === item.id} onClick={() => setFilter(item.id)}>{item.label}<span>{kindMedia.filter(artifact => matches(artifact, item.id)).length}</span></button>)}</div></div>
     {visible.length ? <ul className="iua-asset-grid">{visible.map(artifact => <li key={artifact.id}><button type="button" aria-current={lastOpenedId === artifact.id ? 'true' : undefined} onClick={() => { setLastOpenedId(artifact.id); onOpen(artifact); }} title={artifact.title}>
@@ -117,16 +133,15 @@ export function AgentTaskAssets({ artifacts, active = true, onOpen, onClose }: {
 }
 
 export function AgentArtifactIcon({ kind }: { kind: AgentArtifact['kind'] }) {
-  const Icon = kind === 'image' ? ImageIcon : kind === 'video' ? Film : FileText;
+  const Icon = kind === 'image' ? ImageIcon : kind === 'video' ? Film : kind === 'scene-table' ? Table2 : FileText;
   return <Icon size={18} aria-hidden="true" />;
 }
 
-export function AgentArtifacts({ artifacts, activeId, onOpen, onCanvas, onClose }: {
-  artifacts: AgentArtifact[]; activeId: string; onOpen: (artifact: AgentArtifact) => void; onCanvas: () => void; onClose: () => void;
+export function AgentArtifacts({ artifacts, activeId, onOpen, onClose }: {
+  artifacts: AgentArtifact[]; activeId: string; onOpen: (artifact: AgentArtifact) => void; onClose: () => void;
 }) {
   return <aside className="iua-artifacts" id="iua-artifact-summary" aria-label="素材与产物">
     <header><h2>素材与产物 <span>{artifacts.length}</span></h2><button type="button" className="iua-icon-button" aria-label="收起产物" onClick={onClose}><X size={16} /></button></header>
-    <button type="button" className="iua-artifact-canvas" onClick={onCanvas}><LayoutDashboard size={17} aria-hidden="true" /><span>视频画布</span></button>
     {artifacts.length ? <ul className="iua-artifact-list">{artifacts.map(artifact => <li key={artifact.id}>
       <button type="button" className="iua-artifact-item" aria-current={activeId === artifact.id ? 'true' : undefined} onClick={() => onOpen(artifact)} title={artifact.title}>
         <span className="iua-artifact-thumbnail"><ArtifactThumbnail artifact={artifact} /></span>
@@ -156,6 +171,8 @@ export function AgentArtifactPreview({ artifact, onOpen, onLoadVideo, onRecreate
   const [attempt, setAttempt] = useState(0);
   if (artifact.generation) return <VideoArtifactDetails artifact={{ ...artifact, generation: artifact.generation }} onOpen={onOpen} onLoad={onLoadVideo} onRecreate={onRecreate} disabled={disabled} />;
   if (artifact.imageGeneration) return <ImageArtifactDetails artifact={{ ...artifact, imageGeneration: artifact.imageGeneration }} onOpen={onOpen} />;
+  if (artifact.sceneTable) return <ReferenceSceneTablePreview table={artifact.sceneTable} sourceTitle={artifact.sourceTitle} />;
+  if (artifact.productionPlan) return <VideoProductionPlanPreview plan={artifact.productionPlan} />;
   return <article className="iua-artifact-preview" aria-label={artifact.title}>
     <header><div><AgentArtifactIcon kind={artifact.kind} /><h2>{artifact.title}</h2></div>{artifact.url && <a href={artifact.url} download={artifact.filename || 'artifact'}><Download size={15} aria-hidden="true" />下载</a>}</header>
     <p className="iua-artifact-meta">{originLabels[artifact.origin]}{artifact.stepTitle ? ` · ${artifact.stepTitle}` : ''}{artifact.sourceTitle ? ` · 来源：${artifact.sourceTitle}` : ''}{artifact.sourceTime !== undefined ? ` · ${artifact.sourceTime} 秒` : ''}</p>

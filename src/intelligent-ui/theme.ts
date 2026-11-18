@@ -13,6 +13,7 @@ export const AGENT_THEME_CONFIG = {
   defaults: { chat: 'light', results: 'light', workspaceBackground: true, chatTextColor: null, resultsTextColor: null, surfaces: AGENT_SURFACE_DEFAULTS },
   modes: [
     { value: 'light', label: '官方浅色' },
+    { value: 'studio-white', label: 'Studio 白色' },
     { value: 'dark', label: '中性深色' },
     { value: 'warm', label: '暖白阅读' },
     { value: 'compact', label: '紧凑工作台' },
@@ -25,8 +26,21 @@ export type ResolvedTheme = Exclude<ThemeMode, 'system'>;
 export type AgentThemePreferences = { chat: ThemeMode; results: ThemeMode; workspaceBackground: boolean; chatTextColor: string | null; resultsTextColor: string | null; surfaces: Record<AgentSurfaceScope, AgentSurfacePreferences> };
 export type AgentThemePanel = 'chat' | 'results';
 export type AgentTextColorScope = AgentThemePanel | 'all';
-export const AGENT_THEME_TEXT_COLORS: Record<ResolvedTheme, string> = { light: '#0d0d0d', dark: '#ededed', warm: '#332c25', compact: '#202020' };
-export const AGENT_THEME_CANVAS_COLORS: Record<ResolvedTheme, string> = { light: '#ffffff', dark: '#171717', warm: '#fbf7ef', compact: '#fafafa' };
+export const AGENT_THEME_TEXT_COLORS: Record<ResolvedTheme, string> = { light: '#0d0d0d', 'studio-white': '#181818', dark: '#fafafa', warm: '#332c25', compact: '#202020' };
+export const AGENT_THEME_CANVAS_COLORS: Record<ResolvedTheme, string> = { light: '#ffffff', 'studio-white': '#ffffff', dark: '#171717', warm: '#fbf7ef', compact: '#fafafa' };
+
+export function activeAgentThemePreferences(preferences: AgentThemePreferences): AgentThemePreferences {
+  const studioChat = preferences.chat === 'studio-white';
+  const studioResults = preferences.results === 'studio-white';
+  if (!studioChat && !studioResults) return preferences;
+  return {
+    ...preferences,
+    workspaceBackground: false,
+    chatTextColor: studioChat ? null : preferences.chatTextColor,
+    resultsTextColor: studioResults ? null : preferences.resultsTextColor,
+    surfaces: studioChat ? AGENT_SURFACE_DEFAULTS : preferences.surfaces,
+  };
+}
 
 export function agentTextColor(value: unknown): string | null {
   return typeof value === 'string' && /^#[\da-f]{6}$/i.test(value) ? value.toLowerCase() : null;
@@ -43,7 +57,7 @@ export function agentContrastColor(value: string): string {
 export function agentBackgroundStyle(value: string): CSSProperties {
   const base = agentTextColor(value) || '#070708';
   const dark = agentContrastColor(base) === '#ffffff';
-  const ink = dark ? '#ededed' : '#171717';
+  const ink = dark ? AGENT_THEME_TEXT_COLORS.dark : '#171717';
   const mix = (color: string, percent: number) => `color-mix(in srgb, ${color} ${percent}%, ${base})`;
   const properties: Record<string, string> = {
     colorScheme: dark ? 'dark' : 'light',
@@ -51,8 +65,10 @@ export function agentBackgroundStyle(value: string): CSSProperties {
     '--iui-ink': ink,
     '--iui-on-ink': dark ? '#171717' : '#ffffff',
     '--iui-ink-hover': mix(ink, 85),
-    '--iui-muted': mix(ink, 72),
-    '--iui-faint': mix(ink, 64),
+    '--iui-muted': mix(ink, dark ? 79 : 72),
+    '--iui-faint': mix(ink, dark ? 69 : 64),
+    '--iui-label-ink': dark ? mix(ink, 91) : 'var(--iui-muted)',
+    '--iui-prose-weight': dark ? '450' : '400',
     '--iui-hover': mix(ink, 8),
     '--iui-pressed': mix(ink, 14),
     '--iui-surface': mix(ink, 5),
@@ -93,7 +109,9 @@ export function agentTextColorStyle(value: string | null, fallback?: string): CS
   const custom = agentTextColor(value);
   const color = custom || agentTextColor(fallback);
   if (!color) return undefined;
-  const muted = `color-mix(in srgb, ${color} 72%, transparent)`;
+  const muted = !custom && color === '#ffffff'
+    ? 'var(--iui-muted)'
+    : `color-mix(in srgb, ${color} 72%, transparent)`;
   return {
     '--iua-content-ink': color,
     '--iua-content-muted': muted,

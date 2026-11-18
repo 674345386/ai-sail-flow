@@ -19,8 +19,8 @@ export function GenerationArtifactDetails({ fields, prompt, references, optimize
     <section className="iua-video-prompt"><header><h3>完整提示词</h3><button type="button" onClick={() => void copyPrompt()}><Copy size={14} />{copied ? '已复制' : '复制'}</button></header><p>{prompt}</p>{notice && <p className="iua-video-detail-note" role="status">{notice}</p>}</section>
     {optimizedPrompt && <section className="iua-video-prompt"><h3>优化后提示词</h3><p>{optimizedPrompt}</p></section>}
     <section className="iua-video-references"><h3>参考素材 <span>({references.length})</span></h3>{references.length ? <ol>{references.map((reference, index) => <li key={`${reference.id}:${index}`}><button type="button" disabled={!reference.artifactId || !onOpen} onClick={() => { if (reference.artifactId) onOpen?.(reference.artifactId); }}>
-      {reference.url ? <img src={reference.url} alt={reference.title} loading="lazy" /> : <ImageIcon size={24} />}
-      <span><strong>{reference.role === 'first_frame' ? '首帧' : reference.role === 'last_frame' ? '尾帧' : '参考图'} · {index + 1}</strong><span>{reference.title}</span><small>{reference.filename || reference.id}</small>{!reference.url && <small>本地参考文件暂不可用</small>}</span>
+      {reference.url && reference.role !== 'reference_video' ? <img src={reference.url} alt={reference.title} loading="lazy" /> : <ImageIcon size={24} />}
+      <span><strong>{reference.role === 'first_frame' ? '首帧' : reference.role === 'last_frame' ? '尾帧' : reference.role === 'reference_video' ? '参考视频' : '参考图'} · {index + 1}</strong><span>{reference.title}</span><small>{reference.filename || reference.id}</small>{!reference.url && <small>本地参考文件暂不可用</small>}</span>
     </button></li>)}</ol> : <p>本次没有记录参考素材。</p>}</section>
   </>;
 }

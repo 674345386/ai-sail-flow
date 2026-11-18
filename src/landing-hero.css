@@ -81,7 +81,7 @@
 .commerce-hero-stage button:focus-visible { outline: 2px solid #fafaf8; outline-offset: 4px; }
 
 /* Keep existing below-the-fold sections on their original dark canvas. */
-.landing-page > .gf-intro, .landing-page > .gf-models, .landing-page > .gf-tools, .landing-page > .gf-creator, .landing-page > .gf-pricing, .landing-page > .gf-faq, .landing-page > .gf-footer { background-color: #080a09; }
+.landing-page > .gf-intro, .landing-page > .gf-models, .landing-page > .gf-tools, .landing-page > .gf-creator, .landing-page > .gf-footer { background-color: #080a09; }
 
 @media (max-width: 1100px) {
   .landing-page > .landing-nav { grid-template-columns: 1fr auto; }

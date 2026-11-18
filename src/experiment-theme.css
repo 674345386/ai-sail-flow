@@ -1,0 +1,82 @@
+/* Resolve the selected Agent palette on the workbench itself, even when
+   the surrounding results panel has a custom Background color. */
+.experiment-workbench.intelligent-ui-surface[data-theme] {
+  --lab-bg: var(--iui-canvas);
+  --lab-paper: color-mix(in srgb, var(--iui-ink) 3%, var(--iui-canvas));
+  --lab-ink: var(--iui-ink);
+  --lab-muted: var(--iui-muted);
+  --lab-line: var(--iui-border);
+  --lab-accent: var(--iui-ink);
+  --lab-accent-bg: color-mix(in srgb, var(--iui-ink) 6%, var(--iui-canvas));
+  --lab-dot: color-mix(in srgb, var(--iui-ink) 18%, var(--iui-canvas));
+  --lab-wire: color-mix(in srgb, var(--iui-ink) 55%, var(--iui-canvas));
+  --lab-minimap-node: color-mix(in srgb, var(--iui-ink) 34%, var(--iui-canvas));
+  --lab-minimap-mask: color-mix(in srgb, var(--iui-ink) 18%, transparent);
+  background: var(--lab-bg);
+  color: var(--lab-ink);
+  font-family: var(--iui-font);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.experiment-workbench.intelligent-ui-surface[data-theme="studio-white"] {
+  --lab-bg: var(--studio-canvas);
+  --lab-paper: var(--studio-paper);
+  --lab-accent: var(--studio-action);
+  --lab-dot: var(--studio-dot);
+  --lab-minimap-node: #cfcfcf;
+}
+.experiment-workbench.intelligent-ui-surface[data-theme="dark"] {
+  --lab-minimap-mask: rgb(0 0 0 / 54%);
+}
+.experiment-workbench[data-theme="compact"] > .lab-toolbar { min-height: 40px; gap: 6px; }
+
+.experiment-workbench.intelligent-ui-surface[data-theme].lab-media-canvas :is(.lab-viewport, .react-flow, .lab-welcome) { background: var(--lab-bg); }
+.experiment-workbench.intelligent-ui-surface[data-theme] :is(.lab-toolbar, .lab-plan-navigation, .lab-toolbar-popover-panel, .lab-inspector, .lab-inspector > header, .lab-drawer, .lab-footer, .lab-canvas-tools, .lab-canvas-zoom, .react-flow__minimap, .lab-next-menu, .lab-floating-composer, .lab-composer-reference-picker, .lab-media-preview-dialog) {
+  background: var(--lab-paper);
+  color: var(--lab-ink);
+  border-color: var(--lab-line);
+}
+.experiment-workbench.intelligent-ui-surface[data-theme].lab-media-canvas :is(.lab-toolbar-popover-panel, .lab-inspector, .lab-drawer, .lab-canvas-tools, .lab-next-menu, .lab-floating-composer, .lab-composer-reference-picker) { box-shadow: var(--iui-shadow); }
+.experiment-workbench.intelligent-ui-surface[data-theme].lab-media-canvas :is(.lab-toolbar-popover > summary, .lab-workbench-views, .lab-inputs > div > button:first-child, .lab-welcome-symbol, .lab-composer-options > label, .lab-composer-reference-picker > label, .lab-composer-options select option) {
+  background: var(--iui-surface);
+  color: var(--lab-ink);
+  border-color: var(--lab-line);
+}
+.experiment-workbench.intelligent-ui-surface[data-theme].lab-media-canvas :is(.lab-turn-heading, .lab-inspector-footer, .lab-inspector-scroll > section, .lab-step-actions, .lab-next-menu > details, .lab-floating-composer > header, .lab-floating-composer > footer, .lab-media-preview-dialog > header, .lab-recipe-grid > button) { border-color: var(--lab-line); }
+.experiment-workbench.intelligent-ui-surface[data-theme].lab-media-canvas .lab-canvas-divider { background: var(--lab-line); }
+.experiment-workbench.intelligent-ui-surface[data-theme].lab-media-canvas :is(button, .lab-canvas-more > summary):not(:where(.lab-primary, .lab-composer-generate, .lab-canvas-add, .lab-node-media-actions > button, .lab-composer-references button)) {
+  color: var(--lab-ink);
+  background: var(--lab-paper);
+  border-color: var(--iui-border-strong);
+}
+.experiment-workbench.intelligent-ui-surface[data-theme].lab-media-canvas :is(button:hover:not(:disabled), button[aria-pressed="true"], .lab-toolbar-popover > summary:hover) { color: var(--lab-ink); background: var(--iui-hover); }
+.experiment-workbench.intelligent-ui-surface[data-theme] .lab-workbench-views > button[aria-pressed="false"] { color: var(--iui-label-ink); }
+.experiment-workbench.intelligent-ui-surface[data-theme].lab-media-canvas :is(.lab-primary, .lab-composer-generate, .lab-canvas-add) { background: var(--lab-accent); color: var(--iui-on-ink); border-color: transparent; }
+.experiment-workbench.intelligent-ui-surface[data-theme].lab-media-canvas :is(.lab-primary, .lab-composer-generate, .lab-canvas-add):hover:not(:disabled) { background: var(--iui-ink-hover); color: var(--iui-on-ink); border-color: transparent; }
+.experiment-workbench.intelligent-ui-surface[data-theme].lab-media-canvas :is(.lab-node, .lab-turn-heading, .lab-node.is-selected .lab-node-caption, .lab-node-method-title, .lab-skill-source strong, .lab-welcome h2, .lab-next-menu > header strong, .lab-floating-composer > header strong, .lab-media-preview-dialog strong) { color: var(--lab-ink); }
+.experiment-workbench.intelligent-ui-surface[data-theme].lab-media-canvas :is(.lab-node-caption, .lab-node-caption > svg, .lab-node-symbol, .lab-node-excerpt, .lab-node-execution-hint, .lab-node > footer, .lab-skill-source code, .lab-turn-heading > span, .lab-turn-role, .lab-turn-navigation nav button small, .lab-next-menu :is(small, summary, p), .lab-floating-composer :is(label, small, header, footer > span), .lab-composer-save-state, .lab-composer-source p, .lab-media-preview-dialog > header span, .lab-canvas-hint) { color: var(--lab-muted); }
+.experiment-workbench.intelligent-ui-surface[data-theme].lab-media-canvas .lab-node-surface { background: var(--lab-paper); outline-color: var(--iui-border-strong); }
+.experiment-workbench.intelligent-ui-surface[data-theme].lab-media-canvas .lab-node.has-media .lab-node-surface { background: var(--iui-surface); }
+.experiment-workbench.intelligent-ui-surface[data-theme].lab-media-canvas .lab-node:is(:hover, .is-related) .lab-node-surface { outline-color: var(--lab-muted); }
+.experiment-workbench.intelligent-ui-surface[data-theme].lab-media-canvas .lab-node[data-status="stale"] .lab-node-surface { outline-color: var(--iui-warning); }
+.experiment-workbench.intelligent-ui-surface[data-theme].lab-media-canvas .lab-node[data-status="failed"] .lab-node-surface { outline-color: var(--iui-danger); }
+.experiment-workbench.intelligent-ui-surface[data-theme].lab-media-canvas .lab-node.is-selected .lab-node-surface { outline-color: var(--lab-accent); }
+.experiment-workbench.intelligent-ui-surface[data-theme].lab-media-canvas .lab-node .react-flow__handle { background: var(--lab-paper); color: var(--lab-ink); border-color: var(--lab-muted); }
+.experiment-workbench.intelligent-ui-surface[data-theme].lab-media-canvas .lab-node .react-flow__handle:is(.connecting, .valid) { background: var(--iui-surface-strong); border-color: var(--lab-accent); }
+.experiment-workbench.intelligent-ui-surface[data-theme].lab-media-canvas .lab-node-badges :is(.lab-status, .lab-adopted) { background: var(--iui-surface); color: var(--lab-muted); }
+.experiment-workbench.intelligent-ui-surface[data-theme].lab-media-canvas .lab-node-badges :is(.lab-status-completed, .lab-adopted) { background: var(--iui-success-soft); color: var(--iui-success); }
+.experiment-workbench.intelligent-ui-surface[data-theme].lab-media-canvas :is(.lab-node-badges .lab-status-stale, .lab-workbench-stats > span) { color: var(--iui-warning); }
+.experiment-workbench.intelligent-ui-surface[data-theme].lab-media-canvas :is(.lab-node-badges .lab-status-failed, .lab-remove, .lab-composer-conflict > button) { color: var(--iui-danger); }
+.experiment-workbench.intelligent-ui-surface[data-theme].lab-media-canvas .lab-node-badges .lab-status-running { color: var(--lab-ink); }
+.experiment-workbench.intelligent-ui-surface[data-theme].lab-media-canvas :is(.lab-error, .lab-composer-error, .lab-composer-conflict) { background: var(--iui-danger-soft); color: var(--iui-danger); }
+.experiment-workbench.intelligent-ui-surface[data-theme].lab-media-canvas .lab-message:not(.lab-error) { background: var(--iui-success-soft); color: var(--iui-success); }
+.experiment-workbench.intelligent-ui-surface[data-theme].lab-media-canvas :is(.lab-stale-note, .lab-conflict) { background: var(--iui-warning-soft); color: var(--iui-warning); }
+.experiment-workbench.intelligent-ui-surface[data-theme].lab-media-canvas :is(input, select, textarea, .lab-run-details pre, .lab-skill-details pre) { background: var(--iui-surface); color: var(--lab-ink); border-color: var(--iui-border-strong); caret-color: var(--lab-ink); }
+.experiment-workbench.intelligent-ui-surface[data-theme].lab-media-canvas :is(input, textarea)::placeholder { color: var(--lab-muted); }
+.experiment-workbench.intelligent-ui-surface[data-theme].lab-media-canvas :is(.lab-composer-prompt, .lab-composer-options select, .lab-composer-reference-picker input) { background: transparent; }
+.experiment-workbench.intelligent-ui-surface[data-theme].lab-media-canvas .lab-floating-composer:has(.lab-composer-prompt:focus-visible) { border-color: var(--iui-focus); }
+.experiment-workbench.intelligent-ui-surface[data-theme].lab-media-canvas :is(.lab-node-media-actions > button, .lab-composer-references button):hover:not(:disabled) { background: #3f3f3f; color: #fff; }
+.experiment-workbench.intelligent-ui-surface[data-theme].lab-media-canvas :focus-visible { outline-color: var(--iui-focus); }
+.experiment-workbench.intelligent-ui-surface[data-theme].lab-media-canvas ::selection { color: var(--lab-ink); background: var(--iui-pressed); }
+.experiment-workbench.intelligent-ui-surface[data-theme].lab-media-canvas :is(.lab-inspector-scroll, .lab-drawer, .lab-plan-navigation nav, .lab-toolbar-popover-panel, .lab-reference-picker) { scrollbar-color: var(--iui-border-strong) transparent; }
+.experiment-workbench.intelligent-ui-surface[data-theme] .skill-reference-bar { color: var(--lab-muted); font-family: inherit; }

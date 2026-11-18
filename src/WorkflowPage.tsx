@@ -1,44 +1,27 @@
-import { useEffect, useRef } from 'react';
-import { Clapperboard, Grid2X2, LayoutGrid, LoaderCircle, Sparkles, Upload } from 'lucide-react';
+import { Clapperboard, Grid2X2, LoaderCircle, Sparkles, Upload } from 'lucide-react';
 import type { Project } from '../shared/domain';
 import { StoryboardGridCardBody, gridVideoState } from './StoryboardGridWorkbench';
 
-export type WorkflowSection = 'source' | 'product' | 'analysis-method' | 'analysis-result' | 'production-grid' | 'production-video';
-export const workflowSections: WorkflowSection[][] = [['source', 'product'], ['analysis-method', 'analysis-result'], ['production-grid', 'production-video']];
-
-export default function WorkflowPage({ project, disabled, available, target, onVisible, onCanvas, onUploadVideo, onOpenMaterials, onOpenAnalysis, onOpenRemixDetail, onAnalyze, onBreakdownType, onGridSize, onPrompt, onGenerate, onRecover, onIncluded }: {
-  project: Project; disabled: boolean; available: boolean[]; target: { id: WorkflowSection; version: number } | null;
-  onVisible: (id: WorkflowSection, stage: number) => void; onCanvas: () => void; onUploadVideo: () => void;
+export default function WorkflowPage({ project, disabled, available, onUploadVideo, onOpenMaterials, onOpenAnalysis, onOpenRemixDetail, onAnalyze, onBreakdownType, onGridSize, onPrompt, onGenerate, onRecover, onIncluded, onCompose }: {
+  project: Project; disabled: boolean; available: boolean[];
+  onUploadVideo: () => void;
   onOpenMaterials: () => void; onOpenAnalysis: () => void; onOpenRemixDetail: () => void; onAnalyze: () => void;
   onBreakdownType: (type: 'shot' | 'storyboard-grid') => void; onGridSize: (size: 3 | 4) => void;
   onPrompt: (id: string, prompt: string) => void; onGenerate: (ids: string | string[]) => void;
   onRecover: (id: string) => void; onIncluded: (id: string, value: boolean) => void;
+  onCompose: (videoIds: string[]) => void;
 }) {
-  const scroll = useRef<HTMLDivElement>(null);
   const video = project.assets.find(asset => asset.kind === 'video');
   const grids = project.storyboardGrids || [];
   const isGrid = project.breakdownType === 'storyboard-grid';
   const included = grids.filter(grid => grid.included !== false);
   const running = project.job?.status === 'running' && project.job.kind.startsWith('analysis');
-  const eligible = included.filter(grid => grid.prompt.trim() && !gridVideoState(project, grid).running && !gridVideoState(project, grid).completed.length);
-  useEffect(() => {
-    if (!target) return;
-    const section = scroll.current?.querySelector<HTMLElement>(`[data-workflow-section="${target.id}"]`);
-    if (section && scroll.current) scroll.current.scrollTo({ top: section.getBoundingClientRect().top - scroll.current.getBoundingClientRect().top + scroll.current.scrollTop - 24, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
-  }, [target]);
-  const updateVisible = () => {
-    const container = scroll.current; if (!container) return;
-    const sections = [...container.querySelectorAll<HTMLElement>('[data-workflow-section]')];
-    const point = container.getBoundingClientRect().top + Math.min(180, container.clientHeight * .3);
-    let selected = sections[0];
-    for (const section of sections) if (section.getBoundingClientRect().top <= point) selected = section;
-    if (container.scrollHeight - container.scrollTop - container.clientHeight < 4) selected = sections.at(-1) || selected;
-    const id = selected?.dataset.workflowSection as WorkflowSection | undefined;
-    if (id) onVisible(id, workflowSections.findIndex(group => group.includes(id)));
-  };
-  return <section className="workflow-page" aria-label="创作流程">
-    <header className="workflow-page-header"><div><strong>人物与视频二创</strong><span>向下滚动，逐步完成创作</span></div><button className="workflow-page-button ghost" type="button" onClick={onCanvas}><LayoutGrid size={15} />自由画布</button></header>
-    <div className="workflow-page-scroll" ref={scroll} onScroll={updateVisible}>
+  const eligible = included.filter(grid => grid.gridSize === 3 && grid.prompt.trim() && !gridVideoState(project, grid).running && !gridVideoState(project, grid).completed.length);
+  const finished = included.map(grid => gridVideoState(project, grid).completed.at(-1)?.id).filter((id): id is string => !!id);
+  const readyToCompose = !!finished.length && finished.length === included.length;
+  const final = readyToCompose && (project.composedVideos || []).find(video => !video.stale && video.sourceVideoIds.length === finished.length && video.sourceVideoIds.every((id, index) => id === finished[index]));
+  return <section className="workflow-page" aria-label="人物与视频二创">
+    <div className="workflow-page-scroll">
       <div className="workflow-page-content">
         <section className="workflow-section" data-workflow-section="source"><div className="workflow-section-number">01 / 素材准备</div><h1>从一段视频开始</h1><p className="workflow-lead">选择参考视频，让创作从真实素材出发。</p>
           <div className="workflow-source">{video ? <><video src={video.url} poster={video.thumbnail} controls playsInline preload="metadata" /><div><h3>{video.name}</h3><p>{(video.duration || 0).toFixed(1)} 秒 · {video.width} × {video.height}</p><button className="workflow-page-button" disabled={disabled} onClick={onUploadVideo}>更换视频</button></div></> : <button type="button" className="workflow-upload" disabled={disabled} onClick={onUploadVideo}><Upload size={24} /><strong>选择参考视频</strong><span>MP4 / MOV / WebM · 最长 10 分钟</span></button>}</div>
@@ -59,6 +42,9 @@ export default function WorkflowPage({ project, disabled, available, target, onV
             <button className="workflow-page-button" disabled={disabled || !available[2] || !eligible.length} onClick={() => onGenerate(eligible.map(grid => grid.id))}><Clapperboard size={15} />生成未出片的网格{eligible.length ? `（${eligible.length}）` : ''}</button></> : <button className="workflow-page-button" disabled={!available[2]} onClick={onOpenRemixDetail}>打开关键帧工作台</button>}
         </section>
         <section className="workflow-subsection workflow-output-section" data-workflow-section="production-video"><div className="workflow-eyebrow">{isGrid ? '网格出片' : '二创出片'} / 视频结果</div><h2>生成的视频</h2><p>生成完成后，可在这里预览每一段视频。</p>
+          {isGrid && readyToCompose && (final
+            ? <div className="workflow-source"><video src={final.url} controls playsInline preload="metadata" aria-label="拼接成片" /><a className="workflow-page-button ghost" href={final.url} download>下载成片</a></div>
+            : <button type="button" className="workflow-page-button" disabled={disabled} onClick={() => onCompose(finished)}><Clapperboard size={15} />按故事板顺序拼接成片</button>)}
           {isGrid && <div className="workflow-video-grid">{included.map((grid, index) => { const state = gridVideoState(project, grid); const result = state.completed.at(-1); return <article key={grid.id}><div className="workflow-video-frame">{state.running ? <span><LoaderCircle className="spin" size={22} />正在生成 {state.progress || 0}%</span> : result ? <video controls playsInline preload="metadata" src={result.url} poster={result.thumbnail} /> : <span>{state.failed ? state.error : '待生成'}</span>}</div><strong>网格 {String(grids.indexOf(grid) + 1 || index + 1).padStart(2, '0')}</strong><small>{result ? `${result.duration.toFixed(1)} 秒 · ${result.model === 'local-test' ? '本地测试视频' : '视频已生成'}` : `${grid.start.toFixed(1)}–${grid.end.toFixed(1)} 秒`}</small></article>; })}</div>}
         </section>
       </div>

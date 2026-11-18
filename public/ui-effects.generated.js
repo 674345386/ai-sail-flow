@@ -281,4 +281,4 @@
   global.UICRuntime = { apply, remove, get, restore, selectorFor, hold, release, persistenceLoaded: () => persistenceLoaded };
 })(window);
 
-window.UICRuntime.restore([]);
+window.UICRuntime.restore([{"effectId":"aws-gradient-glow","selector":"[data-ui-target=\"landing-start-creating\"]","settings":{"mode":"hover"},"id":"4df4ed92-b070-4e9d-9032-d4eee93bb419"}]);
