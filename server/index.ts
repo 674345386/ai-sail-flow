@@ -108,10 +108,15 @@ function cookieToken(req: Request) {
 function sessionCookieHeader(token: string, maxAgeSeconds: number) {
   return `${mediaCookie}=${encodeURIComponent(token)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${Math.max(0, maxAgeSeconds)}`;
 }
+function loopbackAddress(value: string | undefined) {
+  return value === '127.0.0.1' || value === '::1' || value === '::ffff:127.0.0.1';
+}
 app.use((req, res, next) => {
   const hostname = req.hostname.toLowerCase();
   if (!publicAuthEnabled && !['127.0.0.1', 'localhost', '[::1]', '::1'].includes(hostname)) return res.status(403).json({ error: '此工作台仅接受本机访问。' });
-  if (publicAuthEnabled && !allowedHosts.has(hostname)) return res.status(400).json({ error: '访问域名未加入服务白名单。' });
+  const internalTool = hostname === '127.0.0.1' && loopbackAddress(req.socket.remoteAddress)
+    && (req.path.startsWith('/api/agent-internal/') || req.path.startsWith('/api/radar-space-internal/'));
+  if (publicAuthEnabled && !allowedHosts.has(hostname) && !internalTool) return res.status(400).json({ error: '访问域名未加入服务白名单。' });
   const protectedResource = req.path.startsWith('/api') || req.path.startsWith('/media');
   // OAuth returns from the provider as a cross-site document navigation.
   // Only serve the callback page here; the browser SDK still verifies PKCE.
@@ -161,9 +166,8 @@ function editable(project: Project) {
 // The MCP child can only reach its own creative through this loopback-only capability.
 registerRadarSpaceInternal(app);
 app.use('/api/agent-internal/:id', (req, res, next) => {
-  const remote = req.socket.remoteAddress || '';
   const capability = agentCapabilities.verify(String(req.params.id), req.get('X-SOP-Agent-Token'));
-  if (!['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(remote) || !capability || (publicAuthEnabled && !capability.accountId)) return res.sendStatus(403);
+  if (!loopbackAddress(req.socket.remoteAddress) || !capability || (publicAuthEnabled && !capability.accountId)) return res.sendStatus(403);
   return capability.accountId ? withWorkspaceAccount(capability.accountId, next) : next();
 });
 registerSkillInternalRoutes(app, skillAgentAccess);
@@ -689,8 +693,10 @@ app.post('/api/projects/:id/agent/turns', async (req, res, next) => {
   try {
     if (record(req).archivedAt) throw new HttpError(409, '请先恢复已归档创意。');
     const { prompt, imageIds, videoIds, audioIds, attachmentOrder } = z.object({ prompt: z.string().min(1).max(6000).refine(value => !!value.trim(), '请输入消息。'), imageIds: z.array(z.string().min(1)).max(3).optional(), videoIds: z.array(z.string().min(1)).max(1).optional(), audioIds: z.array(z.string().min(1)).max(1).optional(), attachmentOrder: z.array(z.string().min(1)).max(5).optional() }).parse(req.body);
-    res.status(202).json(await startAgentTurn(String(req.params.id), prompt, imageIds, videoIds, attachmentOrder, audioIds));
-  } catch (error) { next(error instanceof HttpError || error instanceof z.ZodError ? error : error instanceof Error ? new HttpError(error.message.includes('正在执行') ? 409 : 503, error.message) : error); }
+    await startAgentTurn(String(req.params.id), prompt, imageIds, videoIds, attachmentOrder, audioIds, state => res.status(202).json(state));
+  } catch (error) {
+    if (!res.headersSent) next(error instanceof HttpError || error instanceof z.ZodError ? error : error instanceof Error ? new HttpError(error.message.includes('正在执行') ? 409 : 503, error.message) : error);
+  }
 });
 app.post('/api/projects/:id/agent/steer', async (req, res, next) => {
   try {

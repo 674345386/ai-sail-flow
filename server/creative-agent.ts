@@ -316,7 +316,7 @@ export async function listAgentModels(id: string): Promise<AgentModelInfo[]> {
   if (!models.some(model => model.model === agentProvider.model)) models.unshift(fallback);
   return models;
 }
-export async function startAgentTurn(id: string, prompt: string, imageIds?: string[], videoIds?: string[], attachmentOrder?: string[], audioIds?: string[]): Promise<AgentState> {
+export async function startAgentTurn(id: string, prompt: string, imageIds?: string[], videoIds?: string[], attachmentOrder?: string[], audioIds?: string[], onAccepted?: (state: AgentState) => void): Promise<AgentState> {
   const state = getAgentState(id);
   if (state.status === 'running') throw new Error('Agent 正在执行，请等待或先停止。');
   // Snapshot this turn's references before asynchronous setup or later asset edits.
@@ -380,6 +380,7 @@ export async function startAgentTurn(id: string, prompt: string, imageIds?: stri
   startingTurns.add(id);
   save(id);
   try {
+    onAccepted?.(state);
     const client = await clientFor(id);
     const cwd = experimentWorkspace(id);
     const selected = state.model || agentProvider.model;
