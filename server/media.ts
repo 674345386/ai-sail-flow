@@ -3,6 +3,7 @@ import { promisify } from 'node:util';
 import path from 'node:path';
 import { tmpdir } from 'node:os';
 import fs from 'node:fs/promises';
+import { existsSync, renameSync } from 'node:fs';
 import { createHash, randomUUID } from 'node:crypto';
 import { fileTypeFromFile } from 'file-type';
 import { workspaceUploadPath } from './workspace-storage';
@@ -10,7 +11,7 @@ import type { ReferenceFrameSampling } from '../shared/agent-video-analysis';
 import type { Asset, Shot } from '../shared/domain';
 import { shotEvidenceFrames, type ShotMedia } from '../shared/shot-evidence';
 const exec = promisify(execFile);
-export async function inspectMedia(filename: string, kind: Asset['kind']) {
+export async function inspectMedia(filename: string, kind: Asset['kind'], includeThumbnail = true) {
   const absolute = workspaceUploadPath(filename);
   const detected = await fileTypeFromFile(absolute);
   const allowed = kind === 'video' ? ['video/mp4', 'video/quicktime', 'video/webm'] : kind === 'audio'
@@ -32,9 +33,38 @@ export async function inspectMedia(filename: string, kind: Asset['kind']) {
   }
   if (!video || !Number.isFinite(duration) || duration <= 0) throw new Error('未读取到有效视频轨道。');
   if (duration > 600) throw new Error('第一版支持最长 10 分钟的参考视频，请先截取相关片段。');
-  const thumbnail = `${filename}.jpg`;
-  await exec('ffmpeg', ['-y', '-v', 'error', '-protocol_whitelist', 'file,pipe', '-ss', String(Math.min(1, duration / 2)), '-i', absolute, '-frames:v', '1', '-vf', 'scale=480:-2', workspaceUploadPath(thumbnail)], { timeout: 20000 }).catch(() => {});
-  return { mime: detected.mime, duration, width: video.width as number, height: video.height as number, hasAudio: metadata.streams.some((s: { codec_type: string }) => s.codec_type === 'audio'), thumbnail: `/media/${thumbnail}` };
+  const thumbnail = includeThumbnail && await ensureMediaThumbnail(filename, duration);
+  return { mime: detected.mime, duration, width: video.width as number, height: video.height as number, hasAudio: metadata.streams.some((s: { codec_type: string }) => s.codec_type === 'audio'), thumbnail: thumbnail ? `/media/${filename}.jpg` : undefined };
+}
+
+const thumbnailJobs = new Map<string, Promise<string | undefined>>();
+export async function ensureMediaThumbnail(filename: string, duration?: number) {
+  const source = workspaceUploadPath(filename);
+  const target = workspaceUploadPath(`${filename}.jpg`);
+  if (await exists(target)) return target;
+  const existing = thumbnailJobs.get(target);
+  if (existing) return existing;
+  const job = (async () => {
+    await mediaSlot();
+    const temp = `${target}.${randomUUID()}.tmp`;
+    try {
+      if (!await exists(source)) return;
+      const seek = duration ? ['-ss', String(Math.min(1, duration / 2))] : [];
+      await exec('ffmpeg', ['-nostdin', '-y', '-v', 'error', '-threads', '1', '-protocol_whitelist', 'file,pipe',
+        ...seek, '-i', source, '-map', '0:V:0', '-frames:v', '1', '-filter_threads', '1',
+        '-vf', 'scale=480:480:force_original_aspect_ratio=decrease:force_divisible_by=2', '-q:v', '4',
+        '-threads', '1', '-f', 'mjpeg', temp], { timeout: 20000 });
+      if (!await exists(temp) || !existsSync(source)) return;
+      renameSync(temp, target);
+      return target;
+    } catch { /* A missing poster cannot stop uploads or playback. */ }
+    finally {
+      await fs.unlink(temp).catch(() => {});
+      releaseMediaSlot();
+    }
+  })();
+  thumbnailJobs.set(target, job);
+  return job.finally(() => thumbnailJobs.delete(target));
 }
 
 /** Slice a generated sequence into one local clip per planned shot boundary. */

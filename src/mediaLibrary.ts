@@ -1,82 +1,62 @@
 import type { User } from '@supabase/supabase-js';
-import { cloudMediaFolder, type LibraryMedia, type LibraryMediaAssociation, type MediaKind } from '../shared/media-library';
+import type { LibraryMedia, LibraryPage, LibraryQuery, MediaBackup } from '../shared/media-library';
 import { api } from './api';
 import { publicAuthRequired, supabase } from './auth';
 
-const bucket = import.meta.env.VITE_SUPABASE_STORAGE_BUCKET?.trim() || 'ai-sail-flow-files';
-type CloudObject = { name: string; id: string | null; created_at: string | null; metadata: Record<string, unknown> | null; user_metadata?: Record<string, unknown> | null };
-export function mediaChanged(deletedIds: string[] = []) { window.dispatchEvent(new CustomEvent('media-library-changed', { detail: { deletedIds } })); }
-function cloudTitle(name: string) {
-  const encoded = name.match(/^[a-f0-9]{64}--(.+)\.[^.]+$/)?.[1];
-  if (encoded) {
-    try { return new TextDecoder().decode(Uint8Array.from(atob(encoded.replace(/-/g, '+').replace(/_/g, '/')), char => char.charCodeAt(0))); } catch { /* Keep legacy filenames readable. */ }
-  }
-  return name.replace(/^[a-f0-9-]{36}-/i, '');
+export type MediaLibraryChange = { deletedIds: string[]; uploaded: LibraryMedia[]; refresh: boolean };
+let libraryRevision = 0;
+export function mediaChanged(deletedIds: string[] = [], uploaded: LibraryMedia[] = [], refresh = true) {
+  if (refresh) libraryRevision++;
+  window.dispatchEvent(new CustomEvent<MediaLibraryChange>('media-library-changed', { detail: { deletedIds, uploaded, refresh } }));
 }
-function cloudKind(item: CloudObject): MediaKind | null {
-  const mime = String(item.metadata?.mimetype || '');
-  if (mime.startsWith('image/') || /\.(jpg|jpeg|png|webp)$/i.test(item.name)) return 'image';
-  if (mime.startsWith('video/') || /\.(mp4|mov|webm)$/i.test(item.name)) return 'video';
-  return null;
-}
-async function cloudObjects(user: User) {
-  if (!supabase) return [];
-  const objects: CloudObject[] = [];
-  for (let offset = 0; ; offset += 100) {
-    const { data, error } = await supabase.storage.from(bucket).list(cloudMediaFolder(user.id), { limit: 100, offset, sortBy: { column: 'created_at', order: 'desc' } });
-    if (error) throw error;
-    objects.push(...data as CloudObject[]);
-    if (data.length < 100) return objects.filter(item => item.id && cloudKind(item));
-  }
-}
-function cloudId(object: CloudObject) { return object.name.match(/^[a-f0-9]{64}(?=--)/)?.[0] || `cloud:${object.name}`; }
 
-export async function loadMediaLibrary(user: User | null, onLocal?: (items: LibraryMedia[]) => void) {
-  const localRequest = api<LibraryMedia[]>('/api/media-library').then(items => { onLocal?.(items); return items; });
-  const [local, remote] = await Promise.allSettled([localRequest, user ? cloudObjects(user) : Promise.resolve([])]);
-  if (local.status === 'rejected' && remote.status === 'rejected') throw new Error('素材库暂时无法读取，请稍后重试。');
-  const items = new Map<string, LibraryMedia>((local.status === 'fulfilled' ? local.value : []).map(item => [item.id, item]));
-  let warning = local.status === 'rejected' ? '当前设备的素材暂时无法读取。' : remote.status === 'rejected' ? '云端暂时无法连接，当前设备素材仍可使用。' : '';
-  if (remote.status === 'fulfilled' && user && supabase) {
-    const folder = cloudMediaFolder(user.id);
-    for (let offset = 0; offset < remote.value.length; offset += 100) {
-      const entries = remote.value.slice(offset, offset + 100);
-      const { data, error } = await supabase.storage.from(bucket).createSignedUrls(entries.map(item => `${folder}/${item.name}`), 3600);
-      if (error) { warning = '部分云端素材暂时无法预览。'; continue; }
-      entries.forEach((entry, index) => {
-        const id = cloudId(entry), existing = items.get(id), cloudPath = `${folder}/${entry.name}`;
-        if (existing) { items.set(id, { ...existing, cloudPath }); return; }
-        const url = data?.[index]?.signedUrl;
-        if (!url) return;
-        const kind = cloudKind(entry)!;
-        const metadata = entry.user_metadata || entry.metadata;
-        const createdAt = typeof metadata?.sourceCreatedAt === 'string' && Number.isFinite(Date.parse(metadata.sourceCreatedAt)) ? metadata.sourceCreatedAt : entry.created_at || '';
-        const associations = Array.isArray(metadata?.associations) ? metadata.associations.filter((value): value is LibraryMediaAssociation =>
-          value && typeof value === 'object' && ['projectId', 'projectTitle', 'creativeId', 'creativeTitle'].every(key => typeof value[key] === 'string')) : undefined;
-        items.set(id, { id, kind, name: cloudTitle(entry.name), mime: String(entry.metadata?.mimetype || (kind === 'image' ? 'image/jpeg' : 'video/mp4')),
-          size: Number(entry.metadata?.size || 0), createdAt, url, cloudPath, associations });
-      });
-    }
-  }
-  return { items: [...items.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt)), warning };
+function libraryParams(options: LibraryQuery) {
+  const params = new URLSearchParams();
+  if (options.kind) params.set('kind', options.kind);
+  if (options.query) params.set('query', options.query);
+  if (options.sort) params.set('sort', options.sort);
+  if (options.cursor) params.set('cursor', options.cursor);
+  return params;
+}
+
+const pageRequests = new Map<string, Promise<LibraryPage>>();
+export function loadMediaLibrary(userId: string | undefined, options: LibraryQuery) {
+  const params = libraryParams(options);
+  const key = JSON.stringify([userId, libraryRevision, params.toString()]);
+  const pending = pageRequests.get(key);
+  if (pending) return pending;
+  const request = api<LibraryPage>(`/api/media-library/items?${params}`, { signal: AbortSignal.timeout(12000) })
+    .finally(() => { if (pageRequests.get(key) === request) pageRequests.delete(key); });
+  pageRequests.set(key, request);
+  return request;
+}
+export type LibrarySelectionItem = Pick<LibraryMedia, 'id' | 'name'>;
+export function loadMediaSelection(options: LibraryQuery) {
+  return api<{ items: LibrarySelectionItem[]; total: number }>(`/api/media-library/selection?${libraryParams(options)}`,
+    { signal: AbortSignal.timeout(12000) });
+}
+
+export function loadMediaStatus(ids: string[], signal: AbortSignal) {
+  return api<{ indexing: boolean; status: Record<string, MediaBackup | null> }>(
+    `/api/media-library/status?ids=${ids.join(',')}`, { signal });
 }
 
 const syncJobs = new Map<string, Promise<void>>();
 export function syncMediaLibrary(user: User | null): Promise<void> {
   if (!publicAuthRequired || !supabase || !user) return Promise.resolve();
-  const previous = syncJobs.get(user.id) || Promise.resolve();
-  const job = previous.catch(() => {}).then(async () => {
+  const previous = syncJobs.get(user.id);
+  if (previous) return previous;
+  const job = (async () => {
     type SyncStatus = { jobId: string; status: 'running' | 'done' | 'error'; error?: string };
-    let result = await api<SyncStatus>('/api/media-library/sync', { method: 'POST' });
+    let result = await api<SyncStatus>('/api/media-library/sync', { method: 'POST', signal: AbortSignal.timeout(12000) });
     while (result.status === 'running') {
       await new Promise(resolve => setTimeout(resolve, 2000));
       const { data: session } = await supabase!.auth.getSession();
       if (session.session?.user.id !== user.id) return;
-      result = await api<SyncStatus>(`/api/media-library/sync/${result.jobId}`);
+      result = await api<SyncStatus>(`/api/media-library/sync/${result.jobId}`, { signal: AbortSignal.timeout(12000) });
     }
     if (result.status === 'error') throw new Error(result.error || '云端同步未完成，请稍后重试。');
-    mediaChanged();
-  });
+  })();
   syncJobs.set(user.id, job);
   void job.finally(() => { if (syncJobs.get(user.id) === job) syncJobs.delete(user.id); }).catch(() => {});
   return job;
@@ -84,17 +64,21 @@ export function syncMediaLibrary(user: User | null): Promise<void> {
 
 export async function uploadLibraryFiles(files: File[]) {
   const uploaded: LibraryMedia[] = [];
-  for (const file of files) {
-    const kind = file.type.startsWith('video/') || /\.(mp4|mov|webm)$/i.test(file.name) ? 'video' : 'image';
-    const form = new FormData(); form.append('file', file);
-    uploaded.push(await api<LibraryMedia>(`/api/media-library/uploads/${kind}`, { method: 'POST', body: form }));
-    mediaChanged();
+  try {
+    for (const file of files) {
+      const kind = file.type.startsWith('video/') || /\.(mp4|mov|webm)$/i.test(file.name) ? 'video' : 'image';
+      const form = new FormData(); form.append('file', file);
+      const item = await api<LibraryMedia>(`/api/media-library/uploads/${kind}`, { method: 'POST', body: form });
+      uploaded.push(item);
+      mediaChanged([], [item], false);
+    }
+    return uploaded;
+  } finally {
+    if (uploaded.length) mediaChanged();
   }
-  mediaChanged();
-  return uploaded;
 }
 
-export async function deleteLibraryMedia(items: LibraryMedia[]) {
+export async function deleteLibraryMedia(items: LibrarySelectionItem[]) {
   const ids = [...new Set(items.map(item => item.id))];
   if (!ids.length) return;
   const result = await api<{ deletedIds: string[] }>('/api/media-library', { method: 'DELETE', body: JSON.stringify({ ids }) });

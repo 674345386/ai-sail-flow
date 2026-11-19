@@ -74,12 +74,15 @@ const { discoverExperimentMethods, readExperimentMethod, methodSearchInput, meth
 const { canvasComponentInput } = await import('../shared/agent-canvas-ui');
 const { launchRemix, RemixError } = await import('./remix');
 const { startWorkflow, setWorkflowMode } = await import('./workflow');
-const { inspectMedia, prepareShotMedia, extractReferenceSheets, referenceSheetColumns, maxReferenceFrames, measureReferenceAudio } = await import('./media');
+const { inspectMedia, ensureMediaThumbnail, prepareShotMedia, extractReferenceSheets, referenceSheetColumns, maxReferenceFrames, measureReferenceAudio } = await import('./media');
 const { generateTierFrame, undoNewFrame, withNewFrame } = await import('./tier-frames');
-const { collectUploadedAsset, listLibraryMedia, getLibraryMedia, libraryMime, initializeMediaLibrary } = await import('./media-library');
-const { startMediaSync, queueMediaSync, mediaSyncStatus, deleteMediaLibraryItems } = await import('./media-library-sync');
+const { collectUploadedAsset, listLibraryMedia, libraryPage, librarySelection, localLibraryItem, getLibraryMedia, libraryMime, initializeMediaLibrary } = await import('./media-library');
+const { startMediaSync, queueMediaSync, resumeMediaBackups, mediaSyncStatus, mediaBackupState, cloudCatalogStatus, ensureCloudCatalog, cloudMediaUrl, deleteMediaLibraryItems } = await import('./media-library-sync');
 if (accountWorkspacesEnabled) {
   for (const id of workspaceAccounts()) await withWorkspaceAccount(id, initializeMediaLibrary);
+  if (process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    for (const id of workspaceAccounts()) setImmediate(() => withWorkspaceAccount(id, () => resumeMediaBackups('')));
+  }
 } else await initializeMediaLibrary();
 const { configureKeyframeStorage, keyframeStorageStatus } = await import('./keyframe-storage');
 const port = Number(process.env.SOP_PORT || 4317);
@@ -574,11 +577,13 @@ app.post('/api/auth/session', async (req, res) => {
   if (!publicAuthEnabled) return res.sendStatus(204);
   const token = bearerToken(req);
   try {
-    if (!(await verifiedSessions.isAllowed(token))) return res.status(401).json({ error: '登录状态无效，请重新登录。' });
+    const accountId = await verifiedSessions.isAllowed(token);
+    if (!accountId) return res.status(401).json({ error: '登录状态无效，请重新登录。' });
     const payload = JSON.parse(Buffer.from(token.split('.')[1] || '', 'base64url').toString('utf8'));
     const maxAge = Number.isFinite(payload.exp) ? Math.min(3600, payload.exp - Math.floor(Date.now() / 1000)) : 0;
     if (maxAge <= 0) return res.status(401).json({ error: '登录已过期，请重新登录。' });
     res.setHeader('Set-Cookie', sessionCookieHeader(token, maxAge));
+    setImmediate(() => withWorkspaceAccount(accountId, () => resumeMediaBackups(token)));
     return res.sendStatus(204);
   } catch { return res.status(503).json({ error: '登录服务暂时不可用，请稍后重试。' }); }
 });
@@ -834,6 +839,22 @@ app.post('/api/settings/keyframe-storage', (req, res) => {
 });
 app.get('/api/workspace', (_req, res) => res.json(defaultWorkspace));
 app.get('/api/media-library', (_req, res) => res.json(listLibraryMedia()));
+const libraryFilter = z.object({ kind: z.enum(['image', 'video']).optional(), query: z.string().max(240).optional() });
+const libraryPageQuery = libraryFilter.extend({ sort: z.enum(['recent', 'oldest', 'name']).optional(), cursor: z.string().max(3200).optional() });
+app.get('/api/media-library/items', (req, res) => {
+  const { kind, query, sort, cursor } = libraryPageQuery.parse(req.query);
+  const { indexing, warning } = publicAuthEnabled ? ensureCloudCatalog(bearerToken(req)) : { indexing: false, warning: undefined };
+  res.set('Cache-Control', 'private, no-store').json(libraryPage({ kind, query, sort, cursor }, mediaBackupState, indexing, warning));
+});
+app.get('/api/media-library/selection', (req, res) => {
+  res.set('Cache-Control', 'private, no-store').json(librarySelection(libraryFilter.parse(req.query)));
+});
+app.get('/api/media-library/status', (req, res) => {
+  const { ids } = z.object({ ids: z.string().max(3300).optional() }).parse(req.query);
+  const requested = (ids || '').split(',').filter(id => /^[a-f0-9]{64}$/.test(id)).slice(0, 50);
+  const status = Object.fromEntries(requested.map(id => [id, mediaBackupState(id) || null]));
+  res.set('Cache-Control', 'private, no-store').json({ ...cloudCatalogStatus(), status });
+});
 app.delete('/api/media-library', async (req, res, next) => {
   try {
     const { ids } = z.object({ ids: z.array(z.string().max(1024).regex(/^(?:[a-f0-9]{64}|cloud:[^/\\]+)$/)).min(1).max(1000) }).parse(req.body);
@@ -843,7 +864,7 @@ app.delete('/api/media-library', async (req, res, next) => {
   }
 });
 app.post('/api/media-library/sync', async (req, res, next) => {
-  try { res.status(202).json(await startMediaSync(bearerToken(req))); }
+  try { res.status(202).json(startMediaSync(bearerToken(req))); }
   catch (error) { next(new HttpError(503, error instanceof Error ? error.message : '云端同步暂不可用。')); }
 });
 app.get('/api/media-library/sync/:jobId', (req, res) => {
@@ -1177,10 +1198,10 @@ app.post('/api/projects/:id/remix-character', (req, res, next) => {
     });
   } catch (err) { next(err); }
 });
-async function uploadedAsset(file: Express.Multer.File, kind: Asset['kind']): Promise<Asset> {
+async function uploadedAsset(file: Express.Multer.File, kind: Asset['kind'], includeThumbnail = true): Promise<Asset> {
   if (kind === 'product' && file.size > 10 * 1024 * 1024) throw new HttpError(400, '单张产品图不能超过 10 MB。');
   if (kind === 'audio' && file.size > 50 * 1024 * 1024) throw new HttpError(400, '单个音频文件不能超过 50 MB。');
-  const metadata = await inspectMedia(file.filename, kind);
+  const metadata = await inspectMedia(file.filename, kind, includeThumbnail);
   return { id: randomUUID(), kind, name: Buffer.from(file.originalname, 'latin1').toString('utf8'), filename: file.filename, url: `/media/${file.filename}`, size: file.size, ...metadata };
 }
 function attachAsset(current: Project, asset: Asset) {
@@ -1212,9 +1233,11 @@ app.post('/api/media-library/uploads/:kind', (req, res, next) => {
       // Library IDs are hashes of the stored bytes. Keep the original immutable so
       // preview, project references and background cloud sync all see the same file.
       // In particular, do not hold the upload response open for video transcoding.
-      const asset = await uploadedAsset(req.file, req.params.kind === 'video' ? 'video' : 'product');
-      res.status(201).json(await collectUploadedAsset(asset));
-      queueMediaSync(bearerToken(req));
+      const asset = await uploadedAsset(req.file, req.params.kind === 'video' ? 'video' : 'product', false);
+      const item = await collectUploadedAsset(asset);
+      queueMediaSync(bearerToken(req), item.id);
+      void ensureMediaThumbnail(item.filename!, item.duration);
+      res.status(201).json({ ...item, thumbnail: `/media/library/${item.id}/thumbnail`, backup: mediaBackupState(item.id) });
     } catch (err) {
       if (req.file) { fs.unlink(req.file.path, () => {}); fs.unlink(`${req.file.path}.jpg`, () => {}); }
       next(err);
@@ -1247,10 +1270,13 @@ app.post('/api/projects/:id/assets/:kind', (req, res, next) => {
         const kind = String(req.params.kind) as Asset['kind'];
         if (kind === 'product' && req.file.size > 10 * 1024 * 1024) throw new HttpError(400, '单张产品图不能超过 10 MB。');
         const asset = await uploadedAsset(req.file, kind);
-        if (kind !== 'audio') await collectUploadedAsset(asset);
+        const item = kind !== 'audio' ? await collectUploadedAsset(asset) : undefined;
         const current = getProject(p.id)!;
         res.status(201).json(attachAsset(current, asset));
-        if (kind !== 'audio') queueMediaSync(bearerToken(req));
+        if (item) {
+          queueMediaSync(bearerToken(req), item.id);
+          void ensureMediaThumbnail(item.filename!, item.duration);
+        }
       } catch (err) {
         if (req.file) {
           fs.unlink(req.file.path, () => {});
@@ -1353,6 +1379,21 @@ app.get('/api/projects/:id/export', async (req, res) => {
   res.type('application/zip').send(buffer);
 });
 if (FEATURE_STUDIO) registerRadarSpaceMedia(app);
+app.get('/media/library/:id/:variant', async (req, res, next) => {
+  const { id, variant } = req.params;
+  if (!/^(?:[a-f0-9]{64}|cloud:[^/\\]+)$/.test(id) || variant !== 'thumbnail' && variant !== 'original') return res.sendStatus(404);
+  const local = localLibraryItem(id);
+  try {
+    if (local && variant === 'thumbnail') {
+      const thumbnail = await ensureMediaThumbnail(local.filename!, local.duration);
+      if (thumbnail) return res.type('jpg').sendFile(thumbnail, { cacheControl: false });
+    }
+    if (local && variant === 'original') return res.redirect(local.url);
+    const url = publicAuthEnabled ? await cloudMediaUrl(id, variant === 'thumbnail', cookieToken(req)) : undefined;
+    if (url) return res.redirect(url);
+    res.sendStatus(404);
+  } catch (error) { next(error); }
+});
 app.get('/media/:filename', (req, res, next) => {
   if (!publicAuthEnabled) return next();
   const file = visibleSkillMedia(req.params.filename, workspaceAccountId()!);

@@ -28,7 +28,7 @@ import type { SkillSelection } from '../shared/skill-assets';
 import GenerationTasks from './GenerationTasks';
 import { ListChecks, MessageCirclePlus } from 'lucide-react';
 import type { LibraryMedia } from '../shared/media-library';
-import { libraryFile, mediaChanged, syncMediaLibrary } from './mediaLibrary';
+import { libraryFile, mediaChanged } from './mediaLibrary';
 import PipelineCanvas from './PipelineCanvas';
 import ShotBreakdown from './ShotBreakdown';
 import ShotRewriteBoard, { RewriteProductInputs } from './ShotRewriteBoard';
@@ -698,7 +698,6 @@ export default function App() {
         adopt(await api<Project>(`/api/projects/${p.id}/assets/${kind}`, { method: 'POST', body: form }));
       }
       await refreshList(); mediaChanged(); setNotice('素材已收录到所有媒体');
-      void syncMediaLibrary(auth.user).catch(error => setNotice(error instanceof Error ? error.message : '素材已收录，云端同步暂未完成。'));
     });
   };
   const openAssetLibrary = (target: 'all' | 'image' | 'video', item: LibraryMedia | null = null) => {
@@ -738,7 +737,6 @@ export default function App() {
       }
       adopt(updated); setShowMediaLibrary(false); setShowGenerationTasks(false); mediaChanged();
       await refreshList(); setNotice('素材已添加到当前创意');
-      void syncMediaLibrary(auth.user).catch(error => setNotice(error instanceof Error ? error.message : '素材已引用，云端同步暂未完成。'));
     } finally { setBusy(''); }
   };
   const removeAsset = (id: string) => perform('正在移除素材', async () => { const p = await flush(); if (p) adopt(await api<Project>(`/api/projects/${p.id}/assets/${id}`, { method: 'DELETE' })); });
