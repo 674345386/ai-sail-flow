@@ -1,0 +1,115 @@
+{
+  "enabled": true,
+  "type": "ambient",
+  "ambient": {
+    "preset": "mono",
+    "base": "#070707",
+    "colors": [
+      "#4a4a4c",
+      "#2e2e30",
+      "#5a5a5c",
+      "#383839",
+      "#444446",
+      "#525254",
+      "#3a3a3c",
+      "#4e4e50"
+    ],
+    "count": 6,
+    "blur": 63,
+    "size": 30,
+    "speed": 3.45,
+    "amp": 1.95,
+    "breathe": 0.45,
+    "opacity": 1,
+    "bright": 1,
+    "sat": 1.15,
+    "blend": "normal",
+    "vig": 0.9,
+    "grain": 0.07,
+    "paused": false
+  },
+  "light": {
+    "version": 2,
+    "preset": "pearl",
+    "base": "#ffffff",
+    "colors": [
+      "#bdd2f3",
+      "#e6cee9",
+      "#c7e6e1",
+      "#f2dfcb",
+      "#d5d9ef",
+      "#dce9d0",
+      "#cbdff3",
+      "#efdae3"
+    ],
+    "count": 5,
+    "size": 48,
+    "blur": 80,
+    "opacity": 0.8,
+    "sat": 1,
+    "blend": "multiply",
+    "speed": 1,
+    "drift": 1,
+    "breathe": 0.12,
+    "paused": false
+  },
+  "atmosphere": {
+    "version": 1,
+    "preset": "corona",
+    "composition": "halo",
+    "base": "#090810",
+    "primary": "#10075c",
+    "secondary": "#5932e6",
+    "accent": "#ba5029",
+    "focusX": 50,
+    "focusY": 24,
+    "spread": 1,
+    "angle": 0,
+    "softness": 20,
+    "intensity": 1,
+    "grain": 0.055,
+    "dots": 0.06,
+    "speed": 0.5,
+    "drift": 0.35,
+    "paused": false,
+    "hero": "gradient"
+  },
+  "announcements": {
+    "promo": {
+      "background": "#800020",
+      "height": 46,
+      "copy": {
+        "en": {
+          "title": "",
+          "message": "Limited-time offer: 20% off subscriptions, through November 30",
+          "action": "Try it now",
+          "details": "See features"
+        },
+        "zh-CN": {
+          "title": "",
+          "message": "限时优惠：订阅享 8 折，活动截至 11 月 30 日",
+          "action": "立即体验",
+          "details": "了解功能"
+        }
+      }
+    },
+    "omni": {
+      "background": "#d8fa69",
+      "height": 48,
+      "copy": {
+        "en": {
+          "title": "Introducing Omni 1.2!",
+          "message": "Our latest video model, now in AI Creative Lab. Better quality. More control. Longer clips.",
+          "action": "Try it now",
+          "details": ""
+        },
+        "zh-CN": {
+          "title": "Omni 1.2 全新登场！",
+          "message": "最新视频模型现已加入 AI Creative Lab，画质更清晰、参考控制更精准、视频更长。",
+          "action": "立即体验",
+          "details": ""
+        }
+      }
+    }
+  }
+}

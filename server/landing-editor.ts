@@ -5,6 +5,7 @@ import type { Express, Request, Response } from 'express';
 import multer from 'multer';
 import { fileTypeFromFile } from 'file-type';
 import { emptyLandingDocument, landingDocumentSchema, landingSaveSchema } from '../shared/landing-editor';
+import { playgroundSaveSchema } from '../shared/landing-playground';
 
 export function createLandingPageStore(dataDirectory: string) {
   const directory = path.join(dataDirectory, 'landing-editor');
@@ -31,6 +32,23 @@ export function createLandingPageStore(dataDirectory: string) {
 }
 type LandingPageStore = ReturnType<typeof createLandingPageStore>;
 type CanEdit = (req: Request, res: Response) => boolean;
+
+export function registerLandingPlaygroundRoutes(app: Express, defaultsPath: string, canSave: CanEdit) {
+  app.get('/api/landing-playground/access', (req, res) => res.json({ canSave: canSave(req, res) }));
+  app.put('/api/landing-playground/defaults', (req, res) => {
+    if (!canSave(req, res)) return res.sendStatus(403);
+    const input = playgroundSaveSchema.safeParse(req.body);
+    if (!input.success) return res.status(400).json({ error: 'Playground 配置无效，请检查后重试。' });
+    const temporary = `${defaultsPath}.${randomUUID()}.tmp`;
+    try {
+      fs.writeFileSync(temporary, `${JSON.stringify(input.data, null, 2)}\n`, { flag: 'wx' });
+      fs.renameSync(temporary, defaultsPath);
+      return res.sendStatus(204);
+    } finally {
+      if (fs.existsSync(temporary)) fs.unlinkSync(temporary);
+    }
+  });
+}
 
 export function registerLandingPageReadRoutes(app: Express, store: LandingPageStore) {
   app.get('/api/landing-page', (_req, res) => res.json(store.read()));

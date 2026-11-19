@@ -49,8 +49,12 @@ list remain available even if the page itself is hidden or moved.
   mode, writes additionally require a verified account listed in the comma
   separated `SOP_LANDING_EDITOR_USER_IDS`. Public page reads do not require login.
 - Local recovery key: `sail-landing-page-draft-v1`. The server is the authority
-  for saved public changes. Local background/announcement settings remain their
-  existing features; editor overrides can adjust the rendered elements.
+  for saved public page edits. Playground settings are separate. Visitors'
+  changes apply immediately and are saved in their browser.
+- In the loopback workspace, Playground's “保存” writes the current background
+  and announcement settings to `shared/landing-playground-defaults.json`. Include
+  this file in the next release build. Browser settings take precedence over the
+  bundled defaults. Public visitors never need to use the save action.
 
 ## Implementation boundaries
 

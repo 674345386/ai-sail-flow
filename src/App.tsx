@@ -44,7 +44,6 @@ import AnimatedBrandMark from './AnimatedBrandMark';
 import ShaderBackdrop from './ShaderBackdrop';
 import LandingHero from './LandingHero';
 import LandingPromptHero from './LandingPromptHero';
-import LandingLightPath from './LandingLightPath';
 import LandingPlayground from './LandingPlayground';
 import LandingPageEditor from './LandingPageEditor';
 import LandingAnnouncement from './LandingAnnouncement';
@@ -1110,7 +1109,6 @@ export default function App() {
     <LandingSections onEnter={() => enterWorkspace()} />
     <LandingToc />
     <footer className="gf-footer"><nav><a href="#create">{L.footer.top}</a><button onClick={() => enterWorkspace()}>{L.footer.enter}</button></nav></footer>
-    <LandingLightPath />
     <LandingPlayground />
     <LandingPageEditor accountKey={auth.user?.id || ''} />
     {profileDialog}

@@ -1,4 +1,5 @@
 import { normalizeAtmosphereBackground, type AtmosphereBackgroundConfig } from './atmosphere-background';
+import { playgroundDefaults } from './landing-playground-defaults';
 
 export const LANDING_BACKGROUND_KEY = 'sail-landing-bg-v1';
 export type BackgroundType = 'ambient' | 'light' | 'atmosphere';
@@ -60,15 +61,17 @@ function readSaved(storageKey: string, kind: 'type' | 'light' | 'atmosphere'): u
 
 export function loadBackgroundType(storageKey: string): BackgroundType {
   const type = readSaved(storageKey, 'type');
-  return type === 'light' || type === 'atmosphere' ? type : 'ambient';
+  if (type === 'ambient' || type === 'light' || type === 'atmosphere') return type;
+  return (storageKey === LANDING_BACKGROUND_KEY && playgroundDefaults.type) || 'ambient';
 }
 
 export function loadAtmosphereBackground(storageKey: string): AtmosphereBackgroundConfig {
-  return normalizeAtmosphereBackground(readSaved(storageKey, 'atmosphere'));
+  const saved = readSaved(storageKey, 'atmosphere');
+  return normalizeAtmosphereBackground(saved ?? (storageKey === LANDING_BACKGROUND_KEY ? playgroundDefaults.atmosphere : undefined));
 }
 
 export function loadLightBackground(storageKey: string): LightBackgroundConfig {
-  const saved = readSaved(storageKey, 'light');
+  const saved = readSaved(storageKey, 'light') ?? (storageKey === LANDING_BACKGROUND_KEY ? playgroundDefaults.light : undefined);
   const config = { ...DEFAULT_LIGHT_BACKGROUND, colors: [...DEFAULT_LIGHT_BACKGROUND.colors] };
   if (!saved || typeof saved !== 'object' || Array.isArray(saved)) return config;
   const raw = saved as Record<string, unknown>;

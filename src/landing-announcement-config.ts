@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react';
 import type { Lang } from './i18n';
 import { LANDING } from './landing-i18n';
+import { playgroundDefaults } from './landing-playground-defaults';
 
 export type AnnouncementId = 'promo' | 'omni';
 type AnnouncementCopy = { title: string; message: string; action: string; details: string };
@@ -18,7 +19,7 @@ const defaultCopy = (id: AnnouncementId, lang: Lang): AnnouncementCopy => id ===
   ? { title: '', ...LANDING[lang].announcement }
   : { details: '', ...LANDING[lang].omniAnnouncement };
 
-export const DEFAULT_ANNOUNCEMENTS: AnnouncementConfig = {
+export const DEFAULT_ANNOUNCEMENTS: AnnouncementConfig = playgroundDefaults.announcements ?? {
   promo: { background: '#800020', height: 46, copy: { en: defaultCopy('promo', 'en'), 'zh-CN': defaultCopy('promo', 'zh-CN') } },
   omni: { background: '#d8fa69', height: 48, copy: { en: defaultCopy('omni', 'en'), 'zh-CN': defaultCopy('omni', 'zh-CN') } },
 };
@@ -45,7 +46,7 @@ function loadConfig(): AnnouncementConfig {
 }
 
 let snapshot: AnnouncementConfig | undefined;
-const getSnapshot = () => snapshot ??= loadConfig();
+export const getAnnouncementConfig = () => snapshot ??= loadConfig();
 function subscribe(onChange: () => void) {
   const onStorage = (event: StorageEvent) => {
     if (event.key !== STORAGE_KEY && event.key !== null) return;
@@ -61,11 +62,11 @@ function subscribe(onChange: () => void) {
 }
 
 export function useAnnouncementConfig() {
-  return useSyncExternalStore(subscribe, getSnapshot, () => DEFAULT_ANNOUNCEMENTS);
+  return useSyncExternalStore(subscribe, getAnnouncementConfig, () => DEFAULT_ANNOUNCEMENTS);
 }
 
 export function updateAnnouncement(id: AnnouncementId, patch: Partial<AnnouncementBarConfig>) {
-  const current = getSnapshot();
+  const current = getAnnouncementConfig();
   snapshot = { ...current, [id]: { ...current[id], ...patch } };
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot)); } catch { /* Keep live editing available without storage. */ }
   window.dispatchEvent(new Event(CHANGE_EVENT));

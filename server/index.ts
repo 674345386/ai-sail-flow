@@ -33,7 +33,7 @@ import { assertExperimentRouteExecution, ExperimentPlanningError } from '../shar
 import { prepareExperimentProposal } from './experiment-planner';
 import { importExperimentSkillInput, bindExperimentInput, readGitHubSkill, attachExperimentSkill, bindExperimentSource, experimentSources, syncExperimentSources } from './experiment-workbench';
 import { skillSelectionSchema } from '../shared/skill-assets';
-import { createLandingPageStore, registerLandingPageReadRoutes, registerLandingPageWriteRoutes } from './landing-editor';
+import { createLandingPageStore, registerLandingPageReadRoutes, registerLandingPageWriteRoutes, registerLandingPlaygroundRoutes } from './landing-editor';
 import { currentWeatherInput, getCurrentWeather } from './current-weather';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -141,6 +141,8 @@ app.use((req, res, next) => {
 app.use(express.json({ limit: '3mb' }));
 const landingPageStore = createLandingPageStore(path.resolve(process.env.SOP_DATA_DIR || path.join(root, 'data')));
 registerLandingPageReadRoutes(app, landingPageStore);
+registerLandingPlaygroundRoutes(app, path.join(root, 'shared/landing-playground-defaults.json'),
+  req => !publicAuthEnabled && loopbackAddress(req.socket.remoteAddress));
 function intelligentDataRoute(handler: (request: globalThis.Request) => Promise<globalThis.Response>) {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
