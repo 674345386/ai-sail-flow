@@ -286,17 +286,19 @@ class AppServerClient {
   markThreadLoaded(threadId: string) { this.loadedThreadId = threadId; }
 }
 
+const threadStartupTimeoutMs = 100_000;
+
 function configFor(id: string) {
   return { mcp_servers: { sail_creation: {
     command: process.execPath,
-    args: [path.join(process.cwd(), 'node_modules/tsx/dist/cli.mjs'), path.join(process.cwd(), 'server/creative-agent-mcp.ts')],
+    args: ['--import', import.meta.resolve('tsx'), path.join(process.cwd(), 'server/creative-agent-mcp.ts')],
     env: { SOP_AGENT_PROJECT_ID: id, SOP_AGENT_INTERNAL_TOKEN: agentCapabilities.issue(id), SOP_AGENT_INTERNAL_URL: `http://127.0.0.1:${process.env.SOP_PORT || '4317'}` },
     tools: {
       get_creative: { approval_mode: 'approve' },
       get_current_weather: { approval_mode: 'approve' },
       generate_image: { approval_mode: 'approve' },
     },
-    startup_timeout_sec: 15,
+    startup_timeout_sec: 45,
     tool_timeout_sec: 650,
     required: true,
   } } };
@@ -460,7 +462,7 @@ export async function startAgentTurn(id: string, prompt: string, imageIds?: stri
     const upgrade = !!state.threadId && state.instructionsVersion !== instructionsVersion;
     if (!state.threadId || upgrade) {
       reportAgentProgress(id, state, '正在创建会话…');
-      const started = await client.call('thread/start', { model: selected, cwd, sandbox: agentSandbox, approvalPolicy: 'never', serviceName: 'sail_creation', developerInstructions, config: configFor(id) }, 60000);
+      const started = await client.call('thread/start', { model: selected, cwd, sandbox: agentSandbox, approvalPolicy: 'never', serviceName: 'sail_creation', developerInstructions, config: configFor(id) }, threadStartupTimeoutMs);
       if (!started.thread?.id) throw new Error('无法创建 Codex 对话。');
       if (upgrade) state.previousThreadId = state.threadId;
       state.threadId = started.thread.id;
@@ -468,7 +470,7 @@ export async function startAgentTurn(id: string, prompt: string, imageIds?: stri
       client.markThreadLoaded(state.threadId!);
     } else if (!client.hasLoadedThread(state.threadId)) {
       reportAgentProgress(id, state, '正在恢复会话…');
-      await client.call('thread/resume', { threadId: state.threadId, excludeTurns: true, model: selected, cwd, sandbox: agentSandbox, approvalPolicy: 'never', developerInstructions, config: configFor(id) }, 60000);
+      await client.call('thread/resume', { threadId: state.threadId, excludeTurns: true, model: selected, cwd, sandbox: agentSandbox, approvalPolicy: 'never', developerInstructions, config: configFor(id) }, threadStartupTimeoutMs);
       client.markThreadLoaded(state.threadId);
     }
     state.model = selected;
