@@ -60,28 +60,37 @@ export function useAgentActivity(enabled: boolean, activeId: string | undefined,
 
   useEffect(() => {
     if (!enabled) return;
-    let cancelled = false;
     let inFlight = false;
+    let retryDelay = 0;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const controller = new AbortController();
     const refresh = async () => {
-      if (cancelled || inFlight || document.visibilityState !== 'visible') return;
+      if (controller.signal.aborted || inFlight || document.hidden) return;
       inFlight = true;
       const revision = liveRevision.current;
+      let delay = 15_000;
       try {
-        const next = await api<AgentActivities>('/api/agent/activity', { signal: controller.signal });
+        const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(10_000)]);
+        const next = await api<AgentActivities>('/api/agent/activity', { signal });
+        signal.throwIfAborted();
+        retryDelay = 0;
+        if (Object.entries(next).some(([id, activity]) => id !== activeIdRef.current && activity.status === 'running')) delay = 5_000;
         // A concurrent live conversation update is newer than this snapshot.
-        if (!cancelled && revision === liveRevision.current) setActivities({ key, entries: next });
-      } catch { /* Preserve the last known state until the connection recovers. */ }
-      finally {
+        const live = displayed.current;
+        const entries = revision !== liveRevision.current && live?.key === key ? { ...next, [live.id]: live.activity } : next;
+        setActivities({ key, entries });
+      } catch {
+        retryDelay = Math.min(retryDelay ? retryDelay * 2 : 15_000, 60_000);
+        delay = retryDelay;
+      } finally {
         inFlight = false;
-        if (!cancelled) { clearTimeout(timer); timer = setTimeout(() => void refresh(), 3000); }
+        if (!controller.signal.aborted && !document.hidden) timer = setTimeout(() => void refresh(), delay);
       }
     };
-    const onVisibility = () => { if (document.visibilityState === 'visible') void refresh(); };
+    const onVisibility = () => { clearTimeout(timer); if (!document.hidden) void refresh(); };
     void refresh();
     document.addEventListener('visibilitychange', onVisibility);
-    return () => { cancelled = true; controller.abort(); clearTimeout(timer); document.removeEventListener('visibilitychange', onVisibility); };
+    return () => { controller.abort(); clearTimeout(timer); document.removeEventListener('visibilitychange', onVisibility); };
   }, [enabled, key]);
 
   const unreadIds = new Set(Object.entries(activities)

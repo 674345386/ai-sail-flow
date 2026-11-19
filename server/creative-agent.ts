@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createInterface } from 'node:readline';
 import { dataDir, getProject, saveProject } from './store';
-import { createWorkspaceCapabilities, workspaceDirectory, workspaceUploadPath } from './workspace-storage';
+import { createWorkspaceCapabilities, workspaceDirectory, workspacePath, workspaceResource, workspaceUploadPath } from './workspace-storage';
 import { agentAttachmentContext, agentAttachmentDescription, agentMessageAttachments, sentAgentAttachmentIds, type AgentMessage, type AgentMessageImage } from '../shared/agent-message';
 import { createAgentWork, finishAgentWork, recordAgentWork } from '../shared/agent-work';
 import { AGENT_MODELS } from '../shared/agent-models';
@@ -30,6 +30,7 @@ type AgentModelInfo = { model: string; displayName?: string; supportedReasoningE
 export class AgentTurnConflictError extends Error {}
 
 const states = new Map<string, AgentState>();
+const savedActivities = workspaceResource(() => new Map<string, Promise<AgentActivity>>());
 const clients = new Map<string, AppServerClient>();
 const startingTurns = new Set<string>();
 const drainingQueues = new Set<string>();
@@ -95,9 +96,30 @@ export function getAgentState(id: string): AgentState {
   }
   return state;
 }
-export function getAgentActivity(id: string): AgentActivity {
-  if (!states.has(id) && !fs.existsSync(filename(id))) return { status: 'idle' };
-  return summarizeAgentActivity(getAgentState(id));
+export async function getAgentActivity(id: string): Promise<AgentActivity> {
+  const liveState = states.get(id);
+  if (liveState) return summarizeAgentActivity(liveState);
+
+  // Sidebar polling can summarize saved activity without hydrating the conversation.
+  const cache = savedActivities();
+  let snapshot = cache.get(id);
+  if (!snapshot) {
+    snapshot = fs.promises.readFile(workspacePath('agent-sessions', `${id}.json`), 'utf8').then((text): AgentActivity => {
+      const saved = JSON.parse(text) as AgentState;
+      if (saved.status === 'running') {
+        saved.status = 'failed';
+        finishAgentWork(saved.messages, 'interrupted');
+      }
+      return summarizeAgentActivity(saved);
+    }).catch((error): AgentActivity => {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') cache.delete(id);
+      return { status: 'idle' };
+    });
+    cache.set(id, snapshot);
+  }
+  const saved = await snapshot;
+  const current = states.get(id);
+  return current ? summarizeAgentActivity(current) : saved;
 }
 export function setAgentExperiment(id: string, graph: ExperimentGraph) {
   const state = getAgentState(id); state.experiment = graph; save(id); return graph;

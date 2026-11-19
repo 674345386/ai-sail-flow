@@ -289,11 +289,21 @@ export default function IntelligentUIAgentWorkspace({ theme, project, videoRemix
   }, [messages, agent.activity, sending]);
   const hasRunningMedia = Boolean(project.agentImages?.some(image => image.status === 'running') || project.generatedVideos.some(video => video.status === 'running' || video.minimax?.recoveryPending && minimaxVideoRecoverable(video)));
   useEffect(() => {
-    let cancelled = false;
-    const refresh = () => void api<Project>(`/api/projects/${project.id}`).then(fresh => { if (!cancelled) onProjectUpdateRef.current(fresh); }).catch(() => {});
-    refresh();
-    const timer = agent.status === 'running' || hasRunningMedia ? setInterval(refresh, 3000) : undefined;
-    return () => { cancelled = true; clearInterval(timer); };
+    const controller = new AbortController();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const refresh = async () => {
+      try {
+        const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(10_000)]);
+        const fresh = await api<Project>(`/api/projects/${project.id}`, { signal });
+        signal.throwIfAborted();
+        if (!controller.signal.aborted) onProjectUpdateRef.current(fresh);
+      } catch { /* The next refresh can recover after a transient failure. */ }
+      finally {
+        if (!controller.signal.aborted && (agent.status === 'running' || hasRunningMedia)) timer = setTimeout(() => void refresh(), 3000);
+      }
+    };
+    void refresh();
+    return () => { controller.abort(); clearTimeout(timer); };
   }, [agent.status, project.id, hasRunningMedia]);
 
   const updateQueue = async (suffix: string, method: 'POST' | 'PATCH' | 'DELETE', body?: { prompt?: string; expectedTurnId?: string }) => {

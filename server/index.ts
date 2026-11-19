@@ -45,7 +45,7 @@ if (process.env.NODE_USE_ENV_PROXY === '1') {
   setProxy?.(process.env);
 }
 // Load storage after .env so an optional data-directory override takes effect.
-const { createProject, getProject, listProjects, saveProject, defaultProjectId, createWorkspaceProject, getWorkspaceProject, listWorkspaceProjects, saveWorkspaceProject } = await import('./store');
+const { createProject, getProject, listProjects, listProjectIds, saveProject, defaultProjectId, createWorkspaceProject, getWorkspaceProject, listWorkspaceProjects, saveWorkspaceProject } = await import('./store');
 const { workspaceUploadDir, workspaceUploadPath, workspaceAccountId, withWorkspaceAccount, isWorkspaceAccountId, workspaceAccounts, accountWorkspacesEnabled } = await import('./workspace-storage');
 const { workspaceUploader } = await import('./workspace-upload');
 const { configured, configureConnection, checkModelConnection, correctTierShot, detectTierSubjects, generateTierSubjectImage } = await import('./gemini');
@@ -609,9 +609,11 @@ app.use('/media', async (req, res, next) => {
     return withWorkspaceAccount(accountId, next);
   } catch { return res.status(503).json({ error: '登录服务暂时不可用，请稍后重试。' }); }
 });
-app.get('/api/agent/activity', (_req, res) => {
+app.get('/api/agent/activity', async (_req, res) => {
   if (!agentEnabled) return res.json({});
-  res.json(Object.fromEntries(listProjects().filter(project => !officialJobFor(project.id)).map(project => [project.id, getAgentActivity(project.id)])));
+  const ids = [...listProjectIds()].filter(id => !officialJobFor(id));
+  const entries = await Promise.all(ids.map(async id => [id, await getAgentActivity(id)] as const));
+  res.json(Object.fromEntries(entries));
 });
 app.use('/api/projects/:id', (req, res, next) => {
   if (!getProject(String(req.params.id))) return res.status(404).json({ error: '找不到这个创意。' });

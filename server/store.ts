@@ -117,6 +117,9 @@ export function saveProject(project: Project) {
 export function getProject(id: string) {
   return workspaceCreatives().records.get(id);
 }
+export function listProjectIds() {
+  return workspaceCreatives().records.keys();
+}
 export function listProjects() {
   return [...workspaceCreatives().records.values()].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).map(p => ({ id: p.id, parentProjectId: p.parentProjectId, title: p.title, createdAt: p.createdAt, updatedAt: p.updatedAt, isDemo: p.isDemo, archivedAt: p.archivedAt, stage: stageOf(p), inProgressCount: inProgressCount(p) }));
 }
