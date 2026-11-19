@@ -63,8 +63,9 @@ function ConversationText({ message, onOpenUI }: { message: AgentMessage; onOpen
   </>;
 }
 
-export default function IntelligentUIAgentWorkspace({ theme, project, videoRemixWorkflow, disabled, steerDisabled = disabled, onProjectUpdate, onBeforeSend, onActivity, liveAgent, connected, historyError, taskAssetsOpen: taskAssetsRequested, onOpenTaskAssets, onCloseTaskAssets, onTaskAssetCountChange, entryDraft, onEntryDraftConsumed }: {
+export default function IntelligentUIAgentWorkspace({ theme, workspaceBackgroundAvailable = false, project, videoRemixWorkflow, disabled, steerDisabled = disabled, onProjectUpdate, onBeforeSend, onActivity, liveAgent, connected, historyError, taskAssetsOpen: taskAssetsRequested, onOpenTaskAssets, onCloseTaskAssets, onTaskAssetCountChange, entryDraft, onEntryDraftConsumed }: {
   theme: AgentThemeController;
+  workspaceBackgroundAvailable?: boolean;
   project: Project; videoRemixWorkflow?: ReactNode; disabled: boolean; steerDisabled?: boolean;
   onProjectUpdate: (project: Project) => void; onBeforeSend: () => Promise<unknown>;
   onActivity?: (id: string, activity: AgentActivity) => void;
@@ -394,9 +395,13 @@ export default function IntelligentUIAgentWorkspace({ theme, project, videoRemix
     {item.value.url ? item.kind === 'image' ? <img src={item.value.url} alt={item.value.prompt} loading="lazy" /> : <video src={item.value.url} controls playsInline preload="metadata" /> : <p>{item.value.status === 'running' ? '媒体正在生成，正在查询原任务…' : item.kind === 'video' && minimaxVideoRecoverable(item.value) ? '本地查询已中断，上游状态待核对；可在任务详情中继续查询原任务。' : '媒体生成失败，请核对任务状态。'}</p>}
     <button type="button" onClick={() => { activate(`${item.kind}:${item.value.id}`); }}>查看创作产物</button>
   </figure>);
-  return <section className="intelligent-agent" data-workspace-background={theme.preferences.workspaceBackground ? 'on' : 'off'} aria-label="Open Intelligent UI 创作工作区">
+  const chatRegion = theme.regionProps('chat', workspaceBackgroundAvailable);
+  const composerRegion = theme.regionProps('composer', workspaceBackgroundAvailable);
+  const outputRegion = theme.regionProps('results', workspaceBackgroundAvailable);
+  return <section className="intelligent-agent" aria-label="Open Intelligent UI 创作工作区">
     <div className={`iua-workspace${split.resizing ? ' is-resizing' : ''}`} ref={split.workspace} style={split.style}>
-      <div className="iua-conversation intelligent-ui-surface" data-theme={theme.chatTheme} style={{ ...theme.backgroundStyle, ...theme.chatTextStyle }} ref={split.conversation} id="iua-conversation">
+      <div className="iua-conversation intelligent-ui-surface" {...chatRegion} data-composer-background={composerRegion['data-region-background']} ref={split.conversation} id="iua-conversation">
+        <div className="iua-chat-backdrop" aria-hidden="true" />
         <div className="iua-messages" ref={scroll} role="log" aria-label="与创作 Agent 的对话" aria-live="polite" onScroll={() => { const el = scroll.current; if (el) nearBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 100; }}>
           {!messages.length && <p className="iua-empty">{historyError || (historyLoaded ? '描述你的创作目标，或提出一个问题。' : '正在加载对话记录…')}</p>}
           {!!groupedMedia.get(UNASSIGNED_MEDIA)?.length && <div aria-label="更早的创作产物">
@@ -418,7 +423,7 @@ export default function IntelligentUIAgentWorkspace({ theme, project, videoRemix
         </div>
         <div className="iua-composer-area">
           <AgentQueuedMessages messages={queuedMessages} paused={!!agent.queuePaused} disabled={queueDisabled} canSteer={steering && !!agent.turnId} queueEnabled={queueEnabled} onResume={() => updateQueue('/resume', 'POST')} onRemove={id => updateQueue(`/${encodeURIComponent(id)}`, 'DELETE')} onSteer={id => updateQueue(`/${encodeURIComponent(id)}/steer`, 'POST', { expectedTurnId: agent.turnId })} onEdit={(id, text) => updateQueue(`/${encodeURIComponent(id)}`, 'PATCH', { prompt: text })} onAdd={text => updateQueue('', 'POST', { prompt: text })} onToggleQueue={toggleQueuing} />
-          <form className="iua-composer" data-custom-surface={theme.preferences.surfaces.composer.enabled ? 'on' : 'off'} style={theme.surfaceStyle('composer')} onSubmit={event => { event.preventDefault(); void submitDraft(); }} onDragOver={event => { if (event.dataTransfer.types.includes('Files')) { event.preventDefault(); event.dataTransfer.dropEffect = mediaDisabled ? 'none' : 'copy'; } }} onDrop={event => { if (event.dataTransfer.files.length) { event.preventDefault(); media.upload(Array.from(event.dataTransfer.files)); } }} onPaste={event => { const files = clipboardMediaFiles(event.clipboardData); if (files.length) { if (!event.clipboardData.getData('text/plain')) event.preventDefault(); media.upload(files); } }}>
+          <form className="iua-composer intelligent-ui-surface" {...composerRegion} onSubmit={event => { event.preventDefault(); void submitDraft(); }} onDragOver={event => { if (event.dataTransfer.types.includes('Files')) { event.preventDefault(); event.dataTransfer.dropEffect = mediaDisabled ? 'none' : 'copy'; } }} onDrop={event => { if (event.dataTransfer.files.length) { event.preventDefault(); media.upload(Array.from(event.dataTransfer.files)); } }} onPaste={event => { const files = clipboardMediaFiles(event.clipboardData); if (files.length) { if (!event.clipboardData.getData('text/plain')) event.preventDefault(); media.upload(files); } }}>
             <input ref={mediaInput} type="file" accept={promptMediaAccept} multiple hidden aria-label="添加视频、图片或音频附件" disabled={mediaDisabled} onChange={event => { const files = Array.from(event.target.files || []); event.target.value = ''; media.upload(files); }} />
             <AgentPromptMedia assets={media.attachments} pending={media.pending} disabled={mediaDisabled} onRemove={media.remove} />
             <textarea ref={composerText} aria-label="发送给创作 Agent 的消息" aria-description={queueByDefault ? 'Enter 加入队列，Alt + Enter 立即调整，Shift + Enter 换行' : steering ? 'Enter 立即调整，Alt + Enter 加入队列，Shift + Enter 换行' : 'Enter 发送，Shift + Enter 换行'} placeholder={queueByDefault ? '继续输入，消息将在当前任务结束后发送…' : steering ? '补充要求，立即调整当前任务…' : '描述你想创作的图片、视频，或直接提问…'} maxLength={6000} rows={3} value={draft} onChange={event => setDraft(event.target.value)} onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); if (steering && (queueEnabled ? !event.altKey : event.altKey)) void queueDraft(); else void send(draft); } }} />
@@ -446,8 +451,8 @@ export default function IntelligentUIAgentWorkspace({ theme, project, videoRemix
             <AgentAdaptationControl value={adaptation} disabled={disabled || running || presentationSaving || !historyLoaded} saving={adaptationSaving} onChange={changeAdaptation} />
         </div>}
       </div>
-      <div className="iua-resizer intelligent-ui-surface" data-theme={theme.chatTheme} style={theme.backgroundStyle} role="separator" aria-label="调整对话与工作区宽度" aria-orientation="vertical" aria-controls="iua-conversation" aria-valuemin={split.bounds.minimum} aria-valuemax={split.bounds.maximum} aria-valuenow={split.bounds.width} aria-valuetext={`对话区宽度 ${split.bounds.width} 像素`} title="左右拖拽调整宽度，双击恢复默认" tabIndex={0} {...split.separator} />
-      <div className="iua-output intelligent-ui-surface" data-theme={theme.resultsTheme} style={{ ...theme.backgroundStyle, ...theme.resultsTextStyle }} ref={output}>
+      <div className="iua-resizer intelligent-ui-surface" data-theme={chatRegion['data-theme']} data-region-background={chatRegion['data-region-background']} style={chatRegion.style} role="separator" aria-label="调整对话与工作区宽度" aria-orientation="vertical" aria-controls="iua-conversation" aria-valuemin={split.bounds.minimum} aria-valuemax={split.bounds.maximum} aria-valuenow={split.bounds.width} aria-valuetext={`对话区宽度 ${split.bounds.width} 像素`} title="左右拖拽调整宽度，双击恢复默认" tabIndex={0} {...split.separator} />
+      <div className="iua-output intelligent-ui-surface" {...outputRegion} ref={output}>
         <header className="iua-output-toolbar"><button type="button" className="iua-icon-button iua-summary-toggle" ref={summaryToggle} title="Toggle summary" aria-label={summaryOpen ? '收起产物' : '展开产物'} aria-expanded={!taskAssetsOpen && summaryOpen} aria-controls="iua-artifact-summary" onClick={() => { closeTaskAssets.current(); setSummaryOpen(open => !open); }}><ListFilter size={19} aria-hidden="true" /></button>
           <nav className="iua-tabs" ref={tabStrip} aria-label="右侧工作区标签页">{tabs.map(tab => {
           const artifact = artifacts.find(item => item.id === tab);
@@ -468,7 +473,7 @@ export default function IntelligentUIAgentWorkspace({ theme, project, videoRemix
         <div className="iua-output-body" hidden={taskAssetsOpen}>
           {summaryOpen && <AgentArtifacts artifacts={artifacts} activeId={rightView} onOpen={openArtifact} onClose={closeSummary} />}
           <div className="iua-panels">
-            <div className="iua-experiment-tab" hidden={rightView !== 'lab' || !tabs.includes('lab')}><ExperimentWorkbench key={project.id} project={project} graph={agent.experiment} onGraph={experiment => setAgent(current => ({ ...current, experiment }))} onDraft={text => setDraft(text)} onExecute={text => { void send(text, false); }} onProjectUpdate={onProjectUpdate} onBeforeChange={onBeforeSend} disabled={disabled || running || sendDisabled || !historyLoaded} active={rightView === 'lab'} theme={theme.resultsTheme} videoRemixWorkflow={videoRemixWorkflow} workflowControls={workflowControls} workflowRequest={workflowRequest} /></div>
+            <div className="iua-experiment-tab" hidden={rightView !== 'lab' || !tabs.includes('lab')}><ExperimentWorkbench key={project.id} project={project} graph={agent.experiment} onGraph={experiment => setAgent(current => ({ ...current, experiment }))} onDraft={text => setDraft(text)} onExecute={text => { void send(text, false); }} onProjectUpdate={onProjectUpdate} onBeforeChange={onBeforeSend} disabled={disabled || running || sendDisabled || !historyLoaded} active={rightView === 'lab'} theme={theme.resultsTheme} themeStyle={outputRegion.style} videoRemixWorkflow={videoRemixWorkflow} workflowControls={workflowControls} workflowRequest={workflowRequest} /></div>
             {mediaTask && <div className="iua-skill-assets-tab" hidden={rightView !== 'assets'}><SkillAssetCenter key={project.id} project={project} graph={agent.experiment} onGraph={experiment => setAgent(current => ({ ...current, experiment }))} onDraft={text => setDraft(text)} onContinue={() => { activate('lab'); composerText.current?.focus({ preventScroll: true }); }} disabled={disabled || running || !historyLoaded} active={rightView === 'assets' && !taskAssetsOpen} /></div>}
             <div className="iua-generated" hidden={(rightView !== 'ui' && activeArtifact?.kind !== 'ui') || !tabs.includes(rightView)} onClick={event => {
               if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;

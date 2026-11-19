@@ -7,8 +7,8 @@
 }
 .app-shell[data-agent-theme="studio-white"] .topbar-task-assets:is(:hover, [aria-expanded="true"]) { background: var(--studio-ink); }
 .app-shell[data-agent-theme="studio-white"] .agent-chat { background: var(--studio-paper); border-color: var(--studio-line); }
-.intelligent-agent [data-theme="studio-white"] .iua-composer { border: 1px solid var(--iui-border-strong); }
-.intelligent-agent [data-theme="studio-white"] .iua-composer:has(textarea:focus-visible) { border-color: var(--iui-focus); }
+.intelligent-agent .iua-composer[data-theme="studio-white"] { border: 1px solid var(--iui-border-strong); }
+.intelligent-agent .iua-composer[data-theme="studio-white"]:has(textarea:focus-visible) { border-color: var(--iui-focus); }
 .intelligent-agent [data-theme="studio-white"] .iua-output-toolbar { background: var(--iui-canvas); }
 .intelligent-agent [data-theme="studio-white"] :is(.iua-message-assistant, .iua-generated, .iua-generated .iui-markdown) { font-family: var(--sail-font-ui); }
 .intelligent-agent [data-theme="studio-white"] .iua-generated { --iui-font: var(--sail-font-ui); }

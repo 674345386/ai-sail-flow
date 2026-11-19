@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { Background, BackgroundVariant, Handle, MiniMap, Position, ReactFlow, applyNodeChanges, type Node, type NodeProps, type NodeChange, type ReactFlowInstance } from '@xyflow/react';
 import { ArrowDownToLine, ArrowRight, BookOpen, Boxes, Check, CheckCheck, ChevronDown, Code2, Ellipsis, ExternalLink, FileText, Film, FlaskConical, GitBranch, GitFork as Github, Hand, Image, Layers, LayoutGrid, Link2, LoaderCircle, Map as MapIcon, Maximize2, Minus, MousePointer2, Play, Plus, Save, SlidersHorizontal, Sparkles, Trash2, Workflow, X } from 'lucide-react';
 import type { Project } from '../shared/domain';
@@ -52,9 +52,9 @@ function WorkbenchPopover({ label, summary, children, className, closeOnAction =
   </details>;
 }
 
-export default function ExperimentWorkbench({ project, graph: incoming, onGraph, onDraft, onExecute, onProjectUpdate, onBeforeChange, disabled = false, active = true, theme, videoRemixWorkflow, workflowControls, workflowRequest = 0 }: {
+export default function ExperimentWorkbench({ project, graph: incoming, onGraph, onDraft, onExecute, onProjectUpdate, onBeforeChange, disabled = false, active = true, theme, themeStyle, videoRemixWorkflow, workflowControls, workflowRequest = 0 }: {
   project: Project; graph?: ExperimentGraph; onGraph: (graph: ExperimentGraph) => void; onDraft: (text: string) => void; onExecute?: (text: string) => void; onProjectUpdate?: (project: Project) => void; onBeforeChange?: () => Promise<unknown>; disabled?: boolean; active?: boolean; theme: ResolvedTheme;
-  videoRemixWorkflow?: ReactNode; workflowControls?: ReactNode; workflowRequest?: number;
+  themeStyle?: CSSProperties; videoRemixWorkflow?: ReactNode; workflowControls?: ReactNode; workflowRequest?: number;
 }) {
   const graph = useMemo(() => normalizeExperimentGraph(incoming || emptyExperiment()), [incoming]);
   const graphRef = useRef(graph);
@@ -290,7 +290,7 @@ export default function ExperimentWorkbench({ project, graph: incoming, onGraph,
   const previewNode = turnCanvas.items.find(entry => entry.id === previewId)?.item || graph.nodes.find(node => node.id === previewId);
   const onNodesChange = useCallback((changes: NodeChange<FlowNode>[]) => setNodes(current => applyNodeChanges(changes, current)), []);
 
-  return <section className={`experiment-workbench intelligent-ui-surface${view === 'execution' ? ' lab-media-canvas' : ''}`} data-theme={theme} aria-label="视频创作实验台">
+  return <section className={`experiment-workbench intelligent-ui-surface${view === 'execution' ? ' lab-media-canvas' : ''}`} data-theme={theme} style={themeStyle} aria-label="视频创作实验台">
     <header className="lab-toolbar">
       <nav className="lab-workbench-views" aria-label="实验台视图"><button type="button" aria-pressed={view === 'routes'} onClick={() => { setView('routes'); setDrawer(null); }}><GitBranch size={14} />路线提案{proposal && <span>{proposal.routes.length}</span>}</button><button type="button" aria-pressed={view === 'execution'} onClick={() => setView('execution')}><Workflow size={14} />执行画布{graph.nodes.length > 0 && <span>{graph.nodes.length}</span>}</button><button type="button" aria-pressed={view === 'workflow'} onClick={() => { setDrawer(null); setView('workflow'); }}><BookOpen size={14} />流程页面</button></nav>
       {!!graph.nodes.length && <span className="lab-workbench-stats" title={`${graph.title} · ${graph.nodes.length} 个节点 · ${completed} 已完成${stale ? ` · ${stale} 需要更新` : ''}`}>{turnMode ? `${turnCanvas.turns.length} 轮尝试` : <>{completed} 已完成{stale > 0 && <span> · {stale} 需更新</span>}</>}</span>}

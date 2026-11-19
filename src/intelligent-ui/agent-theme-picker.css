@@ -6,22 +6,27 @@
 .iua-theme-picker :focus-visible { outline: 2px solid var(--iui-focus); outline-offset: 3px; }
 .iua-theme-menu { position: absolute; z-index: 40; bottom: calc(100% + 8px); left: 0; display: grid; gap: 14px; width: 300px; max-width: calc(100vw - 24px); max-height: calc(100dvh - 180px); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--iui-border-strong) transparent; padding: 16px; border: 1px solid var(--iui-border); border-radius: var(--iui-radius-lg); background: var(--iui-canvas); color: var(--iui-ink); box-shadow: var(--iui-shadow); }
 .iua-theme-menu label { display: flex; align-items: center; justify-content: space-between; gap: 16px; font-size: 12px; }
-.iua-theme-menu .iua-theme-background { justify-content: flex-start; gap: 9px; cursor: pointer; }
-.iua-theme-background input { flex: none; width: 15px; height: 15px; margin: 0; accent-color: var(--iui-ink); }
+.iua-theme-menu .iua-theme-check { justify-content: flex-start; gap: 8px; cursor: pointer; }
+.iua-theme-check input { flex: none; appearance: auto; width: 15px; height: 15px; margin: 0; accent-color: var(--iui-ink); }
 .iua-theme-menu select { width: 126px; min-height: 32px; border: 1px solid var(--iui-border-strong); border-radius: var(--iui-radius-sm); padding: 4px 7px; background: var(--iui-canvas); color: var(--iui-ink); font: inherit; cursor: pointer; }
-.iua-theme-menu p { margin: 0; color: var(--iui-muted); font-size: 11px; line-height: 1.6; }
-.iua-theme-menu > button { width: 100%; min-height: 32px; border: 1px solid var(--iui-border); border-radius: var(--iui-radius-sm); padding: 5px 9px; background: transparent; color: inherit; font: inherit; cursor: pointer; }
-.iua-theme-menu > button:hover { background: var(--iui-hover); }
-.iua-theme-menu > .iua-theme-palette-button { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 36px; }
-.iua-theme-divider { height: 1px; background: var(--iui-border); }
+.iua-theme-menu :is(.iua-theme-palette-button, .iua-theme-menu > button) { width: 100%; min-height: 32px; border: 1px solid var(--iui-border); border-radius: var(--iui-radius-sm); padding: 5px 9px; background: transparent; color: inherit; font: inherit; cursor: pointer; }
+.iua-theme-menu :is(.iua-theme-palette-button, .iua-theme-menu > button):hover { background: var(--iui-hover); }
+.iua-theme-palette-button { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.iua-theme-regions { border-block: 1px solid var(--iui-border); }
+.iua-theme-region + .iua-theme-region { border-top: 1px solid var(--iui-border); }
+.iua-theme-region > summary { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 8px; min-height: 36px; padding: 5px 2px; border-radius: var(--iui-radius-sm); font-weight: 500; list-style: none; cursor: pointer; }
+.iua-theme-region > summary::-webkit-details-marker { display: none; }
+.iua-theme-region > summary:hover { background: var(--iui-hover); }
+.iua-theme-region > summary > svg { color: var(--iui-muted); }
+.iua-theme-region[open] > summary > svg { transform: rotate(180deg); }
+.iua-theme-region-mode { color: var(--iui-muted); font-size: 11px; font-weight: 400; text-align: right; }
+.iua-theme-region-controls { display: grid; gap: 10px; padding: 6px 2px 12px; }
 .iua-theme-surface-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 12px; font-weight: 500; }
 .iua-theme-surface-heading > button { min-height: 30px; padding: 4px 8px; border: 1px solid var(--iui-border-strong); border-radius: var(--iui-radius-sm); background: var(--iui-surface); color: var(--iui-ink); font: inherit; cursor: pointer; }
 .iua-theme-surface-heading > button:hover { background: var(--iui-hover); }
 .iua-theme-surface-setting { display: grid; gap: 8px; min-width: 0; margin: 0; padding: 0; border: 0; }
-.iua-theme-surface-setting > legend { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-.iua-theme-menu .iua-theme-surface-toggle { justify-content: flex-start; gap: 8px; cursor: pointer; }
-.iua-theme-surface-toggle input { appearance: auto; width: 15px; height: 15px; margin: 0; accent-color: var(--iui-ink); }
-.iua-theme-menu .iua-theme-surface-range { display: grid; grid-template-columns: 52px minmax(0, 1fr) 38px; gap: 8px; align-items: center; }
+.iua-theme-surface-setting > legend { padding: 0 0 6px; font-weight: 500; }
+.iua-theme-menu .iua-theme-surface-range { display: grid; grid-template-columns: 72px minmax(0, 1fr) 36px; gap: 8px; align-items: center; }
 .iua-theme-surface-range input { width: 100%; min-width: 0; min-height: 24px; margin: 0; padding: 0; border: 0; background: transparent; accent-color: var(--iui-ink); cursor: pointer; }
 .iua-theme-surface-range input:disabled { cursor: default; }
 .iua-theme-surface-range output { color: var(--iui-muted); font-size: 11px; text-align: right; font-variant-numeric: tabular-nums; }

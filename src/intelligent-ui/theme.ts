@@ -1,16 +1,30 @@
 import type { CSSProperties } from 'react';
 
-export type AgentSurfaceScope = 'sidebar' | 'composer';
+export const AGENT_THEME_REGIONS = {
+  sidebar: '左侧栏边框',
+  composer: 'Prompt 输入框',
+  chat: '聊天框',
+  results: '右侧结果区',
+} as const;
+export type AgentThemeRegion = keyof typeof AGENT_THEME_REGIONS;
+export const AGENT_THEME_REGION_IDS = Object.keys(AGENT_THEME_REGIONS) as AgentThemeRegion[];
 export type AgentSurfacePreferences = { enabled: boolean; gray: number; opacity: number; blur: number };
-export const AGENT_SURFACE_DEFAULTS: Record<AgentSurfaceScope, AgentSurfacePreferences> = {
+export const AGENT_SURFACE_DEFAULTS: Record<AgentThemeRegion, AgentSurfacePreferences> = {
   sidebar: { enabled: false, gray: 18, opacity: 88, blur: 16 },
   composer: { enabled: false, gray: 16, opacity: 94, blur: 12 },
+  chat: { enabled: false, gray: 16, opacity: 94, blur: 12 },
+  results: { enabled: false, gray: 16, opacity: 94, blur: 12 },
 };
+export const AGENT_THEME_FONTS = {
+  default: '主题默认',
+  sans: '无衬线',
+  serif: '衬线',
+  mono: '等宽',
+} as const;
 
 export const AGENT_THEME_CONFIG = {
   storageKey: 'sail-agent-theme-v1',
   surfaceStorageKey: 'sail-agent-surfaces-v1',
-  defaults: { chat: 'light', results: 'light', workspaceBackground: true, chatTextColor: null, resultsTextColor: null, surfaces: AGENT_SURFACE_DEFAULTS },
   modes: [
     { value: 'light', label: '官方浅色' },
     { value: 'studio-white', label: 'Studio 白色' },
@@ -23,23 +37,46 @@ export const AGENT_THEME_CONFIG = {
 
 export type ThemeMode = typeof AGENT_THEME_CONFIG.modes[number]['value'];
 export type ResolvedTheme = Exclude<ThemeMode, 'system'>;
-export type AgentThemePreferences = { chat: ThemeMode; results: ThemeMode; workspaceBackground: boolean; chatTextColor: string | null; resultsTextColor: string | null; surfaces: Record<AgentSurfaceScope, AgentSurfacePreferences> };
-export type AgentThemePanel = 'chat' | 'results';
-export type AgentTextColorScope = AgentThemePanel | 'all';
+export type AgentThemeFont = keyof typeof AGENT_THEME_FONTS;
+export type AgentRegionPreferences = {
+  mode: ThemeMode | null;
+  workspaceBackground: boolean | null;
+  textColor: string | null;
+  font: AgentThemeFont;
+  surface: AgentSurfacePreferences;
+};
+export type AgentThemePreferences = { regions: Record<AgentThemeRegion, AgentRegionPreferences> };
+
+function defaultRegion(region: AgentThemeRegion): AgentRegionPreferences {
+  return {
+    mode: region === 'sidebar' || region === 'composer' ? null : 'light',
+    workspaceBackground: null,
+    textColor: null,
+    font: 'default',
+    surface: AGENT_SURFACE_DEFAULTS[region],
+  };
+}
+
+export const AGENT_THEME_DEFAULTS: AgentThemePreferences = {
+  regions: { sidebar: defaultRegion('sidebar'), composer: defaultRegion('composer'), chat: defaultRegion('chat'), results: defaultRegion('results') },
+};
 export const AGENT_THEME_TEXT_COLORS: Record<ResolvedTheme, string> = { light: '#0d0d0d', 'studio-white': '#181818', dark: '#fafafa', warm: '#332c25', compact: '#202020' };
 export const AGENT_THEME_CANVAS_COLORS: Record<ResolvedTheme, string> = { light: '#ffffff', 'studio-white': '#ffffff', dark: '#171717', warm: '#fbf7ef', compact: '#fafafa' };
 
-export function activeAgentThemePreferences(preferences: AgentThemePreferences): AgentThemePreferences {
-  const studioChat = preferences.chat === 'studio-white';
-  const studioResults = preferences.results === 'studio-white';
-  if (!studioChat && !studioResults) return preferences;
+export function agentRegionMode(preferences: AgentThemePreferences, region: AgentThemeRegion): ThemeMode {
+  return preferences.regions[region].mode ?? preferences.regions.chat.mode ?? 'light';
+}
+
+export function agentRegionUsesBackground(preferences: AgentThemePreferences, region: AgentThemeRegion): boolean {
+  return preferences.regions[region].workspaceBackground ?? (region !== 'composer' && agentRegionMode(preferences, region) !== 'studio-white');
+}
+
+export function agentRegionFontStyle(font: AgentThemeFont): CSSProperties {
+  const fonts = { default: null, sans: 'var(--sail-font-default-ui)', serif: 'var(--sail-font-default-prose)', mono: 'var(--sail-font-mono)' };
   return {
-    ...preferences,
-    workspaceBackground: false,
-    chatTextColor: studioChat ? null : preferences.chatTextColor,
-    resultsTextColor: studioResults ? null : preferences.resultsTextColor,
-    surfaces: studioChat ? AGENT_SURFACE_DEFAULTS : preferences.surfaces,
-  };
+    '--sail-font-ui': fonts[font] ?? 'var(--sail-font-default-ui)',
+    '--sail-font-prose': fonts[font] ?? 'var(--sail-font-default-prose)',
+  } as CSSProperties;
 }
 
 export function agentTextColor(value: unknown): string | null {
@@ -127,7 +164,7 @@ export function normalizeAgentSurface(value: unknown, fallback: AgentSurfacePref
   return { enabled: typeof stored.enabled === 'boolean' ? stored.enabled : fallback.enabled, gray: number('gray', 100), opacity: number('opacity', 100), blur: number('blur', 32) };
 }
 
-export function agentSurfaceStyle(value: AgentSurfacePreferences, backdrop: string, workspaceBackground: boolean): CSSProperties | undefined {
+export function agentSurfaceStyle(value: AgentSurfacePreferences, backdrop: string, workspaceBackground: boolean): (CSSProperties & Record<string, string>) | undefined {
   if (!value.enabled) return undefined;
   const base = agentTextColor(backdrop) || '#070708';
   const shade = Math.round(value.gray * 255 / 100);
@@ -140,52 +177,49 @@ export function agentSurfaceStyle(value: AgentSurfacePreferences, backdrop: stri
     '--agent-surface-background': `rgb(${shade} ${shade} ${shade} / ${value.opacity}%)`,
     '--agent-surface-blur': `${value.blur}px`,
     '--agent-surface-underlay': workspaceBackground ? 'transparent' : base,
-    '--iua-bg': palette['--iui-canvas'], '--iua-text': palette['--iui-ink'],
-    '--iua-muted': palette['--iui-muted'], '--iua-line': palette['--iui-border'], '--iua-raised': palette['--iui-surface'],
-  } as CSSProperties;
+  };
 }
 
-function themeMode(value: unknown, fallback: ThemeMode): ThemeMode {
+function themeMode(value: unknown, fallback: ThemeMode | null): ThemeMode | null {
   return AGENT_THEME_CONFIG.modes.some(mode => mode.value === value) ? value as ThemeMode : fallback;
 }
 
-export function parseAgentThemePreferences(raw: string | null): AgentThemePreferences {
+function record(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' ? value as Record<string, unknown> : {};
+}
+
+function parseRecord(raw: string | null): Record<string, unknown> {
   try {
-    const value: unknown = JSON.parse(raw || 'null');
-    const stored = value && typeof value === 'object' ? value as Record<string, unknown> : {};
-    const surfaces = stored.surfaces && typeof stored.surfaces === 'object' ? stored.surfaces as Record<string, unknown> : {};
+    return record(JSON.parse(raw || 'null'));
+  } catch { return {}; }
+}
+
+export function parseAgentThemePreferences(raw: string | null, legacySurfaceRaw: string | null = null): AgentThemePreferences {
+  const stored = parseRecord(raw);
+  const regions = record(stored.regions);
+  const oldSurfaces = record(stored.surfaces);
+  const legacySurfaces = parseRecord(legacySurfaceRaw);
+  const readRegion = (region: AgentThemeRegion): AgentRegionPreferences => {
+    const fallback = AGENT_THEME_DEFAULTS.regions[region];
+    const value = record(regions[region]);
+    const oldSurface = normalizeAgentSurface(legacySurfaces[region], normalizeAgentSurface(oldSurfaces[region], fallback.surface));
+    const oldBackground = stored.workspaceBackground === false ? false : region === 'composer' && oldSurface.enabled ? true : null;
     return {
-      chat: themeMode(stored.chat, AGENT_THEME_CONFIG.defaults.chat),
-      results: themeMode(stored.results, AGENT_THEME_CONFIG.defaults.results),
-      workspaceBackground: typeof stored.workspaceBackground === 'boolean' ? stored.workspaceBackground : AGENT_THEME_CONFIG.defaults.workspaceBackground,
-      chatTextColor: agentTextColor(stored.chatTextColor),
-      resultsTextColor: agentTextColor(stored.resultsTextColor),
-      surfaces: {
-        sidebar: normalizeAgentSurface(surfaces.sidebar, AGENT_SURFACE_DEFAULTS.sidebar),
-        composer: normalizeAgentSurface(surfaces.composer, AGENT_SURFACE_DEFAULTS.composer),
-      },
+      mode: themeMode(value.mode === undefined ? stored[region] : value.mode, fallback.mode),
+      workspaceBackground: regions[region] ? typeof value.workspaceBackground === 'boolean' ? value.workspaceBackground : null : oldBackground,
+      textColor: agentTextColor(regions[region] ? value.textColor : stored[`${region}TextColor`]),
+      font: typeof value.font === 'string' && Object.hasOwn(AGENT_THEME_FONTS, value.font) ? value.font as AgentThemeFont : fallback.font,
+      surface: normalizeAgentSurface(value.surface, regions[region] ? fallback.surface : oldSurface),
     };
-  } catch { return { ...AGENT_THEME_CONFIG.defaults }; }
+  };
+  return { regions: { sidebar: readRegion('sidebar'), composer: readRegion('composer'), chat: readRegion('chat'), results: readRegion('results') } };
 }
 
 export function readAgentThemePreferences(storage: Pick<Storage, 'getItem'>): AgentThemePreferences {
-  const preferences = parseAgentThemePreferences(storage.getItem(AGENT_THEME_CONFIG.storageKey));
-  // Older tabs may rewrite the theme record without the newer surface fields.
-  // Keep those settings in their own record so a legacy write cannot clear them.
-  try {
-    const raw = storage.getItem(AGENT_THEME_CONFIG.surfaceStorageKey);
-    if (!raw) return preferences;
-    const surfaces = JSON.parse(raw) as Record<string, unknown> | null;
-    if (!surfaces || typeof surfaces !== 'object') return preferences;
-    return { ...preferences, surfaces: {
-      sidebar: normalizeAgentSurface(surfaces.sidebar, preferences.surfaces.sidebar),
-      composer: normalizeAgentSurface(surfaces.composer, preferences.surfaces.composer),
-    } };
-  } catch { return preferences; }
+  return parseAgentThemePreferences(storage.getItem(AGENT_THEME_CONFIG.storageKey), storage.getItem(AGENT_THEME_CONFIG.surfaceStorageKey));
 }
 
 export function saveAgentThemePreferences(storage: Pick<Storage, 'setItem'>, preferences: AgentThemePreferences) {
-  storage.setItem(AGENT_THEME_CONFIG.surfaceStorageKey, JSON.stringify(preferences.surfaces));
   storage.setItem(AGENT_THEME_CONFIG.storageKey, JSON.stringify(preferences));
 }
 

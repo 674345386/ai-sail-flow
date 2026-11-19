@@ -31,8 +31,10 @@
 }
 
 :root {
-  --sail-font-ui: "Sail Anthropic Sans", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
-  --sail-font-prose: "Sail Anthropic Serif", "Songti SC", STSong, "Noto Serif CJK SC", SimSun, serif;
+  --sail-font-default-ui: "Sail Anthropic Sans", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  --sail-font-default-prose: "Sail Anthropic Serif", "Songti SC", STSong, "Noto Serif CJK SC", SimSun, serif;
+  --sail-font-ui: var(--sail-font-default-ui);
+  --sail-font-prose: var(--sail-font-default-prose);
   --sail-font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 

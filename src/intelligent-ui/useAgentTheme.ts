@@ -1,10 +1,23 @@
 import { useEffect, useRef, useState } from 'react';
+import type { CSSProperties } from 'react';
 import { loadActiveBackgroundBase } from '../landing-background-config';
-import { AGENT_SURFACE_DEFAULTS, AGENT_THEME_CANVAS_COLORS, AGENT_THEME_CONFIG, AGENT_THEME_TEXT_COLORS, activeAgentThemePreferences, agentBackgroundStyle, agentContrastColor, agentSurfaceStyle, agentTextColor, agentTextColorStyle, normalizeAgentSurface, readAgentThemePreferences, resolveAgentTheme, saveAgentThemePreferences, type AgentSurfacePreferences, type AgentSurfaceScope, type AgentThemePanel, type AgentThemePreferences, type AgentTextColorScope, type ThemeMode } from './theme';
+import { AGENT_THEME_CANVAS_COLORS, AGENT_THEME_CONFIG, AGENT_THEME_DEFAULTS, AGENT_THEME_REGION_IDS, AGENT_THEME_TEXT_COLORS, agentBackgroundStyle, agentContrastColor, agentRegionFontStyle, agentRegionMode, agentRegionUsesBackground, agentSurfaceStyle, agentTextColorStyle, readAgentThemePreferences, resolveAgentTheme, saveAgentThemePreferences, type AgentRegionPreferences, type AgentThemePreferences, type AgentThemeRegion, type ThemeMode } from './theme';
 
 function loadPreferences(): AgentThemePreferences {
   try { return readAgentThemePreferences(window.localStorage); }
-  catch { return { ...AGENT_THEME_CONFIG.defaults }; }
+  catch { return AGENT_THEME_DEFAULTS; }
+}
+
+function controlTextStyle(color: string | null): CSSProperties | undefined {
+  if (!color) return undefined;
+  return {
+    '--iui-ink': color,
+    '--iui-ink-hover': `color-mix(in srgb, ${color} 85%, var(--iui-canvas))`,
+    '--iui-muted': `color-mix(in srgb, ${color} 72%, var(--iui-canvas))`,
+    '--iui-faint': 'var(--iui-muted)',
+    '--iui-label-ink': color,
+    '--iui-on-ink': agentContrastColor(color),
+  } as CSSProperties;
 }
 
 export function useAgentTheme() {
@@ -35,33 +48,60 @@ export function useAgentTheme() {
     return () => { media.removeEventListener('change', update); window.removeEventListener('storage', sync); };
   }, []);
 
-  const preferences = activeAgentThemePreferences(storedPreferences);
-  const chatTheme = resolveAgentTheme(preferences.chat, systemDark);
-  const resultsTheme = resolveAgentTheme(preferences.results, systemDark);
-  const backgroundInk = agentContrastColor(backgroundBase);
-  const defaultTextColors = {
-    chat: preferences.workspaceBackground ? backgroundInk : AGENT_THEME_TEXT_COLORS[chatTheme],
-    results: preferences.workspaceBackground ? backgroundInk : AGENT_THEME_TEXT_COLORS[resultsTheme],
-  };
+  const preferences = storedPreferences;
+  const regionTheme = (region: AgentThemeRegion) => resolveAgentTheme(agentRegionMode(preferences, region), systemDark);
+  const usesBackground = (region: AgentThemeRegion) => agentRegionUsesBackground(preferences, region);
+  const hasWorkspaceBackground = AGENT_THEME_REGION_IDS.some(usesBackground);
+  const backgroundStyle = hasWorkspaceBackground ? agentBackgroundStyle(backgroundBase) : undefined;
+
+  function regionPresentation(region: AgentThemeRegion, backgroundAvailable = true) {
+    const settings = preferences.regions[region];
+    const mode = regionTheme(region);
+    const backgroundEnabled = backgroundAvailable && usesBackground(region);
+    const surface = agentSurfaceStyle(settings.surface, backgroundEnabled ? backgroundBase : AGENT_THEME_CANVAS_COLORS[mode], backgroundEnabled);
+    // Keep the original opaque composer palette while it follows the chat defaults.
+    const followsChatPalette = region === 'composer' && backgroundAvailable && settings.mode === null && settings.workspaceBackground === null && !surface && usesBackground('chat');
+    const palette = backgroundEnabled || followsChatPalette ? backgroundStyle : undefined;
+    const backgroundInk = palette ? agentContrastColor(backgroundBase) : undefined;
+    return { settings, mode, backgroundEnabled, surface, palette, backgroundInk };
+  }
+
   return {
     preferences,
-    chatTheme, resultsTheme, defaultTextColors, setBackgroundBase,
-    backgroundStyle: preferences.workspaceBackground ? agentBackgroundStyle(backgroundBase) : undefined,
-    backgroundTone: backgroundInk === '#ffffff' ? 'dark' : 'light',
-    chatTextStyle: agentTextColorStyle(preferences.chatTextColor, preferences.workspaceBackground ? defaultTextColors.chat : undefined),
-    resultsTextStyle: agentTextColorStyle(preferences.resultsTextColor, preferences.workspaceBackground ? defaultTextColors.results : undefined),
-    surfaceStyle: (scope: AgentSurfaceScope, backgroundEnabled = preferences.workspaceBackground) => agentSurfaceStyle(preferences.surfaces[scope], backgroundEnabled ? backgroundBase : AGENT_THEME_CANVAS_COLORS[chatTheme], backgroundEnabled),
-    setSurface: (scope: AgentSurfaceScope, patch: Partial<AgentSurfacePreferences>) => updatePreferences(current => ({ ...current, surfaces: { ...current.surfaces, [scope]: normalizeAgentSurface({ ...current.surfaces[scope], ...patch }, AGENT_SURFACE_DEFAULTS[scope]) } })),
-    setGraySurfaces: () => updatePreferences(current => ({ ...current, surfaces: { sidebar: { ...AGENT_SURFACE_DEFAULTS.sidebar, enabled: true }, composer: { ...AGENT_SURFACE_DEFAULTS.composer, enabled: true } } })),
-    setTheme: (mode: ThemeMode) => updatePreferences(current => ({ ...current, chat: mode, results: mode })),
-    setPanelTheme: (panel: AgentThemePanel, mode: ThemeMode) => updatePreferences(current => ({ ...current, [panel]: mode })),
-    setWorkspaceBackground: (enabled: boolean) => updatePreferences(current => ({ ...current, workspaceBackground: enabled })),
-    setTextColor: (scope: AgentTextColorScope, color: string | null) => updatePreferences(current => ({
-      ...current,
-      ...(scope !== 'results' ? { chatTextColor: agentTextColor(color) } : {}),
-      ...(scope !== 'chat' ? { resultsTextColor: agentTextColor(color) } : {}),
+    chatTheme: regionTheme('chat'),
+    resultsTheme: regionTheme('results'),
+    hasWorkspaceBackground, usesBackground, setBackgroundBase, backgroundStyle,
+    defaultTextColor: (region: AgentThemeRegion) => {
+      const { mode, surface, backgroundInk } = regionPresentation(region);
+      return surface?.['--iui-ink'] ?? backgroundInk ?? AGENT_THEME_TEXT_COLORS[mode];
+    },
+    regionProps: (region: AgentThemeRegion, backgroundAvailable = true) => {
+      const { settings, mode, backgroundEnabled, surface, palette, backgroundInk } = regionPresentation(region, backgroundAvailable);
+      const contentOnly = region === 'chat' || region === 'results';
+      return {
+        'data-theme': mode,
+        'data-region-background': backgroundEnabled ? 'on' : 'off',
+        'data-custom-surface': settings.surface.enabled ? 'on' : 'off',
+        style: {
+          ...palette,
+          ...surface,
+          ...agentRegionFontStyle(settings.font),
+          ...(contentOnly ? agentTextColorStyle(settings.textColor, surface ? undefined : backgroundInk) : controlTextStyle(settings.textColor)),
+        } satisfies CSSProperties,
+      };
+    },
+    setRegion: (region: AgentThemeRegion, patch: Partial<AgentRegionPreferences>) => updatePreferences(current => ({
+      regions: { ...current.regions, [region]: { ...current.regions[region], ...patch } },
     })),
-    resetTheme: () => updatePreferences(current => ({ ...current, chat: AGENT_THEME_CONFIG.defaults.chat, results: AGENT_THEME_CONFIG.defaults.results, chatTextColor: null, resultsTextColor: null, surfaces: AGENT_SURFACE_DEFAULTS })),
+    setTheme: (mode: ThemeMode) => updatePreferences(({ regions }) => ({
+      regions: {
+        sidebar: { ...regions.sidebar, mode: regions.sidebar.mode === null ? null : mode, surface: mode === 'dark' ? { ...regions.sidebar.surface, enabled: true } : regions.sidebar.surface },
+        composer: { ...regions.composer, mode: regions.composer.mode === null ? null : mode, surface: mode === 'dark' ? { ...regions.composer.surface, enabled: true } : regions.composer.surface },
+        chat: { ...regions.chat, mode },
+        results: { ...regions.results, mode },
+      },
+    })),
+    resetTheme: () => updatePreferences(() => AGENT_THEME_DEFAULTS),
   };
 }
 

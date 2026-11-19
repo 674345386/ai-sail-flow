@@ -4,9 +4,12 @@
 /* Each panel resolves these aliases locally, so mixed themes do not inherit
    the other panel's already-computed colors. */
 .intelligent-agent .intelligent-ui-surface { --iua-bg: var(--iui-canvas); --iua-raised: var(--iui-surface); --iua-text: var(--iui-ink); --iua-muted: var(--iui-muted); --iua-line: var(--iui-border); --iua-control-ink: var(--iui-ink); --iua-control-muted: var(--iui-muted); --iua-control-on-ink: var(--iui-on-ink); background: var(--iua-bg); color: var(--iua-text); font-family: var(--iui-font); font-size: var(--iui-body-size); line-height: var(--iui-body-leading); }
-/* Background and theme canvas are alternative sources, never composited.
-   Opaque controls still use their selected theme for readability. */
-.intelligent-agent[data-workspace-background="on"] :is(.iua-conversation, .iua-output, .iua-resizer) { background: transparent; }
+.intelligent-agent :is(.iua-composer, .iua-output, .iua-resizer)[data-region-background="on"],
+.intelligent-agent .iua-conversation[data-region-background="on"] > .iua-chat-backdrop { background: transparent; }
+.intelligent-agent :is(.iua-composer, .iua-output)[data-custom-surface="on"] { position: relative; isolation: isolate; background: var(--agent-surface-underlay); }
+.intelligent-agent .iua-conversation[data-custom-surface="on"] > .iua-chat-backdrop { background: var(--agent-surface-underlay); }
+.intelligent-agent :is(.iua-composer, .iua-output)[data-custom-surface="on"]::before,
+.intelligent-agent .iua-conversation[data-custom-surface="on"] > .iua-chat-backdrop::before { position: absolute; inset: 0; z-index: -1; border-radius: inherit; background: var(--agent-surface-background); -webkit-backdrop-filter: blur(var(--agent-surface-blur)); backdrop-filter: blur(var(--agent-surface-blur)); pointer-events: none; content: ""; }
 .intelligent-agent button, .intelligent-agent input, .intelligent-agent textarea { font: inherit; }
 .intelligent-agent button { color: inherit; cursor: pointer; }
 .intelligent-agent button:disabled { opacity: .45; cursor: default; }
@@ -39,6 +42,10 @@
 .iua-workspace.is-resizing { cursor: col-resize; user-select: none; }
 .iua-workspace.is-resizing .iua-panels { pointer-events: none; }
 .iua-conversation { --iua-composer-gutter: 16px; --iua-content-width: 800px; --iua-content-inset: max(var(--iua-composer-gutter), calc((100% - var(--iua-content-width)) / 2)); position: relative; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; flex: 0 0 var(--iua-chat-width, clamp(280px, 36%, 600px)); min-width: 0; min-height: 0; height: 100%; overflow: hidden; }
+.intelligent-agent .iua-conversation.intelligent-ui-surface { isolation: isolate; background: transparent; }
+/* The composer can reveal Background even when the chat uses a solid canvas. */
+.intelligent-agent .iua-conversation > .iua-chat-backdrop { position: absolute; grid-area: 1 / 1 / 3 / 2; inset: 0; z-index: -1; background: var(--iua-bg); pointer-events: none; }
+.iua-conversation[data-composer-background="on"] > .iua-chat-backdrop { grid-row-end: 2; }
 .intelligent-agent .iua-icon-button { display: inline-flex; flex: none; align-items: center; justify-content: center; width: 36px; height: 36px; padding: 0; border: 0; border-radius: var(--iui-radius-md); background: transparent; color: var(--iua-muted); }
 .intelligent-agent .iua-icon-button:hover, .intelligent-agent .iua-icon-button[aria-expanded="true"] { background: var(--iui-hover); color: var(--iua-text); }
 .iua-resizer { position: relative; z-index: 2; flex: 0 0 8px; min-height: 0; cursor: col-resize; touch-action: none; user-select: none; }
@@ -131,8 +138,6 @@
 .iua-adaptation:disabled .iua-adaptation-stops { opacity: .45; }
 .iua-adaptation:disabled .iua-adaptation-choice { cursor: default; }
 .iua-composer { position: relative; z-index: 1; margin: 0; padding: 12px; border: 0; border-radius: var(--iui-radius-xl); background: var(--iua-bg); }
-.intelligent-agent .iua-composer[data-custom-surface="on"] { position: relative; isolation: isolate; background: var(--agent-surface-underlay); }
-.intelligent-agent .iua-composer[data-custom-surface="on"]::before { position: absolute; inset: 0; z-index: -1; border-radius: inherit; background: var(--agent-surface-background); -webkit-backdrop-filter: blur(var(--agent-surface-blur)); backdrop-filter: blur(var(--agent-surface-blur)); pointer-events: none; content: ""; }
 .iua-model-picker > button { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 32px; max-width: 100%; border: 0; border-radius: var(--iui-radius-sm); padding: 5px 8px; background: transparent; color: var(--iua-muted); font-size: 12px; }
 .iua-model-picker > button span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .iua-model-picker > button svg { flex: none; }
@@ -166,6 +171,21 @@
 .iua-reference-video { display: block; width: min(100%, 320px); height: auto; }
 @media (hover: none), (pointer: coarse) { .intelligent-agent .iua-prompt-media-remove { opacity: 1; pointer-events: auto; } }
 .iua-output { display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: 0; container: agent-output / inline-size; background: var(--iua-bg); }
+.intelligent-agent .iua-output .iua-skill-assets-tab > .skill-center {
+  --sc-bg: var(--iui-canvas);
+  --sc-surface: color-mix(in srgb, var(--iui-surface), var(--iui-canvas));
+  --sc-ink: var(--iua-custom-ink, var(--iui-ink));
+  --sc-muted: var(--iua-custom-muted, var(--iui-muted));
+  --sc-line: var(--iui-border);
+  --sc-accent: var(--iui-ink);
+  --sc-soft: var(--iui-surface-strong);
+  color-scheme: inherit;
+  font-family: var(--iui-font);
+}
+.intelligent-agent .iua-output:is([data-region-background="on"], [data-custom-surface="on"]) .iua-skill-assets-tab > .skill-center { background: transparent; }
+.intelligent-agent .iua-skill-assets-tab .skill-center .skill-primary { color: var(--iui-on-ink); }
+.intelligent-agent .iua-skill-assets-tab .skill-center .skill-primary:hover:not(:disabled) { background: var(--iui-ink-hover); }
+.intelligent-agent .iua-skill-assets-tab .skill-form :is(input, select, textarea) { background: var(--sc-surface); }
 .iua-output-toolbar { --iua-tab-height: 28px; position: relative; z-index: 15; display: flex; flex: none; align-items: center; gap: 8px; height: 36px; padding: 2px 8px; border-bottom: 1px solid var(--iua-line); background: var(--iua-raised); }
 .iua-output-toolbar .iua-icon-button { width: var(--iua-tab-height); height: var(--iua-tab-height); }
 .iua-tabs > .active::after { position: absolute; right: 12px; bottom: 2px; left: 12px; height: 2px; border-radius: 2px; background: var(--iua-text); content: ""; pointer-events: none; }

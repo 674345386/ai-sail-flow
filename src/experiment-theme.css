@@ -1,10 +1,9 @@
-/* Resolve the selected Agent palette on the workbench itself, even when
-   the surrounding results panel has a custom Background color. */
+/* The workbench uses the results panel palette for its canvas and controls. */
 .experiment-workbench.intelligent-ui-surface[data-theme] {
   --lab-bg: var(--iui-canvas);
   --lab-paper: color-mix(in srgb, var(--iui-ink) 3%, var(--iui-canvas));
-  --lab-ink: var(--iui-ink);
-  --lab-muted: var(--iui-muted);
+  --lab-ink: var(--iua-custom-ink, var(--iui-ink));
+  --lab-muted: var(--iua-custom-muted, var(--iui-muted));
   --lab-line: var(--iui-border);
   --lab-accent: var(--iui-ink);
   --lab-accent-bg: color-mix(in srgb, var(--iui-ink) 6%, var(--iui-canvas));
@@ -31,6 +30,8 @@
 .experiment-workbench[data-theme="compact"] > .lab-toolbar { min-height: 40px; gap: 6px; }
 
 .experiment-workbench.intelligent-ui-surface[data-theme].lab-media-canvas :is(.lab-viewport, .react-flow, .lab-welcome) { background: var(--lab-bg); }
+.iua-output:is([data-region-background="on"], [data-custom-surface="on"]) .experiment-workbench.intelligent-ui-surface[data-theme],
+.iua-output:is([data-region-background="on"], [data-custom-surface="on"]) .experiment-workbench.lab-media-canvas[data-theme] :is(.lab-viewport, .react-flow, .lab-welcome) { background: transparent; }
 .experiment-workbench.intelligent-ui-surface[data-theme] :is(.lab-toolbar, .lab-plan-navigation, .lab-toolbar-popover-panel, .lab-inspector, .lab-inspector > header, .lab-drawer, .lab-footer, .lab-canvas-tools, .lab-canvas-zoom, .react-flow__minimap, .lab-next-menu, .lab-floating-composer, .lab-composer-reference-picker, .lab-media-preview-dialog) {
   background: var(--lab-paper);
   color: var(--lab-ink);
