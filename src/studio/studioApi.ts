@@ -18,16 +18,6 @@ export const identifyRadarImage = (image: File) => {
 export const getRadarTrend = (id: string) => api<TrendItem>(`/api/studio/radar/items/${encodeURIComponent(id)}`);
 export type { RadarInput, RadarRun, RadarItem, RadarSourceStatus, ScoredRadarItem };
 
-/** Feature gate: always on for this PR (override with FEATURE_STUDIO=0 / false). */
-export const FEATURE_STUDIO = (() => {
-  try {
-    const env = (import.meta as ImportMeta & { env?: Record<string, string> }).env;
-    const raw = env?.FEATURE_STUDIO ?? env?.VITE_FEATURE_STUDIO;
-    if (raw === '0' || raw === 'false') return false;
-  } catch { /* ignore */ }
-  return true;
-})();
-
 export type TrendMetrics = {
   views?: number;
   likes?: number;

@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { EventEmitter } from 'node:events';
 import { randomUUID } from 'node:crypto';
 import { MODEL, defaultMarket, defaultReplication, defaultWorkspace, emptyProduct, inProgressCount, stageOf, type Project, type WorkspaceProject } from '../shared/domain';
 import { demoProject } from '../shared/demo';
@@ -46,7 +47,8 @@ const workspaceCreatives = workspaceResource(() => {
       else records.set(project.id, project);
     } catch { console.warn(`A project record could not be loaded: ${filename}`); }
   }
-  return { directory, records };
+  const events = new EventEmitter().setMaxListeners(0);
+  return { directory, records, events };
 });
 
 function recoverProject(project: Project) {
@@ -111,8 +113,15 @@ function writeRecord<T extends { id: string; revision: number }>(directory: stri
   return updated;
 }
 export function saveProject(project: Project) {
-  const { directory, records } = workspaceCreatives();
-  return writeRecord(directory, records, project);
+  const { directory, records, events } = workspaceCreatives();
+  const saved = writeRecord(directory, records, project);
+  events.emit(saved.id, saved);
+  return saved;
+}
+export function subscribeProject(id: string, listener: (project: Project) => void) {
+  const { events } = workspaceCreatives();
+  events.on(id, listener);
+  return () => events.off(id, listener);
 }
 export function getProject(id: string) {
   return workspaceCreatives().records.get(id);

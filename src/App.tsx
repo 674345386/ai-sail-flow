@@ -39,6 +39,7 @@ import StoryboardGridWorkbench, { gridVideoState } from './StoryboardGridWorkben
 import StudioPipelineCanvas from './StudioPipelineCanvas';
 import ProjectNavigation from './ProjectNavigation';
 import { useAgentActivity } from './useAgentActivity';
+import { useWorkspaceUpdates } from './useWorkspaceUpdates';
 import WorkspaceSearchPalette from './WorkspaceSearchPalette';
 import AnimatedBrandMark from './AnimatedBrandMark';
 import ShaderBackdrop from './ShaderBackdrop';
@@ -60,10 +61,10 @@ import { defaultRemixSettings, remixPlanCurrent, type RemixAction, type RemixSet
 import { editableUnitPrompt, finalVideo, productionSources, videoCurrent, workflowBusy } from '../shared/workflow';
 import { appTitle, parseRoute, replaceNextUrl, routePath, stepTitles, studioTitle, useUrlSync, type AppRoute } from './useUrlSync';
 import './unified-workspace.css';
-import StudioShell from './studio/StudioShell';
 const IntelligentUIAgentWorkspace = lazy(() => import('./IntelligentUIAgentWorkspace'));
 const AgentLandingPage = lazy(() => import('./AgentLandingPage'));
-import { FEATURE_STUDIO } from './studio/studioApi';
+const StudioShell = lazy(() => import('./studio/StudioShell'));
+import { FEATURE_STUDIO } from '../shared/studio-feature';
 
 const steps = [
   { name: '上传素材', en: 'MATERIALS', icon: Upload, title: '准备你的创意素材', description: '用一条参考视频，定义下一条内容的起点。' },
@@ -325,7 +326,7 @@ export default function App() {
   }, [experienceMode, agentTheme.preferences.workspaceBackground, showLanding, showMediaLibrary, showGenerationTasks]);
   const [studioRoute, setStudioRoute] = useState<Extract<AppRoute, { kind: 'studio' }> | null>(null);
   const agentConversationVisible = !showLanding && !studioRoute && !showMediaLibrary && !showGenerationTasks && experienceMode === 'agent';
-  const agentActivity = useAgentActivity(!showLanding && !studioRoute && experienceMode === 'agent' && projects.length > 0 && (!publicAuthRequired || !!auth.session), agentConversationVisible ? project?.id : undefined, auth.user?.id);
+  const agentActivity = useAgentActivity(agentConversationVisible ? project?.id : undefined, auth.user?.id);
   const [routeReady, setRouteReady] = useState(false);
   const current = useRef<Project | null>(null);
   const unsaved = useRef(false);
@@ -335,7 +336,11 @@ export default function App() {
   const pendingSourceSeek = useRef<{ media: HTMLVideoElement; seconds: number } | null>(null);
   const [dragging, setDragging] = useState(false);
 
-  const adopt = useCallback((p: Project) => { current.current = p; setProject(p); }, []);
+  const adopt = useCallback((p: Project) => {
+    if (current.current?.id === p.id && current.current.revision > p.revision) return;
+    current.current = p;
+    setProject(p);
+  }, []);
   const adoptAgentUpdate = useCallback((p: Project) => { if (!unsaved.current && current.current?.id === p.id) { adopt(p); setStep(step => Math.max(step, lastAvailableStep(p))); } }, [adopt]);
   const refreshList = useCallback(async () => {
     const [creatives, groups] = await Promise.all([api<ProjectSummary[]>('/api/projects'), api<WorkspaceProject[]>('/api/workspace/projects')]);
@@ -548,6 +553,26 @@ export default function App() {
   }, [save, showLanding]);
   const taskRunning = project?.job?.status === 'running';
   const running = taskRunning || !!project && workflowBusy(project);
+  const updates = useWorkspaceUpdates(
+    workspaceVisible && !showLanding && !studioRoute ? project?.id : undefined,
+    workspaceAccount,
+    agentConversationVisible ? 'workspace' : experienceMode === 'agent' ? 'sidebar' : '',
+    update => {
+      if (update.type === 'activities') { agentActivity.receiveActivities(update.entries); return; }
+      if (update.type === 'activity') { agentActivity.receiveActivityUpdate(update.id, update.activity); return; }
+      if (update.type !== 'project') return;
+      const next = update.project;
+      const previous = current.current;
+      if (!previous || previous.id !== next.id || previous.revision >= next.revision || unsaved.current) return;
+      const wasRunning = previous.job?.status === 'running' || workflowBusy(previous);
+      if (experienceMode === 'agent') adoptAgentUpdate(next);
+      else adopt(next);
+      if (wasRunning && next.job?.status !== 'running' && !workflowBusy(next)) {
+        void refreshList().catch(error => setError(error.message));
+        if (next.job?.status === 'completed') setNotice(next.job.message);
+      }
+    },
+  );
   useEffect(() => {
     if ((project?.productionMode || 'veo-native') !== 'tts-subtitles') return;
     let cancelled = false;
@@ -556,24 +581,6 @@ export default function App() {
     });
     return () => { cancelled = true; };
   }, [project?.productionMode]);
-  useEffect(() => {
-    if (!running || !project) return;
-    const id = project.id;
-    let cancelled = false;
-    let timer: ReturnType<typeof setTimeout>;
-    let failures = 0;
-    const poll = async () => {
-      try {
-        const p = await api<Project>(`/api/projects/${id}`);
-        if (cancelled || current.current?.id !== id) return;
-        failures = 0; adopt(p);
-        if (p.job?.status === 'running' || workflowBusy(p)) timer = setTimeout(poll, 1800);
-        else { await refreshList(); if (p.job?.status === 'completed') setNotice(p.job.message); }
-      } catch (e) { if (!cancelled) { failures++; setError(failures > 2 ? '暂时无法获取任务进度，正在重新连接…' : '连接暂时中断，任务仍可能在后台运行。'); timer = setTimeout(poll, 4000); } }
-    };
-    timer = setTimeout(poll, 1200);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [running, project?.id, adopt, refreshList]);
   useEffect(() => { if (notice) { const t = setTimeout(() => setNotice(''), 3600); return () => clearTimeout(t); } }, [notice]);
   useEffect(() => {
     if (step !== 0 || !focusTarget || busy || running) return;
@@ -1076,13 +1083,13 @@ export default function App() {
   const authDialog = <AuthDialog availability={authAvailability} googleBusy={googleBusy} onGoogleSignIn={() => { void signInWithGoogle(); }} resendSeconds={authResendSeconds} avatarUrl={accountAvatar} onEditProfile={() => { setAuthOpen(false); setProfileEditing(true); }} open={authOpen && !profileWelcomeOpen} onClose={() => { clearAgentEntry(); setAuthOpen(false); }} auth={auth} email={authEmailValue} code={authCode} stage={authStage} onEmailChange={setAuthEmailValue} onCodeChange={setAuthCode} onSendCode={() => { void sendAuthCode(); }} onVerifyCode={() => { void verifyAuthCode(); }} onBack={() => { setAuthStage('email'); setAuthCode(''); setAuth(current => ({ ...current, error: '', status: '' })); }} onSignOut={() => { void signOut(); }} />;
   if (publicAuthRequired && !auth.initialized) return <div className="boot-screen"><LoaderCircle className="spin" /><p>{L.boot.restoring}</p></div>;
   if (FEATURE_STUDIO && studioRoute && workspaceVisible) {
-    return <StudioShell
+    return <Suspense fallback={<div className="boot-screen"><LoaderCircle className="spin" /></div>}><StudioShell
       route={studioRoute}
       onNavigate={(section, id) => openStudio(section, id)}
       onOpenTasks={openGenerationTasks}
       onLeave={() => { setStudioRoute(null); setLandingMode('studio'); setShowLanding(true); window.scrollTo(0, 0); }}
       onBackWorkspace={() => { setStudioRoute(null); setShowLanding(false); setShowMediaLibrary(false); setShowGenerationTasks(false); }}
-    />;
+    /></Suspense>;
   }
   if ((showLanding || (publicAuthRequired && !auth.session)) && landingMode === 'agent') return <>
     <Suspense fallback={<div style={{ minHeight: '100dvh', display: 'grid', placeItems: 'center', background: '#fff', color: '#252722' }}><LoaderCircle className="spin" size={22} aria-label="正在打开 Agent 创作首页" /></div>}>
@@ -1424,7 +1431,7 @@ export default function App() {
         </div>
         </> : <>
         <div className="unified-workspace">
-          <div className="agent-canvas-shell"><Suspense fallback={<div className="agent-chat" aria-label="加载创作 Agent" />}><IntelligentUIAgentWorkspace key={project.id} theme={agentTheme} project={project} videoRemixWorkflow={videoRemixWorkflow} disabled={disabled} steerDisabled={!!busy || observing} onProjectUpdate={adoptAgentUpdate} onBeforeSend={flush} onActivity={agentActivity.receiveActivity} taskAssetsOpen={taskAssetsProjectId === project.id} onOpenTaskAssets={() => setTaskAssetsProjectId(project.id)} onCloseTaskAssets={closeTaskAssets} onTaskAssetCountChange={receiveTaskAssetCount} entryDraft={agentEntryDraft} onEntryDraftConsumed={consumeAgentEntryDraft} /></Suspense></div>
+          <div className="agent-canvas-shell"><Suspense fallback={<div className="agent-chat" aria-label="加载创作 Agent" />}><IntelligentUIAgentWorkspace key={project.id} theme={agentTheme} project={project} videoRemixWorkflow={videoRemixWorkflow} disabled={disabled} steerDisabled={!!busy || observing} onProjectUpdate={adoptAgentUpdate} onBeforeSend={flush} onActivity={agentActivity.receiveActivity} liveAgent={updates?.agent} connected={updates?.connected} historyError={updates?.historyError} taskAssetsOpen={taskAssetsProjectId === project.id} onOpenTaskAssets={() => setTaskAssetsProjectId(project.id)} onCloseTaskAssets={closeTaskAssets} onTaskAssetCountChange={receiveTaskAssetCount} entryDraft={agentEntryDraft} onEntryDraftConsumed={consumeAgentEntryDraft} /></Suspense></div>
         </div>
         </>}
         {frameDrawer}

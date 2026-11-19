@@ -35,6 +35,9 @@ import { importExperimentSkillInput, bindExperimentInput, readGitHubSkill, attac
 import { skillSelectionSchema } from '../shared/skill-assets';
 import { createLandingPageStore, registerLandingPageReadRoutes, registerLandingPageWriteRoutes, registerLandingPlaygroundRoutes } from './landing-editor';
 import { currentWeatherInput, getCurrentWeather } from './current-weather';
+import { summarizeAgentActivity, type AgentActivities } from '../shared/agent-activity';
+import { FEATURE_STUDIO } from '../shared/studio-feature';
+import type { WorkspaceUpdate } from '../shared/workspace-updates';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 try { process.loadEnvFile(path.join(root, '.env')); } catch (err) { if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err; }
@@ -45,7 +48,7 @@ if (process.env.NODE_USE_ENV_PROXY === '1') {
   setProxy?.(process.env);
 }
 // Load storage after .env so an optional data-directory override takes effect.
-const { createProject, getProject, listProjects, listProjectIds, saveProject, defaultProjectId, createWorkspaceProject, getWorkspaceProject, listWorkspaceProjects, saveWorkspaceProject } = await import('./store');
+const { createProject, getProject, listProjects, listProjectIds, saveProject, subscribeProject, defaultProjectId, createWorkspaceProject, getWorkspaceProject, listWorkspaceProjects, saveWorkspaceProject } = await import('./store');
 const { workspaceUploadDir, workspaceUploadPath, workspaceAccountId, withWorkspaceAccount, isWorkspaceAccountId, workspaceAccounts, accountWorkspacesEnabled } = await import('./workspace-storage');
 const { workspaceUploader } = await import('./workspace-upload');
 const { configured, configureConnection, checkModelConnection, correctTierShot, detectTierSubjects, generateTierSubjectImage } = await import('./gemini');
@@ -62,7 +65,7 @@ const { composeSelectedVideo, productionImages, productionSceneImage, production
 const { buildProductionStoryboard } = await import('./storyboard-grid');
 const { agentProvider, creativeAgentEnabled: agentEnabled } = await import('./agent-provider');
 const { pendingReferenceAnalysis } = await import('./agent-video-analysis');
-const { agentCapabilities, getAgentState, getAgentActivity, getAgentImageReferences, subscribeAgent, startAgentTurn, steerAgentTurn, queueAgentMessage, removeQueuedAgentMessage, editQueuedAgentMessage, steerQueuedAgentMessage, resumeAgentQueue, AgentTurnConflictError, interruptAgentTurn, setAgentModel, setAgentAdaptation, setAgentPresentation, listAgentModels, noteAgentVideoChanged, showAgentCanvasComponent, showAgentIntelligentUI, updateAgentCanvasComponent, closeAgentCanvasComponent, setAgentExperiment, mutateAgentExperiment } = await import('./creative-agent');
+const { agentCapabilities, getAgentState, getAgentActivity, getAgentImageReferences, subscribeAgent, subscribeAgentActivity, startAgentTurn, steerAgentTurn, queueAgentMessage, removeQueuedAgentMessage, editQueuedAgentMessage, steerQueuedAgentMessage, resumeAgentQueue, AgentTurnConflictError, interruptAgentTurn, setAgentModel, setAgentAdaptation, setAgentPresentation, listAgentModels, noteAgentVideoChanged, showAgentCanvasComponent, showAgentIntelligentUI, updateAgentCanvasComponent, closeAgentCanvasComponent, setAgentExperiment, mutateAgentExperiment } = await import('./creative-agent');
 const { registerRadarSpaceInternal, registerRadarSpaceMedia } = await import('./radar-space-agent');
 const { programmaticEnabled, experimentWorkspace, publishExperimentFile, publishExperimentFileInput } = await import('./experiment-runtime');
 const { registerSkillInternalRoutes, registerSkillExperimentRoutes, registerSkillAssetRoutes, applyInitialSkills, prepareSkillSelections, verifySkillAsset } = await import('./skill-asset-routes');
@@ -116,7 +119,7 @@ app.use((req, res, next) => {
   const hostname = req.hostname.toLowerCase();
   if (!publicAuthEnabled && !['127.0.0.1', 'localhost', '[::1]', '::1'].includes(hostname)) return res.status(403).json({ error: '此工作台仅接受本机访问。' });
   const internalTool = hostname === '127.0.0.1' && loopbackAddress(req.socket.remoteAddress)
-    && (req.path.startsWith('/api/agent-internal/') || req.path.startsWith('/api/radar-space-internal/'));
+    && (req.path.startsWith('/api/agent-internal/') || (FEATURE_STUDIO && req.path.startsWith('/api/radar-space-internal/')));
   if (publicAuthEnabled && !allowedHosts.has(hostname) && !internalTool) return res.status(400).json({ error: '访问域名未加入服务白名单。' });
   const protectedResource = req.path.startsWith('/api') || req.path.startsWith('/media');
   // OAuth returns from the provider as a cross-site document navigation.
@@ -167,7 +170,7 @@ function editable(project: Project) {
   if (project.job?.status === 'running' || workflowBusy(project) || uploadsInProgress.has(project.id)) throw new HttpError(409, '当前任务正在处理，请等待完成或接管制作。');
 }
 // The MCP child can only reach its own creative through this loopback-only capability.
-registerRadarSpaceInternal(app);
+if (FEATURE_STUDIO) registerRadarSpaceInternal(app);
 app.use('/api/agent-internal/:id', (req, res, next) => {
   const capability = agentCapabilities.verify(String(req.params.id), req.get('X-SOP-Agent-Token'));
   if (!loopbackAddress(req.socket.remoteAddress) || !capability || (publicAuthEnabled && !capability.accountId)) return res.sendStatus(403);
@@ -611,12 +614,6 @@ app.use('/media', async (req, res, next) => {
     return withWorkspaceAccount(accountId, next);
   } catch { return res.status(503).json({ error: '登录服务暂时不可用，请稍后重试。' }); }
 });
-app.get('/api/agent/activity', async (_req, res) => {
-  if (!agentEnabled) return res.json({});
-  const ids = [...listProjectIds()].filter(id => !officialJobFor(id));
-  const entries = await Promise.all(ids.map(async id => [id, await getAgentActivity(id)] as const));
-  res.json(Object.fromEntries(entries));
-});
 app.use('/api/projects/:id', (req, res, next) => {
   if (!getProject(String(req.params.id))) return res.status(404).json({ error: '找不到这个创意。' });
   if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method) && officialJobFor(String(req.params.id))) return res.status(403).json({ error: '官方实验记录只读。请采用资产，在自己的创意中继续创作。' });
@@ -684,21 +681,55 @@ app.delete('/api/projects/:id/agent/canvas-components/:componentId', (req, res) 
   if (!closeAgentCanvasComponent(String(req.params.id), String(req.params.componentId))) throw new HttpError(404, '组件已关闭。');
   res.sendStatus(204);
 });
-app.get('/api/projects/:id/agent/events', (req, res) => {
-  const id = String(req.params.id);
+function openEventStream(res: Response) {
   res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
   res.setHeader('Connection', 'keep-alive');
   res.setHeader('Cache-Control', 'no-cache, no-transform');
   res.flushHeaders();
-  const send = (state: ReturnType<typeof getAgentState>) => { if (!res.destroyed) res.write(`data: ${JSON.stringify(state)}\n\n`); };
+  const heartbeat = setInterval(() => { if (!res.destroyed) res.write(': keepalive\n\n'); }, 20_000);
+  res.on('close', () => clearInterval(heartbeat));
+  return (value: unknown) => { if (!res.destroyed) res.write(`data: ${JSON.stringify(value)}\n\n`); };
+}
+function streamAgent(id: string, send: (state: ReturnType<typeof getAgentState>) => void) {
   send(getAgentState(id));
   let timer: NodeJS.Timeout | undefined;
   const stop = subscribeAgent(id, state => {
     if (state.status !== 'running') { clearTimeout(timer); timer = undefined; send(state); }
     else if (!timer) timer = setTimeout(() => { timer = undefined; send(getAgentState(id)); }, 40);
   });
-  const heartbeat = setInterval(() => res.write(': keepalive\n\n'), 20000);
-  res.on('close', () => { stop(); clearInterval(heartbeat); clearTimeout(timer); });
+  return () => { stop(); clearTimeout(timer); };
+}
+app.get('/api/projects/:id/agent/events', (req, res) => {
+  const id = String(req.params.id);
+  res.on('close', streamAgent(id, openEventStream(res)));
+});
+app.get('/api/workspace/events/:id', async (req, res) => {
+  const project = record(req);
+  const send: (update: WorkspaceUpdate) => void = openEventStream(res);
+  send({ type: 'project', project });
+  res.on('close', subscribeProject(project.id, current => send({ type: 'project', project: current })));
+  const mode = req.query.agent;
+  if (mode === 'conversation' || mode === 'workspace') {
+    if (agentEnabled) res.on('close', streamAgent(project.id, state => send({ type: 'agent', state })));
+    else send({ type: 'agent-unavailable' });
+  }
+  if (!agentEnabled || (mode !== 'workspace' && mode !== 'sidebar')) return;
+  let initializing = true;
+  const activities: AgentActivities = {};
+  const stop = subscribeAgentActivity((id, state) => {
+    if (officialJobFor(id)) return;
+    const activity = summarizeAgentActivity(state);
+    const previous = activities[id];
+    if (previous && previous.status === activity.status && previous.completedAt === activity.completedAt && previous.updatedAt === activity.updatedAt) return;
+    activities[id] = activity;
+    if (!initializing) send({ type: 'activity', id, activity });
+  });
+  res.on('close', stop);
+  const ids = [...listProjectIds()].filter(id => !officialJobFor(id));
+  const entries = await Promise.all(ids.map(async id => [id, await getAgentActivity(id)] as const));
+  send({ type: 'activities', entries: { ...Object.fromEntries(entries), ...activities } });
+  for (const [id, activity] of entries) activities[id] ??= activity;
+  initializing = false;
 });
 app.post('/api/projects/:id/agent/turns', async (req, res, next) => {
   try {
@@ -1321,7 +1352,7 @@ app.get('/api/projects/:id/export', async (req, res) => {
   res.setHeader('Content-Disposition', `attachment; filename="sop-studio-${project.id.slice(0, 8)}.zip"; filename*=UTF-8''${encodeURIComponent(project.title + '.zip')}`);
   res.type('application/zip').send(buffer);
 });
-registerRadarSpaceMedia(app);
+if (FEATURE_STUDIO) registerRadarSpaceMedia(app);
 app.get('/media/:filename', (req, res, next) => {
   if (!publicAuthEnabled) return next();
   const file = visibleSkillMedia(req.params.filename, workspaceAccountId()!);

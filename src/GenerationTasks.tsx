@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowUpRight, Check, ChevronLeft, ChevronRight, CircleAlert, CircleCheck, Clock3, Copy, Download, Eye, Film, Image as ImageIcon, Inbox, LoaderCircle, RefreshCw, Search, X } from 'lucide-react';
 import { generationStatusLabels, generationTaskActive, type GenerationTask, type GenerationTaskList, type GenerationTaskStatus } from '../shared/generation-task';
+import { FEATURE_STUDIO } from '../shared/studio-feature';
 import { api } from './api';
 import './generation-tasks.css';
 
@@ -152,7 +153,7 @@ function TaskDetail({ taskId, updatedAt, onClose, onOpenCreative, onOpenStudioPr
       <button type="button" className="generation-button generation-copy" onClick={() => void copyId()}>{copied ? <Check size={14} /> : <Copy size={14} />}{copied ? '已复制' : task.requestId ? '复制请求标识' : '复制任务 ID'}</button>
       <details className="generation-prompt" open><summary>生成提示词</summary><pre>{task.prompt || (generationTaskActive(task.status) ? '请求尚在准备，提交后可查看完整提示词。' : '历史任务未保留完整提示词。')}</pre></details>
       {task.creativeId && <button type="button" className="generation-button generation-open-creative" disabled={busy} onClick={() => onOpenCreative(task.creativeId!)}>打开所属创意<ArrowUpRight size={15} /></button>}
-      {task.studioProjectId && <button type="button" className="generation-button generation-open-creative" disabled={busy} onClick={() => onOpenStudioProject(task.studioProjectId!)}>打开工作室项目<ArrowUpRight size={15} /></button>}
+      {FEATURE_STUDIO && task.studioProjectId && <button type="button" className="generation-button generation-open-creative" disabled={busy} onClick={() => onOpenStudioProject(task.studioProjectId!)}>打开工作室项目<ArrowUpRight size={15} /></button>}
     </>}
   </aside>;
 }

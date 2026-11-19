@@ -37,6 +37,7 @@ const drainingQueues = new Set<string>();
 const steeringQueuedMessages = new Set<string>();
 const events = new EventEmitter();
 events.setMaxListeners(0);
+const activityListeners = workspaceResource(() => new Set<(id: string, state: AgentState) => void>());
 export const agentCapabilities = createWorkspaceCapabilities();
 
 function filename(id: string) { return path.join(workspaceDirectory('agent-sessions'), `${id}.json`); }
@@ -46,6 +47,7 @@ function save(id: string) {
   fs.writeFileSync(temp, JSON.stringify(state), { mode: 0o600 });
   fs.renameSync(temp, dest);
   events.emit(id, state);
+  for (const listener of activityListeners()) listener(id, state);
 }
 function syncAgentProvider(state: AgentState) {
   const changed = state.provider !== agentProvider.key;
@@ -100,7 +102,7 @@ export async function getAgentActivity(id: string): Promise<AgentActivity> {
   const liveState = states.get(id);
   if (liveState) return summarizeAgentActivity(liveState);
 
-  // Sidebar polling can summarize saved activity without hydrating the conversation.
+  // Read the sidebar snapshot without hydrating the conversation.
   const cache = savedActivities();
   let snapshot = cache.get(id);
   if (!snapshot) {
@@ -130,6 +132,11 @@ export function mutateAgentExperiment(id: string, operation: ExperimentOperation
 export function subscribeAgent(id: string, listener: (state: AgentState) => void) {
   events.on(id, listener);
   return () => events.off(id, listener);
+}
+export function subscribeAgentActivity(listener: (id: string, state: AgentState) => void) {
+  const listeners = activityListeners();
+  listeners.add(listener);
+  return () => listeners.delete(listener);
 }
 export function showAgentCanvasComponent(id: string, input: CanvasComponentInput) {
   const state = getAgentState(id);

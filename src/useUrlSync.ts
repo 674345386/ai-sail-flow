@@ -1,5 +1,6 @@
 import { useEffect, useReducer, useRef } from 'react';
 import { readAuthCallback, supabase } from './auth';
+import { FEATURE_STUDIO } from '../shared/studio-feature';
 
 // Lightweight client routing: keeps location.pathname and the App view state in sync.
 //   /                              landing
@@ -43,6 +44,7 @@ export function parseRoute(pathname: string): AppRoute | null {
   if (parts[0] === 'library' && parts.length === 1) return { kind: 'library' };
   if (parts[0] === 'jobs' && parts.length === 1) return { kind: 'jobs' };
   if (parts[0] === 'studio') {
+    if (!FEATURE_STUDIO) return { kind: 'landing' };
     if (parts.length === 1) return { kind: 'studio', section: 'welcome' };
     const section = parts[1]?.toLowerCase();
     if (!studioSections.has(section)) return null;

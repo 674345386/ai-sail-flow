@@ -11,9 +11,7 @@ import { generateImage, imageGenerationStatus, type ImageReference } from './ima
 import type { GenerationTask } from '../shared/generation-task';
 import { findRadarItem, registerRadarRoutes } from './radar';
 import { registerRadarSpaceRoutes } from './radar-space-agent';
-
-/** FEATURE_STUDIO defaults true; set FEATURE_STUDIO=0|false to disable API. */
-export const FEATURE_STUDIO = !['0', 'false', 'off'].includes(String(process.env.FEATURE_STUDIO || 'true').toLowerCase());
+import { FEATURE_STUDIO } from '../shared/studio-feature';
 
 export type TrendItem = {
   id: string;
@@ -401,10 +399,7 @@ async function persistUploadedRefs(files: Express.Multer.File[]) {
 }
 
 export function registerStudioRoutes(app: Express) {
-  app.use('/api/studio', (req, res, next) => {
-    if (!FEATURE_STUDIO) return res.status(404).json({ error: '爆款工作室未启用。' });
-    next();
-  });
+  if (!FEATURE_STUDIO) return;
   registerRadarRoutes(app);
   registerRadarSpaceRoutes(app);
 

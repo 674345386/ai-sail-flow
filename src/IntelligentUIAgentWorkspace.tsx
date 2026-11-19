@@ -18,7 +18,6 @@ import { api } from './api';
 import { AgentMessageAttachments, AgentPromptMedia, promptMediaAccept, useAgentPromptMedia } from './AgentPromptMedia';
 import { clipboardMediaFiles } from '../shared/prompt-media';
 import { groupAgentMedia, UNASSIGNED_MEDIA, type AgentMedia } from './agentMediaTimeline';
-import { supabase } from './auth';
 import { library } from './intelligent-ui/library';
 import { runLibraryAction } from './intelligent-ui/actions';
 import type { AgentThemeController } from './intelligent-ui/useAgentTheme';
@@ -64,16 +63,23 @@ function ConversationText({ message, onOpenUI }: { message: AgentMessage; onOpen
   </>;
 }
 
-export default function IntelligentUIAgentWorkspace({ theme, project, videoRemixWorkflow, disabled, steerDisabled = disabled, onProjectUpdate, onBeforeSend, onActivity, taskAssetsOpen: taskAssetsRequested, onOpenTaskAssets, onCloseTaskAssets, onTaskAssetCountChange, entryDraft, onEntryDraftConsumed }: {
+export default function IntelligentUIAgentWorkspace({ theme, project, videoRemixWorkflow, disabled, steerDisabled = disabled, onProjectUpdate, onBeforeSend, onActivity, liveAgent, connected, historyError, taskAssetsOpen: taskAssetsRequested, onOpenTaskAssets, onCloseTaskAssets, onTaskAssetCountChange, entryDraft, onEntryDraftConsumed }: {
   theme: AgentThemeController;
   project: Project; videoRemixWorkflow?: ReactNode; disabled: boolean; steerDisabled?: boolean;
   onProjectUpdate: (project: Project) => void; onBeforeSend: () => Promise<unknown>;
   onActivity?: (id: string, activity: AgentActivity) => void;
+  liveAgent?: AgentState; connected?: boolean; historyError?: string;
   taskAssetsOpen: boolean; onOpenTaskAssets: () => void; onCloseTaskAssets: () => void;
   onTaskAssetCountChange: (projectId: string, count: number | null) => void;
   entryDraft?: { id: string; text: string } | null; onEntryDraftConsumed?: () => void;
 }) {
-  const [agent, setAgent] = useState<AgentState>({ status: 'idle', messages: [] });
+  const [agent, setAgent] = useState<AgentState>(() => liveAgent || { status: 'idle', messages: [] });
+  const [historyLoaded, setHistoryLoaded] = useState(!!liveAgent);
+  useEffect(() => {
+    if (!liveAgent) return;
+    setAgent(liveAgent);
+    setHistoryLoaded(true);
+  }, [liveAgent]);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [queueSaving, setQueueSaving] = useState(false);
@@ -83,9 +89,6 @@ export default function IntelligentUIAgentWorkspace({ theme, project, videoRemix
     catch { return true; }
   });
   const [error, setError] = useState('');
-  const [connected, setConnected] = useState(false);
-  const [historyLoaded, setHistoryLoaded] = useState(false);
-  const [historyError, setHistoryError] = useState('');
   const activity = summarizeAgentActivity(agent);
   useEffect(() => {
     if (historyLoaded) onActivity?.(project.id, activity);
@@ -135,8 +138,6 @@ export default function IntelligentUIAgentWorkspace({ theme, project, videoRemix
     onEntryDraftConsumed?.();
   }, [entryDraft?.id]);
   const loadVideoDetails = useCallback((id: string, signal: AbortSignal) => api<GeneratedVideo>(`/api/projects/${project.id}/agent/videos/${id}/details`, { signal }), [project.id]);
-  const onProjectUpdateRef = useRef(onProjectUpdate);
-  onProjectUpdateRef.current = onProjectUpdate;
   const running = sending || agent.status === 'running';
   const steering = agent.status === 'running';
   const queueByDefault = steering && queueEnabled;
@@ -234,77 +235,11 @@ export default function IntelligentUIAgentWorkspace({ theme, project, videoRemix
     if (preferencesOpen) preferencesPanel.current?.querySelector<HTMLElement>('select:not(:disabled), button')?.focus();
   }, [preferencesOpen]);
 
-  useEffect(() => {
-    const controller = new AbortController();
-    let cancelled = false;
-    let retry: ReturnType<typeof setTimeout> | undefined;
-    const path = `/api/projects/${project.id}/agent`;
-    let liveRevision = 0;
-    const loadHistory = async () => {
-      const revision = liveRevision;
-      try {
-        const state = await api<AgentState>(path, { signal: controller.signal });
-        if (cancelled) return;
-        if (revision === liveRevision) setAgent(state);
-        setHistoryLoaded(true); setHistoryError('');
-      } catch (failure) {
-        if (!cancelled && liveRevision === 0) setHistoryError(failure instanceof Error ? failure.message : '对话加载失败，请刷新重试。');
-      }
-    };
-    void loadHistory();
-    const connect = async () => {
-      try {
-        const session = supabase ? (await supabase.auth.getSession()).data.session : null;
-        const response = await fetch(`${path}/events`, { signal: controller.signal, headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {} });
-        if (!response.ok || !response.body) throw new Error('无法连接实时对话，请刷新或稍后重试。');
-        if (cancelled) return;
-        setConnected(true);
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = '';
-        while (!cancelled) {
-          const chunk = await reader.read();
-          if (chunk.done) break;
-          buffer += decoder.decode(chunk.value, { stream: true });
-          let index: number;
-          while ((index = buffer.indexOf('\n\n')) >= 0) {
-            const frame = buffer.slice(0, index); buffer = buffer.slice(index + 2);
-            const data = frame.split('\n').find(line => line.startsWith('data: '));
-            if (data && !cancelled) {
-              const state = JSON.parse(data.slice(6)) as AgentState;
-              liveRevision++; setAgent(state); setHistoryLoaded(true); setHistoryError('');
-            }
-          }
-        }
-      } catch { /* The next connection starts with the full saved/live state. */ }
-      if (!cancelled) { setConnected(false); void loadHistory(); retry = setTimeout(() => void connect(), 2000); }
-    };
-    void connect();
-    return () => { cancelled = true; controller.abort(); clearTimeout(retry); };
-  }, [project.id]);
   useEffect(() => { setModelDraft(agent.model || DEFAULT_AGENT_MODEL); }, [agent.model]);
   useEffect(() => { void api<{ model: string; displayName?: string }[]>(`/api/projects/${project.id}/agent/models`).then(setModels).catch(() => {}); }, [project.id]);
   useEffect(() => {
     if (scroll.current && nearBottom.current) scroll.current.scrollTop = scroll.current.scrollHeight;
   }, [messages, agent.activity, sending]);
-  const hasRunningMedia = Boolean(project.agentImages?.some(image => image.status === 'running') || project.generatedVideos.some(video => video.status === 'running' || video.minimax?.recoveryPending && minimaxVideoRecoverable(video)));
-  useEffect(() => {
-    const controller = new AbortController();
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const refresh = async () => {
-      try {
-        const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(10_000)]);
-        const fresh = await api<Project>(`/api/projects/${project.id}`, { signal });
-        signal.throwIfAborted();
-        if (!controller.signal.aborted) onProjectUpdateRef.current(fresh);
-      } catch { /* The next refresh can recover after a transient failure. */ }
-      finally {
-        if (!controller.signal.aborted && (agent.status === 'running' || hasRunningMedia)) timer = setTimeout(() => void refresh(), 3000);
-      }
-    };
-    void refresh();
-    return () => { controller.abort(); clearTimeout(timer); };
-  }, [agent.status, project.id, hasRunningMedia]);
 
   const updateQueue = async (suffix: string, method: 'POST' | 'PATCH' | 'DELETE', body?: { prompt?: string; expectedTurnId?: string }) => {
     if (queueDisabled || queueSavingRef.current || sendingRef.current || media.busy.current || preferenceSavingRef.current) return false;

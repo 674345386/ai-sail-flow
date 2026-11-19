@@ -4,6 +4,7 @@ import type { Project, ProjectSummary } from '../shared/domain';
 import { api } from './api';
 import IntelligentUIAgentWorkspace from './IntelligentUIAgentWorkspace';
 import { useAgentTheme } from './intelligent-ui/useAgentTheme';
+import { useWorkspaceUpdates } from './useWorkspaceUpdates';
 import './experiment-workbench.css';
 
 /** Direct entry to the real project-backed Agent workspace, without a demo project. */
@@ -16,6 +17,12 @@ export default function ExperimentLabPage() {
   const [creating, setCreating] = useState(false);
   const [taskAssetSummary, setTaskAssetSummary] = useState<{ projectId: string; count: number } | null>(null);
   const [taskAssetsOpen, setTaskAssetsOpen] = useState(false);
+  const updateProject = useCallback((next: Project) => {
+    setProject(current => current?.id === next.id && current.revision < next.revision ? next : current);
+  }, []);
+  const updates = useWorkspaceUpdates(project?.id, undefined, 'conversation', update => {
+    if (update.type === 'project') updateProject(update.project);
+  });
   const closeTaskAssets = useCallback(() => setTaskAssetsOpen(false), []);
   const receiveTaskAssetCount = useCallback((id: string, count: number | null) => {
     setTaskAssetSummary(count === null ? null : { projectId: id, count });
@@ -48,6 +55,6 @@ export default function ExperimentLabPage() {
       </button>}
       <button type="button" disabled={creating} onClick={() => void create()}>{creating ? <LoaderCircle size={13} /> : <Plus size={13} />}新建实验</button></header>
     {error && <div className="lab-page-error" role="alert">{error}</div>}
-    <div className="lab-page-body">{loading ? <div className="lab-page-loading">正在打开实验台…</div> : project ? <IntelligentUIAgentWorkspace key={project.id} theme={theme} project={project} disabled={!!project.archivedAt} onProjectUpdate={setProject} onBeforeSend={async () => project} taskAssetsOpen={taskAssetsOpen} onOpenTaskAssets={() => setTaskAssetsOpen(true)} onCloseTaskAssets={closeTaskAssets} onTaskAssetCountChange={receiveTaskAssetCount} /> : <div className="lab-page-loading"><FlaskConical size={36} strokeWidth={1.3} style={{ margin: '0 auto 18px' }} /><h1>让创作过程，成为你的资产。</h1><p>选择已有创意继续，或新建一个实验，从参考、方法和素材开始。</p><button type="button" disabled={creating} onClick={() => void create()}>新建视频创作实验</button></div>}</div>
+    <div className="lab-page-body">{loading ? <div className="lab-page-loading">正在打开实验台…</div> : project ? <IntelligentUIAgentWorkspace key={project.id} theme={theme} project={project} disabled={!!project.archivedAt} onProjectUpdate={updateProject} onBeforeSend={async () => project} liveAgent={updates?.agent} connected={updates?.connected} historyError={updates?.historyError} taskAssetsOpen={taskAssetsOpen} onOpenTaskAssets={() => setTaskAssetsOpen(true)} onCloseTaskAssets={closeTaskAssets} onTaskAssetCountChange={receiveTaskAssetCount} /> : <div className="lab-page-loading"><FlaskConical size={36} strokeWidth={1.3} style={{ margin: '0 auto 18px' }} /><h1>让创作过程，成为你的资产。</h1><p>选择已有创意继续，或新建一个实验，从参考、方法和素材开始。</p><button type="button" disabled={creating} onClick={() => void create()}>新建视频创作实验</button></div>}</div>
   </main>;
 }
