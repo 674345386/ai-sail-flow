@@ -8,6 +8,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 // No credentials, model requests or existing project data are used.
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'sop-agent-connection-'));
 const launches = path.join(temp, 'launches.jsonl');
+const calls = path.join(temp, 'calls.txt');
 const fixture = path.join(temp, 'codex-fixture');
 fs.writeFileSync(fixture, `#!${process.execPath}
 const fs = require('node:fs');
@@ -20,6 +21,7 @@ fs.appendFileSync(log, JSON.stringify({ pid: process.pid, native: native?.pid })
 readline.createInterface({ input: process.stdin }).on('line', line => {
   const request = JSON.parse(line);
   if (first || !request.id) return;
+  fs.appendFileSync(process.env.SOP_AGENT_CHECK_CALLS, request.method + '\\n');
   let result = {};
   if (request.method === 'model/list') result = { data: [{ model: 'gpt-6.1-terra' }] };
   if (request.method === 'thread/start') result = { thread: { id: 'recovered-thread' } };
@@ -33,6 +35,7 @@ Object.assign(process.env, {
   SOP_AGENT_CODEX_HOME: path.join(temp, 'codex-home'),
   SOP_AGENT_CODEX_BIN: fixture,
   SOP_AGENT_CHECK_LAUNCHES: launches,
+  SOP_AGENT_CHECK_CALLS: calls,
   SOP_AGENT_PROVIDER: 'codex',
   SOP_AGENT_MODEL: 'gpt-6.1-terra',
 });
@@ -51,13 +54,25 @@ try {
   await delay(50);
   assert.equal(getAgentState('connection-check').status, 'idle');
   assert.equal(getAgentState('connection-check').threadId, 'recovered-thread');
+  const initialSteps = getAgentState('connection-check').messages.at(-1)?.work?.steps.map(step => step.label);
+  assert.ok(initialSteps?.includes('正在启动创作 Agent…'));
+  assert.ok(initialSteps?.includes('正在创建会话…'));
   await listAgentModels('connection-check');
+  await startAgentTurn('connection-check', 'follow-up');
+  await delay(50);
+  assert.equal(getAgentState('connection-check').status, 'idle');
+  assert.deepEqual(getAgentState('connection-check').messages.at(-1)?.work?.steps.map(step => step.label), [
+    '已接收请求', '正在提交本轮请求…', '正在等待 Agent 响应…',
+  ]);
+  const methods = fs.readFileSync(calls, 'utf8').trim().split('\n');
+  assert.equal(methods.filter(method => method === 'model/list').length, 1);
+  assert.equal(methods.filter(method => method.startsWith('thread/')).length, 1);
   const processes = readLaunches();
   assert.equal(processes.length, 2, 'reuse the replacement after the old process exits');
   for (const pid of [processes[0].pid, processes[0].native!]) {
     assert.throws(() => process.kill(pid, 0), { code: 'ESRCH' }, 'terminate the stalled launcher and its child');
   }
-  console.log('Agent connection check passed: timeout, process cleanup, retry and replacement reuse.');
+  console.log('Agent connection check passed: timeout, cleanup, retry, progress labels and model catalog reuse.');
 } catch (error) {
   console.error('Agent fixture launches:', readLaunches());
   throw error;

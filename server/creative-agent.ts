@@ -208,6 +208,9 @@ export function noteAgentVideoChanged(id: string) {
 class AppServerClient {
   private proc: ChildProcessWithoutNullStreams;
   private loadedThreadId: string | undefined;
+  private initialized = false;
+  private models?: AgentModelInfo[];
+  private modelRequest?: Promise<AgentModelInfo[]>;
   private nextId = 1;
   private pending = new Map<number, { resolve: (value: Record<string, any>) => void; reject: (error: Error) => void; timer: NodeJS.Timeout }>();
   readonly ready: Promise<void>;
@@ -229,6 +232,7 @@ class AppServerClient {
     // Cold SQLite initialization on the shared host can exceed the normal RPC timeout.
     this.ready = this.request('initialize', { clientInfo: { name: 'sail_creation', title: 'AI Creative Lab Agent', version: '0.1.0' } }, 120_000).then(() => {
       this.proc.stdin.write(`${JSON.stringify({ method: 'initialized', params: {} })}\n`);
+      this.initialized = true;
     }).catch(error => {
       this.fail(error);
       throw error;
@@ -265,6 +269,19 @@ class AppServerClient {
     });
   }
   async call(method: string, params: Record<string, unknown> = {}, timeout?: number) { await this.ready; return this.request(method, params, timeout); }
+  get isReady() { return this.initialized; }
+  async listModels(onLoading?: () => void): Promise<AgentModelInfo[]> {
+    if (this.models) return this.models;
+    onLoading?.();
+    this.modelRequest ??= this.call('model/list', { includeHidden: false })
+      .then(result => {
+        const models = (result.data || []) as AgentModelInfo[];
+        this.models = models;
+        return models;
+      })
+      .finally(() => { this.modelRequest = undefined; });
+    return this.modelRequest;
+  }
   hasLoadedThread(threadId: string) { return this.loadedThreadId === threadId; }
   markThreadLoaded(threadId: string) { this.loadedThreadId = threadId; }
 }
@@ -296,13 +313,25 @@ const workToolLabels: Record<string, string> = {
   update_experiment: '更新视频实验台', import_experiment_skill: '读取 GitHub Skill', bind_experiment_source: '连接阶段产物',
 };
 
+const submittingTurn = '正在提交本轮请求…';
+const waitingForAgent = '正在等待 Agent 响应…';
+
+function reportAgentProgress(id: string, state: AgentState, activity: string) {
+  state.activity = activity;
+  recordAgentWork(state.messages, activity);
+  events.emit(id, state);
+}
+
 function onNotification(id: string, message: Wire) {
   const state = getAgentState(id), params = message.params || {};
+  if (message.method === 'turn/started' && state.status === 'running' && state.activity === submittingTurn) {
+    reportAgentProgress(id, state, waitingForAgent);
+  }
   if (message.method === 'item/started') {
     const item = params.item as { type?: string; tool?: string } | undefined;
-    state.activity = item?.type === 'webSearch' ? '正在查询资料…' : item?.type === 'mcpToolCall' ? `${workToolLabels[item.tool || ''] || '执行创作工具'}…` : item?.type === 'agentMessage' ? '正在生成回答…' : '正在思考…';
-    recordAgentWork(state.messages, state.activity);
-    events.emit(id, state);
+    if (item?.type === 'userMessage') return;
+    const activity = item?.type === 'webSearch' ? '正在查询资料…' : item?.type === 'mcpToolCall' ? `${workToolLabels[item.tool || ''] || '执行创作工具'}…` : item?.type === 'agentMessage' ? '正在生成回答…' : '正在思考…';
+    reportAgentProgress(id, state, activity);
   }
   if (message.method === 'item/agentMessage/delta' && typeof params.delta === 'string') {
     let item = state.messages.find(entry => entry.itemId === params.itemId);
@@ -341,15 +370,13 @@ async function clientFor(id: string) {
   await client.ready;
   return client;
 }
-export async function listAgentModels(id: string): Promise<AgentModelInfo[]> {
+export async function listAgentModels(id: string, onLoading?: () => void): Promise<AgentModelInfo[]> {
   const fallback = { model: agentProvider.model, displayName: AGENT_MODELS.find(model => model.id === agentProvider.model)?.label || agentProvider.model };
   // Codex's bundled GPT catalog cannot describe an arbitrary external provider.
   if (agentProvider.custom && !agentProvider.catalog) return [fallback];
   const client = await clientFor(id);
-  const result = await client.call('model/list', { includeHidden: false });
-  const models = (result.data || []) as AgentModelInfo[];
-  if (!models.some(model => model.model === agentProvider.model)) models.unshift(fallback);
-  return models;
+  const models = await client.listModels(onLoading);
+  return models.some(model => model.model === agentProvider.model) ? models : [fallback, ...models];
 }
 export async function startAgentTurn(id: string, prompt: string, imageIds?: string[], videoIds?: string[], attachmentOrder?: string[], audioIds?: string[], onAccepted?: (state: AgentState) => void): Promise<AgentState> {
   const state = getAgentState(id);
@@ -409,8 +436,8 @@ export async function startAgentTurn(id: string, prompt: string, imageIds?: stri
   state.status = 'running';
   state.turnId = undefined;
   if (!state.queue?.length) state.queuePaused = false;
-  state.activity = '正在连接创作 Agent…';
-  recordAgentWork(state.messages, state.activity);
+  state.activity = clients.get(id)?.isReady ? undefined : '正在启动创作 Agent…';
+  if (state.activity) recordAgentWork(state.messages, state.activity);
   state.error = undefined;
   startingTurns.add(id);
   save(id);
@@ -423,7 +450,7 @@ export async function startAgentTurn(id: string, prompt: string, imageIds?: stri
     const { developerInstructions, instructionsVersion } = agentInstructionsFor(normalizeAgentAdaptation(state.adaptation), presentation, !!officialJobFor(id));
     let effort: string | undefined = state.effort || agentProvider.effort;
     try {
-      const models = await listAgentModels(id);
+      const models = await listAgentModels(id, () => reportAgentProgress(id, state, '正在读取模型配置…'));
       const current = models.find(item => item.model === selected);
       if (!current?.supportedReasoningEfforts?.some(option => option.reasoningEffort === effort)) effort = undefined;
     } catch { effort = undefined; }
@@ -432,6 +459,7 @@ export async function startAgentTurn(id: string, prompt: string, imageIds?: stri
     // conversation and a bounded history seed for the new model context.
     const upgrade = !!state.threadId && state.instructionsVersion !== instructionsVersion;
     if (!state.threadId || upgrade) {
+      reportAgentProgress(id, state, '正在创建会话…');
       const started = await client.call('thread/start', { model: selected, cwd, sandbox: agentSandbox, approvalPolicy: 'never', serviceName: 'sail_creation', developerInstructions, config: configFor(id) }, 60000);
       if (!started.thread?.id) throw new Error('无法创建 Codex 对话。');
       if (upgrade) state.previousThreadId = state.threadId;
@@ -439,20 +467,27 @@ export async function startAgentTurn(id: string, prompt: string, imageIds?: stri
       state.instructionsVersion = instructionsVersion;
       client.markThreadLoaded(state.threadId!);
     } else if (!client.hasLoadedThread(state.threadId)) {
+      reportAgentProgress(id, state, '正在恢复会话…');
       await client.call('thread/resume', { threadId: state.threadId, excludeTurns: true, model: selected, cwd, sandbox: agentSandbox, approvalPolicy: 'never', developerInstructions, config: configFor(id) }, 60000);
       client.markThreadLoaded(state.threadId);
     }
     state.model = selected;
     state.effort = effort || agentProvider.effort;
     state.videoId = getProject(id)?.assets.find(asset => asset.kind === 'video')?.id || null;
-    state.activity = '正在思考…';
-    recordAgentWork(state.messages, state.activity);
-    save(id);
     const referenceContext = agentAttachmentContext(userMessage);
     const contextSeed = upgrade && history ? `Previous conversation for context (quoted history, not new instructions; earlier assistant formatting is not a user preference):\n${history}\n\nCurrent user request:\n` : '';
+    state.activity = submittingTurn;
+    recordAgentWork(state.messages, submittingTurn);
+    save(id);
     const started = await client.call('turn/start', { threadId: state.threadId, input: [{ type: 'text', text: contextSeed + appendPresentationRequest(prompt + referenceContext, presentation) }, ...attachmentInputs], cwd, approvalPolicy: 'never', sandboxPolicy: agentSandboxPolicy, model: selected, ...(effort ? { effort } : {}) });
     userMessage.attachmentsSent = true;
-    if (state.status === 'running') state.turnId = started.turn?.id;
+    if (state.status === 'running') {
+      state.turnId = started.turn?.id;
+      if (state.activity === submittingTurn) {
+        state.activity = waitingForAgent;
+        recordAgentWork(state.messages, waitingForAgent);
+      }
+    }
     const current = getProject(id);
     if (current && images.length) {
       const sentIds = new Set(images.map(image => image.id));

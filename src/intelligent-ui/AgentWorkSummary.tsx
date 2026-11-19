@@ -15,7 +15,8 @@ export function AgentWorkSummary({ work }: { work: AgentWork }) {
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, [running, work.startedAt]);
-  const elapsed = running ? now - Date.parse(work.startedAt) : work.finishedAt ? Date.parse(work.finishedAt) - Date.parse(work.startedAt) : NaN;
+  const end = running ? now : Date.parse(work.finishedAt ?? '');
+  const elapsed = end - Date.parse(work.startedAt);
   const duration = formatAgentWorkDuration(elapsed, english);
   const label = running ? english ? 'Working' : '正在处理'
     : work.status === 'failed' ? english ? 'Failed' : '处理失败'
@@ -24,6 +25,17 @@ export function AgentWorkSummary({ work }: { work: AgentWork }) {
   const displayDuration = duration && work.estimated && english ? `~${duration}` : duration;
   return <details className="iua-work-summary">
     <summary><span>{label}{displayDuration ? ` ${displayDuration}` : ''}</span><ChevronRight size={15} aria-hidden="true" /></summary>
-    <div className="iua-work-details">{work.estimated && duration && <p>{english ? 'Duration estimated from the question and last saved reply.' : '耗时根据提问与最后一条回答的时间估算。'}</p>}{work.steps.length ? <ol>{work.steps.map((step, index) => <li key={`${step.at}:${index}`}>{step.label}</li>)}</ol> : <p>{english ? 'No activity details were saved for this conversation.' : '这轮历史对话没有保存处理详情。'}</p>}</div>
+    <div className="iua-work-details">
+      {work.estimated && duration && <p>{english ? 'Duration estimated from the question and last saved reply.' : '耗时根据提问与最后一条回答的时间估算。'}</p>}
+      {work.steps.length ? <ol>{work.steps.map((step, index) => {
+        const next = work.steps[index + 1];
+        const stepElapsed = (next ? Date.parse(next.at) : end) - Date.parse(step.at);
+        const stepDuration = !work.estimated && stepElapsed >= 1000 ? formatAgentWorkDuration(stepElapsed, english) : '';
+        const stepLabel = step.label === '正在连接创作 Agent…' ? '正在准备本轮请求…' : step.label;
+        return <li key={`${step.at}:${index}`}>
+          <span>{stepLabel}</span>{stepDuration && <small>{stepDuration}</small>}
+        </li>;
+      })}</ol> : <p>{english ? 'No activity details were saved for this conversation.' : '这轮历史对话没有保存处理详情。'}</p>}
+    </div>
   </details>;
 }

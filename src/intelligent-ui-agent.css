@@ -63,6 +63,7 @@
 .iua-work-summary[open] > summary svg { transform: rotate(90deg); }
 .iua-work-details { padding: 12px 0 2px; line-height: 1.7; overflow-wrap: anywhere; }
 .iua-work-details ol { display: grid; gap: 7px; margin: 0; padding-left: 20px; }
+.iua-work-details li small { margin-inline-start: 0.7em; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .iua-work-details p { margin: 0; }
 .iua-message table { display: block; max-width: 100%; margin: 12px 0; overflow-x: auto; border-collapse: collapse; font-size: 12px; }
 .iua-message th, .iua-message td { padding: 7px 9px; border: 1px solid var(--iua-line); text-align: left; }
