@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
+import { agentThemeDefaultsSchema } from '../../shared/agent-theme';
 import { loadActiveBackgroundBase } from '../landing-background-config';
 import { AGENT_THEME_CANVAS_COLORS, AGENT_THEME_CONFIG, AGENT_THEME_DEFAULTS, AGENT_THEME_REGION_IDS, AGENT_THEME_TEXT_COLORS, agentBackgroundStyle, agentContrastColor, agentRegionFontStyle, agentRegionMode, agentRegionUsesBackground, agentSurfaceStyle, agentTextColorStyle, readAgentThemePreferences, resolveAgentTheme, saveAgentThemePreferences, type AgentRegionPreferences, type AgentThemePreferences, type AgentThemeRegion, type ThemeMode } from './theme';
 
-function loadPreferences(): AgentThemePreferences {
-  try { return readAgentThemePreferences(window.localStorage); }
-  catch { return AGENT_THEME_DEFAULTS; }
+const defaultsPath = '/api/agent-theme/defaults';
+
+function loadPreferences(defaults = AGENT_THEME_DEFAULTS): AgentThemePreferences {
+  try { return readAgentThemePreferences(window.localStorage, defaults); }
+  catch { return defaults; }
 }
 
 function controlTextStyle(color: string | null): CSSProperties | undefined {
@@ -23,6 +26,8 @@ function controlTextStyle(color: string | null): CSSProperties | undefined {
 export function useAgentTheme() {
   const [storedPreferences, setPreferences] = useState(loadPreferences);
   const preferencesRef = useRef(storedPreferences);
+  const defaultsRef = useRef(AGENT_THEME_DEFAULTS);
+  const [canSaveDefaults, setCanSaveDefaults] = useState(false);
   const updatePreferences = (update: (current: AgentThemePreferences) => AgentThemePreferences) => {
     const next = update(preferencesRef.current);
     preferencesRef.current = next;
@@ -33,13 +38,31 @@ export function useAgentTheme() {
   const [backgroundBase, setBackgroundBase] = useState(() => loadActiveBackgroundBase('sail-workspace-bg-v1'));
   const [systemDark, setSystemDark] = useState(() => typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches);
   useEffect(() => {
+    if (!['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname)) return;
+    const controller = new AbortController();
+    const initialPreferences = preferencesRef.current;
+    void fetch(defaultsPath, { signal: controller.signal }).then(async response => {
+      if (!response.ok) return;
+      const defaults = agentThemeDefaultsSchema.parse(await response.json());
+      if (controller.signal.aborted) return;
+      defaultsRef.current = defaults;
+      if (preferencesRef.current === initialPreferences) {
+        const next = loadPreferences(defaults);
+        preferencesRef.current = next;
+        setPreferences(next);
+      }
+      setCanSaveDefaults(true);
+    }).catch(() => { /* The bundled defaults still work without a local editor. */ });
+    return () => controller.abort();
+  }, []);
+  useEffect(() => {
     const media = window.matchMedia('(prefers-color-scheme: dark)');
     const update = () => setSystemDark(media.matches);
     update();
     media.addEventListener('change', update);
     const sync = (event: StorageEvent) => {
       if (event.storageArea === window.localStorage && (event.key === AGENT_THEME_CONFIG.storageKey || event.key === AGENT_THEME_CONFIG.surfaceStorageKey || event.key === null)) {
-        const next = loadPreferences();
+        const next = loadPreferences(defaultsRef.current);
         preferencesRef.current = next;
         setPreferences(next);
       }
@@ -53,6 +76,15 @@ export function useAgentTheme() {
   const usesBackground = (region: AgentThemeRegion) => agentRegionUsesBackground(preferences, region);
   const hasWorkspaceBackground = AGENT_THEME_REGION_IDS.some(usesBackground);
   const backgroundStyle = hasWorkspaceBackground ? agentBackgroundStyle(backgroundBase) : undefined;
+
+  async function saveDefaults() {
+    const next = preferencesRef.current;
+    const response = await fetch(defaultsPath, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(next),
+    });
+    if (response.status !== 204) throw new Error('Could not save the Agent theme defaults.');
+    defaultsRef.current = next;
+  }
 
   function regionPresentation(region: AgentThemeRegion, backgroundAvailable = true) {
     const settings = preferences.regions[region];
@@ -101,7 +133,8 @@ export function useAgentTheme() {
         results: { ...regions.results, mode },
       },
     })),
-    resetTheme: () => updatePreferences(() => AGENT_THEME_DEFAULTS),
+    resetTheme: () => updatePreferences(() => defaultsRef.current),
+    saveDefaults: canSaveDefaults ? saveDefaults : undefined,
   };
 }
 

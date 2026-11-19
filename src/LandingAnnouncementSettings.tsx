@@ -22,6 +22,11 @@ export default function LandingAnnouncementSettings() {
   return <>
     <p className="lbg-type-description">{plain('调整后即时生效，并自动保存在当前浏览器。', 'Changes apply instantly and are saved in this browser.')}</p>
     <div className="lbg-row lbg-inline">
+      <span id={`${id}-enabled`}>{plain('显示活动栏', 'Show header bar')}</span>
+      <button type="button" className="lbg-announcement-switch" role="switch" aria-checked={bar.enabled} aria-labelledby={`${id}-enabled`}
+        onClick={() => updateAnnouncement(selected, { enabled: !bar.enabled })} />
+    </div>
+    <div className="lbg-row lbg-inline">
       <label htmlFor={`${id}-color`}>{plain('活动栏底色', 'Background colour')}</label>
       <div className="lbg-announcement-color"><output htmlFor={`${id}-color`}>{bar.background.toUpperCase()}</output>
         <input id={`${id}-color`} type="color" value={bar.background} onChange={event => updateAnnouncement(selected, { background: event.target.value })} />

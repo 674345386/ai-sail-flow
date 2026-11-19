@@ -72,7 +72,6 @@ h1, h2, h3 { font-weight: 500; letter-spacing: -.025em; }
 .topbar { height: 56px; background: #fff; border-bottom-color: var(--line-soft); backdrop-filter: none; }
 .breadcrumbs { color: var(--muted); font-size: .8125rem; }
 .breadcrumbs .breadcrumb-current { color: var(--text); }
-.save-status, .save-status svg { color: var(--muted); }
 .topbar-divider { background: var(--line); }
 .btn {
   min-height: 36px; padding: 8px 14px; border: 1px solid var(--line);
@@ -328,7 +327,7 @@ button, input, textarea, select { font-family: inherit; }
 .panel-heading h2, .scene-heading h3, .modal-heading h2, .automatic-setup-toggle > span:first-child { font-size: 14px; line-height: 20px; font-weight: 500; }
 .scene-tabs button > span, .scene-tabs button small, .badge, .model-badge,
 .field-hint, .tiny-label, .secondary-label, .panel-footnote, .action-context,
-.save-status, .account-chip, .scene-actions > span, .generated-video-copy > span,
+.account-chip, .scene-actions > span, .generated-video-copy > span,
 .production-mode-picker span, .generated-video-copy p, .generated-video-copy small,
 .automatic-stage-list small, .automatic-start p, .automatic-start label,
 .automatic-history, .automatic-background-note { font-size: 12px; line-height: 18px; }

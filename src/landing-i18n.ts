@@ -2,7 +2,7 @@ import type { Dict } from './i18n';
 
 /* All landing-page + login copy. The Chinese entry is the source of truth for meaning; English mirrors it. */
 const zh = {
-  nav: { home: '回到首页', aria: '首页导航', overview: '概览', models: '拆解', tools: '工具', creator: 'AI Creative Lab 创作营', more: '更多选项', signIn: '登录' },
+  nav: { home: '回到首页', aria: '首页导航', overview: '概览', models: '拆解', tools: '工具', creator: 'AI Creative Lab 创作营', account: '账号', signIn: '登录' },
   announcement: { aria: '产品公告', message: '限时优惠：订阅享 8 折，活动截至 11 月 30 日', details: '了解功能', action: '立即体验', close: '关闭促销公告' },
   omniAnnouncement: { aria: 'Omni 1.2 新模型发布公告', title: 'Omni 1.2 全新登场！', message: '最新视频模型现已加入 AI Creative Lab，画质更清晰、参考控制更精准、视频更长。', action: '立即体验', close: '关闭 Omni 1.2 公告' },
   hero: {
@@ -126,7 +126,7 @@ const zh = {
 export type LandingMessages = typeof zh;
 
 const en: LandingMessages = {
-  nav: { home: 'Back to home', aria: 'Main navigation', overview: 'Overview', models: 'Breakdown', tools: 'Tools', creator: 'AI Creative Lab Studio', more: 'More options', signIn: 'Sign in' },
+  nav: { home: 'Back to home', aria: 'Main navigation', overview: 'Overview', models: 'Breakdown', tools: 'Tools', creator: 'AI Creative Lab Studio', account: 'Account', signIn: 'Sign in' },
   announcement: { aria: 'Announcement', message: 'Limited-time offer: 20% off subscriptions, through November 30', details: 'See features', action: 'Try it now', close: 'Dismiss promotion' },
   omniAnnouncement: { aria: 'Omni 1.2 model launch announcement', title: 'Introducing Omni 1.2!', message: 'Our latest video model, now in AI Creative Lab. Better quality. More control. Longer clips.', action: 'Try it now', close: 'Dismiss Omni 1.2 announcement' },
   hero: {

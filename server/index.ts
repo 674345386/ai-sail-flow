@@ -34,9 +34,11 @@ import { prepareExperimentProposal } from './experiment-planner';
 import { importExperimentSkillInput, bindExperimentInput, readGitHubSkill, attachExperimentSkill, bindExperimentSource, experimentSources, syncExperimentSources } from './experiment-workbench';
 import { skillSelectionSchema } from '../shared/skill-assets';
 import { createLandingPageStore, registerLandingPageReadRoutes, registerLandingPageWriteRoutes, registerLandingPlaygroundRoutes } from './landing-editor';
+import { registerLocalDefaultsRoutes } from './local-defaults';
+import { agentThemeDefaultsSchema } from '../shared/agent-theme';
 import { currentWeatherInput, getCurrentWeather } from './current-weather';
 import { summarizeAgentActivity, type AgentActivities } from '../shared/agent-activity';
-import { FEATURE_STUDIO } from '../shared/studio-feature';
+import { FEATURE_STUDIO, FEATURE_STUDIO_MODE } from '../shared/studio-feature';
 import type { WorkspaceUpdate } from '../shared/workspace-updates';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -147,8 +149,9 @@ app.use((req, res, next) => {
 app.use(express.json({ limit: '3mb' }));
 const landingPageStore = createLandingPageStore(path.resolve(process.env.SOP_DATA_DIR || path.join(root, 'data')));
 registerLandingPageReadRoutes(app, landingPageStore);
-registerLandingPlaygroundRoutes(app, path.join(root, 'shared/landing-playground-defaults.json'),
-  req => !publicAuthEnabled && loopbackAddress(req.socket.remoteAddress));
+const canSaveLocalDefaults = (req: Request) => !publicAuthEnabled && loopbackAddress(req.socket.remoteAddress);
+registerLandingPlaygroundRoutes(app, path.join(root, 'shared/landing-playground-defaults.json'), canSaveLocalDefaults);
+registerLocalDefaultsRoutes(app, '/api/agent-theme/defaults', path.join(root, 'shared/agent-theme-defaults.json'), agentThemeDefaultsSchema, canSaveLocalDefaults);
 function intelligentDataRoute(handler: (request: globalThis.Request) => Promise<globalThis.Response>) {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -321,7 +324,8 @@ app.post('/api/agent-internal/:id/intelligent-ui', (req, res) => {
   res.json(showAgentIntelligentUI(p.id, title, source));
 });
 function checkGenerationExperiment(req: Request, p: Project, tool: string) {
-  assertExperimentRouteExecution(getAgentState(p.id).experiment || emptyExperiment(), req.body?.stepId, tool);
+  const requireProposal = req.path.startsWith('/api/agent-internal/') && !officialJobFor(p.id);
+  assertExperimentRouteExecution(getAgentState(p.id).experiment || emptyExperiment(), req.body?.stepId, tool, requireProposal);
   if (!req.body?.stepId) return;
   const graph = getAgentState(p.id).experiment, step = graph?.nodes.find(node => node.id === req.body.stepId);
   if (!step || step.kind !== 'step') throw new HttpError(400, '制作步骤不存在，尚未提交生成任务。');
@@ -803,9 +807,11 @@ app.post('/api/projects/:id/agent/presentation', (req, res, next) => {
     res.json(setAgentPresentation(String(req.params.id), presentation));
   } catch (error) { next(error instanceof HttpError || error instanceof z.ZodError ? error : error instanceof Error ? new HttpError(error.message.includes('正在执行') ? 409 : 400, error.message) : error); }
 });
-app.get('/api/tts/voices', async (req, res, next) => {
-  try { res.json(await listTtsVoices()); } catch { next(new HttpError(503, '本机系统配音不可用，请确认 macOS 的 say 命令可运行。')); }
-});
+if (FEATURE_STUDIO_MODE) {
+  app.get('/api/tts/voices', async (_req, res, next) => {
+    try { res.json(await listTtsVoices()); } catch { next(new HttpError(503, '本机系统配音不可用，请确认 macOS 的 say 命令可运行。')); }
+  });
+}
 app.use('/api/settings', (req, res, next) => {
   if (publicAuthEnabled && req.path !== '/check') return res.status(403).json({ error: '线上服务的模型与存储连接由服务端配置。' });
   next();
@@ -1340,17 +1346,19 @@ app.post('/api/projects/:id/jobs/:kind', (req, res) => {
   acceptedTask(req, res, { kind });
 });
 app.post('/api/projects/:id/keyframes/:shotId', (req, res) => acceptedTask(req, res, { kind: 'keyframe', shotId: String(req.params.shotId) }));
-app.post('/api/projects/:id/workflow/mode', (req, res) => {
-  const p = record(req);
-  if (uploadsInProgress.has(p.id)) throw new HttpError(409, '请等待素材上传完成。');
-  const { mode } = z.object({ mode: z.enum(['automatic', 'manual']) }).parse(req.body);
-  res.json(setWorkflowMode(p.id, mode));
-});
-app.post('/api/projects/:id/workflow/start', (req, res) => {
-  const p = record(req); editable(p);
-  const { maxNewClips, target } = z.object({ maxNewClips: z.number().int().min(0).max(1000).default(0), target: z.enum(['keyframes', 'video']).default('keyframes') }).parse(req.body);
-  res.status(202).json(startWorkflow(p.id, maxNewClips, target));
-});
+if (FEATURE_STUDIO_MODE) {
+  app.post('/api/projects/:id/workflow/mode', (req, res) => {
+    const p = record(req);
+    if (uploadsInProgress.has(p.id)) throw new HttpError(409, '请等待素材上传完成。');
+    const { mode } = z.object({ mode: z.enum(['automatic', 'manual']) }).parse(req.body);
+    res.json(setWorkflowMode(p.id, mode));
+  });
+  app.post('/api/projects/:id/workflow/start', (req, res) => {
+    const p = record(req); editable(p);
+    const { maxNewClips, target } = z.object({ maxNewClips: z.number().int().min(0).max(1000).default(0), target: z.enum(['keyframes', 'video']).default('keyframes') }).parse(req.body);
+    res.status(202).json(startWorkflow(p.id, maxNewClips, target));
+  });
+}
 app.get('/api/projects/:id/export', async (req, res) => {
   const project = record(req);
   if (!project.rewrite || project.rewriteStale) throw new HttpError(409, '请先生成与当前资料一致的改写方案。');

@@ -4,7 +4,7 @@ const color = z.string().regex(/^#[\da-f]{6}$/i);
 const palette = z.array(color).length(8);
 const preset = z.string().max(60).nullable();
 const copy = z.object({ title: z.string().max(120), message: z.string().max(500), action: z.string().max(60), details: z.string().max(80) });
-const bar = z.object({ background: color, height: z.number().int().min(36).max(120), copy: z.object({ en: copy, 'zh-CN': copy }) });
+const bar = z.object({ enabled: z.boolean().default(true), background: color, height: z.number().int().min(36).max(120), copy: z.object({ en: copy, 'zh-CN': copy }) });
 
 export const playgroundSaveSchema = z.object({
   enabled: z.boolean(),

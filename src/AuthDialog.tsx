@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowRight, ArrowUpRight, KeyRound, LoaderCircle, LogOut, Mail, Pause, Pencil, Play, Sparkles, X } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, LoaderCircle, LogOut, Mail, Pause, Pencil, Play, Sparkles, X } from 'lucide-react';
 import { authDisplayName, authEmail, authLoginMethod, supabaseConfigured, validEmailCode, type AuthAvailability, type SailAuthState } from './auth';
 import './auth-module.css';
 import { useDict, useLang, type Dict } from './i18n';
@@ -143,6 +143,9 @@ export default function AuthDialog({ open, onClose, auth, availability, googleBu
     const frame = window.requestAnimationFrame(() => dialog.current?.querySelector<HTMLInputElement>('.auth-screen-form input')?.focus());
     return () => window.cancelAnimationFrame(frame);
   }, [open, stage, auth.initialized]);
+  const [codeFocused, setCodeFocused] = useState(false);
+  const codeCellCount = Math.max(6, Math.min(code.length, 10));
+  const activeCodeCell = Math.min(code.length, codeCellCount - 1);
   if (!open) return null;
   const locked = auth.busy || !auth.initialized;
   const signedIn = !!auth.user;
@@ -197,7 +200,16 @@ export default function AuthDialog({ open, onClose, auth, availability, googleBu
               </> : <>
                 <label className="auth-input-label">
                   <span>{t.codeLabel}</span>
-                  <span className="auth-input-control"><KeyRound size={19} aria-hidden="true" /><input className="input auth-code-input" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6,10}" minLength={6} maxLength={10} placeholder={t.codePlaceholder} value={code} disabled={locked} onChange={event => onCodeChange(event.target.value.replace(/\D/g, '').slice(0, 10))} aria-describedby={`auth-code-hint${auth.error ? ' auth-form-error' : ''}`} required /></span>
+                  <span className={`auth-otp-field${codeFocused ? ' is-focused' : ''}${locked ? ' is-disabled' : ''}`}>
+                    <input className="auth-otp-native" type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6,10}" minLength={6} maxLength={10} value={code} disabled={locked} onFocus={() => setCodeFocused(true)} onBlur={() => setCodeFocused(false)} onChange={event => onCodeChange(event.target.value.replace(/\D/g, '').slice(0, 10))} aria-describedby={`auth-code-hint${auth.error ? ' auth-form-error' : ''}`} required />
+                    <span className="auth-otp-cells" aria-hidden="true">
+                      {Array.from({ length: codeCellCount }, (_, index) => {
+                        const char = code[index] || '';
+                        const isActive = codeFocused && !locked && index === activeCodeCell;
+                        return <span key={index} className={`auth-otp-cell${char ? ' is-filled' : ''}${isActive ? ' is-active' : ''}`}>{char || (isActive ? <span className="auth-otp-caret" /> : null)}</span>;
+                      })}
+                    </span>
+                  </span>
                 </label>
                 <div className="auth-code-actions"><button type="button" className="auth-change-email" onClick={onBack} disabled={locked}>{t.changeEmail}</button><button type="button" className="auth-change-email" onClick={onSendCode} disabled={locked || resendSeconds > 0}>{resendSeconds ? t.resendIn(resendSeconds) : t.resend}</button></div>
               </>}

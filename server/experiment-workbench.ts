@@ -48,7 +48,7 @@ export function syncExperimentSources(graph: ExperimentGraph | undefined, projec
   let changed = graph !== original;
   const invalid = new Set<string>();
   let nodes = graph.nodes.map(n => {
-    if (!n.sourceId || (n.status === 'stale' && !n.runId)) return n;
+    if (!n.sourceId || n.sourceId.startsWith('proposal-brief:') || (n.status === 'stale' && !n.runId)) return n;
     const source = sources.find(s => s.id === n.sourceId);
     if (!source || source.status === 'stale') { if (n.status !== 'stale') { changed = true; invalid.add(n.id); } return n.status === 'stale' ? n : { ...n, status: 'stale' as const }; }
     if (n.url === source.url && n.status === source.status && n.error === source.error) return n;

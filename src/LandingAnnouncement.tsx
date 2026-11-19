@@ -1,9 +1,9 @@
-import { useState, type CSSProperties } from 'react';
+import type { CSSProperties } from 'react';
 import { ChevronRight, X } from 'lucide-react';
 import './landing-announcement.css';
 import { useDict, useLang } from './i18n';
 import { LANDING } from './landing-i18n';
-import { announcementInk, useAnnouncementConfig, type AnnouncementBarConfig } from './landing-announcement-config';
+import { announcementInk, updateAnnouncement, useAnnouncementConfig, type AnnouncementBarConfig } from './landing-announcement-config';
 
 const barStyle = (config: AnnouncementBarConfig) => ({
   '--announcement-background': config.background,
@@ -12,27 +12,26 @@ const barStyle = (config: AnnouncementBarConfig) => ({
 } as CSSProperties);
 
 export default function LandingAnnouncement({ onEnter }: { onEnter: () => void }) {
-  const [omniVisible, setOmniVisible] = useState(true);
   const { omniAnnouncement: omni } = useDict(LANDING);
   const { lang } = useLang();
-  const config = useAnnouncementConfig();
-  const omniCopy = config.omni.copy[lang];
+  const { omni: config } = useAnnouncementConfig();
+  if (!config.enabled) return null;
+  const omniCopy = config.copy[lang];
 
-  return <>{omniVisible && <aside className="landing-announcement landing-announcement--omni" aria-label={omni.aria} style={barStyle(config.omni)}>
-      <div className="landing-announcement-inner">
-        <div className="landing-announcement-marquee">
-          <div className="landing-announcement-track">
-            <p className="landing-announcement-message"><strong>{omniCopy.title}</strong><span>{omniCopy.message}</span></p>
-            <p className="landing-announcement-message" aria-hidden="true"><strong>{omniCopy.title}</strong><span>{omniCopy.message}</span></p>
-          </div>
+  return <aside className="landing-announcement landing-announcement--omni" aria-label={omni.aria} style={barStyle(config)}>
+    <div className="landing-announcement-inner">
+      <div className="landing-announcement-marquee">
+        <div className="landing-announcement-track">
+          <p className="landing-announcement-message"><strong>{omniCopy.title}</strong><span>{omniCopy.message}</span></p>
+          <p className="landing-announcement-message" aria-hidden="true"><strong>{omniCopy.title}</strong><span>{omniCopy.message}</span></p>
         </div>
-        <button className="landing-announcement-button" type="button" onClick={onEnter}>
-          {omniCopy.action}<ChevronRight size={14} aria-hidden="true" />
-        </button>
       </div>
-      <button className="landing-announcement-close" type="button" aria-label={omni.close} title={omni.close} onClick={() => setOmniVisible(false)}>
-        <X size={18} aria-hidden="true" />
+      <button className="landing-announcement-button" type="button" onClick={onEnter}>
+        {omniCopy.action}<ChevronRight size={14} aria-hidden="true" />
       </button>
-    </aside>}
-  </>;
+    </div>
+    <button className="landing-announcement-close" type="button" aria-label={omni.close} title={omni.close} onClick={() => updateAnnouncement('omni', { enabled: false })}>
+      <X size={18} aria-hidden="true" />
+    </button>
+  </aside>;
 }

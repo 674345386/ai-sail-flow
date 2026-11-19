@@ -57,7 +57,6 @@
 .app-shell .topbar-actions { gap: 8px; }
 .app-shell .topbar-actions .btn, .app-shell .account-chip, .app-shell .topbar-actions .lang-switch button { min-height: 34px; border-radius: 8px; font-size: 12px; }
 .app-shell .topbar-actions .btn { padding: 0 12px; border-color: #e5e5e5; box-shadow: 0 1px 2px #00000008; }
-.app-shell .save-status { font-size: 11px; color: #888; }
 .app-shell .unified-workspace { background: var(--studio-sidebar); }
 .app-shell .unified-steps.wizard-panel { width: clamp(360px, 29vw, 510px); flex-basis: clamp(360px, 29vw, 510px); border-color: #eaeaea; }
 .app-shell .wizard-header { padding: 32px 32px 0; }
@@ -330,7 +329,7 @@
 .app-shell.app-shell.workflow-dark { color: #f4f3ef; background: #070708; }
 .app-shell.workflow-dark .unified-workspace { isolation: isolate; background: #070708; overflow: hidden; }
 .app-shell.workflow-dark .topbar { color: #f4f3ef; background: #090a0c; border-color: rgba(255,255,255,.07); }
-.app-shell.workflow-dark .breadcrumbs, .app-shell.workflow-dark .save-status { color: #a3a4a7; }
+.app-shell.workflow-dark .breadcrumbs { color: #a3a4a7; }
 .app-shell.workflow-dark .breadcrumbs .breadcrumb-current, .app-shell.workflow-dark .breadcrumbs button, .app-shell.workflow-dark .topbar .icon-btn { color: #f4f3ef; }
 .app-shell.workflow-dark .topbar .btn, .app-shell.workflow-dark .topbar .account-chip, .app-shell.workflow-dark .topbar .lang-switch button { color: #e9e8e4; background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.14); }
 .app-shell.workflow-dark .topbar .icon-btn:hover, .app-shell.workflow-dark .topbar .btn:hover:not(:disabled) { background: rgba(255,255,255,.12); }

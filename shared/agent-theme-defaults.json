@@ -1,0 +1,32 @@
+{
+  "regions": {
+    "sidebar": {
+      "mode": null,
+      "workspaceBackground": null,
+      "textColor": null,
+      "font": "default",
+      "surface": { "enabled": false, "gray": 18, "opacity": 88, "blur": 16 }
+    },
+    "composer": {
+      "mode": null,
+      "workspaceBackground": null,
+      "textColor": null,
+      "font": "default",
+      "surface": { "enabled": false, "gray": 16, "opacity": 94, "blur": 12 }
+    },
+    "chat": {
+      "mode": "light",
+      "workspaceBackground": null,
+      "textColor": null,
+      "font": "default",
+      "surface": { "enabled": false, "gray": 16, "opacity": 94, "blur": 12 }
+    },
+    "results": {
+      "mode": "light",
+      "workspaceBackground": null,
+      "textColor": null,
+      "font": "default",
+      "surface": { "enabled": false, "gray": 16, "opacity": 94, "blur": 12 }
+    }
+  }
+}

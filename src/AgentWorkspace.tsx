@@ -48,7 +48,7 @@ export default function AgentWorkspace({ project, disabled, onUploadVideo, onUpl
   const previewImage = images.find(asset => asset.id === previewImageId);
   const imageRunning = project.agentImages?.some(image => image.status === 'running') || false;
   const videoRunning = project.generatedVideos.some(video => video.status === 'running');
-  const mediaByMessage = groupAgentMedia(agent.messages, project.agentImages || [], project.generatedVideos);
+  const { mediaByMessage } = groupAgentMedia(agent.messages, project.agentImages || [], project.generatedVideos);
   const mediaVersion = [...mediaByMessage.values()].flat().map(result => `${result.kind}:${result.value.id}:${result.value.status}`).join('|');
   const modelOptions = models.length ? models : [{ model: agent.model || DEFAULT_AGENT_MODEL, displayName: AGENT_MODELS.find(item => item.id === (agent.model || DEFAULT_AGENT_MODEL))?.label }];
   const modelLabel = modelOptions.find(item => item.model === agent.model)?.displayName || agent.model || DEFAULT_AGENT_MODEL;

@@ -1,7 +1,7 @@
 /* The shared playground background carries through the landing entry. */
 .landing-page.landing-prompt-page { --lp-nav-height: 76px; }
 .landing-page.landing-dark.landing-prompt-page > .landing-nav { background: transparent; }
-.lp-hero { position: relative; display: flex; align-items: center; justify-content: center; isolation: isolate; min-height: 680px; height: calc(100svh - var(--lp-chrome-height, var(--lp-nav-height))); max-height: 1100px; padding: 40px 32px 108px; color: var(--lp-ink, #f8f6ff); font-family: "Sail Workspace Inter", Inter, "PingFang SC", sans-serif; scroll-margin-top: var(--lp-nav-height); }
+.lp-hero { position: relative; display: flex; align-items: center; justify-content: center; isolation: isolate; min-height: 680px; height: calc(100svh - var(--lp-chrome-height, var(--lp-nav-height))); max-height: 1100px; padding: 40px 32px 108px; color: var(--lp-ink, #f8f6ff); font-family: var(--landing-font-family); scroll-margin-top: var(--lp-nav-height); }
 .landing-page.landing-light .lp-hero { --lp-ink: #272923; --lp-muted: #62655d; }
 .landing-page.landing-atmosphere .lp-hero { --lp-ink: var(--atmo-ink); --lp-muted: var(--atmo-muted); }
 .landing-page.landing-light .lp-model .lp-mono-logo { filter: none; }

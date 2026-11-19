@@ -22,7 +22,7 @@ export const publishExperimentFileInput = z.object({ stepId: z.string().regex(/^
 export async function publishExperimentFile(graph: ExperimentGraph | undefined, project: Project, input: z.infer<typeof publishExperimentFileInput>) {
   if (!programmaticEnabled()) throw new ExperimentError('程序化代码执行与本地产物发布当前只在本机模式开放。');
   const current = graph || emptyExperiment();
-  assertExperimentRouteExecution(current, input.stepId, 'programmatic');
+  assertExperimentRouteExecution(current, input.stepId, input.purpose === 'context' ? undefined : 'programmatic');
   const source = input.sourceId ? experimentSources(project, current.files).find(file => file.id === input.sourceId) : undefined;
   if (input.sourceId && !source) throw new ExperimentError('来源素材不在当前创意中。');
   if (input.sourceTime !== undefined && source?.mediaType !== 'video') throw new ExperimentError('抽帧时间需要关联当前创意中的来源视频。');

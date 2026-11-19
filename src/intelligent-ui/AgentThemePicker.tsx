@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { ChevronDown, Palette, RotateCcw } from 'lucide-react';
 import { AGENT_SURFACE_DEFAULTS, AGENT_THEME_CONFIG, AGENT_THEME_FONTS, AGENT_THEME_REGIONS, AGENT_THEME_REGION_IDS, agentRegionMode, agentRegionUsesBackground, type AgentRegionPreferences, type AgentSurfacePreferences, type AgentThemeFont, type AgentThemeRegion, type ThemeMode } from './theme';
 import type { AgentThemeController } from './useAgentTheme';
@@ -74,7 +74,8 @@ export function AgentThemePicker({ theme, backgroundControlsOpen, onOpenBackgrou
   const details = useRef<HTMLDetailsElement>(null);
   const summary = useRef<HTMLElement>(null);
   const group = useId();
-  const { preferences } = theme;
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const { preferences, saveDefaults } = theme;
   useEffect(() => {
     const close = (event: PointerEvent) => {
       if (details.current?.open && !details.current.contains(event.target as Node)) details.current.open = false;
@@ -82,6 +83,12 @@ export function AgentThemePicker({ theme, backgroundControlsOpen, onOpenBackgrou
     document.addEventListener('pointerdown', close);
     return () => document.removeEventListener('pointerdown', close);
   }, []);
+  const save = async () => {
+    if (!saveDefaults || saveState === 'saving') return;
+    setSaveState('saving');
+    try { await saveDefaults(); setSaveState('saved'); }
+    catch { setSaveState('error'); }
+  };
   const chatMode = agentRegionMode(preferences, 'chat');
   const combined = AGENT_THEME_REGION_IDS.every(region => agentRegionMode(preferences, region) === chatMode) ? chatMode : 'custom';
   return <details className="iua-theme-picker" ref={details} onKeyDown={event => {
@@ -103,6 +110,13 @@ export function AgentThemePicker({ theme, backgroundControlsOpen, onOpenBackgrou
           }} />)}
       </div>
       <button type="button" onClick={theme.resetTheme}>恢复所有区域默认设置</button>
+      {saveDefaults && <>
+        <button className="iua-theme-save" type="button" disabled={saveState === 'saving'} onClick={() => void save()}>
+          {saveState === 'saving' ? '正在保存默认主题…' : '保存为默认主题'}
+        </button>
+        {saveState === 'saved' && <p className="iua-theme-save-status" role="status">已写入项目默认主题。</p>}
+        {saveState === 'error' && <p className="iua-theme-save-status" role="alert">默认主题保存失败，请重试。</p>}
+      </>}
     </div>
   </details>;
 }

@@ -87,10 +87,21 @@ function selectProposalRoutes(graph: ExperimentGraph, proposal: ExperimentPropos
         }
         if (!inputs.includes(asset.id)) inputs.push(asset.id);
       }
+      if (index === 0 && inputs.length === 0) {
+        const briefSourceId = `proposal-brief:${proposal.id}`;
+        let briefAsset = nodes.find(node => node.kind === 'asset' && node.sourceId === briefSourceId && node.status === 'completed');
+        if (!briefAsset) {
+          briefAsset = { id: uid(), kind: 'asset', title: '创作意图', description: proposal.brief.goal, prompt: '', content: proposal.brief.originalPrompt, method: '', mediaType: 'text', sourceId: briefSourceId, status: 'completed', inputs: [], revision: 1, inputRevisions: {}, position: { x: -326, y: offset } };
+          nodes.push(briefAsset);
+        }
+        inputs.push(briefAsset.id);
+      }
       const stepId = uid(), outputId = uid(), methodId = uid();
       const method: ExperimentMethod = { id: methodId, title: step.model || step.title, description: step.description, prompt: step.prompt, inputs, referenceIds: [...step.referenceIds], model: step.model, parameters: { ...step.parameters } };
+      const outputMediaType = step.tool === 'generate_image' || step.tool === 'build_video_storyboard' ? 'image' as const
+        : ['generate_video', 'generate_minimax_video', 'generate_first_last_frame_video', 'generate_grid_video', 'compose_video'].includes(step.tool) ? 'video' as const : undefined;
       const node: ExperimentNode = { id: stepId, planId, kind: 'step', title: step.title, description: step.description, method: method.title, prompt: step.prompt, content: '', status: 'planned', inputs, methods: [method], activeMethodId: methodId, revision: 1, inputRevisions: {}, position: { x: index * 652, y: offset }, routeStepIndex: index };
-      nodes.push(node, { id: outputId, planId, kind: 'artifact', title: `${step.title} · 产物`.slice(0, 120), description: route.expectedOutcome, prompt: '', method: '', content: '', status: 'planned', inputs: [stepId], revision: 1, inputRevisions: {}, position: { x: index * 652 + 326, y: offset } });
+      nodes.push(node, { id: outputId, planId, kind: 'artifact', title: `${step.title} · 产物`.slice(0, 120), description: route.expectedOutcome, prompt: '', method: '', content: '', ...(outputMediaType ? { mediaType: outputMediaType } : {}), status: 'planned', inputs: [stepId], revision: 1, inputRevisions: {}, position: { x: index * 652 + 326, y: offset } });
       previousOutput = outputId;
     }
     offset += 300;
@@ -125,10 +136,11 @@ export function applyExperimentPlanning(graph: ExperimentGraph, operation: Plann
 }
 
 /** A saved proposal is a decision boundary; a graph step alone does not select a route. */
-export function assertExperimentRouteExecution(graph: ExperimentGraph, stepId?: string, tool?: string) {
+export function assertExperimentRouteExecution(graph: ExperimentGraph, stepId?: string, tool?: string, requireProposal = false) {
   const proposal = activeExperimentProposal(graph);
   if (!proposal) {
     if ((graph.policy || defaultExperimentPolicy()).decision === 'choose') throw new ExperimentPlanningError('请先让 Agent 提出路线，并在实验台选择后再执行。');
+    if (requireProposal) throw new ExperimentPlanningError('请先使用 update_experiment（op: "propose-routes"）提出 2–3 条差异化候选路线（Native 档会自动选定推荐路线并生成执行步骤），再携带返回的 stepId 执行生成。');
     return;
   }
   const step = graph.nodes.find(node => node.id === stepId && node.kind === 'step');

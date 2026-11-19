@@ -61,6 +61,19 @@
 .lbg-save button { flex: none; min-height: 34px; padding: 6px 12px; border: 1px solid rgb(217 164 106 / 45%); border-radius: 7px; background: rgb(217 164 106 / 12%); color: #f2cfaa; cursor: pointer; }
 .lbg-save button:hover:not(:disabled) { background: rgb(217 164 106 / 22%); }
 .lbg-save p { margin: 0; color: #c1c2c6; font-size: 11px; }
+.lbg-announcement-switch {
+  display: flex;
+  align-items: center;
+  width: 38px;
+  height: 22px;
+  padding: 2px;
+  border: 1px solid rgb(255 255 255 / 20%);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 8%);
+}
+.lbg-announcement-switch::before { content: ''; width: 16px; height: 16px; border-radius: 50%; background: #e9e8e4; }
+.lbg-announcement-switch[aria-checked="true"] { justify-content: flex-end; border-color: #e5c19c; background: #e5c19c; }
+.lbg-announcement-switch[aria-checked="true"]::before { background: #2a211a; }
 .lbg-announcement-color { display: flex; align-items: center; gap: 8px; }
 .lbg-announcement-color output { font-size: 11px; font-variant-numeric: tabular-nums; }
 .lbg-announcement-settings input[type=text], .lbg-announcement-settings textarea { box-sizing: border-box; width: 100%; padding: 7px 8px; border: 1px solid rgb(255 255 255 / 16%); border-radius: 7px; background: rgb(255 255 255 / 6%); caret-color: #e9c49b; }

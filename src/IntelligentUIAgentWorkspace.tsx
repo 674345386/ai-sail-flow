@@ -1,10 +1,7 @@
 import { Component, Fragment, useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Renderer, type ActionEvent } from '@openuidev/react-lang';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 import { ArrowUp, Check, ChevronDown, CornerUpRight, ListFilter, ListPlus, LoaderCircle, Plus, SlidersHorizontal, Square, X } from 'lucide-react';
 import type { GeneratedVideo, Project } from '../shared/domain';
-import { minimaxVideoRecoverable } from '../shared/minimax-video';
 import type { CanvasComponentInput } from '../shared/agent-canvas-ui';
 import type { AgentMessage } from '../shared/agent-message';
 import { agentWorkHistory, createAgentWork } from '../shared/agent-work';
@@ -17,11 +14,13 @@ import { AGENT_PRESENTATIONS, normalizeAgentPresentation, type AgentPresentation
 import { api } from './api';
 import { AgentMessageAttachments, AgentPromptMedia, promptMediaAccept, useAgentPromptMedia } from './AgentPromptMedia';
 import { clipboardMediaFiles } from '../shared/prompt-media';
-import { groupAgentMedia, UNASSIGNED_MEDIA, type AgentMedia } from './agentMediaTimeline';
+import { groupAgentDeliverables, UNASSIGNED_MEDIA, type MessageDeliverableGroup } from './agentMediaTimeline';
 import { library } from './intelligent-ui/library';
 import { runLibraryAction } from './intelligent-ui/actions';
 import type { AgentThemeController } from './intelligent-ui/useAgentTheme';
 import { AgentWorkSummary } from './intelligent-ui/AgentWorkSummary';
+import { AgentConversationText } from './intelligent-ui/AgentConversationText';
+import { AgentChatDeliverables } from './intelligent-ui/AgentChatDeliverables';
 import { AgentAdaptationControl } from './intelligent-ui/AgentAdaptationControl';
 import { AgentPresentationControl } from './intelligent-ui/AgentPresentationControl';
 import { SandboxedHtml } from './intelligent-ui/components/html-view';
@@ -51,16 +50,6 @@ class PanelBoundary extends Component<{ children: ReactNode }, { failed: boolean
   state = { failed: false };
   static getDerivedStateFromError() { return { failed: true }; }
   render() { return this.state.failed ? <p role="alert">界面未能显示，请让 Agent 修正这次界面。</p> : this.props.children; }
-}
-
-function ConversationText({ message, onOpenUI }: { message: AgentMessage; onOpenUI: (index: number) => void }) {
-  const answer = useMemo(() => message.role === 'assistant' ? parseAgentAnswer(message.text) : { conversation: message.text, panels: [] }, [message.role, message.text]);
-  const readable = answer.conversation.replace(/\uE200cite\uE202.*?\uE201/g, '');
-  return <>
-    {readable ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{readable}</ReactMarkdown>
-      : !!answer.panels.length && <p className="iua-message-note">{answer.panels.some(panel => !panel.complete) ? '正在生成右侧内容…' : '结果已显示在右侧。'}</p>}
-    {answer.panels.map((panel, index) => <button type="button" className="iua-answer-link" key={index} onClick={() => onOpenUI(index)}>{panel.format === 'html' ? '查看 HTML 页面' : '查看组件界面'}{answer.panels.length > 1 ? ` ${index + 1}` : ''}</button>)}
-  </>;
 }
 
 export default function IntelligentUIAgentWorkspace({ theme, workspaceBackgroundAvailable = false, project, videoRemixWorkflow, disabled, steerDisabled = disabled, onProjectUpdate, onBeforeSend, onActivity, liveAgent, connected, historyError, taskAssetsOpen: taskAssetsRequested, onOpenTaskAssets, onCloseTaskAssets, onTaskAssetCountChange, entryDraft, onEntryDraftConsumed }: {
@@ -158,7 +147,7 @@ export default function IntelligentUIAgentWorkspace({ theme, workspaceBackground
   const sendDisabled = (steering ? steerDisabled : disabled) || sending || queueSaving || !historyLoaded || media.working || adaptationSaving || presentationSaving || modelSaving || (steering && !agent.turnId);
   const messages = useMemo(() => pendingUser && !agent.messages.slice(pendingUser.afterCount).some(message => message.role === 'user' && message.text === pendingUser.text)
     ? [...agent.messages, pendingUser] : agent.messages, [agent.messages, pendingUser]);
-  const groupedMedia = useMemo(() => groupAgentMedia(messages, project.agentImages || [], project.generatedVideos), [messages, project.agentImages, project.generatedVideos]);
+  const { deliverablesByMessage, imageUrlsByMessage } = useMemo(() => groupAgentDeliverables(messages, project.agentImages || [], project.generatedVideos, project.composedVideos || [], agent.experiment), [messages, project.agentImages, project.generatedVideos, project.composedVideos, agent.experiment]);
   const workHistory = useMemo(() => agentWorkHistory(messages, running), [messages, running]);
   const artifacts = useMemo(() => collectAgentArtifacts(project, agent.messages, agent.intelligentPanel, agent.experiment), [project.assets, project.agentImages, project.generatedVideos, project.composedVideos, project.referenceSceneTable, project.productionStoryboards, project.videoProductionPlan, agent.messages, agent.intelligentPanel, agent.experiment]);
   const sceneTableArtifact = artifacts.find(artifact => artifact.kind === 'scene-table');
@@ -391,10 +380,11 @@ export default function IntelligentUIAgentWorkspace({ theme, workspaceBackground
     finally { preferenceSavingRef.current = false; setPresentationSaving(false); }
   };
 
-  const renderMedia = (items: AgentMedia[] = []) => items.map(item => <figure className="iua-chat-media" key={item.value.id}>
-    {item.value.url ? item.kind === 'image' ? <img src={item.value.url} alt={item.value.prompt} loading="lazy" /> : <video src={item.value.url} controls playsInline preload="metadata" /> : <p>{item.value.status === 'running' ? '媒体正在生成，正在查询原任务…' : item.kind === 'video' && minimaxVideoRecoverable(item.value) ? '本地查询已中断，上游状态待核对；可在任务详情中继续查询原任务。' : '媒体生成失败，请核对任务状态。'}</p>}
-    <button type="button" onClick={() => { activate(`${item.kind}:${item.value.id}`); }}>查看创作产物</button>
-  </figure>);
+  const renderDeliverables = (group?: MessageDeliverableGroup, message?: AgentMessage) => {
+    if (!group?.items.length) return null;
+    const messagePanels = message?.role === 'assistant' ? parseAgentAnswer(message.text).panels : [];
+    return <AgentChatDeliverables group={group} panels={messagePanels} onOpenArtifact={id => activate(id)} onOpenUI={message ? index => activate(agentPanelId(message.id, index)) : undefined} />;
+  };
   const chatRegion = theme.regionProps('chat', workspaceBackgroundAvailable);
   const composerRegion = theme.regionProps('composer', workspaceBackgroundAvailable);
   const outputRegion = theme.regionProps('results', workspaceBackgroundAvailable);
@@ -404,21 +394,24 @@ export default function IntelligentUIAgentWorkspace({ theme, workspaceBackground
         <div className="iua-chat-backdrop" aria-hidden="true" />
         <div className="iua-messages" ref={scroll} role="log" aria-label="与创作 Agent 的对话" aria-live="polite" onScroll={() => { const el = scroll.current; if (el) nearBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 100; }}>
           {!messages.length && <p className="iua-empty">{historyError || (historyLoaded ? '描述你的创作目标，或提出一个问题。' : '正在加载对话记录…')}</p>}
-          {!!groupedMedia.get(UNASSIGNED_MEDIA)?.length && <div aria-label="更早的创作产物">
+          {!!deliverablesByMessage.get(UNASSIGNED_MEDIA)?.items.length && <div aria-label="更早的创作产物">
             <p className="iua-message-note">更早的创作产物</p>
-            {renderMedia(groupedMedia.get(UNASSIGNED_MEDIA))}
+            {renderDeliverables(deliverablesByMessage.get(UNASSIGNED_MEDIA))}
           </div>}
-          {messages.map(message => <Fragment key={message.id}><article className={`iua-message iua-message-${message.role}`}>
-            {message.role === 'user' ? <>
-              {(!!message.images?.length || !!message.videos?.length || !!message.audios?.length) && <div className="iua-user-attachments" role="group" aria-label="本条消息的附件"><AgentMessageAttachments message={message} /></div>}
-              {!!message.text.trim() && <div className="iua-user-bubble"><ConversationText message={message} onOpenUI={index => activate(agentPanelId(message.id, index))} /></div>}
-              {renderMedia(groupedMedia.get(message.id))}
-            </> : <>
-              <ConversationText message={message} onOpenUI={index => activate(agentPanelId(message.id, index))} />
-              {renderMedia(groupedMedia.get(message.id))}
-              <AgentMessageAttachments message={message} />
-            </>}
-          </article>{message.role === 'user' && <AgentWorkSummary work={workHistory.get(message.id)!} />}</Fragment>)}
+          {messages.map(message => {
+            const deliverables = deliverablesByMessage.get(message.id);
+            return <Fragment key={message.id}><article className={`iua-message iua-message-${message.role}`}>
+              {message.role === 'user' ? <>
+                {(!!message.images?.length || !!message.videos?.length || !!message.audios?.length) && <div className="iua-user-attachments" role="group" aria-label="本条消息的附件"><AgentMessageAttachments message={message} /></div>}
+                {!!message.text.trim() && <div className="iua-user-bubble"><AgentConversationText message={message} onOpenUI={index => activate(agentPanelId(message.id, index))} /></div>}
+                {renderDeliverables(deliverables)}
+              </> : <>
+                <AgentConversationText message={message} generatedImageUrls={imageUrlsByMessage.get(message.id)} hidePanelLinks={!!deliverables?.items.length} onOpenUI={index => activate(agentPanelId(message.id, index))} />
+                {renderDeliverables(deliverables, message)}
+                <AgentMessageAttachments message={message} />
+              </>}
+            </article>{message.role === 'user' && <AgentWorkSummary work={workHistory.get(message.id)!} />}</Fragment>;
+          })}
           {(error || agent.error) && <p className="iua-error" role="alert">{error || agent.error}</p>}
         </div>
         <div className="iua-composer-area">

@@ -192,15 +192,16 @@
   margin-top: 20px;
   padding: 11px 18px;
   border: 1px solid #26251f;
-  border-radius: 999px;
+  border-radius: 11px;
   color: #fff;
   background: #26251f;
   font-size: 14px;
   font-weight: 550;
   line-height: 1.5;
+  transition: background 160ms ease, border-color 160ms ease, color 160ms ease;
 }
 .sail-auth-dialog .auth-continue-button:hover:not(:disabled) { border-color: #44463a; background: #44463a; transform: none; }
-.sail-auth-dialog .auth-continue-button:disabled { border-color: #26251f; color: #fff; background: #26251f; opacity: .48; cursor: not-allowed; }
+.sail-auth-dialog .auth-continue-button:disabled { border-color: #e4e2db; color: #94928a; background: #eeede8; opacity: 1; cursor: not-allowed; }
 .sail-auth-dialog .auth-legal { margin: 16px 0 0; color: #757269; font-size: 12px; line-height: 1.7; text-align: left; }
 .sail-auth-dialog .auth-screen-close, .sail-auth-dialog .auth-change-email { color: #716f67; }
 .sail-auth-dialog .auth-screen-close {
@@ -223,30 +224,89 @@
 .sail-auth-dialog .auth-change-email:hover:not(:disabled) { color: #26251f; text-decoration: underline; text-underline-offset: 3px; }
 .sail-auth-dialog button:focus-visible, .sail-auth-dialog a:focus-visible { outline: 2px solid #6d7b5e; outline-offset: 3px; }
 .sail-auth-dialog .auth-artwork button:focus-visible { outline-color: #ddf09a; }
-.sail-auth-dialog .auth-input-label .auth-code-input { font-size: 19px; letter-spacing: .2em; }
-.sail-auth-dialog .auth-code-input::placeholder { font-size: 15px; letter-spacing: normal; }
+.sail-auth-dialog .auth-otp-field { position: relative; display: block; width: 100%; }
+.sail-auth-dialog .auth-otp-native {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: transparent;
+  caret-color: transparent;
+  font-size: 16px;
+  outline: none;
+  cursor: text;
+}
+.sail-auth-dialog .auth-otp-native::selection { color: transparent; background: transparent; }
+.sail-auth-dialog .auth-otp-native:disabled { cursor: not-allowed; }
+.sail-auth-dialog .auth-otp-cells {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  gap: 10px;
+  width: 100%;
+}
+.sail-auth-dialog .auth-otp-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 54px;
+  border: 1px solid #e4e2db;
+  border-radius: 10px;
+  color: #26251f;
+  background: #fafaf8;
+  font-size: 22px;
+  font-weight: 550;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  transition: border-color 140ms ease, background 140ms ease, box-shadow 140ms ease;
+}
+.sail-auth-dialog .auth-otp-field:hover:not(.is-disabled) .auth-otp-cell:not(.is-active) { border-color: #cac9c0; }
+.sail-auth-dialog .auth-otp-cell.is-filled { border-color: #cbc9bf; background: #fff; }
+.sail-auth-dialog .auth-otp-cell.is-active {
+  border-color: #7c8970;
+  background: #fff;
+  box-shadow: 0 0 0 3px #e6eadc;
+}
+.sail-auth-dialog .auth-otp-field.is-disabled .auth-otp-cell { opacity: .65; }
+.sail-auth-dialog .auth-otp-caret {
+  display: block;
+  width: 1.5px;
+  height: 22px;
+  border-radius: 1px;
+  background: #42513a;
+  animation: auth-otp-blink 1.05s steps(1, end) infinite;
+}
+@keyframes auth-otp-blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
 .sail-auth-dialog .auth-code-actions { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px 12px; margin-top: 13px; }
 .sail-auth-dialog .auth-code-actions .auth-change-email { margin: 0; padding: 0; font-size: 12px; line-height: 1.6; }
-.sail-auth-dialog .auth-delivery-hint { margin: 14px 0 0; color: #757269; font-size: 12px; line-height: 1.6; }
+.sail-auth-dialog .auth-delivery-hint { margin: 12px 0 0; color: #757269; font-size: 12px; line-height: 1.6; }
 .sail-auth-dialog .auth-webmail-link {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 9px;
+  gap: 8px;
   width: 100%;
-  min-height: 44px;
-  margin-top: 12px;
-  padding: 10px 14px;
-  border: 1px solid #e4e2db;
-  border-radius: 11px;
-  color: #39382f;
-  background: #fff;
+  min-height: 40px;
+  margin-top: 10px;
+  padding: 8px 12px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  color: #4f4e47;
+  background: transparent;
   font-size: 13px;
   font-weight: 500;
   line-height: 1.4;
   text-decoration: none;
+  transition: background 150ms ease, color 150ms ease;
 }
-.sail-auth-dialog .auth-webmail-link:hover { border-color: #bcbfb1; background: #fafaf8; }
+.sail-auth-dialog .auth-webmail-link:hover { color: #26251f; background: #f4f3ee; }
 .sail-auth-dialog .auth-webmail-link > svg:last-of-type { color: #757269; }
 .webmail-icon { flex: none; width: 18px; height: 18px; }
 .webmail-mark { display: inline-grid; place-items: center; border-radius: 5px; color: #fff; font-size: 8.5px; font-weight: 700; letter-spacing: -.02em; line-height: 1; }
@@ -265,8 +325,6 @@
 .sail-auth-dialog .auth-method-label { padding: 4px 9px; border-radius: 7px; background: #f2f2ec; font-size: 11px; }
 .account-chip > span { overflow: hidden; }
 .account-chip > span img { width: 100%; height: 100%; object-fit: cover; }
-.landing-account { display: inline-flex; align-items: center; gap: 7px; }
-.landing-account img { width: 20px; height: 20px; border-radius: 50%; object-fit: cover; }
 
 @media (max-width: 1000px) {
   .sail-auth-dialog .auth-form-panel { padding: 64px 36px; }
@@ -303,7 +361,8 @@
   .sail-auth-dialog .auth-form-panel { padding-top: 44px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .sail-auth-dialog .auth-artwork-image, .sail-auth-dialog .auth-continue-button, .sail-auth-dialog .auth-google-button { transition: none; }
+  .sail-auth-dialog .auth-artwork-image, .sail-auth-dialog .auth-continue-button, .sail-auth-dialog .auth-google-button, .sail-auth-dialog .auth-otp-cell, .sail-auth-dialog .auth-webmail-link { transition: none; }
+  .sail-auth-dialog .auth-otp-caret { animation: none; }
 }
 @media (prefers-reduced-transparency: reduce) {
   .auth-screen.sail-auth-dialog { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgb(20 23 26 / 65%); }

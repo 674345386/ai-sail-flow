@@ -5,7 +5,7 @@ import VideoPromptImages, { type VideoPromptImage } from './VideoPromptImages';
 import { tierGroupPrompt, withVideoReferences } from '../shared/tier-video-group';
 import { applyFrameInput, framePositions, tierPlan, type FramePosition, type TierImage } from '../shared/tier-prompt';
 const frameRatioLabel = (project: Project) => { const video = project.assets.find(asset => asset.kind === 'video'); if (!video?.width || !video?.height) return project.market.aspectRatio; const gcd = (a: number, b: number): number => b ? gcd(b, a % b) : a; const g = gcd(video.width, video.height); return `${video.width / g}:${video.height / g}`; };
-import { Archive, ArchiveRestore, ArrowDownToLine, ArrowLeft, ArrowRight, ArrowUpRight, BookOpen, Check, CheckCheck, ChevronDown, ChevronRight, CircleHelp, CirclePlay, Clapperboard, Copy, Download, Eye, FileJson, FileText, Film, FolderOpen, Globe2, Grid2X2, ImagePlus, Info, LayoutList, LoaderCircle, LocateFixed, LogOut, Mail, Package, Plus, Save, ScanLine, Scissors, Settings, Settings2, ShieldCheck, Sparkles, Subtitles, Upload, Video, WandSparkles, Workflow, X } from 'lucide-react';
+import { Archive, ArchiveRestore, ArrowDownToLine, ArrowLeft, ArrowRight, ArrowUpRight, BookOpen, Check, CheckCheck, ChevronDown, ChevronRight, CirclePlay, Clapperboard, Copy, Download, Eye, FileJson, FileText, Film, FolderOpen, Globe2, Grid2X2, ImagePlus, Info, LayoutList, LoaderCircle, LocateFixed, LogOut, Mail, Package, Plus, ScanLine, Scissors, Settings, Settings2, ShieldCheck, Sparkles, Subtitles, Upload, UserRound, Video, WandSparkles, Workflow, X } from 'lucide-react';
 import { countries, defaultReplication, defaultWorkspace, languages, platforms, roles, timeLabel, validateContinuousTimeline, validateTimeline, type FocusPoint, type Project, type ProjectSummary, type WorkspaceProject, type Shot, type Product, type Market, type Replication, type ProductionMode, type WorkflowMode } from '../shared/domain';
 import { mergeFocusPoints } from '../shared/focus';
 import { keyframeCurrent } from '../shared/storyboard';
@@ -19,7 +19,6 @@ import { useAgentTheme } from './intelligent-ui/useAgentTheme';
 import { AgentThemePicker } from './intelligent-ui/AgentThemePicker';
 import { authDisplayName, authEmail, authErrorMessage, authRedirectUrl, initialAuthState, publicAuthRequired, syncPublicServerSession, supabase, loadAuthAvailability, unknownAuthAvailability, validEmail, validEmailCode, withAuthTimeout, readAuthCallback, clearAuthCallback, type AuthAvailability, type SailAuthState } from './auth';
 import AuthDialog from './AuthDialog';
-import AccountName from './AccountName';
 import WelcomeProfileDialog from './WelcomeProfileDialog';
 import { isNewUserFirstLogin, needsProfileSetup, useProfileAvatar } from './userProfile';
 import AssetLibrary, { MediaLibraryPage } from './AssetLibrary';
@@ -36,7 +35,6 @@ import FocusPointsEditor from './FocusPointsEditor';
 import ShotTimelineEditor from './ShotTimelineEditor';
 import StoryboardGridPanel from './StoryboardGridPanel';
 import StoryboardGridWorkbench, { gridVideoState } from './StoryboardGridWorkbench';
-import StudioPipelineCanvas from './StudioPipelineCanvas';
 import ProjectNavigation from './ProjectNavigation';
 import { useAgentActivity } from './useAgentActivity';
 import { useWorkspaceUpdates } from './useWorkspaceUpdates';
@@ -60,11 +58,12 @@ import AutomaticWorkspace, { SpeechTimingConfirmation, WorkflowEntry } from './W
 import { defaultRemixSettings, remixPlanCurrent, type RemixAction, type RemixSettings } from '../shared/remix';
 import { editableUnitPrompt, finalVideo, productionSources, videoCurrent, workflowBusy } from '../shared/workflow';
 import { appTitle, parseRoute, replaceNextUrl, routePath, stepTitles, studioTitle, useUrlSync, type AppRoute } from './useUrlSync';
+import { FEATURE_STUDIO, FEATURE_STUDIO_MODE } from '../shared/studio-feature';
 import './unified-workspace.css';
 const IntelligentUIAgentWorkspace = lazy(() => import('./IntelligentUIAgentWorkspace'));
 const AgentLandingPage = lazy(() => import('./AgentLandingPage'));
 const StudioShell = lazy(() => import('./studio/StudioShell'));
-import { FEATURE_STUDIO } from '../shared/studio-feature';
+const StudioPipelineCanvas = lazy(() => import('./StudioPipelineCanvas'));
 
 const steps = [
   { name: '上传素材', en: 'MATERIALS', icon: Upload, title: '准备你的创意素材', description: '用一条参考视频，定义下一条内容的起点。' },
@@ -240,8 +239,15 @@ export default function App() {
   const [stageDetail, setStageDetail] = useState<number | null>(null);
   const [canvasFocusVersion, setCanvasFocusVersion] = useState(0);
   const [stepsCollapsed, setStepsCollapsed] = useState(false);
-  const [experienceMode, setExperienceMode] = useState<'studio' | 'agent'>(() => { try { return localStorage.getItem('sail-experience-mode') === 'studio' ? 'studio' : 'agent'; } catch { return 'agent'; } });
-  const switchExperience = (mode: 'studio' | 'agent') => { setExperienceMode(mode); setStageDetail(null); setShowMediaLibrary(false); setShowGenerationTasks(false); try { localStorage.setItem('sail-experience-mode', mode); } catch { /* storage unavailable */ } };
+  const [experienceMode, setExperienceMode] = useState<'studio' | 'agent'>(() => {
+    if (!FEATURE_STUDIO_MODE) return 'agent';
+    try { return localStorage.getItem('sail-experience-mode') === 'studio' ? 'studio' : 'agent'; } catch { return 'agent'; }
+  });
+  const switchExperience = (mode: 'studio' | 'agent') => {
+    if (mode === 'studio' && !FEATURE_STUDIO_MODE) return;
+    setExperienceMode(mode); setStageDetail(null); setShowMediaLibrary(false); setShowGenerationTasks(false);
+    try { localStorage.setItem('sail-experience-mode', mode); } catch { /* storage unavailable */ }
+  };
   const [stepsWidth, setStepsWidth] = useState(320);
   const workspaceRef = useRef<HTMLDivElement>(null);
   const stepsDrag = useRef<{ x: number; width: number } | null>(null);
@@ -264,7 +270,6 @@ export default function App() {
   const [timelineOpen, setTimelineOpen] = useState(false);
   const [selectedRewrite, setSelectedRewrite] = useState(0);
   const [exportTab, setExportTab] = useState('prompt');
-  const [ttsVoices, setTtsVoices] = useState<TtsVoice[]>([]);
   const [modal, setModal] = useState<'config' | 'settings' | 'guide' | null>(null);
   const [apiKey, setApiKey] = useState('');
   const [imageApiKey, setImageApiKey] = useState('');
@@ -278,7 +283,6 @@ export default function App() {
   const [showRequiredErrors, setShowRequiredErrors] = useState(false);
   const [focusTarget, setFocusTarget] = useState<string | null>(null);
   const [busy, setBusy] = useState('');
-  const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -366,7 +370,6 @@ export default function App() {
     if (snapshot.analysis) { const e = validateTimeline(snapshot.analysis.shots, snapshot.analysis.duration); if (e) throw new Error(e); }
     if (snapshot.rewrite && !snapshot.rewriteStale) { const targetDuration = snapshot.market.duration === 'original' ? snapshot.analysis?.duration : Number(snapshot.market.duration); const e = snapshot.promptFlow === 'direct-analysis' ? validateTimeline(snapshot.rewrite.shots, targetDuration) : targetDuration ? validateContinuousTimeline(snapshot.rewrite.shots, targetDuration) : validateTimeline(snapshot.rewrite.shots); if (e) throw new Error(e); }
     const seq = editSequence.current;
-    setSaving(true);
     const promise = (async () => {
       const saved = await api<Project>(`/api/projects/${snapshot.id}`, { method: 'PUT', body: JSON.stringify({ revision: snapshot.revision, parentProjectId: snapshot.parentProjectId, title: snapshot.title.trim() || '未命名创意', product: snapshot.product, market: snapshot.market, replication: snapshot.replication || defaultReplication, analysis: snapshot.analysis, analysisReview: snapshot.analysisReview, rewrite: snapshot.rewrite, productionMode: snapshot.productionMode || 'veo-native', promptFlow: snapshot.promptFlow || 'localized', breakdownType: snapshot.breakdownType || 'shot', storyboardGridSize: snapshot.storyboardGridSize || 3, storyboardGrids: snapshot.storyboardGrids || [], ttsVoice: snapshot.ttsVoice || '', automaticSettings: snapshot.automaticSettings, veoPromptDrafts: snapshot.veoPromptDrafts || {} }) });
       if (current.current?.id === saved.id) {
@@ -377,7 +380,7 @@ export default function App() {
       return current.current;
     })();
     savePromise.current = promise;
-    try { return await promise; } finally { savePromise.current = null; setSaving(false); }
+    try { return await promise; } finally { savePromise.current = null; }
   }, [adopt, refreshList]);
   const flush = useCallback(async () => { await save(); if (unsaved.current) await save(); return current.current; }, [save]);
   const perform = async (label: string, action: () => Promise<void>) => {
@@ -573,14 +576,6 @@ export default function App() {
       }
     },
   );
-  useEffect(() => {
-    if ((project?.productionMode || 'veo-native') !== 'tts-subtitles') return;
-    let cancelled = false;
-    void api<TtsVoice[]>('/api/tts/voices').then(voices => { if (!cancelled) setTtsVoices(voices); }).catch(error => {
-      if (!cancelled) setError(error instanceof Error ? error.message : '本机音色读取失败。');
-    });
-    return () => { cancelled = true; };
-  }, [project?.productionMode]);
   useEffect(() => { if (notice) { const t = setTimeout(() => setNotice(''), 3600); return () => clearTimeout(t); } }, [notice]);
   useEffect(() => {
     if (step !== 0 || !focusTarget || busy || running) return;
@@ -626,12 +621,14 @@ export default function App() {
     setNotice(archived ? '创意已归档，可在已归档创意中恢复' : '创意已恢复到所属工作空间');
   });
   const selectWorkflowMode = (mode: WorkflowMode) => perform('正在切换制作方式', async () => {
+    if (!FEATURE_STUDIO_MODE) return;
     let p = await flush(); if (!p) return;
     if (mode === 'automatic' && !p.workflowMode && !p.rewrite) { change(current => ({ ...current, productionMode: 'tts-subtitles' })); p = await flush(); if (!p) return; }
     adopt(await api<Project>(`/api/projects/${p.id}/workflow/mode`, { method: 'POST', body: JSON.stringify({ mode }) }));
     setObserving(false);
   });
   const startAutomatic = (maxNewClips: number) => perform('正在开始自动制作', async () => {
+    if (!FEATURE_STUDIO_MODE) return;
     const p = await flush(); if (!p) return;
     adopt(await api<Project>(`/api/projects/${p.id}/workflow/start`, { method: 'POST', body: JSON.stringify({ maxNewClips: 0, target: 'keyframes' }) }));
     setObserving(false);
@@ -639,7 +636,7 @@ export default function App() {
   const inspectWorkflow = () => { setObserving(true); };
   const enterWorkspace = (create = false, mode?: WorkflowMode) => {
     if (publicAuthRequired && !auth.session) { setAuthOpen(true); return; }
-    setShowLanding(false); setStudioRoute(null); setSidebarOpen(false); setShowGenerationTasks(false); if (create) void newProject(); else if (mode) void selectWorkflowMode(mode);
+    setShowLanding(false); setStudioRoute(null); setSidebarOpen(false); setShowGenerationTasks(false); if (create) void newProject(); else if (FEATURE_STUDIO_MODE && mode) void selectWorkflowMode(mode);
   };
   const startAgentEntry = (prompt: string, files: File[] = []) => {
     if (busy || agentEntryStarting.current) return;
@@ -1050,10 +1047,12 @@ export default function App() {
   const openGenerationTasks = () => { setStudioRoute(null); setShowLanding(false); setShowMediaLibrary(false); setShowGenerationTasks(true); setSidebarOpen(false); };
   const viewRoute: AppRoute | null = showLanding ? { kind: 'landing', ...(landingMode === 'agent' ? { mode: 'agent' as const } : {}) } : studioRoute ? studioRoute : !project ? null : showGenerationTasks ? { kind: 'jobs' } : showMediaLibrary ? { kind: 'library' } : { kind: 'creative', id: project.id, step };
   const viewTitle = !viewRoute || viewRoute.kind === 'landing' ? `${appTitle} · ${landingMode === 'agent' ? 'Agent 创作空间' : '跨境内容工作台'}` : viewRoute.kind === 'studio' ? studioTitle(viewRoute) : viewRoute.kind === 'jobs' ? `任务进度 · ${appTitle}` : viewRoute.kind === 'library' ? `所有媒体 · ${appTitle}` : `${project?.title.trim() || '未命名创意'} · ${viewRoute.canvas ? '画布' : stepTitles[step]} · ${appTitle}`;
-  useUrlSync({ path: viewRoute ? routePath(viewRoute) : '', title: viewTitle, ready: routeReady && workspaceVisible, paused: !!busy && !showGenerationTasks, onRoute: applyRoute });
+  useUrlSync({ path: viewRoute ? routePath(viewRoute) : '', title: viewTitle, ready: routeReady && workspaceVisible, paused: !!busy && !showLanding && !showGenerationTasks, onRoute: applyRoute });
   const copy = async (value: string) => { try { await navigator.clipboard.writeText(value); setNotice('已复制'); } catch { setError('浏览器未允许复制，请使用下载按钮。'); } };
 
   const L = useDict(LANDING);
+  const accountName = authDisplayName(auth.user);
+  const profileName = accountName && accountName !== authEmail(auth.user) ? accountName : '';
   const landingImages = [
     '/assets/landing/workflow-merchant-daylight.webp',
     '/assets/landing/workflow-creator-rooftop.webp',
@@ -1091,7 +1090,7 @@ export default function App() {
   }
   if ((showLanding || (publicAuthRequired && !auth.session)) && landingMode === 'agent') return <>
     <Suspense fallback={<div style={{ minHeight: '100dvh', display: 'grid', placeItems: 'center', background: '#fff', color: '#252722' }}><LoaderCircle className="spin" size={22} aria-label="正在打开 Agent 创作首页" /></div>}>
-      <AgentLandingPage onStart={startAgentEntry} onStudio={() => { clearAgentEntry(); setLandingMode('studio'); setShowLanding(true); window.scrollTo(0, 0); }} onAccount={openAuth} accountName={auth.user ? authDisplayName(auth.user) : undefined} busy={!!busy || pendingAgentPrompt !== null} error={error || bootError} />
+      <AgentLandingPage onStart={startAgentEntry} onStudio={FEATURE_STUDIO_MODE ? () => { clearAgentEntry(); setLandingMode('studio'); setShowLanding(true); window.scrollTo(0, 0); } : undefined} onAccount={openAuth} accountName={auth.user ? authDisplayName(auth.user) : undefined} busy={!!busy || pendingAgentPrompt !== null} error={error || bootError} />
     </Suspense>
     {profileDialog}
     {authDialog}
@@ -1107,7 +1106,13 @@ export default function App() {
         <a href="/research/article">Resources</a>
         {FEATURE_STUDIO && <button type="button" className="landing-studio-link" onClick={() => openStudio('welcome')}>爆款工作室</button>}
       </nav>
-      <div className="landing-social"><button aria-label={L.nav.more}>⋮</button><LanguageSwitch /><button className="landing-account" onClick={openAuth}>{auth.user && <img src={accountAvatar} alt="" />}{auth.user ? <AccountName name={authDisplayName(auth.user)} /> : L.nav.signIn}</button></div>
+      <div className="landing-social">
+        <LanguageSwitch />
+        <button type="button" className="landing-account" onClick={openAuth} title={profileName || undefined}>
+          {auth.user ? <img src={accountAvatar} alt="" /> : <UserRound size={16} aria-hidden="true" />}
+          <span>{auth.user ? profileName || L.nav.account : L.nav.signIn}</span>
+        </button>
+      </div>
     </header>
     <LandingPromptHero onStart={startAgentEntry} busy={!!busy || pendingAgentPrompt !== null} error={error || bootError} />
     <LandingHero headingLevel={2} authRequired={publicAuthRequired} onEnter={mode => enterWorkspace(false, mode)} onStart={startAgentEntry} busy={!!busy || pendingAgentPrompt !== null} />
@@ -1317,7 +1322,14 @@ export default function App() {
         if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
         event.preventDefault();
         // Always navigate home, even while a task runs (tasks continue in the background); save pending edits first when idle.
-        void (async () => { if (!busy) { try { await flush(); } catch { /* keep navigating; edits stay local */ } } setSidebarOpen(false); setLandingMode(experienceMode); setShowLanding(true); window.scrollTo(0, 0); })();
+        void (async () => {
+          if (!busy) { try { await flush(); } catch { /* keep navigating; edits stay local */ } }
+          setSidebarOpen(false);
+          setStudioRoute(null);
+          setLandingMode('studio');
+          setShowLanding(true);
+          window.scrollTo(0, 0);
+        })();
       }}><span className="brand-compact" aria-hidden="true">CL</span><div className="brand-icon"><img src="/assets/brand/sail-mark-dark.svg" alt="" width={40} height={40} /></div><div><strong>AI Creative Lab</strong><span>跨境内容工作台</span></div><Badge>V1</Badge></a><button className="icon-btn sidebar-toggle sidebar-collapse-toggle" aria-label={sidebarIsCollapsed ? '展开侧边栏' : '收起侧边栏'} title={sidebarIsCollapsed ? '展开侧边栏' : '收起侧边栏'} aria-expanded={!sidebarIsCollapsed} aria-controls="workspace-sidebar" onClick={() => { setSidebarOpen(false); setSidebarCollapsed(!sidebarIsCollapsed); }}><SidebarToggleIcon expanded={!sidebarIsCollapsed} /></button></div>
       <button type="button" className="sidebar-new-session" aria-label="新建会话" title="新建会话" disabled={!!busy} onClick={() => newProject()}><MessageCirclePlus size={18} strokeWidth={1.7} aria-hidden="true" /><span>New Session</span></button>
       <div className="workspace-picker" title={defaultWorkspace.title}><span className="workspace-avatar workspace-brand-avatar"><AnimatedBrandMark /></span><span>{defaultWorkspace.title}<small>工作空间与创意</small></span></div>
@@ -1340,15 +1352,21 @@ export default function App() {
         {agentConversationVisible && taskAssetSummary?.projectId === project.id && <button type="button" className="btn small topbar-task-assets" title="当前任务素材" aria-label="当前任务素材" aria-expanded={taskAssetsProjectId === project.id} aria-controls="iua-task-assets" onClick={() => setTaskAssetsProjectId(current => current === project.id ? null : project.id)}>
           <Package size={15} aria-hidden="true" /><span>当前任务素材</span><span className="task-assets-count" aria-hidden="true">{taskAssetSummary.count}</span>
         </button>}
-        {experienceMode === 'agent' && <button type="button" className="btn small topbar-assets" disabled={disabled} onClick={() => openAssetLibrary('all')} title="素材库" aria-label="素材库"><FolderOpen size={15} /><span>素材库</span></button>}<div className="experience-switch" role="group" aria-label="创作模式"><button type="button" aria-pressed={experienceMode === 'studio'} onClick={() => switchExperience('studio')}>Studio mode</button><button type="button" aria-pressed={experienceMode === 'agent'} onClick={() => switchExperience('agent')}>Agent mode</button></div><span className="save-status">{saving ? <LoaderCircle size={14} className="spin" /> : dirty ? <span className="unsaved-dot" /> : <CheckCheck size={14} />}{saving ? '保存中' : dirty ? '待保存' : '已保存'}</span><button className="icon-btn" title="保存创意 ⌘S" aria-label="保存创意" disabled={disabled || !dirty} onClick={() => perform('正在保存', async () => { await flush(); setNotice('已保存'); })}><Save size={17} /></button><span className="topbar-divider" />{experienceMode === 'studio' && <button className="btn small" onClick={() => newProject()} disabled={!!busy}><Plus size={15} />新建创意</button>}<LanguageSwitch /><button className="account-chip" onClick={openAuth}><span>{auth.user ? <img src={accountAvatar} alt="" /> : <Mail size={14} />}</span>{auth.user ? authDisplayName(auth.user) : '登录'}</button></div></header>
+        {experienceMode === 'agent' && <button type="button" className="btn small topbar-assets" disabled={disabled} onClick={() => openAssetLibrary('all')} title="素材库" aria-label="素材库"><FolderOpen size={15} /><span>素材库</span></button>}
+        {FEATURE_STUDIO_MODE && <div className="experience-switch" role="group" aria-label="创作模式"><button type="button" aria-pressed={experienceMode === 'studio'} onClick={() => switchExperience('studio')}>Studio mode</button><button type="button" aria-pressed={experienceMode === 'agent'} onClick={() => switchExperience('agent')}>Agent mode</button></div>}
+        <span className="topbar-divider" />
+        {experienceMode === 'studio' && <button className="btn small" onClick={() => newProject()} disabled={!!busy}><Plus size={15} />新建创意</button>}
+        <LanguageSwitch />
+        <button className="account-chip" onClick={openAuth}><span>{auth.user ? <img src={accountAvatar} alt="" /> : <Mail size={14} />}</span>{auth.user ? authDisplayName(auth.user) : '登录'}</button>
+      </div></header>
       <main className={showGenerationTasks ? 'generation-workspace-main' : showMediaLibrary ? 'media-workspace-main' : canvasView ? 'canvas-workspace-main' : step === 2 ? 'remix-workspace-main' : undefined}>
         {showGenerationTasks ? <GenerationTasks theme={shellTheme} busy={!!busy} onOpenCreative={id => { void switchProject(id); }} onOpenStudioProject={id => openStudio('project', id)} /> : showMediaLibrary ? <MediaLibraryPage user={auth.user} onSelect={item => openAssetLibrary('all', item)} onUpload={() => openAssetLibrary('all')} onSignIn={openAuth} /> : <>
         {project.archivedAt && <div className="banner sample"><Archive size={16} /><span>此创意已归档，素材和制作结果仍保存在本机。</span><button disabled={!!busy || running} onClick={() => setProjectArchived(project.id, false)}>恢复到所属工作空间 <ArchiveRestore size={14} /></button></div>}
         {(canvasView || autoView || !project.workflowMode) && error && <div className="banner error" role="alert"><Info size={16} /><span>{error}</span><button aria-label="关闭错误提示" onClick={() => setError('')}><X size={16} /></button></div>}
-        {project.ttsTimingNotice && <SpeechTimingConfirmation notice={project.ttsTimingNotice} disabled={disabled} onConfirm={() => void composeFinal(project.ttsTimingNotice!.voice, project.ttsTimingNotice!.basis)} onManual={() => void selectWorkflowMode('manual')} />}
+        {FEATURE_STUDIO_MODE && project.ttsTimingNotice && <SpeechTimingConfirmation notice={project.ttsTimingNotice} disabled={disabled} onConfirm={() => void composeFinal(project.ttsTimingNotice!.voice, project.ttsTimingNotice!.basis)} onManual={() => void selectWorkflowMode('manual')} />}
 
 
-        {experienceMode === 'studio' ? <>
+        {FEATURE_STUDIO_MODE && experienceMode === 'studio' ? <>
         <div className="unified-workspace" ref={workspaceRef} style={{ '--wizard-width': `${stepsWidth}px` } as CSSProperties}>
           <button className="unified-steps-toggle" aria-expanded={!stepsCollapsed} onClick={() => setStepsCollapsed(value => !value)}>{stepsCollapsed ? '展开步骤' : '收起步骤'}</button>
           <aside className={`unified-steps wizard-panel${stepsCollapsed ? ' is-collapsed' : ''}`} aria-label="创作步骤">
@@ -1426,7 +1444,7 @@ export default function App() {
             onPointerMove={event => { if (stepsDrag.current) resizeSteps(stepsDrag.current.width + event.clientX - stepsDrag.current.x); }}
             onPointerUp={() => { stepsDrag.current = null; }} onPointerCancel={() => { stepsDrag.current = null; }} onLostPointerCapture={() => { stepsDrag.current = null; }}
             onKeyDown={event => { if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') { event.preventDefault(); resizeSteps(stepsWidth + (event.key === 'ArrowRight' ? 16 : -16)); } }} />
-          <StudioPipelineCanvas key={project.id} project={project} disabled={disabled} onPrompt={updateStoryboardGridPrompt} onGenerate={gridId => void startStoryboardGridVideo(gridId)} onRecover={videoId => void recoverGeneration(videoId)} onIncluded={updateStoryboardGridIncluded} onUploadVideo={() => openAssetLibrary('video')} onAnalyze={() => void startJob('analysis')} onOpenMaterials={() => openStageDetail(0)} onOpenAnalysis={() => openStageDetail(1)} onOpenRemixDetail={() => openStageDetail(2)} onSettings={() => setModal('settings')} focusStep={step} focusVersion={canvasFocusVersion} />
+          <Suspense fallback={<LoaderCircle className="spin" />}><StudioPipelineCanvas key={project.id} project={project} disabled={disabled} onPrompt={updateStoryboardGridPrompt} onGenerate={gridId => void startStoryboardGridVideo(gridId)} onRecover={videoId => void recoverGeneration(videoId)} onIncluded={updateStoryboardGridIncluded} onUploadVideo={() => openAssetLibrary('video')} onAnalyze={() => void startJob('analysis')} onOpenMaterials={() => openStageDetail(0)} onOpenAnalysis={() => openStageDetail(1)} onOpenRemixDetail={() => openStageDetail(2)} onSettings={() => setModal('settings')} focusStep={step} focusVersion={canvasFocusVersion} /></Suspense>
         </div>
         </> : <>
         <div className="unified-workspace">
@@ -1507,7 +1525,6 @@ export default function App() {
       </section>
       <div className="configuration-options">
         <button className="configuration-option" onClick={() => setModal('settings')}><Sparkles size={18} /><span><strong>模型与图片生成</strong><small>{status.configured && status.imageGeneration?.configured ? '模型已配置' : '配置模型连接'}</small></span><ChevronRight size={16} /></button>
-        <button className="configuration-option" onClick={() => setModal('guide')}><CircleHelp size={18} /><span><strong>创意方法与使用指南</strong><small>查看工作流与创意说明</small></span><ChevronRight size={16} /></button>
       </div>
       <p className="configuration-local-note"><ShieldCheck size={14} />工作空间与创意资料保存在本机</p>
     </Modal>}

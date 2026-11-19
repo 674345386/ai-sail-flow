@@ -6,6 +6,7 @@ import { playgroundDefaults } from './landing-playground-defaults';
 export type AnnouncementId = 'promo' | 'omni';
 type AnnouncementCopy = { title: string; message: string; action: string; details: string };
 export type AnnouncementBarConfig = {
+  enabled: boolean;
   background: string;
   height: number;
   copy: Record<Lang, AnnouncementCopy>;
@@ -20,8 +21,8 @@ const defaultCopy = (id: AnnouncementId, lang: Lang): AnnouncementCopy => id ===
   : { details: '', ...LANDING[lang].omniAnnouncement };
 
 export const DEFAULT_ANNOUNCEMENTS: AnnouncementConfig = playgroundDefaults.announcements ?? {
-  promo: { background: '#800020', height: 46, copy: { en: defaultCopy('promo', 'en'), 'zh-CN': defaultCopy('promo', 'zh-CN') } },
-  omni: { background: '#d8fa69', height: 48, copy: { en: defaultCopy('omni', 'en'), 'zh-CN': defaultCopy('omni', 'zh-CN') } },
+  promo: { enabled: true, background: '#800020', height: 46, copy: { en: defaultCopy('promo', 'en'), 'zh-CN': defaultCopy('promo', 'zh-CN') } },
+  omni: { enabled: true, background: '#d8fa69', height: 48, copy: { en: defaultCopy('omni', 'en'), 'zh-CN': defaultCopy('omni', 'zh-CN') } },
 };
 
 function loadConfig(): AnnouncementConfig {
@@ -31,6 +32,7 @@ function loadConfig(): AnnouncementConfig {
     for (const id of ['promo', 'omni'] as const) {
       const bar = saved?.[id];
       if (!bar || typeof bar !== 'object') continue;
+      if (typeof bar.enabled === 'boolean') result[id].enabled = bar.enabled;
       if (typeof bar.background === 'string' && /^#[\da-f]{6}$/i.test(bar.background)) result[id].background = bar.background;
       if (typeof bar.height === 'number' && Number.isFinite(bar.height)) result[id].height = Math.round(Math.max(ANNOUNCEMENT_HEIGHT.min, Math.min(ANNOUNCEMENT_HEIGHT.max, bar.height)));
       for (const lang of ['en', 'zh-CN'] as const) {

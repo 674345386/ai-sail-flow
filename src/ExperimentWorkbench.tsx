@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { Background, BackgroundVariant, Handle, MiniMap, Position, ReactFlow, applyNodeChanges, type Node, type NodeProps, type NodeChange, type ReactFlowInstance } from '@xyflow/react';
-import { ArrowDownToLine, ArrowRight, BookOpen, Boxes, Check, CheckCheck, ChevronDown, Code2, Ellipsis, ExternalLink, FileText, Film, FlaskConical, GitBranch, GitFork as Github, Hand, Image, Layers, LayoutGrid, Link2, LoaderCircle, Map as MapIcon, Maximize2, Minus, MousePointer2, Play, Plus, Save, SlidersHorizontal, Sparkles, Trash2, Workflow, X } from 'lucide-react';
+import { ArrowDownToLine, ArrowRight, BookOpen, Boxes, Check, CheckCheck, ChevronDown, Code2, Ellipsis, ExternalLink, FileText, Film, FlaskConical, GitBranch, GitFork as Github, Image, Layers, LayoutGrid, Link2, LoaderCircle, Map as MapIcon, Maximize2, Minus, Play, Plus, Save, SlidersHorizontal, Sparkles, Trash2, Workflow, X } from 'lucide-react';
 import type { Project } from '../shared/domain';
 import { activeExperimentMethod, emptyExperiment, normalizeExperimentGraph, experimentKindLabels, experimentRecipes, experimentStatusLabels, type ExperimentGraph, type ExperimentNode, type ExperimentOperation } from '../shared/experiment';
 import { ExperimentComparisons, ExperimentMethodEditor, ExperimentPlanEditor, ExperimentRunDetails, type WorkbenchSource } from './ExperimentPlans';
@@ -85,7 +85,6 @@ export default function ExperimentWorkbench({ project, graph: incoming, onGraph,
   const [methodDirty, setMethodDirty] = useState(false);
   const [editRevision, setEditRevision] = useState(0);
   const [sourceId, setSourceId] = useState('');
-  const [canvasTool, setCanvasTool] = useState<'select' | 'pan'>('select');
   const [canvasZoom, setCanvasZoom] = useState(1);
   const [minimapOpen, setMinimapOpen] = useState(false);
   const [composerOpen, setComposerOpen] = useState(true), [inspectorOpen, setInspectorOpen] = useState(false);
@@ -355,7 +354,7 @@ export default function ExperimentWorkbench({ project, graph: incoming, onGraph,
             if (turnCanvas.turns.find(turn => turn.id === target.turnId)?.runId) { setNotice('这一轮已有执行记录。点击输出节点的 +，创建备选做法后再连接素材。'); return; }
             void connectFrom(source.canonicalId || source.item.sourceId || source.item.id, target.stepId).catch(failure => setError(failure instanceof Error ? failure.message : '连接失败。'));
           }}
-          nodesDraggable={!busy && canvasTool === 'select'} nodesConnectable={!busy && canvasTool === 'select'} panOnDrag={canvasTool === 'pan' ? true : [1, 2]} selectionOnDrag={canvasTool === 'select'} onMoveEnd={(_, viewport) => setCanvasZoom(viewport.zoom)} colorMode={theme === 'dark' ? 'dark' : 'light'} connectionLineStyle={{ stroke: 'var(--lab-accent)', strokeWidth: 1.8 }} edgesReconnectable={false} deleteKeyCode={null} minZoom={0.2} maxZoom={1.5} fitView={!turnMode} defaultViewport={{ x: 60, y: 40, zoom: .85 }} fitViewOptions={{ padding: 0.18, maxZoom: 1 }} proOptions={{ hideAttribution: true }}
+          nodesDraggable={!busy} nodesConnectable={!busy} panOnDrag onMoveEnd={(_, viewport) => setCanvasZoom(viewport.zoom)} colorMode={theme === 'dark' ? 'dark' : 'light'} connectionLineStyle={{ stroke: 'var(--lab-accent)', strokeWidth: 1.8 }} edgesReconnectable={false} deleteKeyCode={null} minZoom={0.2} maxZoom={1.5} fitView={!turnMode} defaultViewport={{ x: 60, y: 40, zoom: .85 }} fitViewOptions={{ padding: 0.18, maxZoom: 1 }} proOptions={{ hideAttribution: true }}
         >
           <Background variant={BackgroundVariant.Dots} gap={theme === 'studio-white' ? 20 : 22} size={theme === 'studio-white' ? 1 : .7} color="var(--lab-dot)" bgColor="var(--lab-bg)" />
           {minimapOpen && <MiniMap<FlowNode> pannable zoomable nodeColor="var(--lab-minimap-node)" bgColor="var(--lab-paper)" maskColor="var(--lab-minimap-mask)" />}
@@ -363,8 +362,6 @@ export default function ExperimentWorkbench({ project, graph: incoming, onGraph,
         {!!graph.nodes.length && <>
           <div className="lab-canvas-tools" role="toolbar" aria-label="画布工具">
             <button type="button" className="lab-canvas-add" disabled={busy} onClick={event => { if (selected) { const rect = event.currentTarget.getBoundingClientRect(); showNextMenu(selected.id, { x: rect.left, y: rect.top - 340 }); } else void addNode(false); }} title="添加制作步骤" aria-label="添加制作步骤"><Plus size={22} strokeWidth={1.6} /></button>
-            <button type="button" aria-pressed={canvasTool === 'select'} onClick={() => setCanvasTool('select')} title="选择与移动节点" aria-label="选择与移动节点"><MousePointer2 size={18} strokeWidth={1.6} /></button>
-            <button type="button" aria-pressed={canvasTool === 'pan'} onClick={() => setCanvasTool('pan')} title="平移画布" aria-label="平移画布"><Hand size={18} strokeWidth={1.6} /></button>
             <button type="button" onClick={fit} title="适应画布" aria-label="适应画布"><Maximize2 size={18} strokeWidth={1.6} /></button>
             <span className="lab-canvas-divider" />
             <WorkbenchPopover className="lab-canvas-more" label="更多画布操作" summary={<Ellipsis size={18} />} closeOnAction><button type="button" disabled={busy} onClick={() => setDrawer('recipes')}><Workflow size={15} />添加制作路径</button><button type="button" disabled={busy} onClick={() => { setDrawer('skill'); setChoices([]); setSkillPath(''); }}><Github size={15} />导入 Skill</button><button type="button" onClick={() => setDrawer('templates')}><BookOpen size={15} />已保存的配方</button><button type="button" disabled={busy} onClick={organize}><Boxes size={15} />自动整理节点</button><button type="button" onClick={exportGraph}><ArrowDownToLine size={15} />导出实验台</button></WorkbenchPopover>
@@ -377,7 +374,7 @@ export default function ExperimentWorkbench({ project, graph: incoming, onGraph,
             <button type="button" aria-pressed={minimapOpen} onClick={() => setMinimapOpen(value => !value)} title="切换小地图" aria-label="切换小地图"><MapIcon size={15} /></button>
           </div>
         </>}
-        {!!graph.nodes.length && <div className="lab-canvas-hint">{canvasTool === 'pan' ? '拖动平移画布 · 滚轮缩放' : '拖动节点 · 框选多个节点 · 拖动 + 连接'}</div>}
+        {!!graph.nodes.length && <div className="lab-canvas-hint">拖动画布平移 · 拖动节点移动 · 拖动 + 连接 · Shift 框选</div>}
         {nextMenu && <div className="lab-next-menu" style={{ left: nextMenu.left, top: nextMenu.top }} role="region" aria-label="选择下一步"><header><strong>下一步做什么</strong><button type="button" aria-label="关闭下一步菜单" onClick={() => setNextMenu(null)}><X size={13} /></button></header>
           <button type="button" disabled={busy || !models.some(model => model.kind === 'image') || graph.nodes.find(node => node.id === nextMenu.id)?.mediaType === 'video'} onClick={() => void nextFrom(nextMenu.id, 'image')}><Image size={17} /><span>继续创作图片<small>带入当前图片与输入关系</small></span></button>
           <button type="button" disabled={busy || !models.some(model => model.kind === 'video')} onClick={() => void nextFrom(nextMenu.id, 'video')}><Film size={17} /><span>制作视频<small>创建视频步骤与结果占位</small></span></button>

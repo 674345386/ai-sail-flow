@@ -20,7 +20,7 @@
   scrollbar-color: var(--iui-border-strong) transparent;
 }
 .app-shell[data-agent-theme] .agent-shell-surface { font-family: var(--iui-font); }
-.app-shell[data-agent-theme] .agent-shell-surface :is(.sidebar-project-caption, .nav-section-label, .sidebar-current-project, .sidebar-more-button, .sidebar-compact-toggle, .project-tree-action, .project-pin-action, .project-archive-action, .breadcrumbs, .save-status) { color: var(--iui-muted); }
+.app-shell[data-agent-theme] .agent-shell-surface :is(.sidebar-project-caption, .nav-section-label, .sidebar-current-project, .sidebar-more-button, .sidebar-compact-toggle, .project-tree-action, .project-pin-action, .project-archive-action, .breadcrumbs) { color: var(--iui-muted); }
 .app-shell[data-agent-theme] .agent-shell-surface :is(.nav-item, .sidebar-config, .archive-list-toggle, .iua-theme-picker > summary) { color: var(--iui-label-ink); }
 .app-shell[data-agent-theme] .agent-shell-surface :is(.brand strong, .brand-compact, .sidebar-project-heading strong, .project-tree-folder, .project-link, .sidebar-more-link, .sidebar-more-view-all, .sidebar-new-session:where(:not(:disabled)), .breadcrumb-current, .icon-btn) { color: var(--iui-ink); }
 .app-shell[data-agent-theme] .agent-shell-surface :is(.sidebar-search-create, .workspace-picker, .sidebar-more-search) { color: var(--iui-muted); background: var(--iui-surface); border-color: var(--iui-border-strong); }

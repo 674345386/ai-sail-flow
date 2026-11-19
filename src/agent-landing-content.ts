@@ -1,4 +1,5 @@
 import type { Dict } from './i18n';
+import { FEATURE_STUDIO_MODE } from '../shared/studio-feature';
 
 export const agentLandingCopy = {
   'zh-CN': {
@@ -23,7 +24,7 @@ export const agentLandingCopy = {
     faqTitle: '开始之前，你可能想知道。',
     faqs: [
       ['可以从什么开始？', '一个想法、一张产品图，或一条参考视频都可以。进入工作台后，可以补充素材，并通过对话说明你想要的画面、风格和用途。'],
-      ['Agent mode 和 Studio mode 有什么区别？', 'Agent mode 通过对话组织任务、调用工具，并在画布里查看过程和结果。Studio mode 沿着素材、拆解、二创等制作步骤展开。你可以选择适合自己的工作方式。'],
+      ...(FEATURE_STUDIO_MODE ? [['Agent mode 和 Studio mode 有什么区别？', 'Agent mode 通过对话组织任务、调用工具，并在画布里查看过程和结果。Studio mode 沿着素材、拆解、二创等制作步骤展开。你可以选择适合自己的工作方式。']] : []),
       ['我的素材和创作结果保存在哪里？', '创意和制作结果保存在当前工作台。过程素材保存在本机；上传素材可以在登录后按配置同步到私有云端素材库。'],
       ['可以使用哪些生成模型？', '图片接口当前提供 GPT Image 2.6 Flare 和 Sunburst。视频、分析和 Agent 能力使用工作台里配置的对应服务，实际可用能力以模型连接状态为准。'],
     ],
@@ -52,7 +53,7 @@ export const agentLandingCopy = {
     faqTitle: 'A few things before you start.',
     faqs: [
       ['What can I start with?', 'An idea, a product image, or a reference video. Once in the workspace, add your materials and describe the scene, style, and purpose in conversation.'],
-      ['How do Agent mode and Studio mode differ?', 'Agent mode uses conversation to organize tasks and call tools, with the process and results on a canvas. Studio mode follows production steps such as materials, analysis, and remixing. Choose the way you prefer to work.'],
+      ...(FEATURE_STUDIO_MODE ? [['How do Agent mode and Studio mode differ?', 'Agent mode uses conversation to organize tasks and call tools, with the process and results on a canvas. Studio mode follows production steps such as materials, analysis, and remixing. Choose the way you prefer to work.']] : []),
       ['Where is my work saved?', 'Creatives and production results are saved in the current workspace. Process assets stay on this device. Uploaded assets can be synced to your private cloud library after signing in, according to your configuration.'],
       ['Which generation models can I use?', 'The image connection currently offers GPT Image 2.6 Flare and Sunburst. Video, analysis, and agent capabilities use the corresponding services configured in your workspace; availability depends on those connections.'],
     ],

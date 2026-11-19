@@ -1,5 +1,9 @@
 /* A quiet page frame around the film; the rest of the landing content keeps its own palette. */
-.landing-page { overflow-x: clip; background: #f9f9f7; }
+.landing-page {
+  --landing-font-family: "Sail Workspace Inter", Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  overflow-x: clip;
+  background: #f9f9f7;
+}
 .landing-page::before, .landing-page::after { display: none; }
 .landing-page > .landing-nav {
   position: sticky;
@@ -9,33 +13,15 @@
   border-bottom: 0;
   background: #f9f9f7f2;
   color: #191b1d;
+  font: 13px/1.4 var(--landing-font-family);
   -webkit-backdrop-filter: blur(18px);
   backdrop-filter: blur(18px);
 }
 .landing-nav .landing-brand { color: #191b1d; font-size: 27px; letter-spacing: -.065em; }
-.landing-nav .landing-links { gap: clamp(22px, 2.5vw, 42px); transform: none; }
-.landing-nav .landing-links a { color: #747570; font-size: 13px; }
+.landing-nav .landing-links { gap: clamp(22px, 2.5vw, 42px); transform: none; font: inherit; }
+.landing-nav .landing-links a { color: #747570; }
 .landing-nav .landing-links a:first-child, .landing-nav .landing-links a:hover { color: #191b1d; }
-.landing-nav .landing-social { gap: 18px; color: #191b1d; font-size: 18px; }
-.landing-nav .landing-social button { font-size: 21px; }
-.landing-nav .landing-social .landing-account { display: inline-flex; align-items: center; gap: 7px; max-width: 160px; min-width: 0; min-height: 32px; white-space: nowrap; font-size: 15px; font-weight: 500; line-height: 1.4; }
-.landing-nav .landing-account > img { display: block; flex: 0 0 20px; width: 20px; height: 20px; border-radius: 50%; object-fit: cover; }
-.landing-nav .landing-account .account-name { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; font: inherit; line-height: inherit; }
-.landing-nav .landing-account .account-name-text { display: inline-block; white-space: nowrap; font: inherit; line-height: inherit; vertical-align: top; }
-.landing-account:is(:hover, :focus-visible) .account-name.is-overflowing { text-overflow: clip; }
-.landing-account:is(:hover, :focus-visible) .is-overflowing .account-name-text { animation: account-name-scroll var(--account-name-duration) linear infinite alternate; }
-@keyframes account-name-scroll {
-  0%, 15% { transform: translateX(0); }
-  85%, 100% { transform: translateX(var(--account-name-offset)); }
-}
-@media (hover: none) {
-  .landing-account .account-name.is-overflowing { text-overflow: clip; }
-  .landing-account .is-overflowing .account-name-text { animation: account-name-scroll var(--account-name-duration) linear infinite alternate; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .landing-nav .landing-account .account-name.is-overflowing { text-overflow: ellipsis; }
-  .landing-nav .landing-account .is-overflowing .account-name-text { animation: none; }
-}
+.landing-nav .landing-social { gap: 8px; color: #191b1d; font: inherit; }
 
 .landing-page > .commerce-hero {
   max-width: 1840px;
@@ -91,8 +77,6 @@
 @media (max-width: 680px) {
   .landing-page > .landing-nav { height: 64px; padding: 0 20px; }
   .landing-nav .landing-brand { font-size: 23px; }
-  .landing-nav .landing-social { gap: 12px; }
-  .landing-nav .landing-social > span, .landing-nav .landing-social > button:not(.landing-account) { display: none; }
   .landing-page > .commerce-hero { padding: 8px 14px 28px; scroll-margin-top: 64px; }
   .commerce-hero-stage { height: clamp(540px, calc(100dvh - 100px), 720px); border-radius: 10px; }
   .commerce-hero-copy { padding: 48px 20px; }
@@ -114,6 +98,10 @@
 /* Logo beside the wordmark fades and tucks away as the wordmark morphs into the mark */
 .landing-brand { --sb-p: 0; }
 .landing-brand .landing-brand-logo { --sb-lp: min(1, calc(var(--sb-p) * 2.6)); display: block; flex: none; width: 30px; height: 30px; opacity: calc(1 - var(--sb-lp)); margin-right: calc(-40px * var(--sb-lp)); transform: translateX(calc(-8px * var(--sb-lp))) scale(calc(1 - .35 * var(--sb-lp))) rotate(calc(-12deg * var(--sb-lp))); filter: blur(calc(3px * var(--sb-lp))); transform-origin: center; }
+@media (max-width: 400px) {
+  .landing-page > .landing-nav { padding-inline: 16px; }
+  .landing-nav .landing-brand .scroll-brand { --sb-word-scale: .6; }
+}
 
 /* Smaller final mark; wordmark keeps its original size (15px cap height) */
 .landing-brand .scroll-brand { --sb-mark: 20px; --sb-word-scale: .75; }
