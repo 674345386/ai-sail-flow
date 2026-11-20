@@ -1,7 +1,5 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { ArrowRight, ArrowUpRight, Camera, Clapperboard, LoaderCircle, Mic2, Pause, Play, ShieldCheck, ShoppingBag, type LucideIcon } from 'lucide-react';
-import type { WorkflowMode } from '../shared/domain';
-import { FEATURE_STUDIO_MODE } from '../shared/studio-feature';
 import { useReducedMotion } from './useReducedMotion';
 import { useDecorativeMedia } from './useDecorativeMedia';
 import heroVideo from './assets/landing/commerce-hero-reference.mp4';
@@ -20,7 +18,7 @@ const scenes: { id: SceneId; icon: LucideIcon; image: string; video?: string }[]
 
 export default function LandingHero({ authRequired, onEnter, onStart, busy = false, headingLevel = 1 }: {
   authRequired: boolean;
-  onEnter: (mode: WorkflowMode) => void;
+  onEnter: () => void;
   onStart: (prompt: string) => void;
   busy?: boolean;
   headingLevel?: 1 | 2;
@@ -136,10 +134,10 @@ export default function LandingHero({ authRequired, onEnter, onStart, busy = fal
           <ol aria-label={t.workflow}>{copy.steps.map((step, index) => <li key={step}>{index > 0 && <ArrowRight size={12} aria-hidden="true" />}{step}</li>)}</ol>
         </div>
         <div className="scenes-actions" aria-busy={busy}>
-          <button type="button" className="scenes-primary" disabled={busy} onClick={() => FEATURE_STUDIO_MODE && active === 'commerce' ? onEnter('automatic') : onStart(copy.prompt)}>
+          <button type="button" className="scenes-primary" disabled={busy} onClick={() => onStart(copy.prompt)}>
             {busy ? <LoaderCircle size={17} className="spin" aria-hidden="true" /> : null}<span>{busy ? t.preparing : copy.action}</span>{!busy && <ArrowRight size={17} aria-hidden="true" />}
           </button>
-          <button type="button" className="scenes-secondary" disabled={busy} onClick={() => active === 'commerce' ? onEnter('manual') : onStart('')}>
+          <button type="button" className="scenes-secondary" disabled={busy} onClick={() => active === 'commerce' ? onEnter() : onStart('')}>
             {active === 'commerce' ? t.openFlow : t.fromScratch}<ArrowUpRight size={16} aria-hidden="true" />
           </button>
         </div>

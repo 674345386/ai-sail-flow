@@ -1,4 +1,4 @@
-import { MODEL, defaultMarket, type Project, type Shot } from './domain';
+import { defaultMarket, type Project, type Shot } from './domain';
 
 const shots: Shot[] = [
   { id: 'shot-1', start: 0, end: 3, role: 'hook', visual: '通勤桌面，钥匙、笔记本与随身杯同框。', action: '手拿起杯子，展示通勤携带情境。', camera: '竖屏近景，轻微手持感，自然窗光。', narration: 'Your coffee, ready when you are.', onScreenText: 'Coffee. Ready to go.', sound: '轻快、低音量背景音乐；清晰人声。', productPresence: '杯体正面入镜，品牌保持可辨认。', uncertainty: '' },
@@ -21,6 +21,6 @@ export function demoProject(id: string): Project {
       globalPrompt: 'Create a natural, vertically framed 15-second coffee product demonstration. Use soft daylight, believable hand movements, a consistent product, and clean, practical surroundings. Keep one clear benefit per shot. Only use the supplied product facts. Follow the approved shot plan below.',
       negativePrompt: 'No invented discounts, reviews, shipping promises, leakproof claims, material claims, or brewing times. No warped product geometry, changing packaging, extra fingers, illegible generated text, or additional logos.',
       shots: shots.map(s => ({ ...s, generationPrompt: ({ hook: 'Close-up of a hand picking up the reference coffee cup from a desk beside keys and a notebook. Natural daylight, relaxed handheld framing.', demo: 'Top-down kitchen demonstration: remove the filter, add coffee and water, reassemble. Preserve the exact reference product geometry and show a continuous plausible sequence.', proof: 'Close-up of the removable filter beside the cup near a kitchen sink. Demonstrate separation and rinsing without implying unsupported product performance.', cta: 'Static close-up of the assembled reference cup on a tidy desk, centered with space for captions to be composited later.', other: '' })[s.role] })),
-    }, rewriteStale: false, generatedVideos: [], composedVideos: [], productionMode: 'veo-native', ttsVoice: '', job: null, model: MODEL, usage: { input: 0, output: 0 },
+    }, rewriteStale: false, generatedVideos: [], composedVideos: [], productionMode: 'veo-native', ttsVoice: '', job: null, model: 'demo', usage: { input: 0, output: 0 },
   };
 }

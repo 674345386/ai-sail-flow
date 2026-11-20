@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowUpRight, Check, ChevronLeft, ChevronRight, CircleAlert, CircleCheck, Clock3, Copy, Download, Eye, Film, Image as ImageIcon, Inbox, LoaderCircle, RefreshCw, Search, X } from 'lucide-react';
 import { generationStatusLabels, generationTaskActive, type GenerationTask, type GenerationTaskList, type GenerationTaskStatus } from '../shared/generation-task';
-import { FEATURE_STUDIO } from '../shared/studio-feature';
 import { api } from './api';
 import './generation-tasks.css';
 
@@ -65,8 +64,8 @@ function useTaskList(query: string, version: number) {
   return { data, error, refreshing };
 }
 
-function TaskDetail({ taskId, updatedAt, onClose, onOpenCreative, onOpenStudioProject, onChanged, busy }: {
-  taskId: string; updatedAt?: string; onClose: () => void; onOpenCreative: (id: string) => void; onOpenStudioProject: (id: string) => void; onChanged: () => void; busy: boolean;
+function TaskDetail({ taskId, updatedAt, onClose, onOpenCreative, onChanged, busy }: {
+  taskId: string; updatedAt?: string; onClose: () => void; onOpenCreative: (id: string) => void; onChanged: () => void; busy: boolean;
 }) {
   const [task, setTask] = useState<GenerationTask | null>(null);
   const [error, setError] = useState('');
@@ -153,12 +152,11 @@ function TaskDetail({ taskId, updatedAt, onClose, onOpenCreative, onOpenStudioPr
       <button type="button" className="generation-button generation-copy" onClick={() => void copyId()}>{copied ? <Check size={14} /> : <Copy size={14} />}{copied ? '已复制' : task.requestId ? '复制请求标识' : '复制任务 ID'}</button>
       <details className="generation-prompt" open><summary>生成提示词</summary><pre>{task.prompt || (generationTaskActive(task.status) ? '请求尚在准备，提交后可查看完整提示词。' : '历史任务未保留完整提示词。')}</pre></details>
       {task.creativeId && <button type="button" className="generation-button generation-open-creative" disabled={busy} onClick={() => onOpenCreative(task.creativeId!)}>打开所属创意<ArrowUpRight size={15} /></button>}
-      {FEATURE_STUDIO && task.studioProjectId && <button type="button" className="generation-button generation-open-creative" disabled={busy} onClick={() => onOpenStudioProject(task.studioProjectId!)}>打开工作室项目<ArrowUpRight size={15} /></button>}
     </>}
   </aside>;
 }
 
-export default function GenerationTasks({ theme, onOpenCreative, onOpenStudioProject, busy = false }: { theme?: string; onOpenCreative: (id: string) => void; onOpenStudioProject: (id: string) => void; busy?: boolean }) {
+export default function GenerationTasks({ theme, onOpenCreative, busy = false }: { theme?: string; onOpenCreative: (id: string) => void; busy?: boolean }) {
   const [query, setQuery] = useState('');
   const [search, setSearch] = useState('');
   const [kind, setKind] = useState<'all' | 'video' | 'image'>('all');
@@ -205,7 +203,7 @@ export default function GenerationTasks({ theme, onOpenCreative, onOpenStudioPro
         {data && !tasks.length && <div className="generation-empty"><Inbox size={32} strokeWidth={1.4} /><strong>{counts?.total ? '没有符合条件的任务' : '还没有生成任务'}</strong><p>{counts?.total ? '试试其他关键词，或清除筛选查看全部任务。' : '在创意中生成图片或视频后，任务会出现在这里。'}</p>{!!counts?.total && <button type="button" className="generation-button" onClick={clearFilters}>清除筛选</button>}</div>}
         {tasks.length > PAGE_SIZE && <nav className="generation-pagination" aria-label="任务列表分页"><span>{currentPage * PAGE_SIZE + 1}–{Math.min((currentPage + 1) * PAGE_SIZE, tasks.length)} / {tasks.length}</span><button type="button" className="generation-icon-button" aria-label="上一页" disabled={currentPage === 0} onClick={() => setPage(currentPage - 1)}><ChevronLeft size={16} /></button><button type="button" className="generation-icon-button" aria-label="下一页" disabled={currentPage === lastPage} onClick={() => setPage(currentPage + 1)}><ChevronRight size={16} /></button></nav>}
       </div>
-      {selectedId && <TaskDetail key={selectedId} taskId={selectedId} updatedAt={data?.updatedAt} onClose={closeDetail} onOpenCreative={onOpenCreative} onOpenStudioProject={onOpenStudioProject} onChanged={() => setVersion(value => value + 1)} busy={busy} />}
+      {selectedId && <TaskDetail key={selectedId} taskId={selectedId} updatedAt={data?.updatedAt} onClose={closeDetail} onOpenCreative={onOpenCreative} onChanged={() => setVersion(value => value + 1)} busy={busy} />}
     </div>
     <p className="generation-footnote">任务在后台继续执行，离开此页后仍可回来查看。</p>
   </section>;

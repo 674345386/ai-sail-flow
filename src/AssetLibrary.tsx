@@ -4,7 +4,6 @@ import type { User } from '@supabase/supabase-js';
 import { Check, Cloud, CloudOff, Grid2X2, Image as ImageIcon, ListChecks, LoaderCircle, Search, Sparkles, Trash2, Upload, Video, X } from 'lucide-react';
 import type { LibraryCounts, LibraryMedia, LibraryPage, LibrarySort, MediaKind } from '../shared/media-library';
 import type { Project, TierNewFrame, WorkspaceProject } from '../shared/domain';
-import { frameLabel, framePositions, shotLevel, type FramePosition } from '../shared/tier-prompt';
 import { levelInfo } from '../shared/replication-levels';
 import { deleteLibraryMedia, loadMediaLibrary, loadMediaSelection, loadMediaStatus, syncMediaLibrary, uploadLibraryFiles, type LibrarySelectionItem, type MediaLibraryChange } from './mediaLibrary';
 import { publicAuthRequired } from './auth';
@@ -14,30 +13,30 @@ type Filter = 'all' | MediaKind | 'recent';
 type Sort = LibrarySort;
 type Category = { id: Filter; label: string; icon: typeof Grid2X2 };
 const libraryCategories: Category[] = [{ id: 'all', label: '全部', icon: Grid2X2 }, { id: 'image', label: '图片', icon: ImageIcon }, { id: 'video', label: '视频', icon: Video }];
-const modalCategories: Category[] = [...libraryCategories, { id: 'recent', label: '最近生成', icon: Sparkles }];
+const modalCategories: Category[] = [...libraryCategories, { id: 'recent', label: '历史关键帧', icon: Sparkles }];
 const message = (error: unknown) => error instanceof Error ? error.message : '素材暂时无法读取，请重试。';
 function sizeLabel(size: number) { return size ? `${(size / 1024 / 1024).toFixed(1)} MB` : ''; }
 
-/** Same 已过期 rule as shared/tier-prompt.ts for middle/last derived from an older first. */
+const frameLabel = { first: '首帧', middle: '中间帧', last: '尾帧' } as const;
+type FramePosition = keyof typeof frameLabel;
 function frameOutdated(version: Pick<TierNewFrame, 'kind' | 'firstFrom'>, position: FramePosition, newFirstFilename: string | undefined, chained: boolean) {
   const dependsOnFirst = chained && position !== 'first';
   return dependsOnFirst && version.kind !== 'uploaded' && version.firstFrom !== newFirstFilename;
 }
 
 /** Synthetic library rows from the current project's completed new keyframes (and one previous each). */
-export function recentGeneratedMedia(project: Project | null, frameBusy: string[] = [], workspaceProject?: WorkspaceProject | null): LibraryMedia[] {
+function recentGeneratedMedia(project: Project | null, workspaceProject?: WorkspaceProject | null): LibraryMedia[] {
   if (!project?.analysis?.shots?.length) return [];
-  const busy = new Set(frameBusy);
   const rows: LibraryMedia[] = [];
   project.analysis.shots.forEach((shot, index) => {
     const newFrames = project.replication?.shots?.[shot.id]?.newFrames;
     if (!newFrames) return;
     const shotName = `镜头${String(index + 1).padStart(2, '0')}`;
-    const use = levelInfo(shotLevel(project, shot.id)).frameUse;
+    const level = project.replication?.shots?.[shot.id]?.level || project.replication?.level || 'exact';
+    const use = levelInfo(level).frameUse;
     const chained = use === 'layout' || use === 'none';
     const newFirstFilename = newFrames.first?.filename;
-    for (const position of framePositions) {
-      if (busy.has(`${shot.id}:${position}`)) continue;
+    for (const position of Object.keys(frameLabel) as FramePosition[]) {
       const frame = newFrames[position];
       if (!frame) continue;
       const name = `${shotName} · ${frameLabel[position]}`;
@@ -330,14 +329,14 @@ export function MediaLibraryPage({ user, onSelect, onUpload, onSignIn }: { user:
 type AssetLibraryProps = {
   open: boolean; user: User | null; target: 'all' | MediaKind; initialSelection?: LibraryMedia | null;
   onClose: () => void; onReference: (item: LibraryMedia) => Promise<void>; onSignIn: () => void;
-  project?: Project | null; workspaceProject?: WorkspaceProject | null; frameBusy?: string[];
+  project?: Project | null; workspaceProject?: WorkspaceProject | null;
 };
 export default function AssetLibrary(props: AssetLibraryProps) {
   if (!props.open) return null;
   return <AssetLibraryDialog key={JSON.stringify([props.user?.id, props.target, props.initialSelection?.id])} {...props} />;
 }
 
-function AssetLibraryDialog({ open, user, target, initialSelection, onClose, onReference, onSignIn, project = null, workspaceProject = null, frameBusy = [] }: AssetLibraryProps) {
+function AssetLibraryDialog({ open, user, target, initialSelection, onClose, onReference, onSignIn, project = null, workspaceProject = null }: AssetLibraryProps) {
   const [selected, setSelected] = useState<LibraryMedia | null>(initialSelection || null);
   const [filter, setFilter] = useState<Filter>(target);
   const [query, setQuery] = useState('');
@@ -351,7 +350,7 @@ function AssetLibraryDialog({ open, user, target, initialSelection, onClose, onR
   const dialog = useRef<HTMLElement>(null);
   const close = useRef(onClose); close.current = onClose;
   const busyRef = useRef(busy); busyRef.current = busy;
-  const recentItems = useMemo(() => recentGeneratedMedia(project, frameBusy, workspaceProject), [project, frameBusy, workspaceProject]);
+  const recentItems = useMemo(() => recentGeneratedMedia(project, workspaceProject), [project, workspaceProject]);
   useEffect(() => {
     if (!open) return;
     const previous = document.activeElement as HTMLElement | null;
@@ -415,7 +414,7 @@ function AssetLibraryDialog({ open, user, target, initialSelection, onClose, onR
         </aside>
         <div className="asset-library-results">{visible.length ? <div className="asset-library-list">{visible.map(item => <div className="asset-library-item" key={item.id}><button type="button" className={`asset-library-row ${current?.id === item.id ? 'selected' : ''}`} disabled={!!busy} aria-pressed={current?.id === item.id} onClick={() => setSelected(item)}>
           <Thumbnail item={item} /><span className="asset-library-row-text"><strong title={item.name}>{item.name}</strong><small>{item.kind === 'image' ? '图片' : '视频'}<BackupStatus item={item} size={11} /></small></span>{current?.id === item.id && <Check size={14} />}
-        </button>{!item.id.startsWith('recent:') && <DeleteMediaButton item={item} disabled={!!busy} onDelete={async () => { if (await remove([item])) setSelected(previous => previous?.id === item.id ? null : previous); }} />}</div>)}</div> : <div className="asset-library-empty">{loading && filter !== 'recent' ? <><LoaderCircle className="spin" size={22} /><span>正在读取素材…</span></> : <><Grid2X2 size={26} /><strong>{query ? '没有匹配的素材' : filter === 'recent' ? '还没有最近生成的关键帧' : '还没有这类素材'}</strong><span>{query ? '试试其他名称或分类。' : filter === 'recent' ? '在当前创意中生成关键帧后会出现在这里。' : '点击左下角“本地上传内容”，收录第一份素材。'}</span></>}</div>}{filter !== 'recent' && nextCursor && <LibraryMore loading={loading} auto={!warning} load={loadMore} />}</div>
+        </button>{!item.id.startsWith('recent:') && <DeleteMediaButton item={item} disabled={!!busy} onDelete={async () => { if (await remove([item])) setSelected(previous => previous?.id === item.id ? null : previous); }} />}</div>)}</div> : <div className="asset-library-empty">{loading && filter !== 'recent' ? <><LoaderCircle className="spin" size={22} /><span>正在读取素材…</span></> : <><Grid2X2 size={26} /><strong>{query ? '没有匹配的素材' : filter === 'recent' ? '这项创意没有旧版生成的关键帧' : '还没有这类素材'}</strong><span>{query ? '试试其他名称或分类。' : filter === 'recent' ? '可在当前任务素材或任务进度中查看新生成的素材。' : '点击左下角“本地上传内容”，收录第一份素材。'}</span></>}</div>}{filter !== 'recent' && nextCursor && <LibraryMore loading={loading} auto={!warning} load={loadMore} />}</div>
         <aside className="asset-library-preview"><div className="asset-library-preview-media">{current ? current.kind === 'image' ? <img key={current.id} src={current.url} alt={current.name} /> : <video key={current.id} src={current.url} poster={current.thumbnail} controls playsInline preload="metadata" /> : <div className="asset-library-preview-empty"><ImageIcon size={34} /><span>选择素材预览</span></div>}</div>
           <div className="asset-library-preview-info"><strong title={current?.name}>{current?.name || '素材预览'}</strong><span>{current ? `${current.kind === 'image' ? '图片' : '视频'}${sizeLabel(current.size) ? ` · ${sizeLabel(current.size)}` : ''}` : '可引用到当前创意'}</span>{current && <MediaMetadata item={current} />}{current && !compatible && <small>当前入口仅可引用{target === 'image' ? '图片' : '视频'}，可切换左侧分类。</small>}</div>
           <button className="asset-library-add" type="button" disabled={!compatible || !!busy} onClick={() => void reference()}>{busy ? <><LoaderCircle className="spin" size={16} />{busy}</> : '添加到当前创意'}</button>

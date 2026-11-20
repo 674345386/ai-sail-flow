@@ -26,8 +26,8 @@
 .app-shell[data-agent-theme] .agent-shell-surface :is(.sidebar-search-create, .workspace-picker, .sidebar-more-search) { color: var(--iui-muted); background: var(--iui-surface); border-color: var(--iui-border-strong); }
 .app-shell[data-agent-theme] .agent-shell-surface .sidebar-search-create kbd { color: var(--iui-muted); background: var(--iui-surface-strong); border-color: var(--iui-border-strong); }
 .app-shell[data-agent-theme] .agent-shell-surface :is(.sidebar-current-project, .project-tree-children, .sidebar-more-toolbar) { border-color: var(--iui-border); }
-.app-shell[data-agent-theme] .agent-shell-surface :is(.nav-item, .sidebar-config, .archive-list-toggle, .sidebar-search-create, .sidebar-more-button, .sidebar-compact-toggle, .project-tree-action, .project-pin-action, .project-archive-action, .icon-btn):hover:not(:disabled) { color: var(--iui-ink); background: var(--iui-hover); border-color: var(--iui-border-strong); }
-.app-shell[data-agent-theme] .agent-shell-surface :is(.nav-item.active, .project-row.selected, .project-row:hover, .project-row:focus-within, .project-tree-heading:hover, .project-tree-heading:focus-within, .sidebar-more-row.selected, .sidebar-more-row:hover, .sidebar-more-row:focus-within, .sidebar-more-button.active) { color: var(--iui-ink); background: var(--iui-surface-strong); border-color: var(--iui-border); }
+.app-shell[data-agent-theme] .agent-shell-surface :is(.nav-item, .sidebar-config, .archive-list-toggle, .sidebar-rail-button:where([aria-pressed]), .sidebar-search-create, .sidebar-more-button, .sidebar-compact-toggle, .project-tree-action, .project-pin-action, .project-archive-action, .icon-btn):hover:not(:disabled) { color: var(--iui-ink); background: var(--iui-hover); border-color: var(--iui-border-strong); }
+.app-shell[data-agent-theme] .agent-shell-surface :is(.nav-item.active, .archive-list-toggle.active, .sidebar-rail-button[aria-pressed="true"], .project-row.selected, .project-row:hover, .project-row:focus-within, .project-tree-heading:hover, .project-tree-heading:focus-within, .sidebar-more-row.selected, .sidebar-more-row:hover, .sidebar-more-row:focus-within, .sidebar-more-button.active) { color: var(--iui-ink); background: var(--iui-surface-strong); border-color: var(--iui-border); }
 .app-shell[data-agent-theme] .agent-shell-surface .nav-item.active svg { color: var(--iui-ink); }
 .app-shell[data-agent-theme] .agent-shell-surface .project-row .project-link { color: var(--iui-ink); background: transparent; }
 .app-shell[data-agent-theme] .agent-shell-surface .sidebar-more-popover { color: var(--iui-ink); background: var(--iui-canvas); border-color: var(--iui-border-strong); box-shadow: var(--iui-shadow); }
@@ -40,10 +40,8 @@
 
 .app-shell[data-agent-theme] .agent-shell-surface .breadcrumbs button { color: var(--iui-ink); }
 .app-shell[data-agent-theme] .agent-shell-surface :is(.topbar-divider, .topbar-leading-divider) { background: var(--iui-border-strong); }
-.app-shell[data-agent-theme] .agent-shell-surface :is(.btn, .account-chip, .lang-switch button, .experience-switch) { color: var(--iui-ink); background: var(--iui-surface); border-color: var(--iui-border-strong); }
+.app-shell[data-agent-theme] .agent-shell-surface :is(.btn, .account-chip, .lang-switch button) { color: var(--iui-ink); background: var(--iui-surface); border-color: var(--iui-border-strong); }
 .app-shell[data-agent-theme] .agent-shell-surface :is(.btn, .account-chip, .lang-switch button):hover:not(:disabled) { color: var(--iui-ink); background: var(--iui-hover); }
-.app-shell[data-agent-theme] .agent-shell-surface .experience-switch button { color: var(--iui-muted); background: transparent; }
-.app-shell[data-agent-theme] .agent-shell-surface .experience-switch button[aria-pressed="true"] { color: var(--iui-ink); background: var(--iui-surface-strong); box-shadow: var(--iui-shadow-sm); }
 .app-shell[data-agent-theme] .agent-shell-surface :focus-visible { outline-color: var(--iui-focus); }
 .app-shell[data-agent-theme] .agent-shell-surface ::selection { color: var(--iui-ink); background: var(--iui-pressed); }
 

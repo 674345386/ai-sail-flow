@@ -150,3 +150,31 @@
 @media (prefers-reduced-motion: reduce) {
   .lab-media-canvas .react-flow__edge.animated path { animation: none; }
 }
+
+/* Phase 2: Asset Bible anchor strip, node role badges & VLM QC badges/cards */
+.lab-media-canvas .lab-node-badges .lab-asset-role { display: inline-flex; align-items: center; gap: 3px; min-height: 21px; padding: 3px 6px; border-radius: 5px; background: rgba(59, 147, 240, .24); color: #cde6ff; font-size: 9px; line-height: 1.4; }
+.lab-media-canvas .lab-node-badges .lab-qc-badge { display: inline-flex; align-items: center; gap: 3px; min-height: 21px; padding: 3px 6px; border-radius: 5px; font-size: 9px; line-height: 1.4; font-variant-numeric: tabular-nums; }
+.lab-media-canvas .lab-node-badges .lab-qc-badge.is-pass { background: rgba(46, 160, 99, .26); color: #b7f2d0; }
+.lab-media-canvas .lab-node-badges .lab-qc-badge.is-warn { background: rgba(217, 154, 38, .28); color: #fce1a6; }
+.lab-media-canvas .lab-node-badges .lab-qc-badge.is-fail { background: rgba(214, 72, 63, .3); color: #ffc1bc; }
+.lab-asset-bible-bar { display: flex; align-items: center; gap: 10px; padding: 6px 14px; border-bottom: 1px solid var(--lab-line, #303030); background: var(--lab-paper, #1f1f1f); overflow-x: auto; scrollbar-width: thin; }
+.lab-asset-bible-label { display: inline-flex; flex: none; align-items: center; gap: 5px; font-size: 11px; color: var(--lab-muted, #a4a4a4); white-space: nowrap; }
+.lab-asset-bible-list { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.lab-asset-bible-chip { display: inline-flex; flex: none; align-items: center; border: 1px solid var(--lab-line, #3a3a3a); border-radius: 999px; background: var(--lab-bg, #262626); overflow: hidden; }
+.lab-asset-bible-chip > button { display: inline-flex; align-items: center; gap: 5px; min-height: 26px; padding: 2px 8px; border: 0; background: transparent; color: var(--lab-ink, #e2e2e2); font-size: 11px; cursor: pointer; }
+.lab-asset-bible-chip > button > img { width: 18px; height: 18px; border-radius: 50%; object-fit: cover; flex: none; }
+.lab-asset-bible-chip > button > strong { font-size: 10px; font-weight: 600; color: #7db8ff; white-space: nowrap; }
+.lab-asset-bible-chip > button > span { max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lab-asset-bible-chip > .lab-asset-bible-attach { border-left: 1px solid var(--lab-line, #3a3a3a); color: #9ad8b1; font-size: 10.5px; }
+.lab-qc-card { display: grid; gap: 8px; padding: 12px; border: 1px solid #3f3f3f; border-radius: 10px; background: #1e1e1e; font-size: 11.5px; }
+.lab-qc-card.is-pass { border-color: rgba(62, 207, 142, .45); }
+.lab-qc-card.is-warn { border-color: rgba(240, 180, 41, .5); }
+.lab-qc-card.is-fail { border-color: rgba(232, 72, 63, .55); }
+.lab-qc-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.lab-qc-card-head strong { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; }
+.lab-qc-card.is-pass .lab-qc-card-head strong { color: #7ee2b8; }
+.lab-qc-card.is-warn .lab-qc-card-head strong { color: #f6cd72; }
+.lab-qc-card.is-fail .lab-qc-card-head strong { color: #ff9c94; }
+.lab-qc-card p { margin: 0; line-height: 1.6; color: var(--lab-ink, #dcdcdc); }
+.lab-qc-card ul { margin: 0; padding-left: 16px; color: var(--lab-muted, #b4b4b4); line-height: 1.5; }
+.lab-qc-card small { color: #9ec9ff; line-height: 1.5; }

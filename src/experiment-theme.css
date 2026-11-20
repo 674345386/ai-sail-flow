@@ -79,5 +79,14 @@
 .experiment-workbench.intelligent-ui-surface[data-theme].lab-media-canvas :is(.lab-node-media-actions > button, .lab-composer-references button):hover:not(:disabled) { background: #3f3f3f; color: #fff; }
 .experiment-workbench.intelligent-ui-surface[data-theme].lab-media-canvas :focus-visible { outline-color: var(--iui-focus); }
 .experiment-workbench.intelligent-ui-surface[data-theme].lab-media-canvas ::selection { color: var(--lab-ink); background: var(--iui-pressed); }
-.experiment-workbench.intelligent-ui-surface[data-theme].lab-media-canvas :is(.lab-inspector-scroll, .lab-drawer, .lab-plan-navigation nav, .lab-toolbar-popover-panel, .lab-reference-picker) { scrollbar-color: var(--iui-border-strong) transparent; }
+.experiment-workbench.intelligent-ui-surface[data-theme].lab-media-canvas :is(.lab-inspector-scroll, .lab-drawer, .lab-plan-navigation nav, .lab-toolbar-popover-panel, .lab-reference-picker, .lab-canvas-outline-list) { scrollbar-color: var(--iui-border-strong) transparent; }
+.experiment-workbench.intelligent-ui-surface[data-theme].lab-media-canvas .lab-canvas-outline-popover { background: var(--lab-paper); border-color: var(--lab-line); box-shadow: var(--iui-shadow); }
+.experiment-workbench.intelligent-ui-surface[data-theme].lab-media-canvas .lab-canvas-outline-tick { background: transparent; border-color: transparent; }
+.experiment-workbench.intelligent-ui-surface[data-theme].lab-media-canvas .lab-canvas-outline-tick:hover:not(:disabled) { background: transparent; border-color: transparent; }
+.experiment-workbench.intelligent-ui-surface[data-theme].lab-media-canvas .lab-canvas-outline-tick > span { background: color-mix(in srgb, var(--lab-ink) 32%, transparent); }
+.experiment-workbench.intelligent-ui-surface[data-theme].lab-media-canvas .lab-canvas-outline-tick:hover > span { background: color-mix(in srgb, var(--lab-ink) 62%, transparent); }
+.experiment-workbench.intelligent-ui-surface[data-theme].lab-media-canvas .lab-canvas-outline-tick.is-active > span { background: var(--lab-ink); }
+.experiment-workbench.intelligent-ui-surface[data-theme].lab-media-canvas .lab-canvas-outline-item { background: transparent; border-color: transparent; color: var(--lab-ink); }
+.experiment-workbench.intelligent-ui-surface[data-theme].lab-media-canvas .lab-canvas-outline-item:hover:not(:disabled) { background: var(--iui-hover); color: var(--lab-ink); }
+.experiment-workbench.intelligent-ui-surface[data-theme].lab-media-canvas .lab-canvas-outline-item.is-active { background: var(--iui-surface-strong, var(--iui-hover)); color: var(--lab-ink); }
 .experiment-workbench.intelligent-ui-surface[data-theme] .skill-reference-bar { color: var(--lab-muted); font-family: inherit; }

@@ -19,14 +19,14 @@ export type DimensionState = 'keep' | 'yours' | 'new';
 export type SourceFrameUse = 'edit' | 'swap' | 'layout' | 'none';
 
 export const replicationLevels = [
-  { id: 'exact', step: 1, label: '复刻', short: '照原片重做', frameUse: 'edit' as SourceFrameUse,
-    description: '全部沿用原片。上传了产品参考图就只替换产品，没上传就按原片重绘。' },
-  { id: 'swap', step: 2, label: '换角', short: '换人换货不换戏', frameUse: 'swap' as SourceFrameUse,
-    description: '沿用节奏、构图、运镜和风格，人物和产品换成你的参考图；需求里写了新场景也会一起换。' },
-  { id: 'adapt', step: 3, label: '改编', short: '保留镜头骨架', frameUse: 'layout' as SourceFrameUse,
-    description: '沿用节奏、构图和运镜，场景、人物、产品换成你的；风格默认沿用，需求里提到就改。' },
-  { id: 'remix', step: 4, label: 'Remix', short: '只借节奏和运镜', frameUse: 'none' as SourceFrameUse,
-    description: '只沿用节奏、运镜和转场，其余按你的新主题重写，原片画面不参与生图。' },
+  { id: 'exact', step: 1, label: '贴近原片', short: '照原片重做', frameUse: 'edit' as SourceFrameUse,
+    description: '尽量贴近原片，只做明确指定的调整。' },
+  { id: 'swap', step: 2, label: '局部替换', short: '保留整体表达', frameUse: 'swap' as SourceFrameUse,
+    description: '保留原片的表现方式，调整指定元素。' },
+  { id: 'adapt', step: 3, label: '结构改编', short: '保留创意骨架', frameUse: 'layout' as SourceFrameUse,
+    description: '沿用支撑原片效果的结构，围绕新目标调整内容。' },
+  { id: 'remix', step: 4, label: '自由二创', short: '以原片为灵感', frameUse: 'none' as SourceFrameUse,
+    description: '借用适合新目标的创意手法，重新设计其余内容。' },
 ] as const;
 export type ReplicationLevel = typeof replicationLevels[number]['id'];
 export const replicationLevelIds = replicationLevels.map(item => item.id) as [ReplicationLevel, ...ReplicationLevel[]];

@@ -6,9 +6,7 @@ import net from 'node:net';
 import { spawn, execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { once } from 'node:events';
-import JSZip from 'jszip';
-import { analysisSchema, rewriteSchema, validateTimeline, type Project } from '../shared/domain';
-import { buildPrompt, subtitles } from '../shared/export';
+import type { Project } from '../shared/domain';
 
 const exec = promisify(execFile);
 const temp = await mkdtemp(path.join(os.tmpdir(), 'sop-smoke-'));
@@ -18,7 +16,7 @@ const port = (socket.address() as net.AddressInfo).port;
 await new Promise<void>(resolve => socket.close(() => resolve()));
 const base = `http://127.0.0.1:${port}`;
 const server = spawn(process.execPath, ['--import', 'tsx', 'server/index.ts', '--production'], {
-  cwd: process.cwd(), env: { ...process.env, SOP_PORT: String(port), SOP_DATA_DIR: path.join(temp, 'data'), GEMINI_API_KEY: '', GOOGLE_API_KEY: '', SOP_VEO_API_KEY: '' }, stdio: ['ignore', 'pipe', 'pipe'],
+  cwd: process.cwd(), env: { ...process.env, SOP_PORT: String(port), SOP_DATA_DIR: path.join(temp, 'data'), SOP_REQUIRE_AUTH: 'false', SOP_AGENT_ENABLED: 'false', SOP_OMNI_API_KEY: '', SOP_VEO_API_KEY: '', SOP_MINIMAX_API_KEY: '' }, stdio: ['ignore', 'pipe', 'pipe'],
 });
 let logs = '';
 server.stdout.on('data', data => { logs += data.toString(); });
@@ -26,7 +24,6 @@ server.stderr.on('data', data => { logs += data.toString(); });
 async function request(route: string, method = 'GET', body?: unknown) {
   return fetch(base + route, { method, ...(body !== undefined ? { body: JSON.stringify(body), headers: { 'Content-Type': 'application/json' } } : {}) });
 }
-function patch(p: Project) { return { revision: p.revision, title: p.title, product: p.product, market: p.market, analysis: p.analysis, rewrite: p.rewrite }; }
 let checks = 0;
 function pass(label: string) { checks++; console.log(`PASS ${label}`); }
 try {
@@ -38,46 +35,36 @@ try {
   }
   assert(ready, logs);
   const status = await (await request('/api/status')).json();
-  assert.equal(status.model, 'gemini-3.8-flash'); assert.equal(status.configured, false);
   assert.equal(status.videoAnalysis.transport, 'agent-frames');
+  assert.equal(status.videoGeneration.provider, 'omni_flash-1.2');
   assert.equal(status.videoGeneration.configured, false);
-  assert.deepEqual(status.videoGeneration.models, { t2v: 'veo_3_1', i2v: 'veo_3_1-fl', r2v: 'veo_3_1-components' });
-  assert.match(await (await request('/')).text(), /AI-Sail Flow/);
-  pass('production page and fixed model status');
+  assert.match(await (await request('/')).text(), /AI Creative Lab/);
+  pass('production page and active video provider status');
 
-  let demo: Project = await (await request('/api/projects', 'POST', { demo: true })).json();
-  assert(demo.isDemo); analysisSchema.parse(demo.analysis); rewriteSchema.parse(demo.rewrite);
-  demo.rewrite!.shots[0].narration = 'Edited narration survives export.';
-  demo = await (await request(`/api/projects/${demo.id}`, 'PUT', patch(demo))).json();
-  assert.match(buildPrompt(demo), /Edited narration survives export/);
-  assert.equal(validateTimeline(demo.analysis!.shots, demo.analysis!.duration), null);
-  pass('editable demo persists valid analysis and latest narration');
+  const created = await request('/api/projects', 'POST', { title: 'Smoke check' });
+  assert.equal(created.status, 201);
+  let p: Project = await created.json();
+  const revision = p.revision;
+  const renamed = await request(`/api/projects/${p.id}`, 'PUT', { revision, title: 'Renamed creative' });
+  assert.equal(renamed.status, 200);
+  assert.equal((await renamed.json()).title, 'Renamed creative');
+  assert.equal((await request(`/api/projects/${p.id}`, 'PUT', { revision, title: 'Conflicting update' })).status, 409);
+  pass('creative metadata and revision checks');
 
-  const archiveResponse = await request(`/api/projects/${demo.id}/export`);
-  assert.equal(archiveResponse.status, 200);
-  const archive = await JSZip.loadAsync(await archiveResponse.arrayBuffer());
-  assert.equal(Object.keys(archive.files).length, 7);
-  assert.match(await archive.file('02-seedance-prompt.txt')!.async('string'), /Edited narration survives export/);
-  assert.match(await archive.file('05-subtitles-draft.srt')!.async('string'), /00:00:00,000 --> 00:00:03,000/);
-  const veoPlan = JSON.parse(await archive.file('06-veo-production-plan.json')!.async('string'));
-  assert.equal(veoPlan.units.length, 2); assert.deepEqual(veoPlan.units.map((unit: { targetDuration: number }) => unit.targetDuration), [8, 7]);
-  assert(JSON.parse(await archive.file('manifest.json')!.async('string')).demo);
-  pass('ZIP contents, provenance and SRT draft timestamps');
+  const creative = `/api/projects/${p.id}`;
+  assert.equal((await request('/api/studio/projects')).status, 404);
+  assert.equal((await request('/api/studio/radar/tools')).status, 404);
+  assert.equal((await request(`${creative}/export`)).status, 404);
+  for (const route of ['workflow/start', 'jobs/analysis', 'tier/subjects/detect', 'remix/plan', 'generations', 'compose']) {
+    assert.equal((await request(`${creative}/${route}`, 'POST', {})).status, 404);
+  }
+  assert.equal((await request(`${creative}/production`, 'POST', {})).status, 400);
+  assert.equal((await request(`${creative}/production/compose`, 'POST', {})).status, 400);
+  pass('retired routes return 404 and Agent production routes still validate input');
 
-  const outdatedRevision = demo.revision;
-  demo.product.name = 'Changed target product';
-  demo = await (await request(`/api/projects/${demo.id}`, 'PUT', patch(demo))).json();
-  assert(demo.rewriteStale);
-  assert.equal((await request(`/api/projects/${demo.id}/export`)).status, 409);
-  assert.equal((await request(`/api/projects/${demo.id}`, 'PUT', { ...patch(demo), revision: outdatedRevision })).status, 409);
-  pass('source changes invalidate exports and stale writes are rejected');
-
-  let p: Project = await (await request('/api/projects', 'POST', {})).json();
-  assert.equal((await request(`/api/projects/${p.id}/jobs/analysis`, 'POST', {})).status, 400);
-  assert.equal((await request(`/api/projects/${p.id}/generations`, 'POST', {})).status, 503);
   const fake = new FormData(); fake.append('file', new Blob(['not a video'], { type: 'video/mp4' }), 'fake.mp4');
   assert.equal((await fetch(`${base}/api/projects/${p.id}/assets/video`, { method: 'POST', body: fake })).status, 400);
-  pass('missing credentials do not fake success; disguised files rejected');
+  pass('disguised video rejected');
 
   const videoPath = path.join(temp, 'fixture.mp4');
   await exec('ffmpeg', ['-v', 'error', '-f', 'lavfi', '-i', 'color=c=black:s=160x240:r=12', '-f', 'lavfi', '-i', 'sine=frequency=440:sample_rate=16000', '-t', '1.5', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-c:a', 'aac', videoPath]);
@@ -101,12 +88,9 @@ try {
   assert.equal((await fetch(`${base}/api/projects/${p.id}/assets/product`, { method: 'POST', body: extra })).status, 400);
   pass('product images persisted and three-image limit enforced');
 
-  assert.equal((await fetch(`${base}/api/settings`, { method: 'POST', headers: { Origin: 'https://outside.example', 'Content-Type': 'application/json' }, body: '{}' })).status, 403);
-  p = await (await request(`/api/projects/${p.id}`)).json();
-  p.market.platform = 'reels'; p.market.destination = 'shop';
-  assert.equal((await request(`/api/projects/${p.id}`, 'PUT', patch(p))).status, 400);
-  assert.match(subtitles([{ ...demo.rewrite!.shots[0], start: 61.125, end: 64.25 }]), /00:01:01,125 --> 00:01:04,250/);
-  pass('cross-origin rejection, channel/CTA consistency and fractional timecodes');
+  const outside = await fetch(`${base}/api/settings/omni`, { method: 'POST', headers: { Origin: 'https://outside.example', 'Content-Type': 'application/json' }, body: '{}' });
+  assert.equal(outside.status, 403);
+  pass('cross-origin configuration request rejected');
   console.log(`\n${checks} focused checks passed. No model calls or browser automation.`);
 } finally {
   server.kill('SIGTERM');

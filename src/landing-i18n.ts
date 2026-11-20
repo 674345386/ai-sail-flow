@@ -15,7 +15,7 @@ const zh = {
   showcase: {
     title: ['好内容，', '不止一种表达。'],
     description: '从商品种草到品牌广告，从日常分享到镜头前的表达。找到适合你的创作方式，让每一个想法都有自己的舞台。',
-    tabs: '选择创作场景', workflow: '创作流程', openFlow: '进入创作工作流', fromScratch: '从空白开始',
+    tabs: '选择创作场景', workflow: '创作流程', openFlow: '打开创作 Agent', fromScratch: '从空白开始',
     note: '登录后即可开始创作', preparing: '正在准备工作区', videoPreview: '参考视频', imagePreview: '场景示意',
     cases: {
       commerce: {
@@ -54,7 +54,7 @@ const zh = {
     modelsAria: '支持的模型（按字母排序）',
     columns: [
       { label: 'Creative｜创意', alt: '两位顾客提着购物袋走在街头的示意画面', title: '把灵感变成画面，让创意有更多可能。', body: '在同一个工作空间中，完成视频拆解、图片生成与内容改写。围绕你的产品和受众，将参考素材转化为新的创意方案，让每一个想法都有清晰的创作起点。', actions: ['开始创作', '了解更多'], note: '画面为示意素材。' },
-      { label: 'Easy Dev｜轻松创作', alt: '创作者在工作室用平板查看一组分镜的示意画面', title: '从一个想法出发，轻松推进每一步创作。', body: '上传参考视频，补充产品信息，跟随引导完成镜头拆解、人物生成与视频二创。将复杂的制作过程拆成清晰步骤，减少重复操作，让你把精力放在内容本身。', actions: ['立即体验', '查看创作指南'], note: '' },
+      { label: 'Easy Dev｜轻松创作', alt: '创作者在工作室用平板查看一组分镜的示意画面', title: '从一个想法出发，轻松推进每一步创作。', body: '上传参考视频，选定复刻自由度，让 Agent 结合原片建议哪些元素值得保留、哪些可以调整，再把方向落实到分镜和制作方案。', actions: ['立即体验', '查看创作指南'], note: '' },
       { label: 'Trend Radar｜挖掘热点', alt: '两位创作者在工作室里一起审看热门视频的示意画面', title: '看懂热门内容，找到适合你的创作机会。', body: '从热门视频中拆解吸引注意的开场、推动观看的节奏，以及打动受众的产品表达。提炼值得借鉴的创意结构，结合你的产品与目标市场，为下一条视频找到方向。', actions: ['开始拆解', '探索创意案例'], note: '' },
     ],
   },
@@ -139,7 +139,7 @@ const en: LandingMessages = {
   showcase: {
     title: ['One studio.', 'Every kind of video.'],
     description: 'Product stories, brand campaigns, everyday moments, and ideas worth sharing. Find your way to create, whatever you have in mind.',
-    tabs: 'Choose a creative use case', workflow: 'Creative workflow', openFlow: 'Open the creative workflow', fromScratch: 'Start from scratch',
+    tabs: 'Choose a creative use case', workflow: 'Creative workflow', openFlow: 'Open Creative Agent', fromScratch: 'Start from scratch',
     note: 'Sign in to start creating', preparing: 'Preparing your workspace', videoPreview: 'Reference video', imagePreview: 'Illustrative preview',
     cases: {
       commerce: {
@@ -178,8 +178,8 @@ const en: LandingMessages = {
     modelsAria: 'Supported models (alphabetical)',
     columns: [
       { label: 'Creative', alt: 'Illustrative shot of two shoppers walking down a street with shopping bags', title: 'Turn inspiration into visuals and open up more creative options.', body: 'Break down videos, generate images and rewrite content in one workspace. Shape reference footage into fresh creative concepts built around your product and audience, so every idea starts from a clear point.', actions: ['Start creating', 'Learn more'], note: 'Illustrative footage.' },
-      { label: 'Easy Dev', alt: 'Illustrative shot of a creator reviewing a storyboard on a tablet in a studio', title: 'Start from one idea and move through every step with ease.', body: 'Upload a reference video, add your product details, and follow guided steps for shot breakdown, character generation and video remixing. Complex production becomes clear steps with less repetitive work, so you can focus on the content itself.', actions: ['Try it now', 'Read the guide'], note: '' },
-      { label: 'Trend Radar', alt: 'Illustrative shot of two creators reviewing trending videos together in a studio', title: 'Understand what’s trending and find the right creative opening.', body: 'Break down the hooks that grab attention, the pacing that keeps people watching, and the product moments that win viewers over. Distil the creative structures worth borrowing, and match them to your product and target market to set direction for your next video.', actions: ['Start a breakdown', 'Explore examples'], note: '' },
+      { label: 'Easy Dev', alt: 'Illustrative shot of a creator reviewing a storyboard on a tablet in a studio', title: 'Start from one idea and move through every step with ease.', body: 'Upload a reference video and choose how closely to follow it. The Agent suggests what to keep and what to change, then carries those decisions into the shot plan.', actions: ['Try it now', 'Read the guide'], note: '' },
+      { label: 'Video Analysis', alt: 'Illustrative shot of two creators reviewing trending videos together in a studio', title: 'Understand what’s trending and find the right creative opening.', body: 'Break down the hooks that grab attention, the pacing that keeps people watching, and the product moments that win viewers over. Distil the creative structures worth borrowing, and match them to your product and target market to set direction for your next video.', actions: ['Start a breakdown', 'Explore examples'], note: '' },
     ],
   },
   statement: {

@@ -5,7 +5,6 @@ export type GenerationTask = {
   kind: 'image' | 'video';
   source: string;
   creativeId?: string;
-  studioProjectId?: string;
   creativeTitle: string;
   projectTitle?: string;
   archived?: boolean;

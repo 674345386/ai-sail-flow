@@ -4,7 +4,6 @@ import type { RemixPromptPhase, RemixWorkflow } from './remix';
 import type { ReferenceSceneTable } from './agent-video-analysis';
 import type { VideoProductionPlan } from './video-production';
 
-export const MODEL = 'gemini-3.8-flash';
 export const countries = [
   { code: 'US', name: '美国', language: 'en-US', currency: 'USD', locale: '美式英语；英制单位可补充公制；价格以美元表达。' },
   { code: 'GB', name: '英国', language: 'en-GB', currency: 'GBP', locale: '英式拼写与口语；价格以英镑表达；避免照搬美式表达。' },
@@ -186,6 +185,7 @@ export type Rewrite = z.infer<typeof rewriteSchema>;
 export type Asset = {
   id: string; kind: 'video' | 'product' | 'audio'; name: string; mime: string; size: number;
   url: string; filename: string; thumbnail?: string; duration?: number; width?: number; height?: number; hasAudio?: boolean;
+  averageFrameRate?: string; frameCount?: number; videoCodec?: string;
 };
 export type Job = {
   id: string; kind: 'analysis' | 'analysis-refine' | 'rewrite' | 'keyframe' | 'generation' | 'composition' | 'remix-character' | 'remix-plan' | 'remix-video' | 'remix-recover'; status: 'running' | 'completed' | 'failed' | 'needs-input';
@@ -238,7 +238,7 @@ export type GeneratedVideo = {
   minimax?: { idempotencyKey: string; requestKey?: string; requestFingerprint?: string; generateAudio?: boolean; optimizePrompt?: boolean; request?: import('./minimax-video').MinimaxGenerationRequest; details?: import('./minimax-video').MinimaxGenerationDetails; upstreamStatus?: string; recoveryPending?: boolean; nextRecoveryAt?: string; outputAssetId?: string; optimizedPrompt?: string; credits?: { held: string; charged: string } };
 };
 export type ComposedVideo = {
-  id: string; mode: ProductionMode; unitId?: string; sourceVideoIds: string[]; voice: string;
+  id: string; mode: ProductionMode | 'ffmpeg-skill'; unitId?: string; sourceVideoIds: string[]; voice: string;
   filename: string; url: string; subtitleFilename?: string; subtitleUrl?: string;
   duration: number; startedAt: string; finishedAt: string; stale?: boolean;
   renderTrace?: {
@@ -297,7 +297,7 @@ export type Project = {
   productionStoryboards?: StoryboardGrid[];
   analysisRequest?: ModelRequestSnapshot | null; rewriteRequest?: ModelRequestSnapshot | null;
   rewriteStale: boolean; generatedVideos: GeneratedVideo[]; composedVideos?: ComposedVideo[];
-  productionMode?: ProductionMode; ttsVoice?: string; job: Job | null; model: string; usage: { input: number; output: number };
+  productionMode?: ProductionMode; ttsVoice?: string; job: Job | null; model?: string; usage: { input: number; output: number };
   workflowMode?: WorkflowMode; workflow?: WorkflowRun | null; automaticSettings?: AutomaticSettings; jobHistory?: Job[];
   promptFlow?: PromptFlow;
   veoPromptDrafts?: Record<string, { prompt: string; basis: string }>;
@@ -313,25 +313,6 @@ export const defaultReplication: Replication = {
   change: '按本项目的产品资料和参考图替换指定主体或物品；人物面孔与少量配色可按项目要求调整。',
   level: 'exact',
 };
-export const projectPatchSchema = z.object({
-  revision: z.number().int().nonnegative(), title: z.string().trim().min(1).max(120),
-  parentProjectId: z.uuid().optional(),
-  product: productSchema, market: marketSchema, replication: replicationSchema.optional(), analysis: analysisSchema.nullable(), analysisReview: analysisReviewSchema.optional(), rewrite: rewriteSchema.nullable(),
-  productionMode: z.enum(['veo-native', 'tts-subtitles']).default('veo-native'),
-  ttsVoice: z.string().max(120).default(''),
-  automaticSettings: automaticSettingsSchema.optional(),
-  promptFlow: z.enum(['direct-analysis', 'localized']).default('localized'),
-  breakdownType: z.enum(['shot', 'storyboard-grid']).default('shot'),
-  storyboardGridSize: z.union([z.literal(3), z.literal(4)]).default(3),
-  storyboardGrids: z.array(z.object({
-    id: z.string().max(80), start: z.number().min(0).max(2700), end: z.number().min(0).max(2700),
-    gridSize: z.union([z.literal(3), z.literal(4)]), frameTimes: z.array(z.number().min(0).max(2700)).min(9).max(16),
-    filename: z.string().max(200).regex(/^[\w.-]+$/), url: mediaUrl,
-    prompt: z.string().max(100000), generatedAt: z.string().max(40),
-    included: z.boolean().optional(),
-  })).max(338).default([]),
-  veoPromptDrafts: z.record(z.string(), z.object({ prompt: z.string(), basis: z.string() })).default({}),
-});
 export function stageOf(project: Pick<Project, 'assets' | 'analysis' | 'rewrite' | 'rewriteStale'>) {
   return project.analysis ? 3 : project.assets.some(a => a.kind === 'video') ? 2 : 1;
 }

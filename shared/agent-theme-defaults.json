@@ -2,31 +2,51 @@
   "regions": {
     "sidebar": {
       "mode": null,
-      "workspaceBackground": null,
-      "textColor": null,
+      "workspaceBackground": false,
+      "textColor": "#ffffff",
       "font": "default",
-      "surface": { "enabled": false, "gray": 18, "opacity": 88, "blur": 16 }
+      "surface": {
+        "enabled": true,
+        "gray": 4,
+        "opacity": 88,
+        "blur": 16
+      }
     },
     "composer": {
       "mode": null,
-      "workspaceBackground": null,
+      "workspaceBackground": false,
       "textColor": null,
       "font": "default",
-      "surface": { "enabled": false, "gray": 16, "opacity": 94, "blur": 12 }
+      "surface": {
+        "enabled": false,
+        "gray": 16,
+        "opacity": 94,
+        "blur": 12
+      }
     },
     "chat": {
-      "mode": "light",
-      "workspaceBackground": null,
+      "mode": "studio-white",
+      "workspaceBackground": false,
       "textColor": null,
       "font": "default",
-      "surface": { "enabled": false, "gray": 16, "opacity": 94, "blur": 12 }
+      "surface": {
+        "enabled": false,
+        "gray": 16,
+        "opacity": 94,
+        "blur": 12
+      }
     },
     "results": {
-      "mode": "light",
-      "workspaceBackground": null,
+      "mode": "studio-white",
+      "workspaceBackground": false,
       "textColor": null,
       "font": "default",
-      "surface": { "enabled": false, "gray": 16, "opacity": 94, "blur": 12 }
+      "surface": {
+        "enabled": false,
+        "gray": 16,
+        "opacity": 94,
+        "blur": 12
+      }
     }
   }
 }

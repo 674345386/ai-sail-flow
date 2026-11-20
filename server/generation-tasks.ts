@@ -3,7 +3,6 @@ import { generationTaskActive, type GenerationTask, type GenerationTaskList, typ
 import { minimaxVideoRecoverable } from '../shared/minimax-video';
 import { getProject, getWorkspaceProject, listProjects } from './store';
 import { imageAttemptActive, imageGenerationStatus, listImageAttempts } from './image-generation';
-import { studioGenerationTasks } from './studio';
 
 const imageLabels: Record<string, string> = {
   'agent-image': 'Agent 图片', recreation: '复刻关键帧', 'remix-character': '人物参考图',
@@ -52,19 +51,15 @@ export function generationTasks(): GenerationTask[] {
   const tasks: GenerationTask[] = [];
   const imageKeys = new Set<string>();
   const imageFiles = new Set<string>();
-  const studioTasks = studioGenerationTasks();
-  const studioImages = new Map(studioTasks.map(task => [task.id, task]));
   for (const attempt of listImageAttempts()) {
-    const studioTask = studioImages.get(`image:${attempt.key}`);
     const project = (attempt.projectId ? byId.get(attempt.projectId) : undefined) || imageOwners.get(attempt.key) || imageOwners.get(attempt.result?.filename || '');
     const status: GenerationTaskStatus = attempt.status === 'completed' ? 'completed' : attempt.status === 'rejected' ? 'failed'
       : attempt.status === 'unknown' || !imageAttemptActive(attempt.key) ? 'needs-attention'
       : attempt.phase === 'saving' ? 'saving' : attempt.phase === 'submitting' ? 'submitting' : 'processing';
-    const createdAt = studioTask?.createdAt || attempt.submittedAt || attempt.result?.generatedAt || '';
+    const createdAt = attempt.submittedAt || attempt.result?.generatedAt || '';
     tasks.push({
       id: `image:${attempt.taskId || attempt.key}`, kind: 'image', ...context(project),
-      ...(studioTask ? { studioProjectId: studioTask.studioProjectId, creativeTitle: studioTask.creativeTitle, projectTitle: studioTask.projectTitle } : {}),
-      source: studioTask?.source || imageSources.get(attempt.key) || imageSources.get(attempt.result?.filename || '') || imageLabels[attempt.label || ''] || attempt.label || '图片生成',
+      source: imageSources.get(attempt.key) || imageSources.get(attempt.result?.filename || '') || imageLabels[attempt.label || ''] || attempt.label || '图片生成',
       model: attempt.model, prompt: attempt.prompt, status,
       stage: status === 'completed' || attempt.phase === 'saving' ? 'save' : attempt.phase === 'submitting' ? 'prepare' : 'generate',
       message: status === 'completed' ? '图片已保存，可以预览和下载。' : status === 'needs-attention'
@@ -80,7 +75,6 @@ export function generationTasks(): GenerationTask[] {
     if (attempt.taskId) imageKeys.add(attempt.taskId);
     if (attempt.result?.filename) imageFiles.add(attempt.result.filename);
   }
-  for (const task of studioTasks) if (!imageKeys.has(task.id.slice('image:'.length))) tasks.push(task);
 
   // Older completed media may predate image request logging. Keep those results findable too.
   const addLegacyImage = (project: Project, input: {

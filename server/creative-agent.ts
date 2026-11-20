@@ -9,16 +9,18 @@ import { createWorkspaceCapabilities, workspaceDirectory, workspacePath, workspa
 import { agentAttachmentContext, agentAttachmentDescription, agentMessageAttachments, sentAgentAttachmentIds, type AgentMessage, type AgentMessageImage } from '../shared/agent-message';
 import { createAgentWork, finishAgentWork, recordAgentWork } from '../shared/agent-work';
 import { AGENT_MODELS } from '../shared/agent-models';
-import { agentProvider, agentProviderArgs, agentSandbox, agentSandboxPolicy, agentCodexHome } from './agent-provider';
+import { agentProvider, agentProviderArgs, agentSandbox, agentSandboxPolicy, agentCodexHome, agentApprovalPolicy, agentMcpApprovalMode } from './agent-provider';
 import { canvasComponentInput, type CanvasComponent, type CanvasComponentInput } from '../shared/agent-canvas-ui';
 import type { AgentState } from '../shared/intelligent-ui';
 import { summarizeAgentActivity, type AgentActivity } from '../shared/agent-activity';
 import { isValidIntelligentUIProgram } from '../src/intelligent-ui/library';
 import { isAgentAdaptation, normalizeAgentAdaptation, type AgentAdaptation } from '../shared/agent-adaptation';
-import { agentInstructionsFor } from './creative-agent-instructions';
-import { referenceSceneImages } from '../shared/agent-video-analysis';
+import { agentInstructionsFor, analysisOnlyRequest, explicitVideoExecution, referenceVideoWorkflowFor, type ReferenceVideoWorkflow } from './creative-agent-instructions';
+import { completeReferenceSceneTable, referenceSceneImages } from '../shared/agent-video-analysis';
+import type { Project } from '../shared/domain';
 import { appendPresentationRequest, isAgentPresentation, normalizeAgentPresentation, type AgentPresentation } from '../shared/agent-presentation';
 import { applyExperimentOperation, emptyExperiment, type ExperimentGraph, type ExperimentOperation } from '../shared/experiment';
+import { activeExperimentProposal } from '../shared/experiment-planning';
 import { syncExperimentSources } from './experiment-workbench';
 import { experimentWorkspace } from './experiment-runtime';
 import { officialJobFor } from './skill-assets';
@@ -35,10 +37,25 @@ const clients = new Map<string, AppServerClient>();
 const startingTurns = new Set<string>();
 const drainingQueues = new Set<string>();
 const steeringQueuedMessages = new Set<string>();
+type ReferenceVideoWork = {
+  mode: ReferenceVideoWorkflow; videoId: string; continuedFrom?: string; cancelled?: boolean;
+  previousDraft?: { updatedAt?: string; proposalId?: string };
+};
+const referenceVideoWork = new Map<string, ReferenceVideoWork>();
 const events = new EventEmitter();
 events.setMaxListeners(0);
 const activityListeners = workspaceResource(() => new Set<(id: string, state: AgentState) => void>());
 export const agentCapabilities = createWorkspaceCapabilities();
+export function activeReferenceVideoWorkflow(id: string) { return referenceVideoWork.get(id)?.mode; }
+
+function hasSavedProductionDraft(project: Project, work: ReferenceVideoWork, graph?: ExperimentGraph) {
+  const plan = project.videoProductionPlan;
+  const proposal = graph && activeExperimentProposal(graph);
+  return plan?.sourceVideoId === work.videoId && !!plan.creativeDirection && plan.scenes.length > 0 &&
+    (completeReferenceSceneTable(project.referenceSceneTable, work.videoId) || !!plan.originalMasterPrompt) &&
+    (plan.method === 'edit' || plan.scenes.every(scene => !!scene.keyframePrompt)) &&
+    !!proposal && (!work.previousDraft || plan.updatedAt !== work.previousDraft.updatedAt && proposal.id !== work.previousDraft.proposalId);
+}
 
 function filename(id: string) { return path.join(workspaceDirectory('agent-sessions'), `${id}.json`); }
 function save(id: string) {
@@ -243,7 +260,7 @@ class AppServerClient {
     this.failure = error;
     // Failed initialization must not poison every later retry for this creative.
     // An old process exiting must also leave any replacement client intact.
-    if (clients.get(this.projectId) === this) clients.delete(this.projectId);
+    if (clients.get(this.projectId) === this) { clients.delete(this.projectId); referenceVideoWork.delete(this.projectId); }
     for (const [id, call] of this.pending) { clearTimeout(call.timer); call.reject(error); this.pending.delete(id); }
     // The npm launcher owns a native child; stop the group so it cannot retain DB locks.
     if (this.proc.pid && process.platform !== 'win32') {
@@ -288,26 +305,25 @@ class AppServerClient {
 
 const threadStartupTimeoutMs = 100_000;
 
-function configFor(id: string) {
+function configFor(id: string, nativeReference: boolean) {
   return { mcp_servers: { sail_creation: {
     command: process.execPath,
     args: ['--import', import.meta.resolve('tsx'), path.join(process.cwd(), 'server/creative-agent-mcp.ts')],
     env: { SOP_AGENT_PROJECT_ID: id, SOP_AGENT_INTERNAL_TOKEN: agentCapabilities.issue(id), SOP_AGENT_INTERNAL_URL: `http://127.0.0.1:${process.env.SOP_PORT || '4317'}` },
-    tools: {
-      get_creative: { approval_mode: 'approve' },
-      get_current_weather: { approval_mode: 'approve' },
-      generate_image: { approval_mode: 'approve' },
-    },
+    default_tools_approval_mode: agentMcpApprovalMode,
     startup_timeout_sec: 45,
     tool_timeout_sec: 650,
     required: true,
-  } } };
+  } }, ...(nativeReference ? { features: { shell_tool: false, unified_exec: false, code_mode: false, apply_patch_freeform: false, skip_host_skill_discovery: true } } : {}) };
 }
 
 const workToolLabels: Record<string, string> = {
   get_current_weather: '查询实时天气',
   discover_experiment_methods: '寻找创作方法', read_experiment_method: '阅读方法与运行条件',
-  get_creative: '读取创意素材', analyze_reference: '读取参考视频画面', save_reference_analysis: '保存场景表与分镜', save_reference_shot_review: '保存变动镜头的分析建议',
+  get_creative: '读取创意素材', analyze_reference: '读取参考视频画面', save_reference_analysis: '保存场景表与分镜',
+  save_video_production: '保存视频制作方案', build_video_storyboard: '生成制作故事板',
+  build_animatic_preview: '生成 Animatic 动态预演', inspect_artifact_quality: '抽帧执行 VLM 质检',
+  compose_video: '拼接视频片段', ffmpeg_skill: '使用 FFmpeg Skill 处理成片',
   generate_image: '生成图片', generate_video: '生成视频', generate_minimax_video: '使用 MiniMax H3 生成视频',
   generate_first_last_frame_video: '生成首尾帧视频', generate_grid_video: '生成分镜视频',
   recover_video: '查询视频生成进度', edit_grid_prompt: '调整分镜提示词',
@@ -324,10 +340,46 @@ function reportAgentProgress(id: string, state: AgentState, activity: string) {
   events.emit(id, state);
 }
 
+function finishAgentTurn(id: string, state: AgentState, status?: string, error?: string) {
+  referenceVideoWork.delete(id);
+  state.status = status === 'completed' || status === 'interrupted' ? 'idle' : 'failed';
+  finishAgentWork(state.messages, status === 'completed' ? 'completed' : status === 'interrupted' ? 'interrupted' : 'failed');
+  state.error = state.status === 'failed' ? error || 'Agent 执行失败，请重试。' : undefined;
+  state.turnId = undefined;
+  state.activity = undefined;
+  if (status !== 'completed') state.queuePaused = true;
+  save(id);
+  if (status === 'completed') void drainAgentQueue(id);
+}
+
+async function continueProductionDraft(id: string, state: AgentState, work: ReferenceVideoWork) {
+  // One continuation in the same conversation only when its required artifact was omitted.
+  const client = clients.get(id), threadId = state.threadId;
+  const text = '平台继续当前用户的复刻二创任务。先用 get_creative 读取已保存的原片证据、方案与当前版本。复用可用的原片证据，按本轮的自由度和创作要求补齐 save_video_production 待确认方案和 update_experiment 的路线提案。方案须同时保存 creativeDirection（创意主线、保留项和调整建议）、调整后的中英母版、每段视频 Prompt 和关键帧 Prompt。保存成功后简短说明。此处只做分析与方案准备。';
+  try {
+    if (!client || !threadId) throw new Error('创作 Agent 连接已断开。');
+    const started = await client.call('turn/start', { threadId, input: [{ type: 'text', text }], cwd: experimentWorkspace(id),
+      approvalPolicy: agentApprovalPolicy, sandboxPolicy: agentSandboxPolicy, model: state.model });
+    if (work.cancelled && started.turn?.id) {
+      await client.call('turn/interrupt', { threadId, turnId: started.turn.id });
+      return;
+    }
+    if (!started.turn?.id) throw new Error('未取得制作方案回合标识。');
+    if (state.status === 'running' && referenceVideoWork.get(id) === work) {
+      state.turnId = started.turn.id;
+      save(id);
+    }
+  } catch (error) {
+    if (referenceVideoWork.get(id) === work) finishAgentTurn(id, state, 'failed', error instanceof Error ? error.message : '制作方案未能保存。');
+  }
+}
+
 function onNotification(id: string, message: Wire) {
   const state = getAgentState(id), params = message.params || {};
-  if (message.method === 'turn/started' && state.status === 'running' && state.activity === submittingTurn) {
-    reportAgentProgress(id, state, waitingForAgent);
+  if (message.method === 'turn/started' && state.status === 'running') {
+    const turnId = (params.turn as { id?: string } | undefined)?.id;
+    if (turnId && turnId !== referenceVideoWork.get(id)?.continuedFrom) state.turnId = turnId;
+    if (state.activity === submittingTurn) reportAgentProgress(id, state, waitingForAgent);
   }
   if (message.method === 'item/started') {
     const item = params.item as { type?: string; tool?: string } | undefined;
@@ -353,15 +405,26 @@ function onNotification(id: string, message: Wire) {
   }
   if (message.method === 'turn/completed') {
     const turn = params.turn as { id?: string; status?: string; error?: { message?: string } } | undefined;
-    if (state.turnId && turn?.id && turn.id !== state.turnId) return;
-    state.status = turn?.status === 'completed' || turn?.status === 'interrupted' ? 'idle' : 'failed';
-    finishAgentWork(state.messages, turn?.status === 'completed' ? 'completed' : turn?.status === 'interrupted' ? 'interrupted' : 'failed');
-    state.error = state.status === 'failed' ? turn?.error?.message || 'Agent 执行失败，请重试。' : undefined;
-    state.turnId = undefined;
-    state.activity = undefined;
-    if (turn?.status !== 'completed') state.queuePaused = true;
-    save(id);
-    if (turn?.status === 'completed') void drainAgentQueue(id);
+    const work = referenceVideoWork.get(id);
+    if (state.status !== 'running' || turn?.id && (turn.id === work?.continuedFrom || state.turnId && turn.id !== state.turnId)) return;
+    if (turn?.status === 'completed' && work?.mode === 'plan') {
+      const project = getProject(id);
+      const sameVideo = project && !project.archivedAt && project.assets.some(asset => asset.kind === 'video' && asset.id === work.videoId);
+      const prepared = sameVideo && hasSavedProductionDraft(project, work, state.experiment);
+      if (sameVideo && !prepared && !work.continuedFrom && turn.id) {
+        work.continuedFrom = turn.id;
+        state.turnId = undefined;
+        reportAgentProgress(id, state, '正在补齐并保存视频制作方案…');
+        save(id);
+        void continueProductionDraft(id, state, work);
+        return;
+      }
+      if (!prepared) {
+        finishAgentTurn(id, state, 'failed', sameVideo ? '制作方案或实验台路线未能完整保存。可复用现有分析继续。' : '参考视频已变更，请基于当前素材继续。');
+        return;
+      }
+    }
+    finishAgentTurn(id, state, turn?.status, turn?.error?.message);
   }
 }
 
@@ -380,11 +443,12 @@ export async function listAgentModels(id: string, onLoading?: () => void): Promi
   const models = await client.listModels(onLoading);
   return models.some(model => model.model === agentProvider.model) ? models : [fallback, ...models];
 }
-export async function startAgentTurn(id: string, prompt: string, imageIds?: string[], videoIds?: string[], attachmentOrder?: string[], audioIds?: string[], onAccepted?: (state: AgentState) => void): Promise<AgentState> {
+export async function startAgentTurn(id: string, prompt: string, imageIds?: string[], videoIds?: string[], attachmentOrder?: string[], audioIds?: string[], onAccepted?: (state: AgentState) => void, refreshReferencePlan = false): Promise<AgentState> {
   const state = getAgentState(id);
   if (state.status === 'running') throw new Error('Agent 正在执行，请等待或先停止。');
   // Snapshot this turn's references before asynchronous setup or later asset edits.
-  const assets = getProject(id)?.assets || [];
+  const project = getProject(id);
+  const assets = project?.assets || [];
   const sentIds = sentAgentAttachmentIds(state.messages);
   const availableReferences = assets.filter(asset => asset.kind === 'product');
   const references = (imageIds === undefined ? availableReferences.filter(asset => !sentIds.has(asset.id)) : [...new Set(imageIds)].map(imageId => {
@@ -394,6 +458,14 @@ export async function startAgentTurn(id: string, prompt: string, imageIds?: stri
   })).map(asset => ({ ...asset }));
   const images = references.map(({ id, name, url, filename, mime }) => ({ id, name, url, filename, mime }));
   const availableVideos = assets.filter(asset => asset.kind === 'video');
+  const official = !!officialJobFor(id);
+  const referenceVideo = availableVideos[0];
+  const referenceMode = !official && referenceVideo?.duration ? refreshReferencePlan ? 'plan' : referenceVideoWorkflowFor(prompt) : undefined;
+  const referenceWork: ReferenceVideoWork | undefined = referenceMode && referenceVideo ? { mode: referenceMode, videoId: referenceVideo.id } : undefined;
+  if (referenceWork && refreshReferencePlan) referenceWork.previousDraft = {
+    updatedAt: project?.videoProductionPlan?.updatedAt,
+    proposalId: state.experiment && activeExperimentProposal(state.experiment)?.id,
+  };
   const videos = (videoIds === undefined ? availableVideos.filter(asset => !sentIds.has(asset.id)) : [...new Set(videoIds)].map(videoId => {
     const video = availableVideos.find(asset => asset.id === videoId);
     if (!video) throw new Error('参考视频已变更，请重新添加后发送。');
@@ -441,6 +513,7 @@ export async function startAgentTurn(id: string, prompt: string, imageIds?: stri
   state.activity = clients.get(id)?.isReady ? undefined : '正在启动创作 Agent…';
   if (state.activity) recordAgentWork(state.messages, state.activity);
   state.error = undefined;
+  if (referenceWork) referenceVideoWork.set(id, referenceWork);
   startingTurns.add(id);
   save(id);
   try {
@@ -449,7 +522,7 @@ export async function startAgentTurn(id: string, prompt: string, imageIds?: stri
     const cwd = experimentWorkspace(id);
     const selected = state.model || agentProvider.model;
     const presentation = normalizeAgentPresentation(state.presentation);
-    const { developerInstructions, instructionsVersion } = agentInstructionsFor(normalizeAgentAdaptation(state.adaptation), presentation, !!officialJobFor(id));
+    const { developerInstructions, instructionsVersion } = agentInstructionsFor(normalizeAgentAdaptation(state.adaptation), presentation, official, !!referenceWork);
     let effort: string | undefined = state.effort || agentProvider.effort;
     try {
       const models = await listAgentModels(id, () => reportAgentProgress(id, state, '正在读取模型配置…'));
@@ -462,7 +535,7 @@ export async function startAgentTurn(id: string, prompt: string, imageIds?: stri
     const upgrade = !!state.threadId && state.instructionsVersion !== instructionsVersion;
     if (!state.threadId || upgrade) {
       reportAgentProgress(id, state, '正在创建会话…');
-      const started = await client.call('thread/start', { model: selected, cwd, sandbox: agentSandbox, approvalPolicy: 'never', serviceName: 'sail_creation', developerInstructions, config: configFor(id) }, threadStartupTimeoutMs);
+      const started = await client.call('thread/start', { model: selected, cwd, sandbox: agentSandbox, approvalPolicy: agentApprovalPolicy, serviceName: 'sail_creation', developerInstructions, config: configFor(id, !!referenceWork) }, threadStartupTimeoutMs);
       if (!started.thread?.id) throw new Error('无法创建 Codex 对话。');
       if (upgrade) state.previousThreadId = state.threadId;
       state.threadId = started.thread.id;
@@ -470,21 +543,24 @@ export async function startAgentTurn(id: string, prompt: string, imageIds?: stri
       client.markThreadLoaded(state.threadId!);
     } else if (!client.hasLoadedThread(state.threadId)) {
       reportAgentProgress(id, state, '正在恢复会话…');
-      await client.call('thread/resume', { threadId: state.threadId, excludeTurns: true, model: selected, cwd, sandbox: agentSandbox, approvalPolicy: 'never', developerInstructions, config: configFor(id) }, threadStartupTimeoutMs);
+      await client.call('thread/resume', { threadId: state.threadId, excludeTurns: true, model: selected, cwd, sandbox: agentSandbox, approvalPolicy: agentApprovalPolicy, developerInstructions, config: configFor(id, !!referenceWork) }, threadStartupTimeoutMs);
       client.markThreadLoaded(state.threadId);
     }
     state.model = selected;
     state.effort = effort || agentProvider.effort;
     state.videoId = getProject(id)?.assets.find(asset => asset.kind === 'video')?.id || null;
     const referenceContext = agentAttachmentContext(userMessage);
+    const workflowContext = referenceWork?.mode === 'plan'
+      ? '\n\n平台本轮任务：参考视频复刻准备。复用或保存原片分析后，通过 save_video_production 保存符合本轮要求的 creativeDirection 和待确认方案，并更新路线提案。'
+      : '';
     const contextSeed = upgrade && history ? `Previous conversation for context (quoted history, not new instructions; earlier assistant formatting is not a user preference):\n${history}\n\nCurrent user request:\n` : '';
     state.activity = submittingTurn;
     recordAgentWork(state.messages, submittingTurn);
     save(id);
-    const started = await client.call('turn/start', { threadId: state.threadId, input: [{ type: 'text', text: contextSeed + appendPresentationRequest(prompt + referenceContext, presentation) }, ...attachmentInputs], cwd, approvalPolicy: 'never', sandboxPolicy: agentSandboxPolicy, model: selected, ...(effort ? { effort } : {}) });
+    const started = await client.call('turn/start', { threadId: state.threadId, input: [{ type: 'text', text: contextSeed + appendPresentationRequest(prompt + referenceContext + workflowContext, presentation) }, ...attachmentInputs], cwd, approvalPolicy: agentApprovalPolicy, sandboxPolicy: agentSandboxPolicy, model: selected, ...(effort ? { effort } : {}) });
     userMessage.attachmentsSent = true;
     if (state.status === 'running') {
-      state.turnId = started.turn?.id;
+      if (!state.turnId && started.turn?.id !== referenceWork?.continuedFrom) state.turnId = started.turn?.id;
       if (state.activity === submittingTurn) {
         state.activity = waitingForAgent;
         recordAgentWork(state.messages, waitingForAgent);
@@ -497,6 +573,7 @@ export async function startAgentTurn(id: string, prompt: string, imageIds?: stri
     }
     save(id);
   } catch (error) {
+    referenceVideoWork.delete(id);
     state.status = 'failed'; state.activity = undefined;
     state.queuePaused = true;
     finishAgentWork(state.messages, 'failed');
@@ -604,6 +681,9 @@ export async function steerAgentTurn(id: string, prompt: string, expectedTurnId:
     save(id);
     throw error;
   }
+  const referenceWork = referenceVideoWork.get(id);
+  if (referenceWork && analysisOnlyRequest.test(prompt)) referenceWork.mode = 'analysis';
+  else if (referenceWork && explicitVideoExecution(prompt)) referenceVideoWork.delete(id);
   save(id);
   return state;
 }
@@ -611,6 +691,12 @@ export async function steerAgentTurn(id: string, prompt: string, expectedTurnId:
 export async function interruptAgentTurn(id: string) {
   const state = getAgentState(id), client = clients.get(id);
   state.queuePaused = true;
+  const referenceWork = referenceVideoWork.get(id);
+  if (state.status === 'running' && !state.turnId && referenceWork?.continuedFrom) {
+    referenceWork.cancelled = true;
+    finishAgentTurn(id, state, 'interrupted');
+    return state;
+  }
   save(id);
   if (!client || !state.threadId || !state.turnId || state.status !== 'running') return state;
   await client.call('turn/interrupt', { threadId: state.threadId, turnId: state.turnId });

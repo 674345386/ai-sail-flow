@@ -138,7 +138,7 @@ export async function buildProductionStoryboard(filenames: string[], start: numb
   };
 }
 
-export async function generateStoryboardGrids(video: Asset, analysis: Analysis, size: StoryboardGridSize, aspectRatio: Market['aspectRatio'], progress?: (done: number, total: number) => void): Promise<StoryboardGrid[]> {
+export async function generateStoryboardGrids(video: Asset, analysis: Analysis, size: StoryboardGridSize, progress?: (done: number, total: number) => void): Promise<StoryboardGrid[]> {
   if (!video.duration || !video.width || !video.height) throw new Error('缺少参考视频的时长或尺寸信息。');
   const total = Math.ceil(video.duration / MAX_STORYBOARD_GRID_DURATION);
   const source = workspaceUploadPath(video.filename);
@@ -163,7 +163,7 @@ export async function generateStoryboardGrids(video: Asset, analysis: Analysis, 
     await renderStoryboardImage(inputs, filename, size, cellWidth, cellHeight);
     const shots = overlappingShots(analysis, start, end);
     grids.push({ id: randomUUID(), start, end, gridSize: size, frameTimes: times, filename, url: `/media/${filename}`,
-      prompt: buildPrompt(analysis, shots.length ? shots : analysis.shots.slice(0, 1), start, end, size, times, aspectRatio), generatedAt: new Date().toISOString(), included: true });
+      prompt: buildPrompt(analysis, shots.length ? shots : analysis.shots.slice(0, 1), start, end, size, times, portrait ? '9:16' : '16:9'), generatedAt: new Date().toISOString(), included: true });
     progress?.(index + 1, total);
   }
   return grids;

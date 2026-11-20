@@ -7,11 +7,7 @@ import { MinimaxError, MinimaxTaskError, MinimaxH3Client, minimaxStatus, type Mi
 import { getProject, listProjects, saveProject } from './store';
 import { accountWorkspacesEnabled, withWorkspaceAccount, workspaceAccounts, workspaceUploadPath } from './workspace-storage';
 import { inspectMedia } from './media';
-import { workflowBusy } from '../shared/workflow';
-
 type ImageReference = { id: string; filename?: string; mime?: string; name?: string };
-type WorkflowUnit = Pick<GeneratedVideo, 'shotId' | 'productionMode' | 'sourceShotIds' | 'targetStart' | 'targetEnd' |
-  'defaultPrompt' | 'keyframeShotId' | 'keyframeFilename' | 'keyframeBasis' | 'keyframeUrl'> & { unitId: string };
 const active = new Map<string, Promise<void>>();
 let onVideoStatusChange: ((projectId: string) => void) | undefined;
 function notifyStatusChange(projectId: string) {
@@ -42,24 +38,21 @@ export async function getMinimaxVideoDetails(project: Project, videoId: string):
 export function minimaxVideoStatus() {
   return { ...minimaxStatus(), tool: 'generate_minimax_video', models: MINIMAX_MODELS, supportedAspectRatios: MINIMAX_RATIOS, supportedResolutions: MINIMAX_RESOLUTIONS, defaultDuration: 6, defaultResolution: '768p', maxReferenceImages: 9 };
 }
-function available(project: Project, recoveringVideoId?: string, workflowUnitId?: string) {
+function available(project: Project, recoveringVideoId?: string) {
   if (project.archivedAt) throw new MinimaxError(409, '请先恢复已归档创意。');
   if (!minimaxStatus().configured) throw new MinimaxError(503, '请配置服务端 SOP_MINIMAX_API_KEY。');
-  const workflow = project.workflow;
-  const ownsUnit = project.workflowMode === 'automatic' && workflow?.status === 'running' && workflow.target === 'video' && workflow.stage === 'generation' && workflow.unitId === workflowUnitId;
-  if (active.has(project.id) || project.job?.status === 'running' && (!recoveringVideoId || project.job.videoId !== recoveringVideoId) || (workflowUnitId ? !ownsUnit : workflowBusy(project))) throw new MinimaxError(409, '当前任务正在处理，请等待完成。');
+  if (active.has(project.id) || project.job?.status === 'running' && (!recoveringVideoId || project.job.videoId !== recoveringVideoId)) throw new MinimaxError(409, '当前任务正在处理，请等待完成。');
 }
-function updateVideo(projectId: string, videoId: string, patch: Partial<GeneratedVideo>, jobPatch?: Partial<Job>, countWorkflowClip = false) {
+function updateVideo(projectId: string, videoId: string, patch: Partial<GeneratedVideo>, jobPatch?: Partial<Job>) {
   const current = getProject(projectId);
   if (!current) throw new MinimaxError(404, '找不到这个创意。');
   const job = current.job?.videoId === videoId && jobPatch ? { ...current.job, ...jobPatch } : current.job;
-  const workflow = countWorkflowClip && current.workflow ? { ...current.workflow, newClipCount: current.workflow.newClipCount + 1 } : current.workflow;
-  const updated = saveProject({ ...current, generatedVideos: current.generatedVideos.map(video => video.id === videoId ? { ...video, ...patch } : video), job, workflow,
+  const updated = saveProject({ ...current, generatedVideos: current.generatedVideos.map(video => video.id === videoId ? { ...video, ...patch } : video), job,
     ...(job && job !== current.job && job.status !== 'running' ? { jobHistory: [...(current.jobHistory || []), job].slice(-200) } : {}) });
   if (patch.status) notifyStatusChange(projectId);
   return updated;
 }
-function run(projectId: string, video: GeneratedVideo, references: { filename: string; mime: string; role: MinimaxAssetInput['role'] }[] = [], input?: MinimaxVideoInput, countWorkflowClip = false) {
+function run(projectId: string, video: GeneratedVideo, references: { filename: string; mime: string; role: MinimaxAssetInput['role'] }[] = [], input?: MinimaxVideoInput) {
   const completion = Promise.resolve().then(async () => {
     const progress = (value: number, message: string, task?: MinimaxTask) => {
       if (task) video = { ...video, minimax: { ...video.minimax!, upstreamStatus: task.status, details: minimaxTaskDetails(task), credits: task.credits || video.minimax?.credits } };
@@ -81,7 +74,7 @@ function run(projectId: string, video: GeneratedVideo, references: { filename: s
         }, optimize_prompt: input!.optimizePrompt };
         // Persist before the billable POST. Recovery replays this exact body/key if the response is lost.
         video = { ...video, minimax: { ...video.minimax!, request } };
-        updateVideo(projectId, video.id, { minimax: video.minimax }, undefined, countWorkflowClip);
+        updateVideo(projectId, video.id, { minimax: video.minimax });
       }
       let requestId = video.requestId;
       if (!requestId) {
@@ -127,7 +120,7 @@ export async function waitForMinimaxVideo(projectId: string, videoId: string) {
 }
 
 export function startMinimaxVideo(project: Project, body: unknown, extraImages: ImageReference[] = [], requestScope = project.id,
-  clip?: { targetDuration: number; gridId?: string; workflowUnit?: WorkflowUnit }) {
+  clip?: { targetDuration: number; gridId?: string }) {
   // A caller may hold a snapshot from before another request was accepted.
   project = getProject(project.id) || project;
   if (project.archivedAt) throw new MinimaxError(409, '请先恢复已归档创意。');
@@ -142,9 +135,8 @@ export function startMinimaxVideo(project: Project, body: unknown, extraImages: 
     const job = project.job?.videoId === existing.id ? project.job : project.jobHistory?.find(item => item.videoId === existing.id);
     return { videoId: existing.id, jobId: job?.id, status: existing.status, reused: true };
   }
-  const unit = clip?.workflowUnit;
-  available(project, undefined, unit?.unitId);
-  if (!unit && project.generatedVideos.filter(video => video.unitId?.startsWith('agent-video-')).length >= 50) throw new MinimaxError(409, '当前创意已达到 50 个独立视频上限。');
+  available(project);
+  if (project.generatedVideos.filter(video => video.unitId?.startsWith('agent-video-')).length >= 50) throw new MinimaxError(409, '当前创意已达到 50 个独立视频上限。');
   const ids: { id: string; role: MinimaxAssetInput['role'] }[] = input.model === 'h3-video-frames'
     ? [...(input.firstFrameId ? [{ id: input.firstFrameId, role: 'first_frame' as const }] : []), ...(input.lastFrameId ? [{ id: input.lastFrameId, role: 'last_frame' as const }] : [])]
     : input.referenceIds.map(id => ({ id, role: 'reference_image' as const }));
@@ -165,25 +157,24 @@ export function startMinimaxVideo(project: Project, body: unknown, extraImages: 
     references.push({ id, name: source.name, filename: source.filename, url: source.url, mime: source.mime, role: 'reference_video' });
   }
   const now = new Date().toISOString(), id = randomUUID();
-  const video: GeneratedVideo = { id, provider: 'minimax-h3', model: input.model, shotId: id, unitId: `agent-video-${id}`, productionMode: 'veo-native', ...unit,
-    prompt: input.prompt, mode: unit && input.firstFrameId ? 'i2v' : references.length ? 'r2v' : 't2v', resolution: input.resolution, aspectRatio: input.aspectRatio!, duration: input.duration,
+  const video: GeneratedVideo = { id, provider: 'minimax-h3', model: input.model, shotId: id, unitId: `agent-video-${id}`, productionMode: 'veo-native',
+    prompt: input.prompt, mode: input.model === 'h3-video-frames' ? 'i2v' : references.length ? 'r2v' : 't2v', resolution: input.resolution, aspectRatio: input.aspectRatio!, duration: input.duration,
     referenceIds: references.map(item => item.id), referenceMedia: references, targetDuration: clip?.targetDuration, storyboardGridId: clip?.gridId, gridId: clip?.gridId,
     status: 'running', startedAt: now, minimax: { idempotencyKey: id, requestKey, requestFingerprint, generateAudio: input.generateAudio, optimizePrompt: input.optimizePrompt } };
-  const job: Job = { id: randomUUID(), kind: 'generation', videoId: id, unitId: unit?.unitId, status: 'running', progress: 0, message: '正在准备 MiniMax H3 视频…', startedAt: now };
+  const job: Job = { id: randomUUID(), kind: 'generation', videoId: id, unitId: video.unitId, status: 'running', progress: 0, message: '正在准备 MiniMax H3 视频…', startedAt: now };
   saveProject({ ...project, generatedVideos: [...project.generatedVideos, video], job });
-  run(project.id, video, references, input, !!unit);
+  run(project.id, video, references, input);
   return { videoId: id, jobId: job.id, status: 'running' };
 }
-export function recoverMinimaxVideo(project: Project, videoId: string, workflowUnitId?: string) {
+export function recoverMinimaxVideo(project: Project, videoId: string) {
   project = getProject(project.id) || project;
   const video = project.generatedVideos.find(video => video.id === videoId && video.provider === 'minimax-h3');
   if (!video) throw new MinimaxError(404, '找不到这个 MiniMax 视频。');
   if (video.status === 'completed' || active.has(project.id) && project.job?.videoId === videoId) return { videoId, jobId: project.job?.videoId === videoId ? project.job.id : undefined, status: video.status, reused: true };
   if (['failed', 'cancelled'].includes(video.minimax?.upstreamStatus || '')) throw new MinimaxError(409, '上游已明确失败或取消，不能将它恢复为进行中。');
-  if (workflowUnitId && video.unitId !== workflowUnitId) throw new MinimaxError(409, '视频不属于当前制作镜头。');
-  available(project, videoId, workflowUnitId);
+  available(project, videoId);
   if (!video.minimax || !video.requestId && !video.minimax.request) throw new MinimaxError(409, '尚未保存上游请求，无法恢复；请核对任务后再决定是否生成。');
-  const job: Job = { id: randomUUID(), kind: 'generation', videoId, unitId: workflowUnitId, status: 'running', progress: 25, message: '正在恢复已有 MiniMax 任务…', startedAt: new Date().toISOString() };
+  const job: Job = { id: randomUUID(), kind: 'generation', videoId, unitId: video.unitId, status: 'running', progress: 25, message: '正在恢复已有 MiniMax 任务…', startedAt: new Date().toISOString() };
   const resumed: GeneratedVideo = { ...video, status: 'running', error: undefined, finishedAt: undefined, minimax: { ...video.minimax, recoveryPending: false, nextRecoveryAt: undefined } };
   saveProject({ ...project, generatedVideos: project.generatedVideos.map(item => item.id === videoId ? resumed : item), job });
   notifyStatusChange(project.id);
@@ -197,7 +188,7 @@ export function resumePendingMinimaxVideos() {
   for (const entry of listProjects()) {
     if (active.size >= 3) break;
     const project = getProject(entry.id);
-    if (!project || project.archivedAt || active.has(project.id) || workflowBusy(project)) continue;
+    if (!project || project.archivedAt || active.has(project.id)) continue;
     const video = project.generatedVideos.find(item => minimaxVideoNeedsReconciliation(item));
     if (!video || project.job?.status === 'running' && project.job.videoId !== video.id) continue;
     try { recoverMinimaxVideo(project, video.id); }

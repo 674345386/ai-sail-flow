@@ -2,8 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { EventEmitter } from 'node:events';
 import { randomUUID } from 'node:crypto';
-import { MODEL, defaultMarket, defaultReplication, defaultWorkspace, emptyProduct, inProgressCount, stageOf, type Project, type WorkspaceProject } from '../shared/domain';
-import { demoProject } from '../shared/demo';
+import { defaultMarket, defaultReplication, defaultWorkspace, emptyProduct, inProgressCount, stageOf, type Project, type WorkspaceProject } from '../shared/domain';
 import { dataDir, workspaceDirectory, workspaceResource } from './workspace-storage';
 
 export { dataDir } from './workspace-storage';
@@ -67,7 +66,6 @@ function recoverProject(project: Project) {
   project.breakdownType ||= 'shot';
   project.storyboardGridSize ||= 3;
   project.storyboardGrids ||= [];
-  project.workflowMode ||= 'manual';
   project.jobHistory ||= [];
   if (project.agentImages?.some(image => image.status === 'running')) {
     project.agentImages = project.agentImages.map(image => image.status === 'running'
@@ -76,7 +74,7 @@ function recoverProject(project: Project) {
     changed = true;
   }
   if (project.workflow?.status === 'running' || project.workflow?.status === 'pausing') {
-    project.workflow = { ...project.workflow, status: 'paused', message: '服务已重启，已保留进度。请点击继续自动制作。' };
+    project.workflow = { ...project.workflow, status: 'paused', message: '旧版自动制作已停止，保留已完成产物。' };
     changed = true;
   }
   if (project.job?.status === 'running') {
@@ -85,17 +83,17 @@ function recoverProject(project: Project) {
     project.job = {
       ...project.job,
       status: 'failed',
-      message: interruptedGeneration ? '服务已重启，上游任务可继续查询；请点击“恢复已生成任务”。' : project.job.kind === 'remix-character' ? '服务已重启，图片请求结果可能未知；请核对后再决定是否新建任务。' : '服务已重启，上次任务已中断。可以重新发起。',
+      message: interruptedGeneration ? '服务已重启，上游任务可继续查询；请点击“恢复已生成任务”。' : '服务已重启，上次任务已中断。',
       finishedAt,
     };
     project.jobHistory = [...(project.jobHistory || []), project.job].slice(-200);
     if (project.remix) project.remix = { ...project.remix, videos: project.remix.videos.map(video => video.status === 'running'
-      ? { ...video, status: 'failed' as const, error: '服务已重启；已保存上游任务 ID，可恢复查询。' } : video) };
+      ? { ...video, status: 'failed' as const, error: '旧版制作已停止。已保留上游任务 ID。' } : video) };
     if (project.rewrite) project.rewrite = { ...project.rewrite, shots: project.rewrite.shots.map(shot => shot.keyframe?.status === 'running'
       ? { ...shot, keyframe: { ...shot.keyframe, status: 'failed' as const, error: '服务已重启，关键帧请求结果可能未知；请先核对，避免重复生成。' } } : shot) };
     if (interruptedGeneration) {
       project.generatedVideos = project.generatedVideos.map(video => video.status === 'running'
-        ? { ...video, status: 'failed' as const, error: video.provider === 'minimax-h3' && video.requestId ? '本地服务已重启，将自动继续查询原视频任务。' : '服务重启后已停止本地轮询；可恢复查询已提交的上游任务，不会新建或计费。', finishedAt,
+        ? { ...video, status: 'failed' as const, error: video.provider === 'minimax-h3' && video.requestId ? '本地服务已重启，将自动继续查询原视频任务。' : video.provider === 'omni-flash' ? '服务已重启，可查询原有 Omni 任务。' : '服务已重启，已保留原任务记录。', finishedAt,
           ...(video.provider === 'minimax-h3' && video.minimax ? { minimax: { ...video.minimax, recoveryPending: !!video.requestId, nextRecoveryAt: undefined } } : {}) }
         : video);
     }
@@ -132,14 +130,14 @@ export function listProjectIds() {
 export function listProjects() {
   return [...workspaceCreatives().records.values()].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).map(p => ({ id: p.id, parentProjectId: p.parentProjectId, title: p.title, createdAt: p.createdAt, updatedAt: p.updatedAt, isDemo: p.isDemo, archivedAt: p.archivedAt, stage: stageOf(p), inProgressCount: inProgressCount(p) }));
 }
-export function createProject(demo = false, parentProjectId = defaultProjectId, title?: string) {
+export function createProject(parentProjectId = defaultProjectId, title?: string) {
   if (!getWorkspaceProject(parentProjectId)) throw new Error('所属项目不存在。');
   const id = randomUUID();
   const now = new Date().toISOString();
-  return saveProject(demo ? { ...demoProject(id), parentProjectId, ...(title ? { title } : {}), replication: { ...defaultReplication }, workflowMode: 'manual' as const } : {
+  return saveProject({
     id, parentProjectId, title: title || '未命名创意', createdAt: now, updatedAt: now, revision: 0, isDemo: false,
     product: { ...emptyProduct }, market: { ...defaultMarket }, replication: { ...defaultReplication }, assets: [], analysis: null, rewrite: null,
-    rewriteStale: false, generatedVideos: [], composedVideos: [], productionMode: 'veo-native', promptFlow: 'localized', ttsVoice: '', job: null, model: MODEL, usage: { input: 0, output: 0 },
+    rewriteStale: false, generatedVideos: [], composedVideos: [], productionMode: 'veo-native', promptFlow: 'localized', ttsVoice: '', job: null, usage: { input: 0, output: 0 },
     breakdownType: 'shot', storyboardGridSize: 3, storyboardGrids: [],
   });
 }

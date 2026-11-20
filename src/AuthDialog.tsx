@@ -6,6 +6,8 @@ import './auth-module.css';
 import { useDict, useLang, type Dict } from './i18n';
 import { detectWebmail, WebmailIcon } from './webmail';
 import { AUTH_TEXT } from './landing-i18n';
+import { BloubAvatar } from './bloub/BloubAvatar';
+import type { BloubAvatarConfig } from './bloub/bloubConfig';
 
 const ARTWORKS = ['flow', 'observe', 'remix', 'motion'] as const;
 const DIALOG_COPY: Dict<{
@@ -101,12 +103,12 @@ function AuthArtwork() {
   </aside>;
 }
 
-export default function AuthDialog({ open, onClose, auth, availability, googleBusy, onGoogleSignIn, email, code, stage, resendSeconds, onEmailChange, onCodeChange, onSendCode, onVerifyCode, onBack, onSignOut, onEditProfile, avatarUrl }: {
+export default function AuthDialog({ open, onClose, auth, availability, googleBusy, onGoogleSignIn, email, code, stage, resendSeconds, onEmailChange, onCodeChange, onSendCode, onVerifyCode, onBack, onSignOut, onEditProfile, avatarUrl, bloub }: {
   open: boolean; onClose: () => void; auth: SailAuthState; availability: AuthAvailability;
   googleBusy: boolean; onGoogleSignIn: () => void;
   email: string; code: string; stage: 'email' | 'code'; resendSeconds: number;
   onEmailChange: (value: string) => void; onCodeChange: (value: string) => void;
-  onSendCode: () => void; onVerifyCode: () => void; onBack: () => void; onSignOut: () => void; onEditProfile: () => void; avatarUrl: string;
+  onSendCode: () => void; onVerifyCode: () => void; onBack: () => void; onSignOut: () => void; onEditProfile: () => void; avatarUrl: string; bloub?: BloubAvatarConfig | null;
 }) {
   const t = useDict(AUTH_TEXT);
   const copy = useDict(DIALOG_COPY);
@@ -166,7 +168,7 @@ export default function AuthDialog({ open, onClose, auth, availability, googleBu
       <div className="auth-form-panel">
         <div className="auth-screen-content">
           {signedIn ? <div className="auth-account-view">
-            <h1 id="auth-screen-title">{t.account}</h1><div className="auth-account-icon"><img src={avatarUrl} alt={t.avatar} /></div>
+            <h1 id="auth-screen-title">{t.account}</h1><div className="auth-account-icon">{bloub ? <BloubAvatar size={64} shape={bloub.shape} color={bloub.color} expression={bloub.expression} framed followPointer label={t.avatar} /> : <img src={avatarUrl} alt={t.avatar} />}</div>
             <strong>{authDisplayName(auth.user)}</strong><span>{authEmail(auth.user) || t.account}</span><span className="auth-method-label">{t.method(authLoginMethod(auth.user))}</span>
             <small>{t.kept}</small>
             {auth.error && <div className="auth-error" role="alert">{auth.error}</div>}

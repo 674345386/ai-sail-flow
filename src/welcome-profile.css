@@ -9,7 +9,8 @@
   box-shadow: 0 28px 100px rgba(0, 0, 0, .22); font-family: inherit;
 }
 .profile-welcome-portrait { position: relative; z-index: 1; width: 78px; height: 78px; margin: 0 auto 20px; }
-.profile-welcome-portrait > img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; box-shadow: 0 0 0 6px #fffefa; }
+.profile-welcome-portrait > img,
+.profile-welcome-portrait > .bloub-avatar-frame { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; box-shadow: 0 0 0 6px #fffefa; }
 .profile-welcome-portrait > button {
   position: absolute; right: -3px; bottom: 0; display: grid; place-items: center;
   width: 28px; height: 28px; padding: 0; border: 1px solid #dce1df; border-radius: 50%; color: #33423e; background: white;
@@ -25,6 +26,9 @@
 .profile-welcome-hint { margin: 8px 0 24px; font-size: 11px; line-height: 1.6; color: #929991; }
 .profile-welcome-avatars { margin: 0; padding: 0; border: 0; min-width: 0; }
 .profile-welcome-avatars legend { margin-bottom: 11px; font-size: 11px; color: #67726b; }
+.profile-avatar-tabs { display: inline-flex; gap: 4px; padding: 3px; margin-bottom: 14px; border-radius: 999px; background: #f1f3ec; }
+.profile-avatar-tabs > button { display: inline-flex; align-items: center; gap: 5px; padding: 6px 12px; border: 0; border-radius: 999px; background: transparent; color: #657169; font: inherit; font-size: 12px; font-weight: 500; cursor: pointer; transition: background .15s, color .15s; }
+.profile-avatar-tabs > button.is-active { background: #ffffff; color: #24332d; box-shadow: 0 1px 4px rgba(0, 0, 0, .08); }
 .profile-avatar-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 9px; }
 .profile-avatar-grid > button {
   position: relative; display: grid; place-items: center; aspect-ratio: 1; min-width: 0;

@@ -13,6 +13,13 @@ export const videoMasterPromptSchema = z.object({
 });
 export type VideoMasterPrompt = z.infer<typeof videoMasterPromptSchema>;
 
+const creativeDirectionSchema = z.object({
+  summary: requiredText(500).describe('The reference’s creative premise in one sentence, grounded in the footage.'),
+  preserve: z.array(requiredText(600)).max(8).describe('Elements to retain for this brief and freedom level. Include source timecodes where useful and why each element matters.'),
+  changes: z.array(requiredText(600)).max(8).describe('Concrete changes or creative options for this brief. Describe what changes, how and why; use an empty list when no changes are called for.'),
+});
+export type VideoCreativeDirection = z.infer<typeof creativeDirectionSchema>;
+
 export const videoProductionInput = z.object({
   revision: z.number().int().nonnegative(),
   sourceVideoId: id.optional(),
@@ -20,6 +27,7 @@ export const videoProductionInput = z.object({
   method: z.enum(['scene-clips', 'storyboard', 'edit']).default('scene-clips'),
   preserve: z.string().trim().max(4000).default(''),
   change: z.string().trim().max(4000).default(''),
+  creativeDirection: creativeDirectionSchema.optional().describe('Required for a reference-recreation draft. Ground suggestions in the current source and user’s actual freedom level.'),
   originalMasterPrompt: videoMasterPromptSchema.optional().describe('Scoped original prompt when analyzing only part of the reference.'),
   masterPrompt: videoMasterPromptSchema,
   scenes: z.array(z.object({

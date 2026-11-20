@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { Background, BackgroundVariant, Handle, MiniMap, Position, ReactFlow, applyNodeChanges, type Node, type NodeProps, type NodeChange, type ReactFlowInstance } from '@xyflow/react';
-import { ArrowDownToLine, ArrowRight, BookOpen, Boxes, Check, CheckCheck, ChevronDown, Code2, Ellipsis, ExternalLink, FileText, Film, FlaskConical, GitBranch, GitFork as Github, Image, Layers, LayoutGrid, Link2, LoaderCircle, Map as MapIcon, Maximize2, Minus, Play, Plus, Save, SlidersHorizontal, Sparkles, Trash2, Workflow, X } from 'lucide-react';
+import { AlertTriangle, ArrowDownToLine, ArrowRight, Bookmark, BookOpen, Boxes, Check, CheckCheck, ChevronDown, Clapperboard, Code2, Ellipsis, ExternalLink, FileText, Film, FlaskConical, GitBranch, GitFork as Github, Image, Layers, LayoutGrid, Link2, LoaderCircle, Map as MapIcon, Maximize2, Minus, Play, Plus, Save, ShieldCheck, SlidersHorizontal, Sparkles, Trash2, Workflow, X, XCircle } from 'lucide-react';
 import type { Project } from '../shared/domain';
-import { activeExperimentMethod, emptyExperiment, normalizeExperimentGraph, experimentKindLabels, experimentRecipes, experimentStatusLabels, type ExperimentGraph, type ExperimentNode, type ExperimentOperation } from '../shared/experiment';
+import { activeExperimentMethod, assetRoleLabels, assetRoles, emptyExperiment, normalizeExperimentGraph, experimentKindLabels, experimentRecipes, experimentStatusLabels, type AssetRole, type ExperimentGraph, type ExperimentNode, type ExperimentOperation } from '../shared/experiment';
 import { ExperimentComparisons, ExperimentMethodEditor, ExperimentPlanEditor, ExperimentRunDetails, type WorkbenchSource } from './ExperimentPlans';
 import { api, downloadBlob } from './api';
 import '@xyflow/react/dist/style.css';
@@ -21,6 +21,7 @@ import ExperimentCanvasComposer from './ExperimentCanvasComposer';
 import ExperimentFlowPage from './ExperimentFlowPage';
 import { addCanvasReference, canvasModels, canvasNodeRatio, canvasOutputKind, canvasReference, composerStep, selectedCanvasRelations, type CanvasModel, type CanvasStatus } from './experiment-canvas-model';
 import { executionTurnCanvas, type TurnPosition } from './experiment-turns';
+import ExperimentCanvasOutlineRail, { type CanvasOutlineItem } from './ExperimentCanvasOutlineRail';
 
 const nodeTypes = { experiment: ExperimentCanvasNode };
 const recipeIcons = { 'video-production': Film, programmatic: Code2, 'talking-head': FileText, keyframes: Image, direct: Sparkles, grid: LayoutGrid, character: Film };
@@ -52,9 +53,10 @@ function WorkbenchPopover({ label, summary, children, className, closeOnAction =
   </details>;
 }
 
-export default function ExperimentWorkbench({ project, graph: incoming, onGraph, onDraft, onExecute, onProjectUpdate, onBeforeChange, disabled = false, active = true, theme, themeStyle, videoRemixWorkflow, workflowControls, workflowRequest = 0 }: {
-  project: Project; graph?: ExperimentGraph; onGraph: (graph: ExperimentGraph) => void; onDraft: (text: string) => void; onExecute?: (text: string) => void; onProjectUpdate?: (project: Project) => void; onBeforeChange?: () => Promise<unknown>; disabled?: boolean; active?: boolean; theme: ResolvedTheme;
-  themeStyle?: CSSProperties; videoRemixWorkflow?: ReactNode; workflowControls?: ReactNode; workflowRequest?: number;
+export default function ExperimentWorkbench({ project, graph: incoming, onGraph, onDraft, onExecute, onPlanReference, onProjectUpdate, disabled = false, active = true, theme, themeStyle, workflowControls, workflowRequest = 0 }: {
+  project: Project; graph?: ExperimentGraph; onGraph: (graph: ExperimentGraph) => void; onDraft: (text: string) => void; onExecute?: (text: string) => void; onProjectUpdate?: (project: Project) => void; disabled?: boolean; active?: boolean; theme: ResolvedTheme;
+  themeStyle?: CSSProperties; workflowControls?: ReactNode; workflowRequest?: number;
+  onPlanReference: (videoId: string, prompt: string) => void;
 }) {
   const graph = useMemo(() => normalizeExperimentGraph(incoming || emptyExperiment()), [incoming]);
   const graphRef = useRef(graph);
@@ -63,8 +65,14 @@ export default function ExperimentWorkbench({ project, graph: incoming, onGraph,
   const [view, setView] = useState<'routes' | 'execution' | 'workflow'>(proposal ? proposal.selectedRouteIds.length ? 'execution' : 'routes' : graph.nodes.length ? 'execution' : 'routes');
   const [canvasMode, setCanvasMode] = useState<'turns' | 'nodes'>('turns');
   const [overviewFocus, setOverviewFocus] = useState<string>();
+  const proposalCountRef = useRef(graph.proposals?.length || 0);
   useEffect(() => { if (graph.nodes.length && !proposal) setView(current => current === 'workflow' ? current : 'execution'); }, [!!graph.nodes.length]);
-  useEffect(() => { if (proposal) setView(current => current === 'workflow' ? current : proposal.selectedRouteIds.length ? 'execution' : 'routes'); }, [proposal?.id]);
+  useEffect(() => {
+    const count = graph.proposals?.length || 0;
+    const isNewProposal = count > proposalCountRef.current;
+    proposalCountRef.current = count;
+    if (proposal && isNewProposal) setView(current => current === 'workflow' ? current : proposal.selectedRouteIds.length ? 'execution' : 'routes');
+  }, [proposal?.id, graph.proposals?.length]);
   const [selectedId, setSelectedId] = useState<string>();
   const [planId, setPlanId] = useState('');
   const plan = graph.plans?.find(item => item.id === planId);
@@ -91,6 +99,7 @@ export default function ExperimentWorkbench({ project, graph: incoming, onGraph,
   const [models, setModels] = useState<CanvasModel[]>([]);
   const [naturalRatios, setNaturalRatios] = useState<Record<string, number>>({});
   const [activeTurnId, setActiveTurnId] = useState('');
+  const [activeViewportOutlineId, setActiveViewportOutlineId] = useState('');
   const [selectedInstance, setSelectedInstance] = useState('');
   const [turnPositions, setTurnPositions] = useState<Record<string, TurnPosition>>(() => {
     try {
@@ -128,6 +137,66 @@ export default function ExperimentWorkbench({ project, graph: incoming, onGraph,
     for (const node of graph.nodes) if (node.sourceId && graph.nodes.some(step => step.planId === plan.id && step.methods?.some(method => method.referenceIds.includes(node.sourceId!)))) ids.add(node.id);
     return ids;
   }, [graph.nodes, plan, selectedId]);
+  const outlineItems = useMemo<CanvasOutlineItem[]>(() => {
+    if (turnMode) {
+      return turnCanvas.turns.map(turn => {
+        const entries = turnCanvas.items.filter(item => item.turnId === turn.id);
+        const minY = entries.length ? Math.min(...entries.map(item => item.position.y)) : 0;
+        const maxY = entries.length ? Math.max(...entries.map(item => item.position.y + (item.role === 'heading' ? 72 : item.width / Math.max(item.ratio, 0.2) + 78))) : minY + 360;
+        const label = turn.title ? `Turn ${turn.index} · ${turn.title}` : `Turn ${turn.index}`;
+        return { id: turn.id, label, title: label, minY, maxY };
+      });
+    }
+    const visibleNodes = (plan && related ? graph.nodes.filter(node => related.has(node.id)) : graph.nodes)
+      .slice()
+      .sort((a, b) => (a.position.y - b.position.y) || (a.position.x - b.position.x));
+    return visibleNodes.map(node => ({
+      id: node.id,
+      label: node.title || experimentKindLabels[node.kind],
+      title: `${experimentKindLabels[node.kind]} · ${node.title || node.id}`,
+      minY: node.position.y,
+      maxY: node.position.y + 260,
+    }));
+  }, [turnMode, turnCanvas, plan, related, graph.nodes]);
+  const activeOutlineId = turnMode
+    ? (activeTurnId || outlineItems[0]?.id || '')
+    : (selectedId && outlineItems.some(item => item.id === selectedId) ? selectedId : activeViewportOutlineId || outlineItems[0]?.id || '');
+  const syncOutlineFromViewport = useCallback((viewport: { x: number; y: number; zoom: number }) => {
+    if (!outlineItems.length) return;
+    const height = viewportElement.current?.clientHeight || 600;
+    const focusY = (height * 0.38 - viewport.y) / Math.max(viewport.zoom, 0.1);
+    let matched = outlineItems.find(item => focusY >= item.minY - 60 && focusY <= item.maxY + 60);
+    if (!matched) {
+      let bestDist = Infinity;
+      for (const item of outlineItems) {
+        const dist = Math.abs((item.minY + item.maxY) / 2 - focusY);
+        if (dist < bestDist) { bestDist = dist; matched = item; }
+      }
+    }
+    if (!matched) return;
+    if (turnMode) setActiveTurnId(current => current === matched!.id ? current : matched!.id);
+    else setActiveViewportOutlineId(current => current === matched!.id ? current : matched!.id);
+  }, [outlineItems, turnMode]);
+  const handleOutlineSelect = useCallback((id: string) => {
+    const duration = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 220;
+    if (turnMode) {
+      const turn = turnCanvas.turns.find(item => item.id === id);
+      if (!turn) return;
+      setActiveTurnId(id); setSelectedId(undefined); setSelectedInstance(''); setDrawer(null);
+      void flow.current?.fitView({ nodes: turn.nodeIds.map(nodeId => ({ id: nodeId })), padding: .12, minZoom: .65, maxZoom: 1, duration });
+      return;
+    }
+    setActiveViewportOutlineId(id);
+    void flow.current?.fitView({ nodes: [{ id }], padding: .45, minZoom: .65, maxZoom: 1, duration });
+  }, [turnMode, turnCanvas.turns]);
+  const handleOutlineWheelScroll = useCallback((deltaY: number) => {
+    const instance = flow.current;
+    if (!instance) return;
+    const viewport = instance.getViewport();
+    const nextViewport = { x: viewport.x, y: viewport.y - deltaY, zoom: viewport.zoom };
+    void instance.setViewport(nextViewport, { duration: 0 });
+    syncOutlineFromViewport(nextViewport);
+  }, [syncOutlineFromViewport]);
   useEffect(() => {
     if (turnMode) {
       setNodes(previous => turnCanvas.items.map(entry => {
@@ -222,6 +291,50 @@ export default function ExperimentWorkbench({ project, graph: incoming, onGraph,
     const updated = await mutate({ op: 'canvas-next', sourceId: id, kind, model: models.find(item => item.kind === kind)?.id || '' });
     if (updated) { const next = updated.nodes.filter(node => node.kind === 'step').at(-1); if (next) { selectNode(next.id); setOverviewFocus(next.id); setPlanId(next.planId || ''); setNotice('已创建创作草稿并带入素材。写好要求后点击生成。'); } }
   };
+  const proposeFromNode = (id: string) => {
+    const node = graphRef.current.nodes.find(item => item.id === id);
+    setNextMenu(null);
+    if (!node) return;
+    const isVideo = node.mediaType === 'video';
+    const refInfo = node.sourceId ? `（sourceId：${node.sourceId}，节点：${node.id}）` : `（节点：${node.id}）`;
+    const prompt = `基于画布已有产物「${node.title}」${refInfo}继续往下创作。\n请先读取 get_creative，按需通过 read_experiment_method 读取匹配的内置视频制作 Skill（builtin://<id>），并使用 update_experiment（op: "propose-routes"）提出 2–3 条差异化延续路线（例如：${isVideo ? '抽尾帧续拍下一镜 / 局部重绘替换 / 混剪包装合成' : '以此图作为首帧生成视频 / 拓展多镜头分镜 MV / 风格精修延展'}），将这份产物作为上游输入连线。保留已有节点与结果；在由用户选择模式下等待我勾选路线后再执行。`;
+    if (onExecute) { onExecute(prompt); setNotice('已让 Agent 基于当前产物规划下一轮路线提案。'); }
+    else { onDraft(prompt); setNotice('延续提案指令已填入对话输入框。'); }
+  };
+  const backtrackProposalForNode = async (id: string) => {
+    const node = graphRef.current.nodes.find(item => item.id === id);
+    const owner = graphRef.current.plans?.find(item => item.id === node?.planId);
+    setNextMenu(null);
+    if (owner?.proposalId && owner.proposalId !== graphRef.current.activeProposalId) {
+      await mutate({ op: 'switch-proposal', proposalId: owner.proposalId });
+    }
+    setDrawer(null);
+    setView('routes');
+  };
+  const pinnedAssets = useMemo(() => graph.nodes.filter(node => !!node.assetRole), [graph.nodes]);
+  const completedImageIds = useMemo(() => sources.filter(item => item.mediaType === 'image' && item.url && item.referenceAvailable !== false).map(item => item.id), [sources]);
+  const buildAnimatic = () => run(async () => {
+    if (completedImageIds.length < 2) throw new Error('至少需要 2 张已完成的关键帧图片才能合成 Animatic 动态预演。');
+    const frameIds = completedImageIds.slice(0, 12);
+    const result = await api<{ graph: ExperimentGraph; duration: number; frameCount: number }>(`/api/projects/${project.id}/agent/experiment/animatic`, { method: 'POST', body: JSON.stringify({ frameIds, aspectRatio: project.market.aspectRatio === '9:16' ? '9:16' : '16:9' }) });
+    graphRef.current = result.graph;
+    onGraph(result.graph);
+    setView('execution');
+    setNotice(`已本地生成 Animatic 动态预演（${result.frameCount} 镜 · ${result.duration.toFixed(1)}s），确认节奏后再跑视频模型。`);
+  });
+  const requestQualityCheck = (node: ExperimentNode) => {
+    const prompt = `请对画布产物「${node.title}」（nodeId：${node.id}${node.sourceId ? `，sourceId：${node.sourceId}` : ''}）做一次 VLM 抽帧质检。\n1. 调用 inspect_artifact_quality（nodeId: "${node.id}"）抽取首/中/尾关键帧；\n2. 从主体一致性、画面畸变、构图与运镜贴合度给出客观评估；\n3. 调用 update_experiment（op: "quality-check", nodeId: "${node.id}"）保存结构化质检结果（pass/warn/fail、0-100 分数、问题清单和修复建议），不要自动提交付费重跑。`;
+    if (onExecute) { onExecute(prompt); setNotice('已让 Agent 抽取关键帧并执行 VLM 质检。'); }
+    else { onDraft(prompt); setNotice('质检指令已填入对话输入框。'); }
+  };
+  const repairFromQualityCheck = (node: ExperimentNode) => {
+    const qc = node.qualityCheck;
+    if (!qc) return;
+    const producerStep = graphRef.current.nodes.find(item => item.kind === 'step' && node.inputs.includes(item.id));
+    const prompt = `请根据产物「${node.title}」（nodeId：${node.id}）的质检报告做单镜定向修复重跑。\n质检评分：${Math.round(qc.score)}/100（${qc.status}）\n问题清单：${qc.issues.join('；') || qc.summary}\n修复建议：${qc.suggestion || '优化提示词与参考图约束后重跑'}\n${producerStep ? `请基于上游步骤「${producerStep.title}」（stepId：${producerStep.id}）用 branch-method 创建改进方法，保留旧产物作为对照，再执行该单镜。` : '请针对上述问题创建改进分支并重新生成，保留原产物作为对照。'}`;
+    if (onExecute) { onExecute(prompt); setNotice('已将质检修复指令交给 Agent 单镜重跑。'); }
+    else { onDraft(prompt); setNotice('单镜修复指令已填入对话输入框。'); }
+  };
   const connectFrom = async (sourceId: string, targetId: string) => {
     const current = graphRef.current, target = current.nodes.find(node => node.id === targetId), method = target && activeExperimentMethod(target);
     if (!method || sourceId === targetId) return;
@@ -232,7 +345,6 @@ export default function ExperimentWorkbench({ project, graph: incoming, onGraph,
   };
   const organize = () => { if (turnMode) { setTurnPositions({}); return; } void mutate({ op: 'layout', dimensions: (flow.current?.getNodes() || []).map(node => ({ id: node.id, width: node.measured?.width || Number(node.style?.width) || 266, height: node.measured?.height || 266 })) }); };
   const uploadReference = onProjectUpdate ? (file: File) => run(async () => {
-    await onBeforeChange?.();
     const body = new FormData(); body.append('file', file);
     const updated = await api<Project>(`/api/projects/${project.id}/assets/product`, { method: 'POST', body });
     onProjectUpdate(updated);
@@ -300,6 +412,7 @@ export default function ExperimentWorkbench({ project, graph: incoming, onGraph,
           <SkillReferenceBar projectId={project.id} graph={graph} onGraph={onGraph} onDraft={onDraft} disabled={busy} />
         </WorkbenchPopover>
         <WorkbenchPopover className="lab-actions-menu" label="更多实验操作" summary={<Ellipsis size={17} />} closeOnAction>
+          <button type="button" disabled={busy || completedImageIds.length < 2} title={completedImageIds.length < 2 ? '至少需要 2 张已完成关键帧图片' : '免费用本地 FFmpeg 合成动态分镜预演'} onClick={() => void buildAnimatic()}><Clapperboard size={14} />生成 Animatic 预演{completedImageIds.length >= 2 ? `（${Math.min(completedImageIds.length, 12)} 镜）` : ''}</button>
           <button type="button" disabled={busy} onClick={() => setDrawer(drawer === 'recipes' ? null : 'recipes')}><Plus size={14} />添加制作路径</button>
           <button type="button" disabled={busy} onClick={() => { setDrawer(drawer === 'skill' ? null : 'skill'); setChoices([]); setSkillPath(''); }}><Github size={14} />导入 Skill</button>
           <button type="button" disabled={busy || !graph.nodes.length} onClick={() => { setTemplateTitle(plan?.title || graph.title); setDrawer('save'); }}><Save size={14} />保存配方</button>
@@ -312,10 +425,27 @@ export default function ExperimentWorkbench({ project, graph: incoming, onGraph,
       <nav aria-label="制作方案"><button type="button" aria-pressed={!plan} onClick={() => setPlanId('')}>全部节点</button>{graph.plans.map(item => <button type="button" key={item.id} title={item.goal || item.title} aria-pressed={item.id === planId} onClick={() => { setPlanId(item.id); setSelectedId(undefined); }}>{item.adopted ? <Check size={13} /> : <GitBranch size={13} />}<span>{item.title}</span></button>)}</nav>
       <div className="lab-plan-actions">{plan && <button type="button" title={plan.goal || '方案详情'} aria-label="方案详情" onClick={() => setDrawer('plan')}><FileText size={13} /><span>方案详情</span></button>}<button type="button" aria-label="比较方案" title="比较方案" onClick={() => setDrawer('compare')}><GitBranch size={13} /><span>比较方案</span></button></div>
     </div>}
+    {view === 'execution' && pinnedAssets.length > 0 && (
+      <div className="lab-asset-bible-bar" role="region" aria-label="Asset Bible 共享资产圣经">
+        <span className="lab-asset-bible-label"><Bookmark size={12} />资产圣经（{pinnedAssets.length}）</span>
+        <div className="lab-asset-bible-list">
+          {pinnedAssets.map(asset => (
+            <div key={asset.id} className="lab-asset-bible-chip">
+              <button type="button" onClick={() => selectNode(asset.id)} title={`${assetRoleLabels[asset.assetRole!]} · ${asset.title}`}>
+                {asset.url && asset.mediaType === 'image' && <img src={asset.url} alt="" />}
+                <strong>{assetRoleLabels[asset.assetRole!]}</strong>
+                <span>{asset.title}</span>
+              </button>
+              {selected?.kind === 'step' && <button type="button" className="lab-asset-bible-attach" disabled={busy} title={`引用到「${selected.title}」`} onClick={() => void connectFrom(asset.id, selected.id)}>+ 引用</button>}
+            </div>
+          ))}
+        </div>
+      </div>
+    )}
     {view === 'execution' && !turnMode && untouchedAlternative && <div className="lab-message" role="status"><GitBranch size={14} /><span>{originalOutput ? '当前查看的是尚未执行的备选方案，原方案已有完成结果。' : '当前查看的是备选方案，尚未产生执行记录。'}</span>{originalOutput && <button type="button" onClick={() => selectNode(originalOutput.id)}>查看原方案结果<ArrowRight size={13} /></button>}</div>}
     {error && <div className="lab-message lab-error" role="alert"><span>{error}</span><button type="button" aria-label="关闭错误提示" onClick={() => setError('')}><X size={14} /></button></div>}
     {notice && <div className="lab-message" role="status"><Check size={14} /><span>{notice}</span></div>}
-    {view === 'workflow' ? <ExperimentFlowPage graph={graph} busy={busy} videoRemixWorkflow={videoRemixWorkflow} controls={workflowControls} mutate={mutate} /> : view === 'routes' ? <div className="lab-route-stage"><ExperimentRoutes graph={graph} busy={busy} mutate={mutate} onDraft={onDraft} onExecute={onExecute} onExecution={() => { setView('execution'); setSelectedId(undefined); }} /></div> : <div className={`lab-stage${selected && inspectorOpen ? ' has-inspector' : ''}`}>
+    {view === 'workflow' ? <ExperimentFlowPage project={project} graph={graph} busy={busy} controls={workflowControls} mutate={mutate} onPlanReference={onPlanReference} /> : view === 'routes' ? <div className="lab-route-stage"><ExperimentRoutes graph={graph} busy={busy} mutate={mutate} onDraft={onDraft} onExecute={onExecute} onExecution={() => { setView('execution'); setSelectedId(undefined); }} /></div> : <div className={`lab-stage${selected && inspectorOpen ? ' has-inspector' : ''}`}>
       <div className="lab-viewport" ref={viewportElement}>
         {!graph.nodes.length ? <div className="lab-welcome">
           <div className="lab-welcome-symbol"><FlaskConical size={30} strokeWidth={1.4} /></div>
@@ -354,7 +484,7 @@ export default function ExperimentWorkbench({ project, graph: incoming, onGraph,
             if (turnCanvas.turns.find(turn => turn.id === target.turnId)?.runId) { setNotice('这一轮已有执行记录。点击输出节点的 +，创建备选做法后再连接素材。'); return; }
             void connectFrom(source.canonicalId || source.item.sourceId || source.item.id, target.stepId).catch(failure => setError(failure instanceof Error ? failure.message : '连接失败。'));
           }}
-          nodesDraggable={!busy} nodesConnectable={!busy} panOnDrag onMoveEnd={(_, viewport) => setCanvasZoom(viewport.zoom)} colorMode={theme === 'dark' ? 'dark' : 'light'} connectionLineStyle={{ stroke: 'var(--lab-accent)', strokeWidth: 1.8 }} edgesReconnectable={false} deleteKeyCode={null} minZoom={0.2} maxZoom={1.5} fitView={!turnMode} defaultViewport={{ x: 60, y: 40, zoom: .85 }} fitViewOptions={{ padding: 0.18, maxZoom: 1 }} proOptions={{ hideAttribution: true }}
+          nodesDraggable={!busy} nodesConnectable={!busy} panOnDrag onMove={(_, viewport) => syncOutlineFromViewport(viewport)} onMoveEnd={(_, viewport) => { setCanvasZoom(viewport.zoom); syncOutlineFromViewport(viewport); }} colorMode={theme === 'dark' ? 'dark' : 'light'} connectionLineStyle={{ stroke: 'var(--lab-accent)', strokeWidth: 1.8 }} edgesReconnectable={false} deleteKeyCode={null} minZoom={0.2} maxZoom={1.5} fitView={!turnMode} defaultViewport={{ x: 60, y: 40, zoom: .85 }} fitViewOptions={{ padding: 0.18, maxZoom: 1 }} proOptions={{ hideAttribution: true }}
         >
           <Background variant={BackgroundVariant.Dots} gap={theme === 'studio-white' ? 20 : 22} size={theme === 'studio-white' ? 1 : .7} color="var(--lab-dot)" bgColor="var(--lab-bg)" />
           {minimapOpen && <MiniMap<FlowNode> pannable zoomable nodeColor="var(--lab-minimap-node)" bgColor="var(--lab-paper)" maskColor="var(--lab-minimap-mask)" />}
@@ -374,11 +504,21 @@ export default function ExperimentWorkbench({ project, graph: incoming, onGraph,
             <button type="button" aria-pressed={minimapOpen} onClick={() => setMinimapOpen(value => !value)} title="切换小地图" aria-label="切换小地图"><MapIcon size={15} /></button>
           </div>
         </>}
-        {!!graph.nodes.length && <div className="lab-canvas-hint">拖动画布平移 · 拖动节点移动 · 拖动 + 连接 · Shift 框选</div>}
+        {!!graph.nodes.length && !!outlineItems.length && !inspectorOpen && !drawer && (
+          <ExperimentCanvasOutlineRail
+            items={outlineItems}
+            activeId={activeOutlineId}
+            onSelect={handleOutlineSelect}
+            onWheelScroll={handleOutlineWheelScroll}
+          />
+        )}
+        {!!graph.nodes.length && <div className="lab-canvas-hint">拖动画布平移 · 右侧滚轮上下滚动 · 拖动节点移动 · 拖动 + 连接</div>}
         {nextMenu && <div className="lab-next-menu" style={{ left: nextMenu.left, top: nextMenu.top }} role="region" aria-label="选择下一步"><header><strong>下一步做什么</strong><button type="button" aria-label="关闭下一步菜单" onClick={() => setNextMenu(null)}><X size={13} /></button></header>
+          <button type="button" disabled={busy} onClick={() => proposeFromNode(nextMenu.id)}><Sparkles size={17} /><span>发起新一轮路线提案<small>让 Agent 基于此产物探索多种往下做法</small></span></button>
           <button type="button" disabled={busy || !models.some(model => model.kind === 'image') || graph.nodes.find(node => node.id === nextMenu.id)?.mediaType === 'video'} onClick={() => void nextFrom(nextMenu.id, 'image')}><Image size={17} /><span>继续创作图片<small>带入当前图片与输入关系</small></span></button>
           <button type="button" disabled={busy || !models.some(model => model.kind === 'video')} onClick={() => void nextFrom(nextMenu.id, 'video')}><Film size={17} /><span>制作视频<small>创建视频步骤与结果占位</small></span></button>
           <button type="button" disabled={busy} onClick={() => { const node = graph.nodes.find(item => item.id === nextMenu.id); const step = node?.kind === 'step' ? node : graph.nodes.find(item => item.kind === 'step' && node?.inputs.includes(item.id)); const recorded = graph.runs?.find(run => run.id === node?.runId); setNextMenu(null); if (step) void mutate(recorded ? { op: 'method', stepId: step.id, method: { ...structuredClone(recorded.method), id: crypto.randomUUID(), title: `备选方法 ${(step.methods?.length || 0) + 1}` } } : { op: 'branch-method', stepId: step.id }).then(updated => { if (updated) { selectNode(step.id); setOverviewFocus(step.id); } }); else void nextFrom(nextMenu.id, 'step'); }}><GitBranch size={17} /><span>再试一次<small>沿用这一轮输入，保留已有结果</small></span></button>
+          {!!graph.proposals?.length && <button type="button" disabled={busy} onClick={() => void backtrackProposalForNode(nextMenu.id)}><Workflow size={17} /><span>回溯路线提案<small>回到提案面板尝试其他未选做法</small></span></button>}
           <button type="button" onClick={() => { const node = graph.nodes.find(item => item.id === nextMenu.id); const step = node?.kind === 'step' ? node : graph.nodes.find(item => item.kind === 'step' && node?.inputs.includes(item.id)); setPlanId(node?.planId || ''); setNextMenu(null); if (step) { selectNode(step.id); setDrawer('methods'); } else setDrawer('compare'); }}><Layers size={17} /><span>比较方案与结果<small>并排查看真实产物</small></span></button>
           <details><summary>连接到已有步骤<ChevronDown size={12} /></summary><div>{graph.nodes.filter(node => node.kind === 'step' && node.id !== nextMenu.id).map(node => <button type="button" key={node.id} disabled={busy} onClick={() => void connectFrom(nextMenu.id, node.id).then(() => setNextMenu(null)).catch(failure => setError(failure instanceof Error ? failure.message : '连接失败。'))}><Link2 size={12} /><span>{node.title}</span></button>)}{!graph.nodes.some(node => node.kind === 'step' && node.id !== nextMenu.id) && <p>先添加一个制作步骤。</p>}</div></details>
         </div>}
@@ -411,6 +551,22 @@ export default function ExperimentWorkbench({ project, graph: incoming, onGraph,
           {selected.kind === 'step' && <ExperimentMethodEditor key={selected.id} node={selected} graph={graph} sources={sources} busy={busy || dirty} mutate={mutate} onDirty={setMethodDirty} />}
           {selected.runId && graph.runs?.find(run => run.id === selected.runId) && <ExperimentRunDetails run={graph.runs.find(run => run.id === selected.runId)!} graph={graph} sources={sources} onSelect={selectNode} />}
           {selected.kind === 'artifact' && selected.planId && <button type="button" className="lab-primary lab-adopt-button" disabled={busy || selected.status !== 'completed' || (!selected.sourceId && !selected.content.trim()) || graph.plans?.some(item => item.adopted && item.selectedArtifactId === selected.id)} onClick={async () => { const updated = await mutate({ op: 'adopt-artifact', planId: selected.planId!, artifactId: selected.id }); if (updated) setNotice('已采用这份产物，后续创作可继续使用；受影响的已有步骤会提示更新。'); }}><Check size={14} />{graph.plans?.some(item => item.adopted && item.selectedArtifactId === selected.id) ? '已采用此产物' : '采用此产物'}</button>}
+          {(selected.kind === 'asset' || selected.kind === 'artifact') && (
+            <label>Asset Bible 共享锚点<select value={selected.assetRole || ''} disabled={busy} onChange={event => void mutate({ op: 'pin-asset', id: selected.id, assetRole: (event.target.value || null) as AssetRole | null })}><option value="">未固定为共享锚点</option>{assetRoles.map(role => <option key={role} value={role}>{assetRoleLabels[role]}</option>)}</select></label>
+          )}
+          {selected.qualityCheck && (
+            <section className={`lab-qc-card is-${selected.qualityCheck.status}`} aria-label="VLM 质检报告">
+              <div className="lab-qc-card-head">
+                <strong>{selected.qualityCheck.status === 'pass' ? <ShieldCheck size={14} /> : selected.qualityCheck.status === 'warn' ? <AlertTriangle size={14} /> : <XCircle size={14} />}VLM 质检 · {Math.round(selected.qualityCheck.score)} 分</strong>
+                <span>{selected.qualityCheck.status === 'pass' ? '通过' : selected.qualityCheck.status === 'warn' ? '建议微调' : '建议重跑'}</span>
+              </div>
+              <p>{selected.qualityCheck.summary}</p>
+              {!!selected.qualityCheck.issues.length && <ul>{selected.qualityCheck.issues.map((issue, idx) => <li key={idx}>{issue}</li>)}</ul>}
+              {selected.qualityCheck.suggestion && <small>修复建议：{selected.qualityCheck.suggestion}</small>}
+              {selected.qualityCheck.status !== 'pass' && <button type="button" className="lab-primary" disabled={busy} onClick={() => repairFromQualityCheck(selected)}><Sparkles size={13} />按质检建议单镜重跑</button>}
+            </section>
+          )}
+          {selected.kind === 'artifact' && selected.status === 'completed' && <div className="lab-step-actions"><button type="button" disabled={busy} onClick={() => proposeFromNode(selected.id)}><Sparkles size={14} />基于此产物发起新路线提案</button>{(selected.mediaType === 'video' || selected.mediaType === 'image') && <button type="button" disabled={busy} onClick={() => requestQualityCheck(selected)}><ShieldCheck size={14} />{selected.qualityCheck ? '重新 VLM 抽帧质检' : '发起 VLM 抽帧质检'}</button>}{!!graph.proposals?.length && <button type="button" disabled={busy} onClick={() => void backtrackProposalForNode(selected.id)}><Workflow size={14} />回溯路线提案</button>}</div>}
           {selected.skill && <section className="lab-skill-details"><h3>方法来源</h3><a href={selected.skill.url} target="_blank" rel="noreferrer">{selected.skill.repository}<ExternalLink size={13} /></a><code>{selected.skill.commit}</code><p>{selected.skill.path}</p><details><summary>查看 SKILL.md 原文</summary><pre>{selected.skill.content}</pre></details><button type="button" disabled={busy} onClick={() => { setSkillURL(selected.skill!.url); setSkillPath(''); setChoices([]); setDrawer('skill'); }}><Github size={14} />更换 Skill</button><small>已读取方法文件。执行所需的工具、依赖和服务由具体步骤核对。</small></section>}
           {selected.url && <section className="lab-result-preview"><h3>真实素材 / 产物</h3>{selected.mediaType === 'video' ? <video src={selected.url} controls preload="metadata" /> : selected.mediaType === 'image' ? <img src={selected.url} alt={selected.title} /> : <a href={selected.url} target="_blank" rel="noreferrer">打开文件<ExternalLink size={13} /></a>}</section>}
           <section className="lab-inputs"><h3>上游输入 <span>{selected.inputs.length}</span></h3>{selected.inputs.length ? selected.inputs.map(id => { const input = graph.nodes.find(n => n.id === id); return input ? <div key={id}><button type="button" onClick={() => setSelectedId(id)}><Link2 size={13} /><span>{input.title}</span></button><button type="button" disabled={busy} aria-label={`断开${input.title}`} onClick={() => void mutate({ op: 'patch', id: selected.id, changes: { inputs: selected.inputs.filter(value => value !== id) } })}><X size={12} /></button></div> : null; }) : <p>这是一个流程起点。拖动画布上的连接圆点可添加依赖。</p>}</section>

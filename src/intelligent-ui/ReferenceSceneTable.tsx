@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { FileText, Table2 } from 'lucide-react';
 import { referenceSceneTableTitle, type ReferenceSceneFrame, type ReferenceSceneTable } from '../../shared/agent-video-analysis';
-import type { VideoMasterPrompt, VideoProductionPlan } from '../../shared/video-production';
+import type { VideoCreativeDirection, VideoMasterPrompt, VideoProductionPlan } from '../../shared/video-production';
 import { levelInfo } from '../../shared/replication-levels';
 
 const seconds = new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 3 });
@@ -75,12 +75,28 @@ export function ReferenceSceneTablePreview({ table, sourceTitle }: { table: Refe
 const methodLabels = { 'scene-clips': '逐场景图生视频', storyboard: '3×3 故事板', edit: '局部视频编辑' };
 export const productionPlanTitle = '视频制作 · 调整方案';
 
+export function VideoCreativeDirectionPreview({ direction }: { direction: VideoCreativeDirection }) {
+  return <div className="video-creative-direction">
+    <p>{direction.summary}</p>
+    <dl>
+      <div><dt>创意骨架 · 建议保留</dt><dd>{direction.preserve.length
+        ? <ul>{direction.preserve.map((item, index) => <li key={index}>{item}</li>)}</ul>
+        : '按本次方向重新设计。'}</dd></div>
+      <div><dt>可调整元素 · 建议做法</dt><dd>{direction.changes.length
+        ? <ul>{direction.changes.map((item, index) => <li key={index}>{item}</li>)}</ul>
+        : '按当前方向沿用原片元素。'}</dd></div>
+    </dl>
+  </div>;
+}
+
 export function VideoProductionPlanPreview({ plan }: { plan: VideoProductionPlan }) {
   return <article className="iua-artifact-preview" aria-label={productionPlanTitle}>
     <header><div><FileText size={18} aria-hidden="true" /><h2>{productionPlanTitle}</h2></div></header>
     <p className="iua-artifact-meta">{methodLabels[plan.method]} · {plan.scenes.length} 个场景{plan.level ? ` · ${levelInfo(plan.level).label}` : ''}</p>
-    {plan.preserve && <p className="iua-artifact-meta">保留 {plan.preserve}</p>}
-    {plan.change && <p className="iua-artifact-meta">调整 {plan.change}</p>}
+    {plan.creativeDirection ? <VideoCreativeDirectionPreview direction={plan.creativeDirection} /> : <>
+      {plan.preserve && <p className="iua-artifact-meta">保留 {plan.preserve}</p>}
+      {plan.change && <p className="iua-artifact-meta">调整 {plan.change}</p>}
+    </>}
     {plan.originalMasterPrompt && <MasterPrompt master={plan.originalMasterPrompt} label="所选原片 · 母版 Prompt" />}
     <MasterPrompt master={plan.masterPrompt} label="调整后 · 全片母版 Prompt" />
     {plan.scenes.map((scene, index) => <details className="iua-production-section" key={scene.start}>

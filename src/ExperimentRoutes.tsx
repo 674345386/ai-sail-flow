@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { ArrowRight, Check, ChevronDown, ExternalLink, GitBranch, LoaderCircle, Play, Search, SlidersHorizontal } from 'lucide-react';
+import { ArrowRight, Check, ChevronDown, ExternalLink, GitBranch, History, LoaderCircle, Play, Search, SlidersHorizontal, Sparkles } from 'lucide-react';
 import type { ExperimentGraph, ExperimentOperation } from '../shared/experiment';
 import { activeExperimentProposal, defaultExperimentPolicy, experimentLevel, experimentLevels, experimentRoutePrompt, normalizeExperimentPolicy, routeReadinessLabels, type ExperimentPolicy, type ExperimentProposal, type ExperimentRoute } from '../shared/experiment-planning';
 
@@ -55,7 +55,7 @@ function RouteCard({ route, proposal, selected, busy, limitReached, onToggle, on
     <details className="lab-route-details"><summary>查看步骤与方法来源<ChevronDown size={13} /></summary>
       <ol>{route.steps.map((step, index) => <li key={index}><strong>{step.title}</strong>{step.model && <span>{step.model}</span>}{step.description && <p>{step.description}</p>}{step.prompt && <details><summary>提示词与制作要求</summary><pre>{step.prompt}</pre></details>}{!!step.referenceIds.length && <small>{step.referenceIds.length} 张参考图</small>}</li>)}</ol>
       {!!route.requirements.length && <div className="lab-route-requirements"><strong>需要的条件</strong><ul>{route.requirements.map((requirement, index) => <li key={index}>{requirement}</li>)}</ul></div>}
-      {!!route.sources.length && <div className="lab-route-sources"><strong>方法来源</strong>{route.sources.map((source, index) => source.url ? <a key={index} href={source.url} target="_blank" rel="noreferrer">{source.title}<ExternalLink size={11} /></a> : <span key={index}>{source.title}</span>)}</div>}
+      {!!route.sources.length && <div className="lab-route-sources"><strong>方法来源</strong>{route.sources.map((source, index) => source.url ? <a key={index} href={source.url} target="_blank" rel="noreferrer">{source.title}<ExternalLink size={11} /></a> : <span key={index} className={source.kind === 'builtin-skill' ? 'lab-route-skill-tag' : undefined}>{source.kind === 'builtin-skill' && <Sparkles size={11} aria-hidden="true" />}{source.kind === 'builtin-skill' ? `内置 Skill · ${source.title}` : source.title}</span>)}</div>}
     </details>
     <footer><span>{route.costNote}</span>{route.readiness !== 'ready' && <button type="button" disabled={busy} onClick={prepare}><Search size={12} />补齐条件</button>}{completed > 0 && <span>{completed} 个步骤已完成</span>}</footer>
     {failure && <div className="lab-route-failure"><strong>上次执行未完成</strong><p>{failure.error || '请查看执行记录，核对服务或环境后重试。'}</p></div>}
@@ -88,7 +88,33 @@ export function ExperimentRoutes({ graph, busy, mutate, onDraft, onExecute, onEx
     } finally { submittingRef.current = false; setSubmitting(false); }
   };
   const explore = () => onDraft(`请基于这次目标继续探索路线（proposalId：${proposal.id}）。\n原始要求：${proposal.brief.originalPrompt}\n读取当前空间的实验设置，从目标与约束出发，补充与现有方案有实质差异的方法。优先复用当前空间 Skill 与成功案例，存在缺口再检索相关 GitHub Skill 或开源项目，记录真实来源、素材和环境条件。使用 propose-routes 保存完整的新提案，等待我选择，不提交生成。`);
+  const proposals = graph.proposals || [];
   return <div className="lab-routes-board">
+    {proposals.length > 1 && (
+      <nav className="lab-proposal-history" aria-label="历史路线提案回溯">
+        <span className="lab-proposal-history-label"><History size={13} aria-hidden="true" />提案历史（{proposals.length}）</span>
+        <div className="lab-proposal-history-list">
+          {proposals.map((item, idx) => {
+            const active = item.id === proposal.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                className={`lab-proposal-chip${active ? ' is-active' : ''}`}
+                aria-pressed={active}
+                disabled={locked || active}
+                title={`${item.brief.goal}（已选 ${item.selectedRouteIds.length}/${item.routes.length} 条）`}
+                onClick={() => void mutate({ op: 'switch-proposal', proposalId: item.id })}
+              >
+                <strong>#{idx + 1}</strong>
+                <span>{item.brief.goal}</span>
+                <small>{item.selectedRouteIds.length}/{item.routes.length}</small>
+              </button>
+            );
+          })}
+        </div>
+      </nav>
+    )}
     <header className="lab-routes-brief"><div><h2>{proposal.brief.goal}</h2><p>原始灵感：{proposal.brief.originalPrompt}</p></div><button type="button" disabled={locked} onClick={explore}><GitBranch size={13} />继续探索</button>
       {(proposal.brief.assumptions.length > 0 || proposal.brief.constraints.length > 0) && <details><summary>当前理解与创作约束<ChevronDown size={12} /></summary>{proposal.brief.assumptions.length > 0 && <div><strong>当前理解</strong><ul>{proposal.brief.assumptions.map((value, index) => <li key={index}>{value}</li>)}</ul></div>}{proposal.brief.constraints.length > 0 && <div><strong>创作约束</strong><ul>{proposal.brief.constraints.map((value, index) => <li key={index}>{value}</li>)}</ul></div>}<button type="button" disabled={locked} onClick={() => onDraft(`我想调整这次路线提案的目标或约束（proposalId：${proposal.id}）。\n原始要求：${proposal.brief.originalPrompt}\n调整为：`)}>调整理解</button></details>}
     </header>

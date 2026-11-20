@@ -32,7 +32,36 @@ const messages = {
   },
 };
 
-type Reference = { id: string; file: File; kind: PromptMediaKind; url: string };
+type Reference = { id: string; file: File; kind: PromptMediaKind };
+
+function ReferenceThumbnail({ file, kind }: { file: File; kind: 'image' | 'video' }) {
+  const [url, setUrl] = useState<string>();
+  const [status, setStatus] = useState<'loading' | 'ready' | 'failed'>('loading');
+
+  useEffect(() => {
+    const previewUrl = URL.createObjectURL(file);
+    setUrl(previewUrl);
+    return () => URL.revokeObjectURL(previewUrl);
+  }, [file]);
+
+  const FallbackIcon = kind === 'video' ? Film : Image;
+  const ready = () => setStatus('ready');
+  const failed = () => setStatus('failed');
+
+  return <span className="lp-reference-thumbnail" aria-hidden="true" data-ready={status === 'ready' || undefined}>
+    {status !== 'ready' && <FallbackIcon size={18} />}
+    {url && status !== 'failed' && (kind === 'image'
+      ? <img src={url} alt="" onLoad={ready} onError={failed} />
+      : <video src={url} preload="auto" muted playsInline
+        onLoadedMetadata={({ currentTarget: video }) => {
+          if (Number.isFinite(video.duration) && video.duration > 0) {
+            video.currentTime = Math.min(0.1, video.duration / 2);
+          }
+        }}
+        onLoadedData={({ currentTarget: video }) => { if (!video.seeking) ready(); }}
+        onSeeked={ready} onError={failed} />)}
+  </span>;
+}
 
 export default function LandingPromptHero({ onStart, busy, error }: {
   onStart: (prompt: string, files: File[]) => void; busy: boolean; error?: string;
@@ -44,12 +73,6 @@ export default function LandingPromptHero({ onStart, busy, error }: {
   const textarea = useRef<HTMLTextAreaElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const section = useRef<HTMLElement>(null);
-  const previewUrls = useRef(new Set<string>());
-
-  useEffect(() => () => {
-    previewUrls.current.forEach(url => URL.revokeObjectURL(url));
-    previewUrls.current.clear();
-  }, []);
 
   useEffect(() => {
     const hero = section.current;
@@ -70,16 +93,11 @@ export default function LandingPromptHero({ onStart, busy, error }: {
     if (busy || !files.length) return;
     const invalid = validatePromptMedia(files, references.map(item => item.kind));
     if (invalid) { setInputError(t[invalid]); return; }
-    const entries = files.map(file => ({ file, kind: promptMediaKind(file)! }));
-    setReferences(current => [...current, ...entries.map(({ file, kind }) => {
-      const url = URL.createObjectURL(file); previewUrls.current.add(url);
-      return { id: crypto.randomUUID(), file, kind: kind!, url };
-    })]);
+    const entries = files.map(file => ({ id: crypto.randomUUID(), file, kind: promptMediaKind(file)! }));
+    setReferences(current => [...current, ...entries]);
     setInputError('');
   };
   const removeReference = (id: string) => {
-    const item = references.find(reference => reference.id === id);
-    if (item) { URL.revokeObjectURL(item.url); previewUrls.current.delete(item.url); }
     setReferences(current => current.filter(reference => reference.id !== id));
   };
   const submit = (event: FormEvent<HTMLFormElement>) => {
@@ -109,8 +127,8 @@ export default function LandingPromptHero({ onStart, busy, error }: {
         onDragOver={event => { if (event.dataTransfer.types.includes('Files')) { event.preventDefault(); event.dataTransfer.dropEffect = busy ? 'none' : 'copy'; } }}
         onDrop={event => { if (event.dataTransfer.files.length) { event.preventDefault(); addReferences(Array.from(event.dataTransfer.files)); } }}>
         {references.length > 0 && <ul className="lp-references" aria-label={t.attach}>{references.map(item => <li key={item.id}>
-          {item.kind === 'image' ? <img src={item.url} width={26} height={26} alt="" /> : item.kind === 'audio' ? <AudioLines size={18} aria-hidden="true" /> : <Film size={18} aria-hidden="true" />}
-          <span>{item.file.name}</span><button type="button" onClick={() => removeReference(item.id)} disabled={busy} aria-label={`${t.remove} ${item.file.name}`}><X size={13} /></button>
+          {item.kind === 'audio' ? <AudioLines size={18} aria-hidden="true" /> : <ReferenceThumbnail file={item.file} kind={item.kind} />}
+          <span className="lp-reference-name" title={item.file.name}>{item.file.name}</span><button type="button" onClick={() => removeReference(item.id)} disabled={busy} aria-label={`${t.remove} ${item.file.name}`}><X size={13} /></button>
         </li>)}</ul>}
         <textarea ref={textarea} value={prompt} onChange={event => { setPrompt(event.target.value); setInputError(''); }} onKeyDown={event => {
           if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); }

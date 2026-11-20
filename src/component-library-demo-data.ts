@@ -53,7 +53,7 @@ export function exampleForComponent(name: string): string {
 }
 
 export function createDemoScenarios(origin: string): DemoScenario[] {
-  const image = new URL('/studio/gen/scene-coffee.jpg', origin).href;
+  const image = new URL('/assets/landing/workflow-merchant-daylight.webp', origin).href;
   const video = new URL('/assets/landing/v2/tool-create.mp4', origin).href;
   const publish = (title: string, source: string) => ({ name: 'show_intelligent_ui', args: { title, source } });
   const imageSource = `root = Col([Title("温暖的咖啡馆", "lg"), Row([Badge("示例图片"), Badge("16:9", "info")], 2), Image(${JSON.stringify(image)}, "咖啡馆场景示例", 1.78), Text("这里使用站内已有素材演示结果展示，没有调用图片生成接口。", "sm", "muted"), Button("改成夜晚的氛围", @ToAssistant("请将这张咖啡馆图片改成夜晚的氛围"), "outline")])`;

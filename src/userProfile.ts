@@ -1,6 +1,13 @@
 import { useEffect, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { supabase } from './auth';
+import {
+  BLOUB_CHANGE_EVENT,
+  normalizeBloubConfig,
+  readStoredBloubConfig,
+  writeStoredBloubConfig,
+  type BloubAvatarConfig,
+} from './bloub/bloubConfig';
 
 const bucket = import.meta.env.VITE_SUPABASE_STORAGE_BUCKET?.trim() || 'ai-sail-flow-files';
 export const defaultAvatars = [
@@ -18,6 +25,26 @@ export function isNewUserFirstLogin(user: User | null) {
   const lastSignInAt = user.last_sign_in_at ? Date.parse(user.last_sign_in_at) : Date.now();
   const accountAgeAtFirstSignIn = lastSignInAt - createdAt;
   return Number.isFinite(createdAt) && Number.isFinite(lastSignInAt) && accountAgeAtFirstSignIn >= 0 && accountAgeAtFirstSignIn <= 15 * 60 * 1000;
+}
+
+export function savedBloubConfig(user: User | null): BloubAvatarConfig | null {
+  return normalizeBloubConfig(user?.user_metadata?.avatar_bloub);
+}
+
+export function useProfileBloub(user: User | null): BloubAvatarConfig | null {
+  const fromUser = savedBloubConfig(user);
+  const [stored, setStored] = useState<BloubAvatarConfig | null>(() => readStoredBloubConfig());
+  useEffect(() => {
+    const sync = () => setStored(readStoredBloubConfig());
+    window.addEventListener(BLOUB_CHANGE_EVENT, sync);
+    window.addEventListener('storage', sync);
+    return () => {
+      window.removeEventListener(BLOUB_CHANGE_EVENT, sync);
+      window.removeEventListener('storage', sync);
+    };
+  }, []);
+  if (user) return fromUser;
+  return stored;
 }
 
 function savedAvatarUrl(user: User | null) {
@@ -59,7 +86,12 @@ export async function prepareAvatar(file: File): Promise<Blob> {
   } finally { image.close(); }
 }
 
-export type AvatarChoice = { kind: 'preset'; url: string } | { kind: 'upload'; blob: Blob } | { kind: 'existing' };
+export type AvatarChoice =
+  | { kind: 'preset'; url: string }
+  | { kind: 'upload'; blob: Blob }
+  | { kind: 'bloub'; bloub: BloubAvatarConfig }
+  | { kind: 'existing' };
+
 export async function saveUserProfile(user: User, displayName: string, avatar: AvatarChoice) {
   if (!supabase) throw new Error('登录服务尚未连接。');
   const name = displayName.trim();
@@ -79,10 +111,13 @@ export async function saveUserProfile(user: User, displayName: string, avatar: A
     const { data, error } = await supabase.auth.updateUser({ data: {
       display_name: name,
       profile_completed_at: user.user_metadata.profile_completed_at || new Date().toISOString(),
-      ...(avatar.kind === 'preset' ? { avatar_url: avatar.url, avatar_path: null } : {}),
-      ...(avatar.kind === 'upload' ? { avatar_url: null, avatar_path: uploadedPath } : {}),
+      ...(avatar.kind === 'bloub' ? { avatar_bloub: avatar.bloub, avatar_url: null, avatar_path: null } : {}),
+      ...(avatar.kind === 'preset' ? { avatar_bloub: null, avatar_url: avatar.url, avatar_path: null } : {}),
+      ...(avatar.kind === 'upload' ? { avatar_bloub: null, avatar_url: null, avatar_path: uploadedPath } : {}),
     } });
     if (error || !data.user) throw new Error('个人资料保存失败，请稍后重试。');
+    if (avatar.kind === 'bloub') writeStoredBloubConfig(avatar.bloub);
+    else if (avatar.kind === 'preset' || avatar.kind === 'upload') writeStoredBloubConfig(null);
     const oldPath = user.user_metadata.avatar_path;
     if (avatar.kind !== 'existing' && typeof oldPath === 'string' && oldPath.startsWith(`${user.id}/profile/`) && oldPath !== uploadedPath) {
       void supabase.storage.from(bucket).remove([oldPath]).catch(() => {});

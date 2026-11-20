@@ -25,7 +25,7 @@ try {
   const { registerSkillAssetRoutes, applyInitialSkills, verifySkillAsset } = await import('../server/skill-asset-routes');
   const { reproducibilityInterval } = await import('../shared/skill-assets');
   const mutate = (graph: ExperimentGraph, operation: unknown) => applyExperimentOperation(graph, experimentOperation.parse(operation), randomUUID);
-  const original = createProject(false, undefined, 'Skill verification fixture');
+  const original = createProject(undefined, 'Skill verification fixture');
   const workspace = experimentWorkspace(original.id);
   fs.mkdirSync(workspace, { recursive: true });
   fs.writeFileSync(path.join(workspace, 'convert.cjs'), 'process.stdout.write(process.argv[2].toUpperCase());');
@@ -59,7 +59,7 @@ try {
   assert.ok(delivery.file('SKILL.md')); assert.ok(delivery.file('source/package-lock.json')); assert.ok(delivery.file('experiment.json'));
   assert.ok(!Object.keys(delivery.files).some(name => /(?:^|\/)\.env$/.test(name)));
   const frozen = JSON.stringify(detail.release.snapshot);
-  const destination = createProject(false);
+  const destination = createProject();
   let adopted = catalog.adoptSkillSelection(emptyExperiment(), asset, detail.releaseId, destination.id);
   assert.ok(adopted.assetReferences?.[0].snapshotId);
   assert.equal(adopted.assetReferences?.[0].snapshot, undefined, 'Large reference snapshots must not enter every Agent stream');
@@ -91,7 +91,7 @@ try {
   assert.equal(catalog.listSkillAssets('owner', 'personal').find(item => item.id === asset.id)!.releaseId, detail.releaseId);
 
   async function officialRun(target: SkillAsset) {
-    const project = createProject(false, undefined, 'Official fixture');
+    const project = createProject(undefined, 'Official fixture');
     const job = { id: randomUUID(), projectId: project.id, releaseId: target.currentReleaseId, model: 'local-fixture', status: 'running' as const, startedAt: new Date().toISOString() };
     target.jobs.push(job); catalog.saveSkillAsset(target);
     let execution = catalog.adoptSkillSelection(emptyExperiment(), target, target.currentReleaseId, project.id);

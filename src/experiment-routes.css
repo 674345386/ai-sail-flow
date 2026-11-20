@@ -78,6 +78,15 @@
 .lab-route-sources { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
 .lab-route-sources a { display: inline-flex; align-items: center; gap: 5px; color: var(--lab-accent); text-underline-offset: 3px; overflow-wrap: anywhere; }
 .lab-route-sources > span { color: var(--lab-muted); }
+.lab-route-sources > span.lab-route-skill-tag { display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; border-radius: 999px; background: var(--lab-accent-bg); color: var(--lab-accent); font-size: 10.5px; }
+.lab-proposal-history { display: flex; align-items: center; gap: 10px; padding: 10px 24px; border-bottom: 1px solid var(--lab-line); background: var(--lab-bg); overflow-x: auto; scrollbar-width: thin; }
+.lab-proposal-history-label { display: inline-flex; flex: none; align-items: center; gap: 5px; font-size: 11px; color: var(--lab-muted); white-space: nowrap; }
+.lab-proposal-history-list { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.experiment-workbench .lab-proposal-chip { display: inline-flex; flex: none; align-items: center; gap: 6px; max-width: 240px; min-height: 28px; padding: 3px 10px; border: 1px solid var(--lab-line); border-radius: 999px; background: var(--lab-paper); color: var(--lab-ink); font-size: 11px; cursor: pointer; }
+.experiment-workbench .lab-proposal-chip.is-active { border-color: var(--lab-accent); background: var(--lab-accent-bg); color: var(--lab-accent); opacity: 1; }
+.lab-proposal-chip > strong { font-weight: 600; flex: none; }
+.lab-proposal-chip > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lab-proposal-chip > small { flex: none; font-size: 10px; color: var(--lab-muted); font-variant-numeric: tabular-nums; }
 .lab-route-card > footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; min-height: 41px; margin: 0 -18px; padding: 9px 18px; border-top: 1px solid var(--lab-line); color: var(--lab-muted); font-size: 10px; }
 .lab-route-card > footer > span:first-child { flex: 1; min-width: 150px; }
 .lab-route-card > footer > button { font-size: 10px; min-height: 28px; }

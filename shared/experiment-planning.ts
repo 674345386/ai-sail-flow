@@ -24,7 +24,23 @@ export function normalizeExperimentPolicy(policy?: ExperimentPolicy): Experiment
   return policy ? { ...policy, level: experimentLevel(policy.level).level } : defaultExperimentPolicy();
 }
 export const routeReadinessLabels = { ready: '可开始', 'needs-input': '待补素材', 'needs-setup': '待准备环境', unverified: '待核实', unavailable: '暂不可用' } as const;
-export const routeToolSchema = z.enum(['generate_image', 'generate_video', 'generate_minimax_video', 'generate_first_last_frame_video', 'generate_grid_video', 'build_video_storyboard', 'compose_video', 'programmatic', 'agent', 'manual']);
+export const BUILTIN_ROUTE_TOOLS = [
+  'generate_image',
+  'generate_video',
+  'generate_minimax_video',
+  'generate_first_last_frame_video',
+  'generate_grid_video',
+  'build_video_storyboard',
+  'build_animatic_preview',
+  'inspect_artifact_quality',
+  'compose_video',
+  'ffmpeg_skill',
+  'programmatic',
+  'agent',
+  'manual',
+] as const;
+/** Open tool identifier: accepts built-in atomic tools plus dynamic MCP/plugin IDs (e.g. mcp:comfy/wan, plugin:remotion). */
+export const routeToolSchema = z.string().trim().regex(/^[a-z][a-z0-9_.:/-]{1,80}$/i, '工具标识需为字母开头的有效名称');
 export const routeStepSchema = z.object({
   title: text(120), description: z.string().max(2000).default(''), prompt: z.string().max(16000).default(''),
   tool: routeToolSchema, model: z.string().max(120).default(''), referenceIds: z.array(id).max(20).default([]),
@@ -35,7 +51,7 @@ export const experimentRouteSchema = z.object({
   recommended: z.boolean().default(false), readiness: z.enum(['ready', 'needs-input', 'needs-setup', 'unverified', 'unavailable']),
   readinessReason: text(2000), requirements: z.array(text(500)).max(20).default([]),
   costNote: z.string().max(500).default('费用与耗时以实际执行为准'),
-  sources: z.array(z.object({ kind: z.enum(['agent', 'space-skill', 'platform-skill', 'github-skill', 'repository', 'documentation']), title: text(160), url: z.string().url().startsWith('https://').max(2000).optional(), referenceId: id.optional() })).max(12).default([]),
+  sources: z.array(z.object({ kind: z.enum(['agent', 'builtin-skill', 'space-skill', 'platform-skill', 'github-skill', 'repository', 'documentation']), title: text(160), url: z.string().url().startsWith('https://').max(2000).optional(), referenceId: id.optional() })).max(12).default([]),
   steps: z.array(routeStepSchema).min(1).max(8),
 });
 export type ExperimentRoute = z.infer<typeof experimentRouteSchema>;
@@ -48,8 +64,9 @@ const proposeRoutes = z.object({
   routes: z.array(experimentRouteSchema).min(1).max(12),
 });
 const selectRoutes = z.object({ op: z.literal('select-routes'), proposalId: id, routeIds: z.array(id).min(1).max(6) });
+const switchProposal = z.object({ op: z.literal('switch-proposal'), proposalId: id });
 export const experimentPlanningOperations = [
-  z.object({ op: z.literal('policy'), policy: experimentPolicySchema }), proposeRoutes, selectRoutes,
+  z.object({ op: z.literal('policy'), policy: experimentPolicySchema }), proposeRoutes, selectRoutes, switchProposal,
 ] as const;
 export type PlanningOperation = z.infer<typeof experimentPlanningOperations[number]>;
 export type ExperimentProposal = Omit<z.infer<typeof proposeRoutes>, 'op'> & {
@@ -99,7 +116,7 @@ function selectProposalRoutes(graph: ExperimentGraph, proposal: ExperimentPropos
       const stepId = uid(), outputId = uid(), methodId = uid();
       const method: ExperimentMethod = { id: methodId, title: step.model || step.title, description: step.description, prompt: step.prompt, inputs, referenceIds: [...step.referenceIds], model: step.model, parameters: { ...step.parameters } };
       const outputMediaType = step.tool === 'generate_image' || step.tool === 'build_video_storyboard' ? 'image' as const
-        : ['generate_video', 'generate_minimax_video', 'generate_first_last_frame_video', 'generate_grid_video', 'compose_video'].includes(step.tool) ? 'video' as const : undefined;
+        : ['generate_video', 'generate_minimax_video', 'generate_first_last_frame_video', 'generate_grid_video', 'build_animatic_preview', 'compose_video', 'ffmpeg_skill'].includes(step.tool) ? 'video' as const : undefined;
       const node: ExperimentNode = { id: stepId, planId, kind: 'step', title: step.title, description: step.description, method: method.title, prompt: step.prompt, content: '', status: 'planned', inputs, methods: [method], activeMethodId: methodId, revision: 1, inputRevisions: {}, position: { x: index * 652, y: offset }, routeStepIndex: index };
       nodes.push(node, { id: outputId, planId, kind: 'artifact', title: `${step.title} · 产物`.slice(0, 120), description: route.expectedOutcome, prompt: '', method: '', content: '', ...(outputMediaType ? { mediaType: outputMediaType } : {}), status: 'planned', inputs: [stepId], revision: 1, inputRevisions: {}, position: { x: index * 652 + 326, y: offset } });
       previousOutput = outputId;
@@ -131,6 +148,11 @@ export function applyExperimentPlanning(graph: ExperimentGraph, operation: Plann
     const proposal = graph.proposals?.find(item => item.id === operation.proposalId);
     if (!proposal) throw new ExperimentPlanningError('找不到这份路线提案，请刷新后重试。');
     updated = selectProposalRoutes(graph, proposal, operation.routeIds, uid);
+  }
+  if (operation.op === 'switch-proposal') {
+    const proposal = graph.proposals?.find(item => item.id === operation.proposalId);
+    if (!proposal) throw new ExperimentPlanningError('找不到这份历史路线提案，请刷新后重试。');
+    updated = { ...graph, activeProposalId: proposal.id };
   }
   return { ...updated, revision: graph.revision + 1, updatedAt: new Date().toISOString() };
 }

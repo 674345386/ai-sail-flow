@@ -1,0 +1,4 @@
+interface:
+  display_name: "Per-Shot Beat-Cut"
+  short_description: "单镜生片，按 BGM 实测重音裁切拼接成片"
+  default_prompt: "Use $per-shot-beatcut to build a beat-cut video: one keyframe per shot, 4s per-shot generation trimmed to 2-3s, cuts snapped to detected audio accents."

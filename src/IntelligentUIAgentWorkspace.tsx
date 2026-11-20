@@ -1,6 +1,9 @@
 import { Component, Fragment, useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Renderer, type ActionEvent } from '@openuidev/react-lang';
-import { ArrowUp, Check, ChevronDown, CornerUpRight, ListFilter, ListPlus, LoaderCircle, Plus, SlidersHorizontal, Square, X } from 'lucide-react';
+import { ArrowUp, Check, ChevronDown, CornerUpRight, ListFilter, ListPlus, LoaderCircle, Plus, SlidersHorizontal, Sparkles, Square, X } from 'lucide-react';
+import { BloubAvatar } from './bloub/BloubAvatar';
+import { BloubCustomizer } from './bloub/BloubCustomizer';
+import { DEFAULT_BLOUB_CONFIG, readStoredBloubConfig, resolveAgentBloubState, writeStoredBloubConfig, type BloubAvatarConfig } from './bloub/bloubConfig';
 import type { GeneratedVideo, Project } from '../shared/domain';
 import type { CanvasComponentInput } from '../shared/agent-canvas-ui';
 import type { AgentMessage } from '../shared/agent-message';
@@ -52,16 +55,17 @@ class PanelBoundary extends Component<{ children: ReactNode }, { failed: boolean
   render() { return this.state.failed ? <p role="alert">界面未能显示，请让 Agent 修正这次界面。</p> : this.props.children; }
 }
 
-export default function IntelligentUIAgentWorkspace({ theme, workspaceBackgroundAvailable = false, project, videoRemixWorkflow, disabled, steerDisabled = disabled, onProjectUpdate, onBeforeSend, onActivity, liveAgent, connected, historyError, taskAssetsOpen: taskAssetsRequested, onOpenTaskAssets, onCloseTaskAssets, onTaskAssetCountChange, entryDraft, onEntryDraftConsumed }: {
+export default function IntelligentUIAgentWorkspace({ theme, workspaceBackgroundAvailable = false, project, disabled, steerDisabled = disabled, onProjectUpdate, onActivity, liveAgent, connected, historyError, taskAssetsOpen: taskAssetsRequested, onOpenTaskAssets, onCloseTaskAssets, onTaskAssetCountChange, entryDraft, onEntryDraftConsumed, bloubConfig }: {
   theme: AgentThemeController;
   workspaceBackgroundAvailable?: boolean;
-  project: Project; videoRemixWorkflow?: ReactNode; disabled: boolean; steerDisabled?: boolean;
-  onProjectUpdate: (project: Project) => void; onBeforeSend: () => Promise<unknown>;
+  project: Project; disabled: boolean; steerDisabled?: boolean;
+  onProjectUpdate: (project: Project) => void;
   onActivity?: (id: string, activity: AgentActivity) => void;
   liveAgent?: AgentState; connected?: boolean; historyError?: string;
   taskAssetsOpen: boolean; onOpenTaskAssets: () => void; onCloseTaskAssets: () => void;
   onTaskAssetCountChange: (projectId: string, count: number | null) => void;
   entryDraft?: { id: string; text: string } | null; onEntryDraftConsumed?: () => void;
+  bloubConfig?: BloubAvatarConfig | null;
 }) {
   const [agent, setAgent] = useState<AgentState>(() => liveAgent || { status: 'idle', messages: [] });
   const [historyLoaded, setHistoryLoaded] = useState(!!liveAgent);
@@ -97,6 +101,9 @@ export default function IntelligentUIAgentWorkspace({ theme, workspaceBackground
   const preferencesId = useId();
   const preferencesToggle = useRef<HTMLButtonElement>(null);
   const preferencesPanel = useRef<HTMLDivElement>(null);
+  const [bloubOpen, setBloubOpen] = useState(false);
+  const bloubToggle = useRef<HTMLButtonElement>(null);
+  const bloubPanel = useRef<HTMLDivElement>(null);
   const preferenceSavingRef = useRef(false);
   const [models, setModels] = useState<{ model: string; displayName?: string }[]>([]);
   const [selectedTab, setSelectedTab] = useState('lab');
@@ -141,7 +148,7 @@ export default function IntelligentUIAgentWorkspace({ theme, workspaceBackground
   const adaptation = normalizeAgentAdaptation(agent.adaptation);
   const presentation = normalizeAgentPresentation(agent.presentation);
   const preferencesTitle = `结果呈现：${AGENT_PRESENTATIONS.find(option => option.value === presentation)!.label}；创作适配：${AGENT_ADAPTATIONS[adaptation].label}`;
-  const media = useAgentPromptMedia({ project, messages: agent.messages, disabled: disabled || running || !historyLoaded, onBeforeChange: onBeforeSend, onProjectUpdate, onError: setError });
+  const media = useAgentPromptMedia({ project, messages: agent.messages, disabled: disabled || running || !historyLoaded, onProjectUpdate, onError: setError });
   const mediaDisabled = disabled || running || media.working || !historyLoaded;
   const queueDisabled = steerDisabled || sending || queueSaving || !historyLoaded || media.working || adaptationSaving || presentationSaving || modelSaving;
   const sendDisabled = (steering ? steerDisabled : disabled) || sending || queueSaving || !historyLoaded || media.working || adaptationSaving || presentationSaving || modelSaving || (steering && !agent.turnId);
@@ -197,6 +204,7 @@ export default function IntelligentUIAgentWorkspace({ theme, workspaceBackground
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
+      if (bloubOpen) { setBloubOpen(false); bloubToggle.current?.focus(); return; }
       if (modelMenu) { setModelMenu(false); modelToggle.current?.focus(); return; }
       if (preferencesOpen) { setPreferencesOpen(false); preferencesToggle.current?.focus(); return; }
       if (taskAssetsOpen) { closeTaskAssets.current(); return; }
@@ -205,6 +213,7 @@ export default function IntelligentUIAgentWorkspace({ theme, workspaceBackground
       if (summaryOpen) { setSummaryOpen(false); summaryToggle.current?.focus(); }
     };
     const onOutsideInteraction = (event: PointerEvent | FocusEvent) => {
+      if (bloubOpen && event.target instanceof Node && !bloubPanel.current?.contains(event.target) && !bloubToggle.current?.contains(event.target)) setBloubOpen(false);
       if (preferencesOpen && event.target instanceof Node && !preferencesPanel.current?.contains(event.target) && !preferencesToggle.current?.contains(event.target)) setPreferencesOpen(false);
       if (modelMenu && event.target instanceof Node && !modelPicker.current?.contains(event.target)) setModelMenu(false);
     };
@@ -212,7 +221,7 @@ export default function IntelligentUIAgentWorkspace({ theme, workspaceBackground
     window.addEventListener('pointerdown', onOutsideInteraction);
     window.addEventListener('focusin', onOutsideInteraction);
     return () => { window.removeEventListener('keydown', onKeyDown); window.removeEventListener('pointerdown', onOutsideInteraction); window.removeEventListener('focusin', onOutsideInteraction); };
-  }, [summaryOpen, preferencesOpen, taskAssetsOpen, modelMenu]);
+  }, [summaryOpen, preferencesOpen, taskAssetsOpen, modelMenu, bloubOpen]);
   useEffect(() => {
     if (!modelMenu) return;
     const selected = modelPicker.current?.querySelector<HTMLElement>('.iua-model-option[aria-pressed="true"]') || modelPicker.current?.querySelector<HTMLElement>('.iua-model-option');
@@ -248,10 +257,10 @@ export default function IntelligentUIAgentWorkspace({ theme, workspaceBackground
     if (!steering && media.attachments.length) { setError('队列仅支持文字，请先发送或移除附件。'); return; }
     if (await updateQueue('', 'POST', { prompt: text })) setDraft(current => current === text ? '' : current);
   };
-  const send = async (text: string, includeAttachments = true) => {
+  const send = async (text: string, includeAttachments = true, referencePlanVideoId?: string) => {
     const attachments = steering || !includeAttachments ? [] : media.attachments.slice();
     const prompt = text.trim() ? text : attachments.length ? '请查看附件中的参考素材。' : '';
-    if (!prompt.trim() || sendDisabled || media.busy.current || sendingRef.current || queueSavingRef.current || preferenceSavingRef.current) return;
+    if (!prompt.trim() || sendDisabled || (referencePlanVideoId && steering) || media.busy.current || sendingRef.current || queueSavingRef.current || preferenceSavingRef.current) return;
     const images = attachments.filter(asset => asset.kind === 'product');
     const videos = attachments.filter(asset => asset.kind === 'video');
     const audios = attachments.filter(asset => asset.kind === 'audio');
@@ -260,8 +269,10 @@ export default function IntelligentUIAgentWorkspace({ theme, workspaceBackground
     const createdAt = new Date().toISOString();
     setPendingUser({ id: `pending:${crypto.randomUUID()}`, role: 'user', text: prompt, createdAt, images, videos, audios, attachmentOrder, attachmentsSent: false, work: createAgentWork(createdAt), afterCount: agent.messages.length });
     try {
-      if (!steering) await onBeforeSend();
-      await api<AgentState>(`/api/projects/${project.id}/agent/${steering ? 'steer' : 'turns'}`, { method: 'POST', body: JSON.stringify(steering ? { prompt, expectedTurnId: agent.turnId } : { prompt, imageIds: images.map(image => image.id), videoIds: videos.map(video => video.id), audioIds: audios.map(audio => audio.id), attachmentOrder }) });
+      const request = steering ? { prompt, expectedTurnId: agent.turnId } : {
+        prompt, imageIds: images.map(image => image.id), videoIds: videos.map(video => video.id), audioIds: audios.map(audio => audio.id), attachmentOrder, referencePlanVideoId,
+      };
+      await api<AgentState>(`/api/projects/${project.id}/agent/${steering ? 'steer' : 'turns'}`, { method: 'POST', body: JSON.stringify(request) });
       media.markSent(attachmentOrder);
       setDraft(current => current === text ? '' : current);
       // Refresh from the source instead of applying the POST snapshot, which may
@@ -287,7 +298,7 @@ export default function IntelligentUIAgentWorkspace({ theme, workspaceBackground
     void send(`${event.humanFriendlyMessage || event.type}${fields}`);
   };
   const tools = useMemo(() => Object.fromEntries(
-    ['get_creative', 'discover_experiment_methods', 'read_experiment_method', 'show_intelligent_ui', 'show_canvas_component', 'analyze_reference', 'save_video_production', 'build_video_storyboard', 'compose_video', 'generate_image', 'generate_video', 'generate_minimax_video', 'generate_first_last_frame_video', 'recover_video', 'edit_grid_prompt', 'generate_grid_video', 'update_experiment', 'import_experiment_skill', 'bind_experiment_source'].flatMap(name =>
+    ['get_creative', 'discover_experiment_methods', 'read_experiment_method', 'show_intelligent_ui', 'show_canvas_component', 'analyze_reference', 'save_video_production', 'build_video_storyboard', 'compose_video', 'ffmpeg_skill', 'generate_image', 'generate_video', 'generate_minimax_video', 'generate_first_last_frame_video', 'recover_video', 'edit_grid_prompt', 'generate_grid_video', 'update_experiment', 'import_experiment_skill', 'bind_experiment_source'].flatMap(name =>
       [name, `sail_creation/${name}`].map(alias => [alias, (args: Record<string, unknown>) => api(`/api/projects/${project.id}/agent/intelligent-tool`, { method: 'POST', body: JSON.stringify({ name, args }) })]),
     ),
   ), [project.id]);
@@ -380,6 +391,43 @@ export default function IntelligentUIAgentWorkspace({ theme, workspaceBackground
     finally { preferenceSavingRef.current = false; setPresentationSaving(false); }
   };
 
+  const [localBloub, setLocalBloub] = useState<BloubAvatarConfig>(() => bloubConfig || readStoredBloubConfig() || DEFAULT_BLOUB_CONFIG);
+  useEffect(() => {
+    if (bloubConfig) setLocalBloub(bloubConfig);
+  }, [bloubConfig]);
+  const [justCompleted, setJustCompleted] = useState(false);
+  const wasRunningRef = useRef(false);
+  useEffect(() => {
+    let timer: number | undefined;
+    if (wasRunningRef.current && !running && agent.status !== 'failed' && !error && !agent.error) {
+      setJustCompleted(true);
+      timer = window.setTimeout(() => setJustCompleted(false), 3800);
+    } else if (running) {
+      setJustCompleted(false);
+    }
+    wasRunningRef.current = running;
+    return () => { if (timer !== undefined) window.clearTimeout(timer); };
+  }, [running, agent.status, error, agent.error]);
+  const latestStep = useMemo(() => {
+    if (!latestUser) return undefined;
+    return workHistory.get(latestUser.id)?.steps.at(-1)?.label;
+  }, [latestUser, workHistory]);
+  const bloubStatus = useMemo(() => resolveAgentBloubState({
+    status: agent.status,
+    sending,
+    connected,
+    activity: agent.activity,
+    latestStep,
+    error: error || agent.error,
+    queuedCount: queuedMessages.length,
+    queuePaused: !!agent.queuePaused,
+    justCompleted,
+    isTyping: draft.trim().length > 0,
+  }), [agent.status, sending, connected, agent.activity, latestStep, error, agent.error, queuedMessages.length, agent.queuePaused, justCompleted, draft]);
+  const updateBloub = (next: BloubAvatarConfig) => {
+    setLocalBloub(next);
+    writeStoredBloubConfig(next);
+  };
   const renderDeliverables = (group?: MessageDeliverableGroup, message?: AgentMessage) => {
     if (!group?.items.length) return null;
     const messagePanels = message?.role === 'assistant' ? parseAgentAnswer(message.text).panels : [];
@@ -388,12 +436,84 @@ export default function IntelligentUIAgentWorkspace({ theme, workspaceBackground
   const chatRegion = theme.regionProps('chat', workspaceBackgroundAvailable);
   const composerRegion = theme.regionProps('composer', workspaceBackgroundAvailable);
   const outputRegion = theme.regionProps('results', workspaceBackgroundAvailable);
+  const agentLogoBackground = localBloub.color === 'creme' ? undefined : '#fff';
   return <section className="intelligent-agent" aria-label="Open Intelligent UI 创作工作区">
     <div className={`iua-workspace${split.resizing ? ' is-resizing' : ''}`} ref={split.workspace} style={split.style}>
       <div className="iua-conversation intelligent-ui-surface" {...chatRegion} data-composer-background={composerRegion['data-region-background']} ref={split.conversation} id="iua-conversation">
         <div className="iua-chat-backdrop" aria-hidden="true" />
+        <header className="iua-agent-presence" aria-label="创作 Agent 动态状态">
+          <div className="iua-agent-presence-main">
+            <BloubAvatar
+              size={42}
+              shape={localBloub.shape}
+              color={localBloub.color}
+              expression={localBloub.expression}
+              state={bloubStatus.state}
+              frameBackground={agentLogoBackground}
+              frameOutline={false}
+              framed
+              followPointer
+              label={`创作 Agent：${bloubStatus.label}`}
+            />
+            <div className="iua-agent-presence-copy">
+              <div className="iua-agent-presence-title">
+                <strong>创作 Agent</strong>
+                <span className={`iua-bloub-pill is-${bloubStatus.tone}`}>{bloubStatus.label}</span>
+              </div>
+              <p className="iua-bloub-detail" title={bloubStatus.detail}>{bloubStatus.detail}</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            ref={bloubToggle}
+            className="iua-bloub-customize-btn"
+            aria-expanded={bloubOpen}
+            aria-label="自定义 Bloub 头像"
+            title="自定义形状、颜色与默认神态"
+            onClick={() => { setBloubOpen(open => !open); setPreferencesOpen(false); setModelMenu(false); }}
+          >
+            <Sparkles size={13} aria-hidden="true" />
+            <span>形象</span>
+          </button>
+          {bloubOpen && (
+            <div className="iua-bloub-popover" ref={bloubPanel} role="dialog" aria-label="自定义 Bloub 动态头像">
+              <div className="iua-bloub-popover-head">
+                <div className="iua-bloub-popover-preview">
+                  <BloubAvatar
+                    size={52}
+                    shape={localBloub.shape}
+                    color={localBloub.color}
+                    expression={localBloub.expression}
+                    state={bloubStatus.state}
+                    framed
+                    followPointer
+                  />
+                  <div>
+                    <strong>Bloub 动态形象</strong>
+                    <small>会随思考、生图、剪辑与完成状态自动变形</small>
+                  </div>
+                </div>
+                <button type="button" className="iua-icon-button iua-preferences-close" aria-label="关闭形象设置" onClick={() => setBloubOpen(false)}><X size={15} aria-hidden="true" /></button>
+              </div>
+              <BloubCustomizer value={localBloub} onChange={updateBloub} compact />
+            </div>
+          )}
+        </header>
         <div className="iua-messages" ref={scroll} role="log" aria-label="与创作 Agent 的对话" aria-live="polite" onScroll={() => { const el = scroll.current; if (el) nearBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 100; }}>
-          {!messages.length && <p className="iua-empty">{historyError || (historyLoaded ? '描述你的创作目标，或提出一个问题。' : '正在加载对话记录…')}</p>}
+          {!messages.length && <div className="iua-empty-bloub">
+            <BloubAvatar
+              size={72}
+              shape={localBloub.shape}
+              color={localBloub.color}
+              expression={localBloub.expression}
+              state={bloubStatus.state}
+              frameBackground={agentLogoBackground}
+              frameOutline={false}
+              framed
+              followPointer
+            />
+            <p className="iua-empty">{historyError || (historyLoaded ? '描述你的创作目标，或提出一个问题。' : '正在加载对话记录…')}</p>
+          </div>}
           {!!deliverablesByMessage.get(UNASSIGNED_MEDIA)?.items.length && <div aria-label="更早的创作产物">
             <p className="iua-message-note">更早的创作产物</p>
             {renderDeliverables(deliverablesByMessage.get(UNASSIGNED_MEDIA))}
@@ -466,7 +586,7 @@ export default function IntelligentUIAgentWorkspace({ theme, workspaceBackground
         <div className="iua-output-body" hidden={taskAssetsOpen}>
           {summaryOpen && <AgentArtifacts artifacts={artifacts} activeId={rightView} onOpen={openArtifact} onClose={closeSummary} />}
           <div className="iua-panels">
-            <div className="iua-experiment-tab" hidden={rightView !== 'lab' || !tabs.includes('lab')}><ExperimentWorkbench key={project.id} project={project} graph={agent.experiment} onGraph={experiment => setAgent(current => ({ ...current, experiment }))} onDraft={text => setDraft(text)} onExecute={text => { void send(text, false); }} onProjectUpdate={onProjectUpdate} onBeforeChange={onBeforeSend} disabled={disabled || running || sendDisabled || !historyLoaded} active={rightView === 'lab'} theme={theme.resultsTheme} themeStyle={outputRegion.style} videoRemixWorkflow={videoRemixWorkflow} workflowControls={workflowControls} workflowRequest={workflowRequest} /></div>
+            <div className="iua-experiment-tab" hidden={rightView !== 'lab' || !tabs.includes('lab')}><ExperimentWorkbench key={project.id} project={project} graph={agent.experiment} onGraph={experiment => setAgent(current => ({ ...current, experiment }))} onDraft={text => setDraft(text)} onExecute={text => { void send(text, false); }} onPlanReference={(videoId, text) => { void send(text, false, videoId); }} onProjectUpdate={onProjectUpdate} disabled={disabled || running || sendDisabled || !historyLoaded} active={rightView === 'lab'} theme={theme.resultsTheme} themeStyle={outputRegion.style} workflowControls={workflowControls} workflowRequest={workflowRequest} /></div>
             {mediaTask && <div className="iua-skill-assets-tab" hidden={rightView !== 'assets'}><SkillAssetCenter key={project.id} project={project} graph={agent.experiment} onGraph={experiment => setAgent(current => ({ ...current, experiment }))} onDraft={text => setDraft(text)} onContinue={() => { activate('lab'); composerText.current?.focus({ preventScroll: true }); }} disabled={disabled || running || !historyLoaded} active={rightView === 'assets' && !taskAssetsOpen} /></div>}
             <div className="iua-generated" hidden={(rightView !== 'ui' && activeArtifact?.kind !== 'ui') || !tabs.includes(rightView)} onClick={event => {
               if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;

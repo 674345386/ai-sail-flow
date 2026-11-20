@@ -2,13 +2,14 @@ import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import type { Asset, Project } from '../shared/domain';
+import { referenceSceneImages } from '../shared/agent-video-analysis';
 import { levelInfo } from '../shared/replication-levels';
 import { H3_MIN_SECONDS, OMNI_FLASH_12, OMNI_FLASH_12_SECONDS, PRODUCTION_SEGMENT_SECONDS, productionCompositionInput, productionVideoInput, videoProductionInput, type ProductionVideoInput, type VideoProductionPlan } from '../shared/video-production';
 import { prepareReferenceSceneFrame } from './media';
 import { startMinimaxVideo } from './minimax-video';
 import { getProject, saveProject } from './store';
 import { launchTask, TaskError } from './tasks';
-import { generationConfigured } from './veo';
+import { omniConfigured } from './omni';
 import { workspaceUploadPath } from './workspace-storage';
 import type { ProductionClip } from './compose';
 import type { z } from 'zod';
@@ -45,9 +46,13 @@ export async function saveVideoProductionPlan(project: Project, input: z.infer<t
     previousEnd = scene.end;
   }
   const scenes: VideoProductionPlan['scenes'] = [];
-  const savedFrames = productionScopeImages(project);
+  const table = project.referenceSceneTable?.videoId === video?.id ? project.referenceSceneTable : undefined;
+  const savedFrames = new Map([...referenceSceneImages(table), ...productionScopeImages(project)].map(frame => [frame.id, frame]));
   for (const scene of plan.scenes) {
-    const originalFrames = savedFrames.filter(frame => scene.sourceFrameIds.includes(frame.id)).map(({ id, at, url, filename }) => ({ id, at, url, filename }));
+    const originalFrames = [...new Set(scene.sourceFrameIds)].flatMap(id => {
+      const frame = savedFrames.get(id);
+      return frame ? [{ id, at: frame.at, url: frame.url, filename: frame.filename }] : [];
+    });
     for (const at of new Set(scene.originalFrameTimes || [])) {
       const frame = await prepareReferenceSceneFrame(video!, { ...scene, frameAt: at });
       const filename = path.basename(frame.frameUrl);
@@ -178,7 +183,7 @@ export async function startProductionVideo(project: Project, body: unknown, imag
     }, references, scope, { targetDuration, gridId });
   }
 
-  if (!generationConfigured()) throw new TaskError(503, '请先连接 Omni 视频服务。');
+  if (!omniConfigured()) throw new TaskError(503, '请先连接 Omni 视频服务。');
   if (input.referenceVideoIds.length) throw new TaskError(400, 'Omni 参考生成支持图片；独立源视频请使用编辑模式。');
   const modern = provider === OMNI_FLASH_12;
   const ratio = source && video?.width && video.height ? video.width >= video.height ? '16:9' : '9:16' : input.aspectRatio || (aspectRatio === '16:9' ? '16:9' : '9:16');
@@ -193,7 +198,7 @@ export async function startProductionVideo(project: Project, body: unknown, imag
     const filename = image?.filename;
     const mime = image?.mime || (/\.jpe?g$/i.test(filename || '') ? 'image/jpeg' : /\.webp$/i.test(filename || '') ? 'image/webp' : 'image/png');
     if (!filename || !['image/jpeg', 'image/png', 'image/webp'].includes(mime) || !fs.existsSync(workspaceUploadPath(filename))) throw new TaskError(400, `参考图 ${id} 不在当前创意中或无法读取。`);
-    return { filename, mime };
+    return { id, filename, mime };
   });
   const { requestKey, stepId: _step, ...parameters } = input;
   const requestFingerprint = createHash('sha256').update(JSON.stringify([parameters, ratio, resolution, duration, source])).digest('hex');
@@ -204,10 +209,9 @@ export async function startProductionVideo(project: Project, body: unknown, imag
     return { videoId: existing.id, status: existing.status, reused: true };
   }
   const work = launchTask(project.id, { kind: 'generation', input: {
-    unitId: '', prompt, mode: 'r2v', resolution, aspectRatio: ratio, images: [],
-    referenceImages: references.map(ref => `/media/${ref.filename}`),
-    omni: { model: modern ? OMNI_FLASH_12 : undefined, duration: duration as (typeof OMNI_FLASH_12_SECONDS)[number] | undefined,
-      firstLastFrame: !!frames.length, referenceIds: imageIds, referenceMimes: references.map(ref => ref.mime), source, requestKey: key, requestFingerprint },
+    prompt, resolution, aspectRatio: ratio, references, source, requestKey: key, requestFingerprint,
+    model: modern ? OMNI_FLASH_12 : undefined, duration: duration as (typeof OMNI_FLASH_12_SECONDS)[number] | undefined,
+    firstLastFrame: !!frames.length,
   } });
   void work.catch(error => console.warn(`Creative Omni: ${error instanceof Error ? error.message : String(error)}`));
   const job = getProject(project.id)!.job!;

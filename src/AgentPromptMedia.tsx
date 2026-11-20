@@ -15,8 +15,8 @@ function fileKind(file: File): Asset['kind'] | null {
   return kind === 'image' ? 'product' : kind;
 }
 
-export function useAgentPromptMedia({ project, messages, disabled, onBeforeChange, onProjectUpdate, onError }: {
-  project: Project; messages: AgentMessage[]; disabled: boolean; onBeforeChange: () => Promise<unknown>;
+export function useAgentPromptMedia({ project, messages, disabled, onProjectUpdate, onError }: {
+  project: Project; messages: AgentMessage[]; disabled: boolean;
   onProjectUpdate: (project: Project) => void; onError: (message: string) => void;
 }) {
   const [working, setWorking] = useState(false);
@@ -44,7 +44,6 @@ export function useAgentPromptMedia({ project, messages, disabled, onBeforeChang
     busy.current = true; setWorking(true); onError('');
     const controller = new AbortController(); request.current = controller;
     try {
-      await onBeforeChange();
       if (!controller.signal.aborted) await operation(controller.signal);
     } catch (failure) {
       if (!controller.signal.aborted) onError(failure instanceof Error ? failure.message : '素材处理失败，请重试。');

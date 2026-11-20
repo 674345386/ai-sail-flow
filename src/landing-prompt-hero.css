@@ -34,9 +34,12 @@
 .lp-hero ::selection { background: #f6f3ff; color: #292331; }
 .lp-hero ::-webkit-scrollbar-thumb { border-radius: 8px; background: #ffffff50; }
 .lp-references { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 15px; padding: 0; list-style: none; }
-.lp-references li { display: flex; align-items: center; gap: 7px; max-width: 220px; padding: 4px 6px 4px 4px; border: 1px solid #39363f; border-radius: 7px; font-size: 11px; }
-.lp-references li > img { width: 26px; height: 26px; border-radius: 3px; object-fit: cover; }
-.lp-references li > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lp-references li { display: flex; align-items: center; gap: 7px; max-width: min(220px, 100%); padding: 4px 6px 4px 4px; border: 1px solid #39363f; border-radius: 7px; font-size: 11px; }
+.lp-reference-thumbnail { display: grid; grid-template: 100% / 100%; flex: 0 0 52px; place-items: center; width: 52px; height: 36px; overflow: hidden; border-radius: 4px; background: #ffffff0c; color: #c5bbdf; }
+.lp-reference-thumbnail > * { grid-area: 1 / 1; }
+.lp-reference-thumbnail :is(img, video) { display: block; width: 100%; height: 100%; object-fit: cover; }
+.lp-reference-thumbnail:not([data-ready]) :is(img, video) { opacity: 0; }
+.lp-reference-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lp-references button { display: grid; place-items: center; flex-shrink: 0; padding: 3px; border: 0; background: transparent; color: #c5bbdf; }
 .lp-error { margin: 15px 6px 0; color: var(--lp-ink, #fff2dd); font-size: 13px; line-height: 1.7; }
 .lp-scroll-cue { position: absolute; bottom: 35px; left: 50%; display: flex; align-items: center; gap: 13px; transform: translateX(-50%); color: var(--lp-muted, #e4c9d6); font-size: 11px; text-decoration: none; white-space: nowrap; }

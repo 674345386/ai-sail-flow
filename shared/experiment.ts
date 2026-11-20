@@ -9,6 +9,26 @@ export const experimentKinds = ['asset', 'step', 'skill', 'artifact', 'compare']
 export const experimentStatuses = ['planned', 'running', 'completed', 'failed', 'stale'] as const;
 export const experimentKindLabels = { asset: '素材', step: '制作步骤', skill: 'Skill 方法', artifact: '阶段产物', compare: '方案比较' };
 export const experimentStatusLabels = { planned: '待执行', running: '执行中', completed: '已完成', failed: '执行失败', stale: '需要更新' };
+export const assetRoles = ['character', 'product', 'scene', 'style', 'audio', 'reference'] as const;
+export type AssetRole = typeof assetRoles[number];
+export const assetRoleLabels: Record<AssetRole, string> = {
+  character: '角色母版',
+  product: '商品锚点',
+  scene: '场景定调',
+  style: '风格母版',
+  audio: '参考音频',
+  reference: '通用素材',
+};
+export const experimentQualityCheckSchema = z.object({
+  status: z.enum(['pass', 'warn', 'fail']),
+  score: z.number().finite().min(0).max(100),
+  summary: z.string().trim().min(1).max(1000),
+  issues: z.array(z.string().trim().min(1).max(400)).max(12).default([]),
+  suggestion: z.string().max(600).default(''),
+  checkedAt: z.string().max(80),
+  frameUrls: z.array(z.string().max(500)).max(6).default([]),
+});
+export type ExperimentQualityCheck = z.infer<typeof experimentQualityCheckSchema>;
 const nodeId = z.string().regex(/^[\w-]{1,100}$/);
 const position = z.object({ x: z.number().finite().min(-50000).max(50000), y: z.number().finite().min(-50000).max(50000) });
 export const experimentMethodInput = z.object({
@@ -35,6 +55,7 @@ export const experimentNodeInput = z.object({
   selectedInput: nodeId.optional(),
   planId: nodeId.optional(), methods: z.array(experimentMethodInput).min(1).max(16).optional(), activeMethodId: nodeId.optional(),
   assetReferenceId: nodeId.optional(),
+  assetRole: z.enum(assetRoles).optional(),
   display: z.object({ width: z.number().finite().min(160).max(720), aspectRatio: z.number().finite().min(0.1).max(10).optional() }).optional(),
 });
 export type ExperimentNodeInput = z.infer<typeof experimentNodeInput>;
@@ -44,6 +65,7 @@ export type ExperimentNode = ExperimentNodeInput & {
   url?: string; mediaType?: 'image' | 'video' | 'text'; skill?: ExperimentSkill; error?: string;
   runId?: string;
   routeStepIndex?: number;
+  qualityCheck?: ExperimentQualityCheck;
 };
 export type ExperimentTemplate = { id: string; title: string; createdAt: string; verified: boolean; nodes: ExperimentNode[]; plans?: ExperimentPlan[] };
 export type ExperimentFile = { id: string; title: string; url: string; mediaType: 'image' | 'video' | 'text'; status: 'completed'; filename: string; size: number;
@@ -54,6 +76,8 @@ export type ExperimentGraph = { version: 1; revision: number; title: string; nod
 export const experimentOperation = z.discriminatedUnion('op', [
   ...experimentPlanningOperations,
   z.object({ op: z.literal('review'), review: experimentReviewInput.nullable() }),
+  z.object({ op: z.literal('pin-asset'), id: nodeId, assetRole: z.enum(assetRoles).nullable() }),
+  z.object({ op: z.literal('quality-check'), nodeId: nodeId, check: experimentQualityCheckSchema.nullable() }),
   z.object({ op: z.literal('environment'), environment: environmentSchema }),
   z.object({ op: z.literal('upsert'), nodes: z.array(experimentNodeInput).min(1).max(80) }),
   z.object({ op: z.literal('patch'), id: nodeId, changes: experimentNodeInput.omit({ id: true, kind: true }).partial() }),
@@ -155,7 +179,7 @@ function experimentPathNodes(nodes: ExperimentNode[], plans: ExperimentPlan[]) {
 }
 export function applyExperimentOperation(graph: ExperimentGraph, operation: ExperimentOperation, uid: () => string): ExperimentGraph {
   graph = normalizeExperimentGraph(graph);
-  if (operation.op === 'policy' || operation.op === 'propose-routes' || operation.op === 'select-routes') return applyExperimentPlanning(graph, operation, uid);
+  if (operation.op === 'policy' || operation.op === 'propose-routes' || operation.op === 'select-routes' || operation.op === 'switch-proposal') return applyExperimentPlanning(graph, operation, uid);
   let nodes = structuredClone(graph.nodes), templates = [...graph.templates], title = graph.title;
   let plans = structuredClone(graph.plans || []), runs = structuredClone(graph.runs || []);
   const find = (id: string) => { const n = nodes.find(n => n.id === id); if (!n) throw new ExperimentError('找不到这个节点，请刷新实验台。'); return n; };
@@ -187,6 +211,17 @@ export function applyExperimentOperation(graph: ExperimentGraph, operation: Expe
       if (find(review.finalArtifactId).kind !== 'artifact') throw new ExperimentError('最终成片需要关联真实产物节点。');
     }
     graph = { ...graph, review: operation.review || undefined };
+  } else if (operation.op === 'pin-asset') {
+    const node = find(operation.id);
+    node.assetRole = operation.assetRole || undefined;
+    if (operation.assetRole) {
+      const pinnedCount = nodes.filter(item => item.id !== node.id && item.assetRole).length;
+      if (node.kind === 'asset') node.position = { x: -360, y: pinnedCount * 300 };
+    }
+    node.revision++;
+  } else if (operation.op === 'quality-check') {
+    const node = find(operation.nodeId);
+    node.qualityCheck = operation.check || undefined;
   } else if (operation.op === 'environment') {
     if (runs.some(run => run.status === 'running')) throw new ExperimentError('有步骤正在执行，请结束后再更新环境。');
     const runtimeKey = (environment?: SkillEnvironment) => environment && JSON.stringify([environment.platform, environment.architecture, environment.workingDirectory, environment.entries, environment.files.map(file => [file.path, file.sha256]), environment.requirements, environment.unresolved]);

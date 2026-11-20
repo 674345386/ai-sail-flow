@@ -3,6 +3,7 @@ import { DEFAULT_AGENT_EFFORT, DEFAULT_AGENT_MODEL } from '../shared/agent-model
 import { accountWorkspacesEnabled, workspaceDirectory } from './workspace-storage';
 import path from 'node:path';
 import fs from 'node:fs';
+import { ensureSystemSkills } from './system-skills';
 
 // Codex owns the conversation, streaming and tools. Providers only supply
 // connection settings and, when needed, a model catalog for Codex.
@@ -24,12 +25,16 @@ export const agentProvider = {
 
 export const agentSandbox = accountWorkspacesEnabled ? 'read-only' : 'danger-full-access';
 export const agentSandboxPolicy = accountWorkspacesEnabled ? { type: 'readOnly', networkAccess: false } : { type: 'dangerFullAccess' };
+// The embedded agents have no approval UI. Their first-party MCP servers enforce workspace access.
+export const agentApprovalPolicy = 'never';
+export const agentMcpApprovalMode = 'approve';
 export const creativeAgentEnabled = !accountWorkspacesEnabled || process.env.SOP_AGENT_ENABLED === 'true' && !!process.env.SOP_AGENT_CODEX_HOME;
 
 export function agentCodexHome(dataDirectory: string) {
   const serviceHome = process.env.SOP_AGENT_CODEX_HOME || path.join(dataDirectory, 'agent-codex');
   const directory = accountWorkspacesEnabled && custom ? workspaceDirectory('agent-codex') : serviceHome;
   fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
+  ensureSystemSkills(directory);
   return directory;
 }
 

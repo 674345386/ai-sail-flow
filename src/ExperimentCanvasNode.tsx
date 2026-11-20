@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react';
 import { Handle, NodeResizer, Position, type Node, type NodeProps } from '@xyflow/react';
-import { ArrowRight, Check, Film, GitBranch, GitFork as Github, GripVertical, Image, LoaderCircle, Maximize2, Play, Plus, Workflow } from 'lucide-react';
-import { activeExperimentMethod, experimentKindLabels, type ExperimentNode } from '../shared/experiment';
+import { AlertTriangle, ArrowRight, Bookmark, Check, Film, GitBranch, GitFork as Github, GripVertical, Image, LoaderCircle, Maximize2, Play, Plus, ShieldCheck, Workflow, XCircle } from 'lucide-react';
+import { activeExperimentMethod, assetRoleLabels, experimentKindLabels, type ExperimentNode } from '../shared/experiment';
 import { CANVAS_REFERENCE_MIME } from './experiment-canvas-model';
 import type { ExperimentNodePresentation } from './experiment-status';
 
@@ -29,7 +29,7 @@ export function ExperimentCanvasNode({ data, selected, id }: NodeProps<Experimen
     <div className="lab-node-caption">{data.role && <span className="lab-turn-role">{data.role === 'input' ? '输入' : '输出'}</span>}<Icon size={13} strokeWidth={1.6} /><h3 title={n.title}>{n.title}</h3>{data.onSettings && <button type="button" className="lab-turn-settings nodrag" onClick={event => { event.stopPropagation(); data.onSettings!(); }}>参数</button>}</div>
     <Handle type="target" position={Position.Left} className="lab-node-port" aria-label="上游输入连接点" title="拖动连接上游输入"><Plus size={12} strokeWidth={1.7} /></Handle>
     <div className="lab-node-surface">
-      <div className="lab-node-badges">{data.adopted && <span className="lab-adopted"><Check size={11} />已采用</span>}<span className={`lab-status lab-status-${n.status}`} title={data.presentation.hint}>{n.status === 'running' ? <LoaderCircle size={11} className="lab-spin" /> : n.status === 'completed' ? <Check size={11} /> : <span className="lab-node-state-dot" />}{data.presentation.label}</span></div>
+      <div className="lab-node-badges">{n.assetRole && <span className="lab-asset-role" title={`Asset Bible · ${assetRoleLabels[n.assetRole]}`}><Bookmark size={10} />{assetRoleLabels[n.assetRole]}</span>}{n.qualityCheck && <span className={`lab-qc-badge is-${n.qualityCheck.status}`} title={`${n.qualityCheck.summary}${n.qualityCheck.suggestion ? ` · 建议：${n.qualityCheck.suggestion}` : ''}`}>{n.qualityCheck.status === 'pass' ? <ShieldCheck size={11} /> : n.qualityCheck.status === 'warn' ? <AlertTriangle size={11} /> : <XCircle size={11} />}质检 {Math.round(n.qualityCheck.score)}</span>}{data.adopted && <span className="lab-adopted"><Check size={11} />已采用</span>}<span className={`lab-status lab-status-${n.status}`} title={data.presentation.hint}>{n.status === 'running' ? <LoaderCircle size={11} className="lab-spin" /> : n.status === 'completed' ? <Check size={11} /> : <span className="lab-node-state-dot" />}{data.presentation.label}</span></div>
       {n.url && n.mediaType === 'image' ? <img className="lab-node-image" src={n.url} alt={n.title} loading="lazy" draggable={false} onLoad={event => data.onMediaSize(n.id, event.currentTarget.naturalWidth, event.currentTarget.naturalHeight)} onDoubleClick={event => { event.stopPropagation(); data.onPreview(n.id); }} />
         : n.url && n.mediaType === 'video' ? <video className="lab-node-image nodrag nowheel" src={n.url} poster={`${n.url}.jpg`} controls playsInline preload={data.role === 'input' ? 'none' : 'metadata'} onLoadedMetadata={event => data.onMediaSize(n.id, event.currentTarget.videoWidth, event.currentTarget.videoHeight)} onDoubleClick={event => { event.stopPropagation(); data.onPreview(n.id); }} />
         : <div className={`lab-node-content${emptyArtifact ? ' lab-node-placeholder' : ''}`}>

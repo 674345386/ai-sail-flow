@@ -11,10 +11,11 @@ export const referenceFramesInput = z.object({
   start: z.number().min(0).optional().describe('Start in original video seconds. Defaults to 0.'),
   end: z.number().positive().optional().describe('End in original video seconds. Defaults to the video duration.'),
   sampling: referenceFrameSampling.default('standard').describe('Overview returns one sparse sheet. Standard samples more densely for shot analysis. Frame-by-frame uses consecutive source frames in a window up to 2 seconds, capped at 80 frames, with scene-change score hints.'),
+  detailTimes: z.array(z.number().min(0)).min(1).max(3).optional().describe('Return individual high-resolution images at up to three known original-video timestamps for checking small details. Omit sampling and measureAudio when using this option.'),
   measureAudio: z.boolean().default(false).describe('Read original-track RMS energy in 20 ms bins. Only available with frame-by-frame sampling. This does not classify beats, speech or sound effects.'),
 });
 
-const focusPoints = z.array(focusCandidateSchema).max(12).optional();
+const focusPoints = z.array(focusCandidateSchema).max(12).optional().describe('Use only the listed categories. Record visual effects in the shot effects field, or describe them in editing or scene focus points.');
 const agentShot = shotSchema.pick({ start: true, role: true, visual: true, subject: true, action: true, camera: true,
   effects: true, transition: true, onScreenText: true, productPresence: true, uncertainty: true, reconstructionPrompt: true, evidenceFrames: true, motionBeats: true,
 }).extend({
@@ -54,10 +55,15 @@ export type ReferenceSceneTable = {
   rows: (ReferenceScene & { frameUrl: string; keyframes?: ReferenceSceneFrame[] })[];
 };
 
+export function completeReferenceSceneTable(table: ReferenceSceneTable | undefined, videoId: string) {
+  return table?.videoId === videoId && !!table.masterPrompt && table.rows.length > 0 &&
+    table.rows.every(row => !!(row.camera?.trim() && row.entities?.trim() && row.prompt?.trim() && row.frameUrl));
+}
+
 export function referenceSceneImages(table?: ReferenceSceneTable) {
   return (table?.rows || []).flatMap((scene, index) => (scene.keyframes || [{ at: scene.frameAt, url: scene.frameUrl }]).flatMap(frame => {
     const match = /^\/media\/(reference-scene-[a-f\d]{24})\.jpg$/.exec(frame.url);
-    return match ? [{ id: match[1], name: `场景 ${index + 1} · ${scene.title} · ${frame.at.toFixed(3)} 秒`, filename: `${match[1]}.jpg`, url: frame.url, mime: 'image/jpeg' as const }] : [];
+    return match ? [{ id: match[1], name: `场景 ${index + 1} · ${scene.title} · ${frame.at.toFixed(3)} 秒`, at: frame.at, filename: `${match[1]}.jpg`, url: frame.url, mime: 'image/jpeg' as const }] : [];
   }));
 }
 
@@ -92,11 +98,4 @@ export const saveReferenceAnalysisInput = z.object({
     scenes: z.array(referenceSceneInput).min(1).max(120).describe('All scenes in chronological order. Consecutive shots of the same setting may share one scene. Every shot belongs to exactly one scene and transitions are not separate scenes.'),
     focusPoints,
   }),
-});
-
-export const saveReferenceShotReviewInput = saveReferenceAnalysisInput.pick({ videoId: true, revision: true }).extend({
-  shots: z.array(agentShot.omit({ start: true, evidenceFrames: true }).extend({
-    shotId: shotSchema.shape.id.describe('Existing shot ID from get_creative. Keep its exact original boundaries.'),
-  })).min(1).max(120),
-  focusPoints,
 });
