@@ -1,0 +1,1300 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Creative Lab — 实验台与方法提案驱动的 AI 创作平台</title>
+  <style>
+    :root {
+      --bg-0: #06090f;
+      --bg-1: #0b111c;
+      --bg-2: rgba(14, 22, 36, 0.72);
+      --bg-glass: rgba(11, 18, 30, 0.68);
+      --border: rgba(148, 188, 232, 0.14);
+      --border-strong: rgba(82, 229, 255, 0.36);
+      --ink-0: #eef5ff;
+      --ink-1: #a7bad1;
+      --ink-2: #6d839e;
+      --cyan: #3ee7ff;
+      --cyan-dim: rgba(62, 231, 255, 0.14);
+      --emerald: #34d399;
+      --emerald-dim: rgba(52, 211, 153, 0.14);
+      --amber: #fbbf24;
+      --amber-dim: rgba(251, 191, 36, 0.14);
+      --violet: #a78bfa;
+      --mono: "SF Mono", "JetBrains Mono", "Fira Code", ui-monospace, Menlo, Consolas, monospace;
+      --sans: "PingFang SC", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --radius: 16px;
+      --radius-sm: 10px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: var(--sans);
+      background: var(--bg-0);
+      color: var(--ink-0);
+      line-height: 1.65;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Fullscreen Scientific Lab Background Canvas */
+    #lab-bg {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* Subtle Lab Vignette & Scanline Atmosphere */
+    .lab-atmosphere {
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+      pointer-events: none;
+      background:
+        radial-gradient(ellipse 70% 50% at 50% 0%, rgba(40, 140, 220, 0.12), transparent 70%),
+        radial-gradient(ellipse 50% 45% at 85% 30%, rgba(52, 211, 153, 0.06), transparent 65%),
+        radial-gradient(ellipse 60% 60% at 15% 80%, rgba(124, 92, 255, 0.07), transparent 70%),
+        linear-gradient(180deg, rgba(6, 9, 15, 0.1) 0%, rgba(6, 9, 15, 0.65) 100%);
+    }
+
+    .page {
+      position: relative;
+      z-index: 2;
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 0 24px 96px;
+    }
+
+    /* Top Lab Telemetry Bar */
+    .topbar {
+      position: sticky;
+      top: 16px;
+      z-index: 30;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin: 18px 0 44px;
+      padding: 12px 18px;
+      border-radius: 999px;
+      background: rgba(9, 14, 24, 0.78);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border: 1px solid var(--border);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: var(--ink-0);
+      font-weight: 600;
+      letter-spacing: -0.01em;
+    }
+
+    .brand-mark {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, rgba(62, 231, 255, 0.2), rgba(52, 211, 153, 0.18));
+      border: 1px solid var(--border-strong);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .brand-mark::after {
+      content: "";
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: 0 0 14px var(--cyan);
+    }
+
+    .brand-tag {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--cyan);
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: var(--cyan-dim);
+      border: 1px solid rgba(62, 231, 255, 0.25);
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 22px;
+      font-size: 13.5px;
+      color: var(--ink-1);
+    }
+
+    .nav-links a {
+      color: inherit;
+      text-decoration: none;
+      transition: color 0.2s ease;
+    }
+
+    .nav-links a:hover { color: var(--ink-0); }
+
+    .telemetry-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--mono);
+      font-size: 11.5px;
+      color: var(--ink-1);
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border);
+    }
+
+    .pulse-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--emerald);
+      box-shadow: 0 0 10px var(--emerald);
+      animation: pulse 2.2s infinite ease-in-out;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.45; transform: scale(0.85); }
+    }
+
+    /* Hero Section */
+    .hero {
+      padding: 36px 0 42px;
+      text-align: center;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-family: var(--mono);
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--cyan);
+      padding: 6px 14px;
+      border-radius: 999px;
+      background: rgba(62, 231, 255, 0.08);
+      border: 1px solid rgba(62, 231, 255, 0.24);
+      margin-bottom: 24px;
+    }
+
+    .hero h1 {
+      font-size: clamp(34px, 5.2vw, 58px);
+      font-weight: 700;
+      line-height: 1.14;
+      letter-spacing: -0.025em;
+      margin-bottom: 22px;
+      background: linear-gradient(180deg, #ffffff 0%, #c8dcf4 78%, #8fb4da 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero h1 .accent {
+      background: linear-gradient(95deg, #3ee7ff 0%, #34d399 60%, #a78bfa 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero-desc {
+      font-size: clamp(15.5px, 1.7vw, 17.5px);
+      color: var(--ink-1);
+      max-width: 780px;
+      margin: 0 auto 30px;
+      line-height: 1.82;
+      text-align: left;
+      padding: 22px 26px;
+      border-radius: var(--radius);
+      background: var(--bg-glass);
+      border: 1px solid var(--border);
+      backdrop-filter: blur(14px);
+      position: relative;
+    }
+
+    .hero-desc::before {
+      content: "LAB ABSTRACT // 01";
+      position: absolute;
+      top: -10px;
+      left: 20px;
+      font-family: var(--mono);
+      font-size: 10.5px;
+      letter-spacing: 0.1em;
+      color: var(--cyan);
+      background: var(--bg-0);
+      padding: 0 8px;
+    }
+
+    .hero-desc strong { color: var(--ink-0); font-weight: 600; }
+
+    .hero-actions {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 22px;
+      border-radius: 999px;
+      font-size: 14.5px;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: transform 0.18s ease, box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #3ee7ff, #34d399);
+      color: #041019;
+      box-shadow: 0 8px 28px rgba(62, 231, 255, 0.24);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 12px 36px rgba(62, 231, 255, 0.36);
+    }
+
+    .btn-ghost {
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--ink-0);
+      border-color: var(--border);
+    }
+
+    .btn-ghost:hover {
+      border-color: var(--border-strong);
+      background: rgba(62, 231, 255, 0.08);
+    }
+
+    /* Section Headings */
+    .section {
+      margin-top: 72px;
+    }
+
+    .section-head {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 24px;
+    }
+
+    .section-kicker {
+      font-family: var(--mono);
+      font-size: 11.5px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--cyan);
+      margin-bottom: 6px;
+    }
+
+    .section-title {
+      font-size: clamp(22px, 3vw, 30px);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .section-sub {
+      font-size: 14px;
+      color: var(--ink-1);
+      max-width: 460px;
+    }
+
+    /* Interactive Experiment Workbench Demo */
+    .workbench-frame {
+      border-radius: 20px;
+      background: rgba(9, 15, 26, 0.82);
+      border: 1px solid var(--border);
+      backdrop-filter: blur(18px);
+      overflow: hidden;
+      box-shadow: 0 24px 70px rgba(0, 0, 0, 0.45);
+    }
+
+    .workbench-chrome {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 18px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.02);
+      font-family: var(--mono);
+      font-size: 11.5px;
+      color: var(--ink-2);
+      flex-wrap: wrap;
+    }
+
+    .chrome-dots {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .chrome-dots span {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: rgba(148, 188, 232, 0.25);
+    }
+
+    .chrome-dots span:first-child { background: rgba(251, 113, 133, 0.7); }
+    .chrome-dots span:nth-child(2) { background: rgba(251, 191, 36, 0.7); }
+    .chrome-dots span:nth-child(3) { background: rgba(52, 211, 153, 0.7); }
+
+    .chrome-prompt {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--ink-1);
+      padding: 4px 12px;
+      border-radius: 999px;
+      background: rgba(62, 231, 255, 0.07);
+      border: 1px solid rgba(62, 231, 255, 0.2);
+    }
+
+    .workbench-body {
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      min-height: 440px;
+    }
+
+    .proposal-rail {
+      border-right: 1px solid var(--border);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      background: rgba(6, 10, 18, 0.48);
+    }
+
+    .rail-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--ink-2);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .route-card {
+      text-align: left;
+      width: 100%;
+      padding: 14px 15px;
+      border-radius: 13px;
+      background: rgba(255, 255, 255, 0.025);
+      border: 1px solid var(--border);
+      color: var(--ink-0);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      position: relative;
+    }
+
+    .route-card:hover {
+      border-color: rgba(62, 231, 255, 0.35);
+      background: rgba(62, 231, 255, 0.05);
+    }
+
+    .route-card.is-active {
+      border-color: var(--cyan);
+      background: linear-gradient(135deg, rgba(62, 231, 255, 0.12), rgba(52, 211, 153, 0.06));
+      box-shadow: 0 0 0 1px rgba(62, 231, 255, 0.2), 0 10px 28px rgba(0, 0, 0, 0.28);
+    }
+
+    .route-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-family: var(--mono);
+      font-size: 10.5px;
+      color: var(--cyan);
+      margin-bottom: 6px;
+    }
+
+    .route-card[data-route="coding"] .route-meta { color: var(--violet); }
+    .route-card[data-route="ffmpeg"] .route-meta { color: var(--emerald); }
+
+    .route-card h3 {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 5px;
+    }
+
+    .route-card p {
+      font-size: 12.5px;
+      color: var(--ink-1);
+      line-height: 1.55;
+    }
+
+    .route-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 10px;
+    }
+
+    .tag {
+      font-family: var(--mono);
+      font-size: 10.5px;
+      padding: 2px 7px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(148, 188, 232, 0.14);
+      color: var(--ink-1);
+    }
+
+    /* Right Execution Canvas */
+    .canvas-stage {
+      padding: 22px 24px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 18px;
+      position: relative;
+      background-image:
+        radial-gradient(rgba(148, 188, 232, 0.16) 1px, transparent 1px);
+      background-size: 22px 22px;
+    }
+
+    .stage-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .stage-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .stage-summary {
+      font-size: 13px;
+      color: var(--ink-1);
+      max-width: 520px;
+    }
+
+    .stage-metrics {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .metric-chip {
+      padding: 7px 11px;
+      border-radius: 10px;
+      background: rgba(7, 12, 22, 0.8);
+      border: 1px solid var(--border);
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--ink-1);
+    }
+
+    .metric-chip strong {
+      display: block;
+      font-size: 12.5px;
+      color: var(--ink-0);
+      margin-top: 1px;
+    }
+
+    /* DAG Node Pipeline */
+    .dag-pipeline {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      position: relative;
+      margin: 6px 0;
+    }
+
+    .dag-node {
+      padding: 14px 13px;
+      border-radius: 13px;
+      background: rgba(8, 14, 24, 0.88);
+      border: 1px solid var(--border);
+      position: relative;
+      transition: transform 0.22s ease, border-color 0.22s ease;
+    }
+
+    .dag-node:hover {
+      transform: translateY(-3px);
+      border-color: var(--border-strong);
+    }
+
+    .dag-node::after {
+      content: "→";
+      position: absolute;
+      right: -11px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--cyan);
+      opacity: 0.7;
+      z-index: 2;
+    }
+
+    .dag-node:last-child::after { display: none; }
+
+    .node-step {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--ink-2);
+      margin-bottom: 8px;
+    }
+
+    .node-status {
+      color: var(--emerald);
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .node-status::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--emerald);
+    }
+
+    .dag-node h4 {
+      font-size: 13.5px;
+      font-weight: 600;
+      margin-bottom: 5px;
+      color: var(--ink-0);
+    }
+
+    .dag-node p {
+      font-size: 12px;
+      color: var(--ink-1);
+      line-height: 1.5;
+      margin-bottom: 10px;
+    }
+
+    .node-tool {
+      display: inline-block;
+      font-family: var(--mono);
+      font-size: 10.5px;
+      color: var(--cyan);
+      background: rgba(62, 231, 255, 0.08);
+      border: 1px solid rgba(62, 231, 255, 0.2);
+      padding: 2px 7px;
+      border-radius: 6px;
+    }
+
+    .stage-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      padding-top: 14px;
+      border-top: 1px dashed var(--border);
+    }
+
+    .history-note {
+      font-family: var(--mono);
+      font-size: 11.5px;
+      color: var(--ink-1);
+    }
+
+    .history-note span { color: var(--emerald); }
+
+    .stage-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .mini-btn {
+      font-family: var(--mono);
+      font-size: 11.5px;
+      padding: 7px 12px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border);
+      color: var(--ink-0);
+      cursor: pointer;
+      transition: all 0.18s ease;
+    }
+
+    .mini-btn:hover {
+      border-color: var(--cyan);
+      color: var(--cyan);
+      background: rgba(62, 231, 255, 0.08);
+    }
+
+    /* 4 Pillars Grid */
+    .pillars-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .pillar-card {
+      padding: 24px;
+      border-radius: var(--radius);
+      background: var(--bg-glass);
+      border: 1px solid var(--border);
+      backdrop-filter: blur(14px);
+      transition: border-color 0.22s ease, transform 0.22s ease;
+    }
+
+    .pillar-card:hover {
+      border-color: var(--border-strong);
+      transform: translateY(-2px);
+    }
+
+    .pillar-num {
+      font-family: var(--mono);
+      font-size: 11.5px;
+      color: var(--cyan);
+      letter-spacing: 0.08em;
+      margin-bottom: 10px;
+    }
+
+    .pillar-card h3 {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .pillar-card p {
+      font-size: 14px;
+      color: var(--ink-1);
+      line-height: 1.72;
+    }
+
+    /* Architecture Strip */
+    .arch-strip {
+      display: grid;
+      grid-template-columns: 1fr auto 1.25fr auto 1fr;
+      align-items: stretch;
+      gap: 12px;
+      padding: 24px;
+      border-radius: 18px;
+      background: var(--bg-glass);
+      border: 1px solid var(--border);
+      backdrop-filter: blur(16px);
+    }
+
+    .arch-box {
+      padding: 18px;
+      border-radius: 13px;
+      background: rgba(7, 12, 22, 0.72);
+      border: 1px solid var(--border);
+    }
+
+    .arch-box.highlight {
+      border-color: rgba(62, 231, 255, 0.42);
+      background: linear-gradient(160deg, rgba(62, 231, 255, 0.1), rgba(52, 211, 153, 0.05));
+    }
+
+    .arch-label {
+      font-family: var(--mono);
+      font-size: 10.5px;
+      color: var(--cyan);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .arch-box h4 { font-size: 15.5px; margin-bottom: 6px; }
+    .arch-box p { font-size: 13px; color: var(--ink-1); line-height: 1.6; }
+
+    .arch-arrow {
+      display: grid;
+      place-items: center;
+      font-family: var(--mono);
+      font-size: 18px;
+      color: var(--cyan);
+      opacity: 0.75;
+    }
+
+    /* Footer CTA */
+    .cta-panel {
+      margin-top: 72px;
+      padding: 40px 28px;
+      border-radius: 22px;
+      text-align: center;
+      background: linear-gradient(135deg, rgba(14, 24, 42, 0.85), rgba(8, 16, 28, 0.9));
+      border: 1px solid var(--border-strong);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.42);
+    }
+
+    .cta-panel h2 {
+      font-size: clamp(24px, 3.2vw, 34px);
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+
+    .cta-panel p {
+      color: var(--ink-1);
+      max-width: 600px;
+      margin: 0 auto 24px;
+      font-size: 15px;
+    }
+
+    footer {
+      margin-top: 44px;
+      padding-top: 22px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--ink-2);
+    }
+
+    @media (max-width: 960px) {
+      .workbench-body { grid-template-columns: 1fr; }
+      .proposal-rail { border-right: none; border-bottom: 1px solid var(--border); }
+      .dag-pipeline { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .dag-node::after { display: none; }
+      .arch-strip { grid-template-columns: 1fr; }
+      .arch-arrow { transform: rotate(90deg); padding: 4px 0; }
+    }
+
+    @media (max-width: 680px) {
+      .nav-links, .telemetry-pill { display: none; }
+      .pillars-grid { grid-template-columns: 1fr; }
+      .dag-pipeline { grid-template-columns: 1fr; }
+      .hero-desc { padding: 18px; }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="lab-bg" aria-hidden="true"></canvas>
+  <div class="lab-atmosphere" aria-hidden="true"></div>
+
+  <div class="page">
+    <header class="topbar">
+      <a class="brand" href="#top">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span>AI Creative Lab</span>
+        <span class="brand-tag">LAB // v1</span>
+      </a>
+      <nav class="nav-links" aria-label="主导航">
+        <a href="#workbench">实验台提案</a>
+        <a href="#pillars">核心优势</a>
+        <a href="#architecture">架构理念</a>
+      </nav>
+      <div class="telemetry-pill" aria-live="polite">
+        <span class="pulse-dot"></span>
+        <span id="telemetry-coord">GRID 000 · 000 // READY</span>
+      </div>
+    </header>
+
+    <main id="top">
+      <section class="hero">
+        <div class="eyebrow">
+          <span>EXPERIMENT WORKBENCH</span>
+          <span>·</span>
+          <span>METHOD PROPOSALS</span>
+        </div>
+        <h1>
+          把不确定的 AI 生成，<br />
+          变成<span class="accent">可探索、可回溯的创作实验</span>
+        </h1>
+        <p class="hero-desc">
+          <strong>AI Creative Lab</strong> 是一个以「实验台」与「方法提案」为核心的 AI 创作平台，将对话式 Agent 的开放思考与可视化画布的有序沉淀衔接在一起。不同于市面上单线抽卡或固化工作流的工具，面对任意创作想法，Agent 会结合可热插拔的 Skill 方法库，先在<strong>实验台</strong>中并行提出多条不同技术路径的<strong>方法提案</strong>（广度探索），清晰列出思路、步骤与底层工具调用，选定后再沿画布逐步执行落盘（深度验证）。以<strong>视频创作</strong>为例，同一需求可同时生成传统视频大模型关键帧/首尾帧、Coding Video 程序化渲染、图片/视频剪辑 + FFmpeg 特效合成三种提案——满意就沿画布继续延伸成片，不满意无需重开对话，随时微调或一键回溯历史提案切换路线。
+        </p>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="#workbench">体验实验台方法提案 ↓</a>
+          <a class="btn btn-ghost" href="#architecture">了解 Skill + 工具链架构</a>
+        </div>
+      </section>
+
+      <!-- Interactive Workbench Demo -->
+      <section class="section" id="workbench">
+        <div class="section-head">
+          <div>
+            <div class="section-kicker">INTERACTIVE LAB // VIDEO CREATION EXAMPLE</div>
+            <h2 class="section-title">同一创作目标，实验台并行给出 3 条技术路线提案</h2>
+          </div>
+          <p class="section-sub">点击左侧任意方法提案，实时查看右侧画布的执行节点、底层工具编排与可控性指标。</p>
+        </div>
+
+        <div class="workbench-frame">
+          <div class="workbench-chrome">
+            <div class="chrome-dots" aria-hidden="true"><span></span><span></span><span></span></div>
+            <div class="chrome-prompt">AGENT TASK · “制作一条 15 秒的赛博朋克咖啡机产品宣传片”</div>
+            <div id="chrome-status">PROPOSAL SET #01 · 3 ROUTES READY</div>
+          </div>
+
+          <div class="workbench-body">
+            <aside class="proposal-rail" aria-label="方法提案列表">
+              <div class="rail-header">
+                <span>METHOD PROPOSALS</span>
+                <span>广度探索</span>
+              </div>
+
+              <button type="button" class="route-card is-active" data-route="model">
+                <div class="route-meta">
+                  <span>ROUTE 01 · VIDEO FOUNDATION MODEL</span>
+                  <span>电影质感</span>
+                </div>
+                <h3>传统视频大模型 · 关键帧 / 首尾帧</h3>
+                <p>先拆解分镜与视觉母版，生成高精度关键帧，再通过首尾帧锚点控制生成连贯镜头。</p>
+                <div class="route-tags">
+                  <span class="tag">Keyframe I2V</span>
+                  <span class="tag">First-Last Frame</span>
+                  <span class="tag">高视觉表现</span>
+                </div>
+              </button>
+
+              <button type="button" class="route-card" data-route="coding">
+                <div class="route-meta">
+                  <span>ROUTE 02 · PROGRAMMATIC CODE</span>
+                  <span>像素级可控</span>
+                </div>
+                <h3>Coding Video · 程序化代码视频</h3>
+                <p>用代码驱动场景、动效曲线、信息图形与字幕节拍，毫秒级对齐并支持参数化批量变体。</p>
+                <div class="route-tags">
+                  <span class="tag">Remotion / Code</span>
+                  <span class="tag">确定性渲染</span>
+                  <span class="tag">零畸变文字</span>
+                </div>
+              </button>
+
+              <button type="button" class="route-card" data-route="ffmpeg">
+                <div class="route-meta">
+                  <span>ROUTE 03 · HYBRID EDIT &amp; VFX</span>
+                  <span>极速低成本</span>
+                </div>
+                <h3>图片视频剪辑 + FFmpeg 特效合成</h3>
+                <p>组合高质量静帧、实拍/生成片段，通过 FFmpeg 编排推拉运镜、转场、调色与音画合成。</p>
+                <div class="route-tags">
+                  <span class="tag">Ken Burns</span>
+                  <span class="tag">FFmpeg Filter</span>
+                  <span class="tag">分钟级出片</span>
+                </div>
+              </button>
+            </aside>
+
+            <div class="canvas-stage">
+              <div class="stage-top">
+                <div>
+                  <h3 class="stage-title" id="stage-title"></h3>
+                  <p class="stage-summary" id="stage-summary"></p>
+                </div>
+                <div class="stage-metrics" id="stage-metrics"></div>
+              </div>
+
+              <div class="dag-pipeline" id="dag-pipeline"></div>
+
+              <div class="stage-footer">
+                <div class="history-note" id="history-note">
+                  状态：<span>全节点可观测</span> · 支持从任意节点继续延伸或回溯历史提案
+                </div>
+                <div class="stage-actions">
+                  <button type="button" class="mini-btn" id="btn-branch">+ 从尾节点继续延伸提案</button>
+                  <button type="button" class="mini-btn" id="btn-backtrack">↺ 回溯并切换下一路线</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4 Pillars -->
+      <section class="section" id="pillars">
+        <div class="section-head">
+          <div>
+            <div class="section-kicker">WHY AI CREATIVE LAB</div>
+            <h2 class="section-title">与传统生成工具不同的四个核心设计</h2>
+          </div>
+        </div>
+
+        <div class="pillars-grid">
+          <article class="pillar-card">
+            <div class="pillar-num">01 // AGENT × CANVAS</div>
+            <h3>对话思考与画布沉淀无缝衔接</h3>
+            <p>保留对话式 Agent 的开放推演与创意发散能力，同时将每一次探索、提案和中间产物自动结构化沉淀到可视化画布，不再埋没在冗长的聊天记录里。</p>
+          </article>
+          <article class="pillar-card">
+            <div class="pillar-num">02 // BREADTH × DEPTH</div>
+            <h3>广度提案对比，深度工具落盘</h3>
+            <p>先用多路线提案横向比较不同技术方案与审美方向，选定后再纵向调度底层生图、生视频、代码渲染与剪辑工具逐镜落盘，避免一上来就盲目消耗算力。</p>
+          </article>
+          <article class="pillar-card">
+            <div class="pillar-num">03 // BRANCH &amp; BACKTRACK</div>
+            <h3>满意可延续，不满意可随时回溯</h3>
+            <p>对某张关键帧或片段满意，直接在画布节点上发起下一阶段延伸；效果不理想时既能单镜微调，也能一键回到历史方法提案切换另一条技术路径，告别从头重聊。</p>
+          </article>
+          <article class="pillar-card">
+            <div class="pillar-num">04 // FULL OBSERVABILITY</div>
+            <h3>每一步皆可观测、可复现</h3>
+            <p>每个节点都完整记录来源 Skill、提示词、参考资产、执行状态与质检反馈，让团队和创作者像管理科研实验记录一样掌控整个创作过程。</p>
+          </article>
+        </div>
+      </section>
+
+      <!-- Architecture Strip -->
+      <section class="section" id="architecture">
+        <div class="section-head">
+          <div>
+            <div class="section-kicker">MODULAR ARCHITECTURE</div>
+            <h2 class="section-title">稳定头尾底座，中间方法由 Skill 与大模型持续进化</h2>
+          </div>
+        </div>
+
+        <div class="arch-strip">
+          <div class="arch-box">
+            <div class="arch-label">FRONT // 稳定前端底座</div>
+            <h4>实验台与画布呈现</h4>
+            <p>统一承载方法提案对比、历史提案切换、节点执行画布与中间产物观测，交互体验长期稳定。</p>
+          </div>
+          <div class="arch-arrow" aria-hidden="true">⇄</div>
+          <div class="arch-box highlight">
+            <div class="arch-label">CORE // 可热插拔大脑层</div>
+            <h4>Skill 方法库 + 大模型思考</h4>
+            <p>把各类视频与多模态制作方法沉淀为独立 Skill 文档，按需路由并热加载；调整策略只需改 Skill，无需重构平台代码。</p>
+          </div>
+          <div class="arch-arrow" aria-hidden="true">⇄</div>
+          <div class="arch-box">
+            <div class="arch-label">BASE // 开放底层工具层</div>
+            <h4>通用生成、代码与剪辑 Tool</h4>
+            <p>封装生图、首尾帧视频、程序化代码渲染、FFmpeg 合成及动态插件工具，让任何新提案都能直接落地执行。</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="cta-panel">
+        <h2>像做精密实验一样，驾驭 AI 创作</h2>
+        <p>从第一版方法提案到最终成片，每一步灵感都有迹可循，每一条技术路线都触手可及。</p>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="#workbench">重新演练三条视频路线</a>
+          <a class="btn btn-ghost" href="#top">返回顶部</a>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <span>AI CREATIVE LAB // EXPERIMENT WORKBENCH &amp; METHOD PROPOSALS</span>
+      <span>AGENT + SKILL + VISUAL CANVAS + OPEN TOOLCHAIN</span>
+    </footer>
+  </div>
+
+  <script>
+    /* =========================================================================
+       1. Interactive Scientific Lab Background (Grid + Isoline Waves + Nodes)
+       ========================================================================= */
+    (function initLabBackground() {
+      const canvas = document.getElementById('lab-bg');
+      const ctx = canvas.getContext('2d');
+      const coordEl = document.getElementById('telemetry-coord');
+      const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      let width = 0, height = 0, dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const pointer = { x: -9999, y: -9999, active: false };
+      const nodes = [];
+      const NODE_COUNT = 46;
+
+      function resize() {
+        width = window.innerWidth;
+        height = window.innerHeight;
+        canvas.width = Math.floor(width * dpr);
+        canvas.height = Math.floor(height * dpr);
+        canvas.style.width = width + 'px';
+        canvas.style.height = height + 'px';
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+
+      function seedNodes() {
+        nodes.length = 0;
+        for (let i = 0; i < NODE_COUNT; i++) {
+          nodes.push({
+            x: Math.random() * width,
+            y: Math.random() * height,
+            vx: (Math.random() - 0.5) * 0.28,
+            vy: (Math.random() - 0.5) * 0.28,
+            r: Math.random() * 1.6 + 0.9,
+            accent: i % 5 === 0 ? 'emerald' : 'cyan'
+          });
+        }
+      }
+
+      window.addEventListener('resize', () => { resize(); seedNodes(); });
+      window.addEventListener('pointermove', (e) => {
+        pointer.x = e.clientX;
+        pointer.y = e.clientY;
+        pointer.active = true;
+        if (coordEl) {
+          const gx = String(Math.round(e.clientX)).padStart(4, '0');
+          const gy = String(Math.round(e.clientY)).padStart(4, '0');
+          coordEl.textContent = `GRID ${gx} · ${gy} // LIVE`;
+        }
+      });
+      window.addEventListener('pointerleave', () => { pointer.active = false; });
+
+      resize();
+      seedNodes();
+
+      function drawGrid(t) {
+        const step = 48;
+        ctx.strokeStyle = 'rgba(130, 175, 224, 0.048)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        for (let x = 0; x < width; x += step) {
+          ctx.moveTo(x + 0.5, 0);
+          ctx.lineTo(x + 0.5, height);
+        }
+        for (let y = 0; y < height; y += step) {
+          ctx.moveTo(0, y + 0.5);
+          ctx.lineTo(width, y + 0.5);
+        }
+        ctx.stroke();
+
+        // Crosshair ticks at major intersections (every 4 cells)
+        ctx.strokeStyle = 'rgba(62, 231, 255, 0.12)';
+        const major = step * 4;
+        ctx.beginPath();
+        for (let x = major; x < width; x += major) {
+          for (let y = major; y < height; y += major) {
+            ctx.moveTo(x - 4, y + 0.5);
+            ctx.lineTo(x + 5, y + 0.5);
+            ctx.moveTo(x + 0.5, y - 4);
+            ctx.lineTo(x + 0.5, y + 5);
+          }
+        }
+        ctx.stroke();
+
+        // Subtle scientific oscilloscope / latent field waves
+        const waveCount = 3;
+        for (let w = 0; w < waveCount; w++) {
+          ctx.beginPath();
+          const baseY = height * (0.28 + w * 0.24);
+          const amp = 22 + w * 10;
+          const freq = 0.0026 + w * 0.0008;
+          for (let x = 0; x <= width; x += 14) {
+            const y = baseY
+              + Math.sin(x * freq + t * (0.00055 + w * 0.00018) + w * 1.4) * amp
+              + Math.cos(x * freq * 0.45 - t * 0.00035) * (amp * 0.42);
+            if (x === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+          }
+          ctx.strokeStyle = w === 1
+            ? 'rgba(52, 211, 153, 0.085)'
+            : 'rgba(62, 231, 255, 0.075)';
+          ctx.lineWidth = 1.2;
+          ctx.stroke();
+        }
+      }
+
+      function drawNodes() {
+        const linkDist = 148;
+        for (let i = 0; i < nodes.length; i++) {
+          const a = nodes[i];
+          if (!reducedMotion) {
+            a.x += a.vx;
+            a.y += a.vy;
+            if (a.x < 0 || a.x > width) a.vx *= -1;
+            if (a.y < 0 || a.y > height) a.vy *= -1;
+          }
+
+          for (let j = i + 1; j < nodes.length; j++) {
+            const b = nodes[j];
+            const dx = a.x - b.x;
+            const dy = a.y - b.y;
+            const dist = Math.hypot(dx, dy);
+            if (dist < linkDist) {
+              const alpha = (1 - dist / linkDist) * 0.16;
+              ctx.strokeStyle = `rgba(62, 231, 255, ${alpha.toFixed(3)})`;
+              ctx.lineWidth = 1;
+              ctx.beginPath();
+              ctx.moveTo(a.x, a.y);
+              ctx.lineTo(b.x, b.y);
+              ctx.stroke();
+            }
+          }
+
+          if (pointer.active) {
+            const pd = Math.hypot(a.x - pointer.x, a.y - pointer.y);
+            if (pd < 180) {
+              const alpha = (1 - pd / 180) * 0.28;
+              ctx.strokeStyle = `rgba(52, 211, 153, ${alpha.toFixed(3)})`;
+              ctx.beginPath();
+              ctx.moveTo(a.x, a.y);
+              ctx.lineTo(pointer.x, pointer.y);
+              ctx.stroke();
+            }
+          }
+
+          ctx.beginPath();
+          ctx.arc(a.x, a.y, a.r, 0, Math.PI * 2);
+          ctx.fillStyle = a.accent === 'emerald'
+            ? 'rgba(52, 211, 153, 0.55)'
+            : 'rgba(62, 231, 255, 0.55)';
+          ctx.fill();
+        }
+
+        if (pointer.active) {
+          // Subtle precision lab reticle around cursor
+          ctx.strokeStyle = 'rgba(62, 231, 255, 0.22)';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.arc(pointer.x, pointer.y, 18, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+      }
+
+      function frame(t) {
+        ctx.clearRect(0, 0, width, height);
+        drawGrid(t);
+        drawNodes();
+        if (!reducedMotion) requestAnimationFrame(frame);
+      }
+
+      requestAnimationFrame(frame);
+    })();
+
+    /* =========================================================================
+       2. Interactive Method Proposal & Canvas Execution Switcher
+       ========================================================================= */
+    const ROUTES = {
+      model: {
+        id: 'model',
+        title: '路线 01 · 传统视频大模型（关键帧 / 首尾帧连续生成）',
+        summary: '先由 Skill 拆解母版与镜头语言并生成高一致性关键帧，再通过首尾帧插值锁住跨镜主体与光影连续性。',
+        metrics: [
+          { label: '适用场景', value: '大片质感 / 叙事短片' },
+          { label: '连续性控制', value: '首尾帧锚点锁定' },
+          { label: '质量闭环', value: 'VLM 抽帧质检 + 单镜重跑' }
+        ],
+        nodes: [
+          { step: 'NODE 01', status: 'DONE', title: '分镜母版与资产圣经', desc: '拆分 4 个镜头语言并锁定主角/产品光影锚点。', tool: 'skill:first-last-frame' },
+          { step: 'NODE 02', status: 'DONE', title: '高精关键帧生成', desc: '携带参考图生成每镜首帧与关键转场帧。', tool: 'generate_image' },
+          { step: 'NODE 03', status: 'READY', title: '首尾帧视频生成', desc: '按首帧 + 上一镜尾帧生成丝滑连续片段。', tool: 'generate_first_last_frame_video' },
+          { step: 'NODE 04', status: 'READY', title: 'VLM 质检与成片拼接', desc: '自动抽首/中/尾帧核查畸变，达标后合成成片。', tool: 'inspect_quality + compose' }
+        ]
+      },
+      coding: {
+        id: 'coding',
+        title: '路线 02 · Coding Video（程序化代码视频渲染）',
+        summary: '将分镜、品牌排版、数据卡片与动效曲线直接编译为可执行代码，实现像素级精准控制与零成本批量换版。',
+        metrics: [
+          { label: '适用场景', value: '产品发布 / 科技动效 / 信息图' },
+          { label: '精确度', value: '帧级时间轴 · 零文字畸变' },
+          { label: '复刻效率', value: '改参数即可生成多语言版本' }
+        ],
+        nodes: [
+          { step: 'NODE 01', status: 'DONE', title: '节奏脚本与时间轴建模', desc: '将 15 秒拆为 450 帧，定义镜头节拍与弹簧曲线。', tool: 'skill:programmatic-video' },
+          { step: 'NODE 02', status: 'DONE', title: '组件化视觉工程编写', desc: '用 Remotion / Canvas 代码构建产品特写与 HUD 动效。', tool: 'programmatic_code' },
+          { step: 'NODE 03', status: 'READY', title: '确定性本地渲染', desc: '按 60fps 渲染无损视频流并自动挂载画布节点。', tool: 'publish_experiment_file' },
+          { step: 'NODE 04', status: 'READY', title: '参数化衍生变体', desc: '基于同一节点快速产出横屏/竖屏与多语种版本。', tool: 'branch_from_node' }
+        ]
+      },
+      ffmpeg: {
+        id: 'ffmpeg',
+        title: '路线 03 · 图片视频剪辑 + FFmpeg 特效合成',
+        summary: '结合高质量静帧与局部动态素材，直接用 FFmpeg 滤镜链完成平滑推拉、故障风转场、调色与音轨卡点。',
+        metrics: [
+          { label: '适用场景', value: '快节奏广告 / 动态预演 / 混剪' },
+          { label: '生成速度', value: '本地秒级合成' },
+          { label: '算力成本', value: '极低（零额外视频算力）' }
+        ],
+        nodes: [
+          { step: 'NODE 01', status: 'DONE', title: '关键视觉图与素材池', desc: '聚合已生成的产品静帧与已有实拍片段。', tool: 'asset_bible' },
+          { step: 'NODE 02', status: 'DONE', title: 'Animatic 动态预演', desc: '用 Ken Burns 推拉先快速验证 15 秒剪辑节奏。', tool: 'build_animatic_preview' },
+          { step: 'NODE 03', status: 'READY', title: 'FFmpeg 特效与转场链', desc: '应用霓虹色差、节奏切分、字幕叠层与音效混音。', tool: 'ffmpeg_skill' },
+          { step: 'NODE 04', status: 'READY', title: '成片导出与二次延伸', desc: '一键发布成片，满意片段可再送入模型精修升级。', tool: 'compose_video' }
+        ]
+      }
+    };
+
+    const routeOrder = ['model', 'coding', 'ffmpeg'];
+    let currentRoute = 'model';
+    let branchCount = 1;
+
+    const cards = document.querySelectorAll('.route-card');
+    const stageTitle = document.getElementById('stage-title');
+    const stageSummary = document.getElementById('stage-summary');
+    const stageMetrics = document.getElementById('stage-metrics');
+    const dagPipeline = document.getElementById('dag-pipeline');
+    const historyNote = document.getElementById('history-note');
+    const chromeStatus = document.getElementById('chrome-status');
+
+    function renderRoute(key, customNote) {
+      currentRoute = key;
+      const data = ROUTES[key];
+      cards.forEach(c => c.classList.toggle('is-active', c.dataset.route === key));
+      stageTitle.textContent = data.title;
+      stageSummary.textContent = data.summary;
+      stageMetrics.innerHTML = data.metrics.map(m =>
+        `<div class="metric-chip">${m.label}<strong>${m.value}</strong></div>`
+      ).join('');
+      dagPipeline.innerHTML = data.nodes.map(n => `
+        <div class="dag-node">
+          <div class="node-step"><span>${n.step}</span><span class="node-status">${n.status}</span></div>
+          <h4>${n.title}</h4>
+          <p>${n.desc}</p>
+          <span class="node-tool">${n.tool}</span>
+        </div>
+      `).join('');
+      if (customNote) {
+        historyNote.innerHTML = customNote;
+      } else {
+        historyNote.innerHTML = `状态：<span>全节点可观测</span> · 当前处于方案提案 #0${branchCount}（${data.id.toUpperCase()}）`;
+      }
+    }
+
+    cards.forEach(card => {
+      card.addEventListener('click', () => renderRoute(card.dataset.route));
+    });
+
+    document.getElementById('btn-branch').addEventListener('click', () => {
+      branchCount += 1;
+      chromeStatus.textContent = `PROPOSAL SET #0${branchCount} · BRANCHED FROM NODE 04`;
+      renderRoute(
+        currentRoute,
+        `状态：<span>已从尾节点发起第 ${branchCount} 轮延续提案</span> · 保留历史节点，可随时回溯`
+      );
+    });
+
+    document.getElementById('btn-backtrack').addEventListener('click', () => {
+      const nextIdx = (routeOrder.indexOf(currentRoute) + 1) % routeOrder.length;
+      const nextKey = routeOrder[nextIdx];
+      renderRoute(
+        nextKey,
+        `状态：<span>已回溯历史提案并切换路线</span> · 原路线画布产物完整保留，无需重开对话`
+      );
+    });
+
+    renderRoute('model');
+  </script>
+</body>
+</html>

@@ -1130,6 +1130,10 @@ app.use('/media', (req, res, next) => express.static(workspaceUploadDir(), { dot
 } })(req, res, next));
 app.use('/media', (_req, res) => res.sendStatus(404));
 app.use('/api', (_req, res) => res.status(404).json({ error: '接口不存在。' }));
+app.get('/lab', (req, res, next) => {
+  if (req.query.project !== undefined) return next();
+  res.sendFile(path.join(root, 'public', 'ai-creative-lab.html'));
+});
 app.use((error: unknown, req: Request, res: Response, _next: NextFunction) => {
   if (error instanceof HttpError || error instanceof TaskError || error instanceof ExperimentError || error instanceof ExperimentPlanningError || error instanceof MinimaxError || error instanceof GptError) return res.status(error.status).json({ error: error.message });
   if (error instanceof z.ZodError) {

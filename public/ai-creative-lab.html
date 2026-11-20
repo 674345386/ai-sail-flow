@@ -1,0 +1,3893 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Creative Lab — 实验台与方法提案驱动的 AI 创作平台</title>
+  <!-- Editorial & Technical Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Instrument+Serif:ital@0;1&family=Noto+Sans+SC:wght@400;500;600;700&family=Noto+Serif+SC:wght@600;700&display=swap" rel="stylesheet" />
+  <style>
+    /* =========================================================================
+       1. ANTI-AI-CLICHÉ EDITORIAL & INDUSTRIAL HARDWARE DESIGN TOKENS
+       ========================================================================= */
+    :root {
+      --paper: #F3EFE6;
+      --paper-elev: #FAF7F0;
+      --paper-deep: #E8E3D8;
+      --ink: #111113;
+      --ink-2: #45433E;
+      --muted: #757168;
+      --grid-line: rgba(17, 17, 19, 0.055);
+      --rule: rgba(17, 17, 19, 0.16);
+      --rule-strong: #111113;
+
+      --orange: #FF4D00;
+      --orange-soft: rgba(255, 77, 0, 0.12);
+      --cobalt: #1835F5;
+      --cobalt-soft: rgba(24, 53, 245, 0.08);
+      --emerald: #00F084;
+      --emerald-ink: #008A4B;
+      --yellow: #F5D547;
+      --crimson: #D92B2B;
+      --teal: #00A8B5;
+      --amber: #F59E0B;
+
+      --alum-hi: #DCD9D0;
+      --alum-mid: #D2CEC4;
+      --alum-lo: #C8C4BA;
+      --console: #141518;
+      --console-deep: #0B0C0E;
+      --crt-bg: #07100C;
+
+      --serif-display: "Instrument Serif", "Noto Serif SC", "Songti SC", Georgia, serif;
+      --serif-cn: "Noto Serif SC", "Songti SC", "STSong", serif;
+      --sans: "Noto Sans SC", "PingFang SC", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --mono: "IBM Plex Mono", "SF Mono", "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+
+      --r-xs: 2px;
+      --r-sm: 4px;
+      --r-md: 6px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--sans);
+      background-color: var(--paper);
+      color: var(--ink);
+      line-height: 1.65;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+      background-image:
+        linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+        linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
+      background-size: 64px 64px;
+      background-position: -1px -1px;
+    }
+
+    /* Subtle Procedural Archival Paper Grain Overlay */
+    #archival-grain {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 60;
+      opacity: 0.22;
+      mix-blend-mode: multiply;
+    }
+
+    .page {
+      position: relative;
+      z-index: 2;
+      max-width: 1260px;
+      margin: 0 auto;
+      padding: 0 24px 88px;
+    }
+
+    /* Signature Sharp 7-Band Editorial Pantone Spectrum Strip */
+    .spectrum-strip {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      height: 18px;
+      border: 1.5px solid var(--ink);
+      background: var(--paper);
+      overflow: hidden;
+    }
+
+    .spectrum-strip span {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--mono);
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      user-select: none;
+    }
+
+    /* Optical Registration Marks (+) */
+    .reg-frame {
+      position: relative;
+    }
+
+    .reg-mark {
+      position: absolute;
+      width: 11px;
+      height: 11px;
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    .reg-mark::before,
+    .reg-mark::after {
+      content: "";
+      position: absolute;
+      background: var(--ink);
+    }
+
+    .reg-mark::before { top: 5px; left: 0; right: 0; height: 1px; }
+    .reg-mark::after { left: 5px; top: 0; bottom: 0; width: 1px; }
+    .reg-mark.tl { top: -6px; left: -6px; }
+    .reg-mark.tr { top: -6px; right: -6px; }
+    .reg-mark.bl { bottom: -6px; left: -6px; }
+    .reg-mark.br { bottom: -6px; right: -6px; }
+
+    /* Non-intrusive Status Toast */
+    #lab-toast {
+      position: fixed;
+      right: 20px;
+      bottom: 20px;
+      z-index: 90;
+      pointer-events: none;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      background: var(--console);
+      color: var(--paper);
+      border: 1.5px solid var(--ink);
+      padding: 10px 16px;
+      border-radius: var(--r-xs);
+      font-family: var(--mono);
+      font-size: 11.5px;
+      letter-spacing: 0.06em;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 5px 5px 0 rgba(17, 17, 19, 0.22);
+    }
+
+    #lab-toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    #lab-toast .toast-led {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--orange);
+    }
+
+    /* =========================================================================
+       2. STICKY TOP TELEMETRY BAR (.topbar)
+       ========================================================================= */
+    .topbar {
+      position: sticky;
+      top: 12px;
+      z-index: 40;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin: 16px 0 36px;
+      padding: 10px 18px;
+      background: rgba(243, 239, 230, 0.92);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1.5px solid var(--ink);
+      border-radius: var(--r-xs);
+      box-shadow: 4px 4px 0 rgba(17, 17, 19, 0.12);
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: var(--ink);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      font-size: 15px;
+    }
+
+    .brand-spark {
+      width: 28px;
+      height: 28px;
+      border: 1.5px solid var(--ink);
+      background: var(--paper-elev);
+      display: grid;
+      place-items: center;
+      flex-shrink: 0;
+    }
+
+    .brand-tag {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--paper);
+      background: var(--ink);
+      padding: 3px 7px;
+      border-radius: var(--r-xs);
+      white-space: nowrap;
+    }
+
+    .brand:hover .brand-tag,
+    .brand:focus-visible .brand-tag {
+      background: var(--ink-2);
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--sans);
+      font-size: 13.5px;
+      font-weight: 500;
+    }
+
+    .nav-links a {
+      color: var(--ink-2);
+      text-decoration: none;
+      padding: 6px 12px;
+      border: 1px solid transparent;
+      border-radius: var(--r-xs);
+      transition: all 0.15s ease;
+    }
+
+    .nav-links a:hover {
+      color: var(--ink);
+      border-color: var(--ink);
+      background: var(--paper-elev);
+    }
+
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .telemetry-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--ink);
+      padding: 6px 11px;
+      border-radius: var(--r-xs);
+      background: var(--paper-elev);
+      border: 1px solid var(--ink);
+      white-space: nowrap;
+    }
+
+    .pulse-led {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--emerald);
+      border: 1px solid var(--ink);
+      box-shadow: 0 0 6px rgba(0, 240, 132, 0.85);
+      animation: ledPulse 2.2s infinite ease-in-out;
+    }
+
+    @keyframes ledPulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .sfx-switch {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 6px 11px;
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      background: var(--console);
+      color: var(--paper);
+      border: 1.5px solid var(--ink);
+      border-radius: var(--r-xs);
+      cursor: pointer;
+      transition: transform 0.12s ease, background 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .sfx-switch:active { transform: translate(1px, 1px); }
+
+    .sfx-switch .sfx-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--orange);
+      transition: background 0.15s ease;
+    }
+
+    .sfx-switch.is-off {
+      background: var(--paper-deep);
+      color: var(--muted);
+    }
+
+    .sfx-switch.is-off .sfx-dot {
+      background: var(--muted);
+    }
+
+    /* =========================================================================
+       3. HERO SECTION (#top — 01 // GLASS & SPECIMEN)
+       ========================================================================= */
+    .hero-spread {
+      position: relative;
+      border: 1.5px solid var(--ink);
+      background: var(--paper-elev);
+      overflow: hidden;
+      box-shadow: 8px 8px 0 rgba(17, 17, 19, 0.10);
+    }
+
+    /* Interactive Fluted Architectural Glass (长虹玻璃) Strip */
+    #hero-fluted-glass {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 240px;
+      pointer-events: none;
+      z-index: 14;
+      will-change: transform;
+      border-left: 1px solid rgba(17, 17, 19, 0.25);
+      border-right: 1px solid rgba(17, 17, 19, 0.25);
+      box-shadow: 12px 0 28px rgba(17, 17, 19, 0.08), -4px 0 10px rgba(255, 255, 255, 0.35);
+      background-image: repeating-linear-gradient(
+        90deg,
+        rgba(255, 255, 255, 0.44) 0px,
+        rgba(255, 255, 255, 0.06) 4px,
+        rgba(17, 17, 19, 0.04) 10px,
+        rgba(17, 17, 19, 0.15) 14px,
+        rgba(255, 255, 255, 0.34) 15px
+      );
+      backdrop-filter: blur(1.3px) contrast(1.05);
+      -webkit-backdrop-filter: blur(1.3px) contrast(1.05);
+    }
+
+    .hero-meta-bar {
+      position: relative;
+      z-index: 15;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      padding: 10px 24px;
+      border-bottom: 1px solid var(--rule);
+      background: var(--paper);
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+    }
+
+    .hero-meta-bar .optical-readout {
+      color: var(--cobalt);
+      font-weight: 600;
+    }
+
+    .hero-body {
+      position: relative;
+      z-index: 12;
+      display: grid;
+      grid-template-columns: 1fr 296px;
+      gap: 32px;
+      padding: 36px 36px 32px;
+      align-items: start;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--ink);
+      padding: 4px 10px;
+      background: var(--yellow);
+      border: 1.5px solid var(--ink);
+      margin-bottom: 22px;
+    }
+
+    .hero h1 {
+      font-family: var(--serif-cn);
+      font-size: clamp(32px, 4.4vw, 54px);
+      font-weight: 700;
+      line-height: 1.24;
+      letter-spacing: -0.02em;
+      color: var(--ink);
+      margin-bottom: 26px;
+    }
+
+    /* Live Klein Cobalt Vector Selection Marquee */
+    .marquee-accent {
+      position: relative;
+      display: inline-block;
+      padding: 2px 12px 4px;
+      margin: 4px 2px 0;
+      border: 1.5px solid var(--cobalt);
+      background: var(--cobalt-soft);
+      color: var(--cobalt);
+    }
+
+    .marquee-handle {
+      position: absolute;
+      width: 7px;
+      height: 7px;
+      background: #FFFFFF;
+      border: 1.5px solid var(--cobalt);
+    }
+
+    .marquee-handle.tl { top: -4px; left: -4px; }
+    .marquee-handle.tr { top: -4px; right: -4px; }
+    .marquee-handle.bl { bottom: -4px; left: -4px; }
+    .marquee-handle.br { bottom: -4px; right: -4px; }
+
+    .marquee-tag {
+      position: absolute;
+      top: -21px;
+      right: -1.5px;
+      font-family: var(--mono);
+      font-size: 9.5px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      color: #FFFFFF;
+      background: var(--cobalt);
+      padding: 2px 7px;
+      line-height: 1.2;
+      white-space: nowrap;
+    }
+
+    /* Archival Dossier Abstract Card */
+    .hero-desc {
+      position: relative;
+      font-size: clamp(14.5px, 1.35vw, 15.8px);
+      color: var(--ink-2);
+      line-height: 1.85;
+      padding: 22px 24px 20px;
+      background: var(--paper);
+      border: 1.5px solid var(--ink);
+      margin-bottom: 26px;
+    }
+
+    .hero-desc::before {
+      content: "LAB ABSTRACT // 01";
+      position: absolute;
+      top: -10px;
+      left: 16px;
+      font-family: var(--mono);
+      font-size: 10.5px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      color: var(--paper);
+      background: var(--ink);
+      padding: 1px 8px;
+    }
+
+    .hero-desc strong {
+      color: var(--ink);
+      font-weight: 700;
+      background: linear-gradient(transparent 68%, rgba(255, 77, 0, 0.2) 68%);
+    }
+
+    .hero-actions {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    /* Industrial Tactile Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 22px;
+      font-size: 14px;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+      border-radius: var(--r-xs);
+      border: 1.5px solid var(--ink);
+      transition: transform 0.12s ease, box-shadow 0.15s ease, background 0.15s ease, color 0.15s ease;
+    }
+
+    .btn-primary {
+      background: var(--orange);
+      color: #FFFFFF;
+      box-shadow: 4px 4px 0 var(--ink);
+    }
+
+    .btn-primary:hover {
+      background: #E84400;
+      transform: translate(-1px, -1px);
+      box-shadow: 5px 5px 0 var(--ink);
+    }
+
+    .btn-primary:active {
+      transform: translate(2px, 2px);
+      box-shadow: 1px 1px 0 var(--ink);
+    }
+
+    .btn-ghost {
+      background: var(--paper);
+      color: var(--ink);
+      box-shadow: 3px 3px 0 rgba(17, 17, 19, 0.2);
+    }
+
+    .btn-ghost:hover {
+      background: var(--ink);
+      color: var(--paper);
+    }
+
+    /* Slanted Physical Pantone Swatch Sticker Card */
+    .pantone-column {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+      padding-top: 8px;
+    }
+
+    .pantone-card {
+      position: relative;
+      width: 264px;
+      background: #FFFFFF;
+      border: 1.5px solid var(--ink);
+      padding: 12px 12px 14px;
+      transform: rotate(3.2deg);
+      box-shadow: 10px 14px 0 rgba(17, 17, 19, 0.14);
+      cursor: pointer;
+      transition: transform 0.24s cubic-bezier(0.22, 1.25, 0.36, 1), box-shadow 0.24s ease;
+      text-align: left;
+    }
+
+    .pantone-card:hover {
+      transform: rotate(0.6deg) translateY(-4px);
+      box-shadow: 12px 18px 0 rgba(17, 17, 19, 0.18);
+    }
+
+    .pantone-tape {
+      position: absolute;
+      top: -12px;
+      left: 50%;
+      transform: translateX(-50%) rotate(-3deg);
+      width: 82px;
+      height: 22px;
+      background: rgba(245, 213, 71, 0.82);
+      border: 1px solid rgba(17, 17, 19, 0.22);
+      pointer-events: none;
+    }
+
+    .pantone-chip {
+      height: 178px;
+      background: var(--orange);
+      border: 1px solid rgba(17, 17, 19, 0.18);
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      overflow: hidden;
+      transition: background-color 0.25s ease;
+    }
+
+    .pantone-chip-top {
+      display: flex;
+      justify-content: space-between;
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      color: rgba(255, 255, 255, 0.92);
+    }
+
+    .pantone-chip-num {
+      font-family: var(--serif-display);
+      font-size: 92px;
+      line-height: 0.78;
+      color: rgba(255, 255, 255, 0.28);
+      align-self: flex-end;
+      user-select: none;
+    }
+
+    .pantone-meta {
+      padding-top: 12px;
+    }
+
+    .pantone-brand-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+
+    .pantone-brand {
+      font-family: var(--sans);
+      font-weight: 700;
+      font-size: 16px;
+      letter-spacing: -0.02em;
+      color: var(--ink);
+    }
+
+    .pantone-code {
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--cobalt);
+    }
+
+    .pantone-name {
+      font-family: var(--mono);
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--ink);
+      margin-top: 2px;
+      letter-spacing: 0.02em;
+    }
+
+    .pantone-foot {
+      margin-top: 8px;
+      padding-top: 7px;
+      border-top: 1px solid var(--rule);
+      display: flex;
+      justify-content: space-between;
+      font-family: var(--mono);
+      font-size: 9.5px;
+      color: var(--muted);
+    }
+
+    .pantone-hint {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    /* Solari Split-Flap Status Bar (机械翻页屏) */
+    .solari-bar {
+      position: relative;
+      z-index: 16;
+      background: var(--console);
+      border-top: 1.5px solid var(--ink);
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .solari-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex: 1;
+      min-width: 260px;
+    }
+
+    .solari-label {
+      font-family: var(--mono);
+      font-size: 9.5px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      color: var(--yellow);
+      writing-mode: horizontal-tb;
+      white-space: nowrap;
+      padding-right: 10px;
+      border-right: 1px solid rgba(243, 239, 230, 0.16);
+    }
+
+    .solari-tiles {
+      display: grid;
+      grid-template-columns: repeat(22, minmax(0, 1fr));
+      gap: 3px;
+      flex: 1;
+      max-width: 780px;
+    }
+
+    .flap-tile {
+      position: relative;
+      height: 36px;
+      background: linear-gradient(180deg, #1E2025 0%, #141518 49%, #09090B 50%, #17181C 100%);
+      border: 1px solid rgba(243, 239, 230, 0.16);
+      border-radius: 2px;
+      color: var(--paper);
+      font-family: var(--mono);
+      font-size: 15px;
+      font-weight: 600;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      transition: transform 0.06s ease;
+    }
+
+    .flap-tile::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 50%;
+      height: 1.5px;
+      background: #040406;
+      box-shadow: 0 1px 0 rgba(255, 255, 255, 0.07);
+      pointer-events: none;
+    }
+
+    .flap-tile.is-flipping {
+      transform: scaleY(0.84);
+      color: var(--yellow);
+    }
+
+    .btn-flip-next {
+      padding: 8px 14px;
+      background: var(--orange);
+      color: #FFFFFF;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      border-radius: var(--r-xs);
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.15s ease, transform 0.1s ease;
+    }
+
+    .btn-flip-next:hover { background: #FF621F; }
+    .btn-flip-next:active { transform: translateY(1px); }
+
+    /* =========================================================================
+       4. SHARED SECTION HEADERS
+       ========================================================================= */
+    .section {
+      margin-top: 76px;
+    }
+
+    .section-head {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 18px;
+      flex-wrap: wrap;
+      margin-bottom: 22px;
+      padding-bottom: 14px;
+      border-bottom: 1.5px solid var(--ink);
+    }
+
+    .section-kicker {
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--orange);
+      margin-bottom: 6px;
+    }
+
+    .section-title {
+      font-family: var(--serif-cn);
+      font-size: clamp(22px, 3vw, 31px);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--ink);
+    }
+
+    .section-sub {
+      font-size: 13.5px;
+      color: var(--ink-2);
+      max-width: 460px;
+    }
+
+    /* =========================================================================
+       5. INTERACTIVE WORKBENCH (#workbench — TE & BRAUN HARDWARE DECK + CANVAS)
+       ========================================================================= */
+    .workbench-chassis {
+      border: 2px solid var(--ink);
+      background: var(--paper-elev);
+      border-radius: var(--r-xs);
+      overflow: hidden;
+      box-shadow: 10px 10px 0 rgba(17, 17, 19, 0.12);
+    }
+
+    /* Dark Anodized Chrome Top Bar */
+    .workbench-chrome {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      padding: 11px 18px;
+      background: var(--console);
+      color: var(--paper);
+      border-bottom: 1.5px solid var(--ink);
+      font-family: var(--mono);
+      font-size: 11.5px;
+    }
+
+    .chrome-leds {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .chrome-leds span {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+    }
+
+    .chrome-leds span:nth-child(1) { background: var(--orange); }
+    .chrome-leds span:nth-child(2) { background: var(--yellow); }
+    .chrome-leds span:nth-child(3) { background: var(--emerald); }
+
+    .chrome-prompt {
+      color: var(--paper);
+      padding: 4px 12px;
+      background: rgba(243, 239, 230, 0.08);
+      border: 1px solid rgba(243, 239, 230, 0.22);
+      border-radius: var(--r-xs);
+      font-family: var(--sans);
+      font-size: 12.5px;
+      font-weight: 500;
+    }
+
+    #chrome-status {
+      color: var(--emerald);
+      font-size: 11px;
+      letter-spacing: 0.06em;
+    }
+
+    /* Brushed Anodized Aluminum Hardware Control Strip */
+    .hardware-deck {
+      position: relative;
+      display: grid;
+      grid-template-columns: 200px 1fr 195px 210px;
+      gap: 16px;
+      align-items: center;
+      padding: 16px 24px;
+      border-bottom: 1.5px solid var(--ink);
+      background:
+        repeating-linear-gradient(
+          0deg,
+          rgba(255, 255, 255, 0.08) 0px,
+          rgba(255, 255, 255, 0.08) 1px,
+          rgba(17, 17, 19, 0.025) 1px,
+          rgba(17, 17, 19, 0.025) 2px
+        ),
+        linear-gradient(180deg, var(--alum-hi) 0%, var(--alum-mid) 52%, var(--alum-lo) 100%);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
+    }
+
+    /* Recessed Corner Screw Heads */
+    .screw {
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, #E4E1D9, #9E9A90);
+      border: 1px solid rgba(17, 17, 19, 0.42);
+      pointer-events: none;
+    }
+
+    .screw::before,
+    .screw::after {
+      content: "";
+      position: absolute;
+      background: rgba(17, 17, 19, 0.55);
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) rotate(25deg);
+    }
+
+    .screw::before { width: 7px; height: 1.2px; }
+    .screw::after { width: 1.2px; height: 7px; }
+    .screw.tl { top: 7px; left: 7px; }
+    .screw.tr { top: 7px; right: 7px; }
+    .screw.bl { bottom: 7px; left: 7px; }
+    .screw.br { bottom: 7px; right: 7px; }
+
+    .hw-module-label {
+      font-family: var(--mono);
+      font-size: 9.5px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      color: var(--ink-2);
+      text-transform: uppercase;
+      margin-bottom: 6px;
+      text-align: center;
+    }
+
+    /* 1. Machined 3-Detent Rotary Dial */
+    .rotary-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .rotary-stage {
+      position: relative;
+      width: 146px;
+      height: 102px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .detent-btn {
+      position: absolute;
+      background: none;
+      border: none;
+      font-family: var(--mono);
+      font-size: 9.5px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      color: var(--ink-2);
+      cursor: pointer;
+      padding: 2px 4px;
+      transition: color 0.15s ease;
+    }
+
+    .detent-btn.is-active {
+      color: var(--orange);
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+
+    .detent-btn[data-detent="model"] { top: 2px; left: 0; }
+    .detent-btn[data-detent="coding"] { top: 0; left: 50%; transform: translateX(-50%); }
+    .detent-btn[data-detent="ffmpeg"] { top: 2px; right: 0; }
+
+    .rotary-housing {
+      margin-top: 22px;
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      background: #1B1C20;
+      padding: 5px;
+      border: 1.5px solid var(--ink);
+      cursor: pointer;
+      box-shadow: 0 5px 12px rgba(17, 17, 19, 0.28);
+      display: grid;
+      place-items: center;
+    }
+
+    .rotary-knob {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      position: relative;
+      background:
+        repeating-radial-gradient(
+          circle at center,
+          rgba(255, 255, 255, 0.1) 0px,
+          rgba(255, 255, 255, 0.1) 1px,
+          rgba(17, 17, 19, 0.05) 2px,
+          rgba(17, 17, 19, 0.05) 3px
+        ),
+        conic-gradient(from 40deg, #E2E0D9, #B3B0A6, #ECEAE3, #ACA89E, #E5E3DC, #B5B1A7, #E2E0D9);
+      box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.85);
+      transition: transform 0.34s cubic-bezier(0.22, 1.32, 0.36, 1);
+    }
+
+    .rotary-notch {
+      position: absolute;
+      top: 5px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 5px;
+      height: 18px;
+      background: var(--orange);
+      border-radius: 1px;
+    }
+
+    /* 2. Four Physical Braun Toggle Switches */
+    .switches-bank {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      padding: 0 16px;
+      border-left: 1px solid rgba(17, 17, 19, 0.18);
+      border-right: 1px solid rgba(17, 17, 19, 0.18);
+    }
+
+    .switch-unit {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .switch-led {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #2C2A27;
+      border: 1px solid rgba(17, 17, 19, 0.6);
+      transition: background 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .switch-led.lit-orange {
+      background: var(--orange);
+      box-shadow: 0 0 8px rgba(255, 77, 0, 0.9);
+    }
+
+    .switch-led.lit-emerald {
+      background: var(--emerald);
+      box-shadow: 0 0 8px rgba(0, 240, 132, 0.9);
+    }
+
+    .toggle-track {
+      width: 34px;
+      height: 54px;
+      background: #1B1C20;
+      border: 1px solid var(--ink);
+      border-radius: 2px;
+      box-shadow: inset 0 3px 7px rgba(0, 0, 0, 0.7);
+      position: relative;
+      cursor: pointer;
+    }
+
+    .toggle-cap {
+      position: absolute;
+      left: 3px;
+      right: 3px;
+      height: 24px;
+      background: linear-gradient(180deg, #F6F3EC 0%, #D9D5CB 100%);
+      border: 1px solid rgba(17, 17, 19, 0.45);
+      border-radius: 1px;
+      transform: translateY(25px);
+      transition: transform 0.15s cubic-bezier(0.2, 1.25, 0.4, 1), background 0.15s ease;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .toggle-cap i {
+      display: block;
+      width: 14px;
+      height: 1px;
+      background: rgba(17, 17, 19, 0.35);
+    }
+
+    .toggle-track.is-on .toggle-cap {
+      transform: translateY(3px);
+      background: linear-gradient(180deg, #FF6422 0%, #FF4D00 100%);
+      border-color: #9A2F00;
+    }
+
+    .toggle-track.is-on[data-switch="crt"] .toggle-cap {
+      background: linear-gradient(180deg, #2BFF9E 0%, #00C96E 100%);
+      border-color: #006E3B;
+    }
+
+    .switch-caption {
+      font-family: var(--mono);
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      color: var(--ink);
+      text-align: center;
+      line-height: 1.2;
+    }
+
+    /* 3. Analog VU Meter & 4. Mini CRT Scope Housings */
+    .meter-box {
+      background: #F9F5EA;
+      border: 1.5px solid var(--ink);
+      border-radius: var(--r-xs);
+      padding: 4px;
+      box-shadow: inset 0 1px 4px rgba(17, 17, 19, 0.18);
+    }
+
+    .meter-box canvas {
+      display: block;
+      width: 100%;
+      height: 78px;
+    }
+
+    .crt-box {
+      background: var(--crt-bg);
+      border: 1.5px solid var(--ink);
+      border-radius: var(--r-xs);
+      padding: 4px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.9);
+    }
+
+    .crt-box::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, transparent 45%);
+      pointer-events: none;
+    }
+
+    .crt-box canvas {
+      display: block;
+      width: 100%;
+      height: 78px;
+    }
+
+    /* Workbench Main Split Layout */
+    .workbench-body {
+      display: grid;
+      grid-template-columns: 356px 1fr;
+    }
+
+    /* Left Proposal Rail */
+    .proposal-rail {
+      border-right: 1.5px solid var(--ink);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      background: var(--paper);
+    }
+
+    .rail-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-family: var(--mono);
+      font-size: 10.5px;
+      font-weight: 600;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--rule);
+    }
+
+    .route-card {
+      position: relative;
+      text-align: left;
+      width: 100%;
+      padding: 15px 16px 14px 19px;
+      border-radius: var(--r-xs);
+      background: var(--paper-elev);
+      border: 1.5px solid rgba(17, 17, 19, 0.24);
+      color: var(--ink);
+      cursor: pointer;
+      transition: transform 0.14s ease, border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+    }
+
+    .route-card::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 5px;
+      background: rgba(17, 17, 19, 0.15);
+      transition: background 0.15s ease;
+    }
+
+    .route-card:hover {
+      border-color: var(--ink);
+      transform: translateX(2px);
+    }
+
+    .route-card.is-active {
+      border-color: var(--ink);
+      background: #FFFFFF;
+      box-shadow: 4px 4px 0 var(--ink);
+    }
+
+    .route-card.is-active[data-route="model"]::before { background: var(--orange); }
+    .route-card.is-active[data-route="coding"]::before { background: var(--cobalt); }
+    .route-card.is-active[data-route="ffmpeg"]::before { background: var(--emerald-ink); }
+
+    .route-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      color: var(--orange);
+      margin-bottom: 6px;
+    }
+
+    .route-card[data-route="coding"] .route-meta { color: var(--cobalt); }
+    .route-card[data-route="ffmpeg"] .route-meta { color: var(--emerald-ink); }
+
+    .route-card h3 {
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 5px;
+      color: var(--ink);
+    }
+
+    .route-card p {
+      font-size: 12.5px;
+      color: var(--ink-2);
+      line-height: 1.58;
+    }
+
+    .route-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 10px;
+    }
+
+    .tag {
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 500;
+      padding: 2px 7px;
+      border-radius: var(--r-xs);
+      background: var(--paper);
+      border: 1px solid rgba(17, 17, 19, 0.22);
+      color: var(--ink-2);
+    }
+
+    /* Right Execution Canvas Stage */
+    .canvas-stage {
+      padding: 22px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      background-color: var(--paper-elev);
+      background-image:
+        radial-gradient(rgba(17, 17, 19, 0.14) 1px, transparent 1px);
+      background-size: 20px 20px;
+    }
+
+    .stage-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .stage-title {
+      font-family: var(--serif-cn);
+      font-size: 19px;
+      font-weight: 700;
+      color: var(--ink);
+      margin-bottom: 4px;
+    }
+
+    .stage-summary {
+      font-size: 13px;
+      color: var(--ink-2);
+      max-width: 540px;
+    }
+
+    .stage-metrics {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .metric-chip {
+      padding: 7px 11px;
+      border-radius: var(--r-xs);
+      background: var(--paper);
+      border: 1px solid var(--ink);
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--muted);
+    }
+
+    .metric-chip strong {
+      display: block;
+      font-family: var(--sans);
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--ink);
+      margin-top: 2px;
+    }
+
+    /* Embedded Live 16:9 Programmatic Video Preview + NLE Timeline */
+    .preview-shell {
+      border: 1.5px solid var(--ink);
+      background: var(--console);
+      border-radius: var(--r-xs);
+      overflow: hidden;
+    }
+
+    .preview-viewport {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      background: var(--paper);
+      overflow: hidden;
+    }
+
+    #wb-preview-canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    .nle-bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 9px 14px;
+      background: var(--console);
+      border-top: 1px solid rgba(243, 239, 230, 0.14);
+      color: var(--paper);
+      font-family: var(--mono);
+      font-size: 11px;
+      flex-wrap: wrap;
+    }
+
+    .nle-play-btn {
+      padding: 5px 10px;
+      background: var(--orange);
+      color: #FFFFFF;
+      border: none;
+      border-radius: var(--r-xs);
+      font-family: var(--mono);
+      font-size: 10.5px;
+      font-weight: 600;
+      cursor: pointer;
+      min-width: 68px;
+    }
+
+    .nle-play-btn:hover { background: #FF621F; }
+
+    .nle-time {
+      color: var(--yellow);
+      min-width: 108px;
+      font-size: 11px;
+    }
+
+    .nle-scrubber {
+      position: relative;
+      flex: 1;
+      min-width: 140px;
+      height: 22px;
+      display: flex;
+      align-items: center;
+      cursor: ew-resize;
+      user-select: none;
+    }
+
+    .nle-track {
+      position: relative;
+      width: 100%;
+      height: 6px;
+      background: rgba(243, 239, 230, 0.16);
+      border-radius: 1px;
+    }
+
+    .nle-fill {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      background: rgba(255, 77, 0, 0.45);
+      width: 0%;
+    }
+
+    /* 4 Stage Marker Ticks on NLE Bar */
+    .nle-tick {
+      position: absolute;
+      top: -3px;
+      bottom: -3px;
+      width: 1px;
+      background: rgba(243, 239, 230, 0.45);
+      pointer-events: none;
+    }
+
+    .nle-playhead {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+      background: var(--orange);
+      transform: translateX(-50%);
+      pointer-events: none;
+      box-shadow: 0 0 8px rgba(255, 77, 0, 0.8);
+    }
+
+    .nle-playhead::before {
+      content: "";
+      position: absolute;
+      top: -3px;
+      left: -4px;
+      border-left: 5.5px solid transparent;
+      border-right: 5.5px solid transparent;
+      border-top: 6px solid var(--orange);
+    }
+
+    .nle-snap-btn {
+      padding: 5px 10px;
+      background: transparent;
+      color: var(--paper);
+      border: 1px solid rgba(243, 239, 230, 0.32);
+      border-radius: var(--r-xs);
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .nle-snap-btn:hover {
+      background: var(--paper);
+      color: var(--ink);
+    }
+
+    /* 4-Node DAG Pipeline */
+    .dag-pipeline {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      position: relative;
+    }
+
+    .dag-node {
+      text-align: left;
+      padding: 13px 12px;
+      border-radius: var(--r-xs);
+      background: var(--paper);
+      border: 1.5px solid var(--ink);
+      position: relative;
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+    }
+
+    .dag-node:hover {
+      transform: translateY(-2px);
+      background: #FFFFFF;
+      box-shadow: 3px 3px 0 var(--ink);
+    }
+
+    .dag-node.is-inspected {
+      background: #FFFFFF;
+      border-color: var(--cobalt);
+      box-shadow: 3px 3px 0 var(--cobalt);
+    }
+
+    .dag-node::after {
+      content: "→";
+      position: absolute;
+      right: -12px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--orange);
+      z-index: 3;
+    }
+
+    .dag-node:last-child::after { display: none; }
+
+    .node-step {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-family: var(--mono);
+      font-size: 9.5px;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 7px;
+    }
+
+    .node-status {
+      color: var(--emerald-ink);
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .node-status::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--emerald);
+      border: 1px solid var(--emerald-ink);
+    }
+
+    .dag-node h4 {
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 5px;
+      color: var(--ink);
+    }
+
+    .dag-node p {
+      font-size: 11.8px;
+      color: var(--ink-2);
+      line-height: 1.52;
+      margin-bottom: 10px;
+    }
+
+    .node-tool {
+      display: inline-block;
+      font-family: var(--mono);
+      font-size: 9.8px;
+      font-weight: 600;
+      color: var(--cobalt);
+      background: var(--cobalt-soft);
+      border: 1px solid rgba(24, 53, 245, 0.28);
+      padding: 2px 6px;
+      border-radius: var(--r-xs);
+      word-break: break-all;
+    }
+
+    /* Stage Footer */
+    .stage-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      padding-top: 14px;
+      border-top: 1px dashed rgba(17, 17, 19, 0.28);
+    }
+
+    .history-note {
+      font-family: var(--mono);
+      font-size: 11.5px;
+      color: var(--ink-2);
+    }
+
+    .history-note span {
+      color: var(--emerald-ink);
+      font-weight: 600;
+    }
+
+    .stage-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .mini-btn {
+      font-family: var(--mono);
+      font-size: 11.5px;
+      font-weight: 600;
+      padding: 8px 13px;
+      border-radius: var(--r-xs);
+      background: var(--paper);
+      border: 1.5px solid var(--ink);
+      color: var(--ink);
+      cursor: pointer;
+      transition: all 0.14s ease;
+    }
+
+    .mini-btn:hover {
+      background: var(--ink);
+      color: var(--paper);
+    }
+
+    #btn-branch:hover {
+      background: var(--orange);
+      border-color: var(--ink);
+      color: #FFFFFF;
+    }
+
+    /* =========================================================================
+       6. 12FPS STOP-MOTION MULTIMODAL ARTIFACT STRIP (VISUAL BRIDGE)
+       ========================================================================= */
+    .artifact-bridge {
+      position: relative;
+      margin-top: 56px;
+      padding: 26px 24px 28px;
+      border: 1.5px solid var(--ink);
+      background: var(--paper-deep);
+      overflow: hidden;
+    }
+
+    .artifact-scan-beam {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+      background: var(--cobalt);
+      box-shadow: 0 0 16px rgba(24, 53, 245, 0.75);
+      transform: skewX(-16deg);
+      pointer-events: none;
+      z-index: 8;
+      left: 0%;
+    }
+
+    .artifact-head {
+      position: relative;
+      z-index: 4;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+    }
+
+    .artifact-scan-status {
+      background: var(--ink);
+      color: var(--paper);
+      padding: 3px 10px;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .artifact-scan-status i {
+      width: 6px;
+      height: 6px;
+      background: var(--cobalt);
+      display: inline-block;
+    }
+
+    .artifact-grid {
+      position: relative;
+      z-index: 4;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 20px;
+    }
+
+    @keyframes step12Jitter {
+      0% { transform: rotate(var(--tilt)) translate(0, 0); }
+      25% { transform: rotate(calc(var(--tilt) + 1deg)) translate(-2px, 1px); }
+      50% { transform: rotate(calc(var(--tilt) - 0.8deg)) translate(2px, -1px); }
+      75% { transform: rotate(calc(var(--tilt) + 0.5deg)) translate(-1px, -2px); }
+      100% { transform: rotate(var(--tilt)) translate(0, 0); }
+    }
+
+    .artifact-card {
+      position: relative;
+      background: #FFFFFF;
+      border: 1.5px solid var(--ink);
+      padding: 10px;
+      text-align: left;
+      cursor: pointer;
+      transform: rotate(var(--tilt));
+      box-shadow: 6px 8px 0 rgba(17, 17, 19, 0.12);
+      transition: box-shadow 0.15s ease, outline-color 0.15s ease;
+    }
+
+    .artifact-card:hover {
+      animation: step12Jitter 0.333s steps(4, end) infinite;
+      box-shadow: 8px 10px 0 rgba(24, 53, 245, 0.25);
+      z-index: 6;
+    }
+
+    .artifact-card.is-scanned {
+      outline: 2px solid var(--cobalt);
+      outline-offset: 4px;
+    }
+
+    .artifact-tape {
+      position: absolute;
+      top: -9px;
+      left: 50%;
+      transform: translateX(-50%) rotate(var(--tape-rot, -2deg));
+      width: 54px;
+      height: 16px;
+      background: rgba(245, 213, 71, 0.78);
+      border: 1px solid rgba(17, 17, 19, 0.2);
+      pointer-events: none;
+    }
+
+    .artifact-card svg {
+      display: block;
+      width: 100%;
+      height: auto;
+      border: 1px solid rgba(17, 17, 19, 0.16);
+      margin-bottom: 8px;
+    }
+
+    .artifact-meta {
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--cobalt);
+      letter-spacing: 0.06em;
+    }
+
+    .artifact-sub {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--ink);
+      margin-top: 2px;
+    }
+
+    /* =========================================================================
+       7. 4 CORE PILLARS (#pillars — 03 // SWISS SPECIMEN PLATES)
+       ========================================================================= */
+    .pillars-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 20px;
+    }
+
+    .pillar-card {
+      position: relative;
+      padding: 28px 26px 26px;
+      background: var(--paper-elev);
+      border: 1.5px solid var(--ink);
+      border-radius: var(--r-xs);
+      overflow: hidden;
+      transition: transform 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .pillar-card:hover {
+      transform: translate(-2px, -2px);
+      box-shadow: 6px 6px 0 var(--ink);
+    }
+
+    .pillar-corner-swatch {
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 54px;
+      height: 54px;
+      background-image: radial-gradient(var(--ink) 1.25px, transparent 1.25px);
+      background-size: 6px 6px;
+      opacity: 0.14;
+      border-left: 1px solid var(--rule);
+      border-bottom: 1px solid var(--rule);
+      pointer-events: none;
+    }
+
+    .pillar-top-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--rule);
+    }
+
+    .pillar-big-num {
+      font-family: var(--serif-display);
+      font-size: 56px;
+      line-height: 0.85;
+      color: var(--orange);
+    }
+
+    .pillar-num {
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--ink);
+      letter-spacing: 0.08em;
+    }
+
+    .pillar-card h3 {
+      font-family: var(--serif-cn);
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--ink);
+      margin-bottom: 10px;
+    }
+
+    .pillar-card p {
+      font-size: 14px;
+      color: var(--ink-2);
+      line-height: 1.78;
+    }
+
+    /* =========================================================================
+       8. MODULAR ARCHITECTURE RACK (#architecture — 04 // INDUSTRIAL SIGNAL FLOW)
+       ========================================================================= */
+    .arch-rack-shell {
+      border: 2px solid var(--ink);
+      background: var(--paper-elev);
+      box-shadow: 8px 8px 0 rgba(17, 17, 19, 0.10);
+    }
+
+    .arch-strip {
+      display: grid;
+      grid-template-columns: 1fr 48px 1.25fr 48px 1fr;
+      align-items: stretch;
+      padding: 24px;
+      gap: 0;
+    }
+
+    .arch-box {
+      position: relative;
+      padding: 22px 20px;
+      border: 1.5px solid var(--ink);
+      background: var(--paper);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .arch-box.highlight {
+      background: var(--console);
+      color: var(--paper);
+      border-color: var(--ink);
+      box-shadow: 0 0 0 2px var(--orange) inset;
+    }
+
+    .arch-label {
+      font-family: var(--mono);
+      font-size: 10.5px;
+      font-weight: 600;
+      color: var(--cobalt);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    .arch-box.highlight .arch-label {
+      color: var(--yellow);
+    }
+
+    .hotswap-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--mono);
+      font-size: 9.5px;
+      font-weight: 600;
+      color: var(--emerald);
+      padding: 2px 8px;
+      border: 1px solid rgba(0, 240, 132, 0.4);
+      background: rgba(0, 240, 132, 0.08);
+      margin-bottom: 12px;
+      width: fit-content;
+    }
+
+    .hotswap-badge i {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--emerald);
+      box-shadow: 0 0 8px var(--emerald);
+    }
+
+    .arch-box h4 {
+      font-family: var(--serif-cn);
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .arch-box p {
+      font-size: 13.5px;
+      color: var(--ink-2);
+      line-height: 1.7;
+    }
+
+    .arch-box.highlight p {
+      color: rgba(243, 239, 230, 0.8);
+    }
+
+    .arch-arrow {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      font-family: var(--mono);
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--orange);
+    }
+
+    .arch-arrow::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 50%;
+      height: 1.5px;
+      background: repeating-linear-gradient(90deg, var(--ink) 0 4px, transparent 4px 8px);
+      z-index: 0;
+    }
+
+    .arch-arrow span {
+      position: relative;
+      z-index: 1;
+      background: var(--paper-elev);
+      padding: 2px 6px;
+      border: 1px solid var(--ink);
+      line-height: 1;
+    }
+
+    /* =========================================================================
+       9. CLOSING OBSIDIAN POSTER CTA & MUSEUM COLOPHON FOOTER
+       ========================================================================= */
+    .cta-panel {
+      position: relative;
+      margin-top: 76px;
+      padding: 54px 32px;
+      text-align: center;
+      background: var(--ink);
+      color: var(--paper);
+      border: 2px solid var(--ink);
+      overflow: hidden;
+      box-shadow: 10px 10px 0 rgba(17, 17, 19, 0.14);
+    }
+
+    #cta-fluted-sweep {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 260px;
+      pointer-events: none;
+      z-index: 1;
+      will-change: transform;
+      background-image: repeating-linear-gradient(
+        90deg,
+        rgba(255, 255, 255, 0.08) 0px,
+        rgba(255, 255, 255, 0.01) 5px,
+        rgba(255, 77, 0, 0.09) 12px,
+        rgba(0, 0, 0, 0.22) 15px,
+        rgba(255, 255, 255, 0.06) 16px
+      );
+      border-left: 1px solid rgba(243, 239, 230, 0.12);
+      border-right: 1px solid rgba(243, 239, 230, 0.12);
+    }
+
+    .cta-inner {
+      position: relative;
+      z-index: 3;
+    }
+
+    .cta-panel h2 {
+      font-family: var(--serif-cn);
+      font-size: clamp(26px, 3.4vw, 38px);
+      font-weight: 700;
+      margin-bottom: 12px;
+      color: var(--paper);
+    }
+
+    .cta-panel p {
+      color: rgba(243, 239, 230, 0.76);
+      max-width: 620px;
+      margin: 0 auto 28px;
+      font-size: 15px;
+    }
+
+    .cta-panel .hero-actions {
+      justify-content: center;
+    }
+
+    .cta-panel .btn-primary {
+      border-color: var(--orange);
+      box-shadow: 4px 4px 0 rgba(243, 239, 230, 0.25);
+    }
+
+    .cta-panel .btn-ghost {
+      background: transparent;
+      color: var(--paper);
+      border-color: rgba(243, 239, 230, 0.45);
+      box-shadow: none;
+    }
+
+    .cta-panel .btn-ghost:hover {
+      background: var(--paper);
+      color: var(--ink);
+    }
+
+    footer {
+      margin-top: 40px;
+      padding: 20px 2px 0;
+      border-top: 1.5px solid var(--ink);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      font-family: var(--mono);
+      font-size: 11.5px;
+      font-weight: 500;
+      color: var(--ink-2);
+    }
+
+    /* =========================================================================
+       10. RESPONSIVE BREAKPOINTS (960px & 680px) + REDUCED MOTION
+       ========================================================================= */
+    @media (max-width: 1080px) {
+      .hardware-deck {
+        grid-template-columns: 1fr 1fr;
+      }
+      .switches-bank {
+        border-left: none;
+        border-right: none;
+        border-top: 1px solid rgba(17, 17, 19, 0.16);
+        border-bottom: 1px solid rgba(17, 17, 19, 0.16);
+        padding: 14px 0;
+      }
+    }
+
+    @media (max-width: 960px) {
+      .hero-body {
+        grid-template-columns: 1fr;
+        padding: 26px 22px;
+      }
+      .pantone-column {
+        align-items: flex-start;
+      }
+      .workbench-body {
+        grid-template-columns: 1fr;
+      }
+      .proposal-rail {
+        border-right: none;
+        border-bottom: 1.5px solid var(--ink);
+      }
+      .dag-pipeline {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .dag-node::after { display: none; }
+      .artifact-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .arch-strip {
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+      .arch-arrow {
+        height: 32px;
+      }
+      .arch-arrow::before {
+        top: 0;
+        bottom: 0;
+        left: 50%;
+        right: auto;
+        width: 1.5px;
+        height: auto;
+        background: repeating-linear-gradient(180deg, var(--ink) 0 4px, transparent 4px 8px);
+      }
+      .arch-arrow span { transform: rotate(90deg); }
+      .solari-tiles {
+        grid-template-columns: repeat(11, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 680px) {
+      .page { padding: 0 14px 64px; }
+      .topbar { gap: 8px; padding-inline: 10px; }
+      .brand { gap: 6px; }
+      .nav-links, .telemetry-pill { display: none; }
+      .hardware-deck { grid-template-columns: 1fr; padding: 14px; }
+      .pillars-grid { grid-template-columns: 1fr; }
+      .dag-pipeline { grid-template-columns: 1fr; }
+      .artifact-grid { grid-template-columns: 1fr; }
+      .hero-desc { padding: 18px 16px; }
+      #hero-fluted-glass, #cta-fluted-sweep { width: 130px; }
+      .spectrum-strip span { font-size: 7.5px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Procedural SVG Archival Paper Grain Overlay -->
+  <svg id="archival-grain" aria-hidden="true">
+    <filter id="paper-fiber-filter">
+      <feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="3" stitchTiles="stitch" />
+      <feColorMatrix type="saturate" values="0" />
+    </filter>
+    <rect width="100%" height="100%" filter="url(#paper-fiber-filter)" />
+  </svg>
+
+  <!-- Non-intrusive Toast -->
+  <div id="lab-toast" role="status" aria-live="polite">
+    <span class="toast-led"></span>
+    <span id="lab-toast-text">READY</span>
+  </div>
+
+  <div class="page">
+    <!-- =======================================================================
+         A. STICKY TOP TELEMETRY BAR (.topbar)
+         ======================================================================= -->
+    <header class="topbar reg-frame">
+      <span class="reg-mark tl" aria-hidden="true"></span>
+      <span class="reg-mark tr" aria-hidden="true"></span>
+      <span class="reg-mark bl" aria-hidden="true"></span>
+      <span class="reg-mark br" aria-hidden="true"></span>
+
+      <a class="brand" href="/">
+        <span class="brand-spark" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+            <path d="M12 1 Q12 12 23 12 Q12 12 12 23 Q12 12 1 12 Q12 12 12 1 Z" fill="#FF4D00" />
+            <circle cx="12" cy="12" r="2.2" fill="#111113" />
+          </svg>
+        </span>
+        <span>AI Creative Lab</span>
+        <span class="brand-tag"><span aria-hidden="true">←</span> 返回首页</span>
+      </a>
+
+      <nav class="nav-links" aria-label="主导航">
+        <a href="#workbench">实验台提案</a>
+        <a href="#pillars">核心优势</a>
+        <a href="#architecture">架构理念</a>
+      </nav>
+
+      <div class="topbar-right">
+        <div class="telemetry-pill" aria-live="polite">
+          <span class="pulse-led" aria-hidden="true"></span>
+          <span id="telemetry-coord">GRID 0000 · 0000 // READY</span>
+        </div>
+        <button type="button" class="sfx-switch" id="btn-sfx" aria-pressed="true" title="切换实体拟音音效">
+          <span class="sfx-dot" aria-hidden="true"></span>
+          <span id="sfx-label">SFX: ON</span>
+        </button>
+      </div>
+    </header>
+
+    <main id="top">
+      <!-- =====================================================================
+           B. HERO SECTION (#top — 01 // GLASS & SPECIMEN)
+           ===================================================================== -->
+      <section class="hero-spread reg-frame" id="hero-spread">
+        <!-- Interactive Fluted Architectural Glass (长虹玻璃) Overlay -->
+        <div id="hero-fluted-glass" aria-hidden="true"></div>
+
+        <div class="hero-meta-bar">
+          <span>01 // GLASS &amp; SPECIMEN — ARCHIVAL EDITION</span>
+          <span class="optical-readout" id="glass-readout">FLUTED RIB X: 0420px · n = 1.52</span>
+        </div>
+
+        <div class="hero-body">
+          <div class="hero-main">
+            <div class="eyebrow">
+              <span>EXPERIMENT WORKBENCH</span>
+              <span>·</span>
+              <span>METHOD PROPOSALS</span>
+            </div>
+
+            <h1>
+              把不确定的 AI 生成，<br />变成<span class="marquee-accent">
+                <span class="marquee-tag">VECTOR LOCK · 01</span>
+                <span class="marquee-handle tl" aria-hidden="true"></span>
+                <span class="marquee-handle tr" aria-hidden="true"></span>
+                <span class="marquee-handle bl" aria-hidden="true"></span>
+                <span class="marquee-handle br" aria-hidden="true"></span>可探索、可回溯的创作实验</span>
+            </h1>
+
+            <p class="hero-desc">
+              <strong>AI Creative Lab</strong> 是一个以「实验台」与「方法提案」为核心的 AI 创作平台，将对话式 Agent 的开放思考与可视化画布的有序沉淀衔接在一起。不同于市面上单线抽卡或固化工作流的工具，面对任意创作想法，Agent 会结合可热插拔的 Skill 方法库，先在<strong>实验台</strong>中并行提出多条不同技术路径的<strong>方法提案</strong>（广度探索），清晰列出思路、步骤与底层工具调用，选定后再沿画布逐步执行落盘（深度验证）。以<strong>视频创作</strong>为例，同一需求可同时生成传统视频大模型关键帧/首尾帧、Coding Video 程序化渲染、图片/视频剪辑 + FFmpeg 特效合成三种提案——满意就沿画布继续延伸成片，不满意无需重开对话，随时微调或一键回溯历史提案切换路线。
+            </p>
+
+            <div class="hero-actions">
+              <a class="btn btn-primary" href="#workbench">体验实验台方法提案 ↓</a>
+              <a class="btn btn-ghost" href="#architecture">了解 Skill + 工具链架构</a>
+            </div>
+          </div>
+
+          <!-- Slanted Pantone Swatch Sticker Card -->
+          <div class="pantone-column">
+            <button type="button" class="pantone-card" id="btn-pantone-card" title="点击切换 Pantone 色卡">
+              <span class="pantone-tape" aria-hidden="true"></span>
+              <div class="pantone-chip" id="pantone-chip">
+                <div class="pantone-chip-top">
+                  <span id="pantone-series">LAB SPECIMEN 01</span>
+                  <span id="pantone-nm">640.2 nm</span>
+                </div>
+                <div class="pantone-chip-num" id="pantone-num">10</div>
+              </div>
+              <div class="pantone-meta">
+                <div class="pantone-brand-row">
+                  <span class="pantone-brand">PANTONE®</span>
+                  <span class="pantone-code" id="pantone-code">10-Ne</span>
+                </div>
+                <div class="pantone-name" id="pantone-name">INTL ORANGE</div>
+                <div class="pantone-foot">
+                  <span id="pantone-hex">#FF4D00</span>
+                  <span>CLICK TO CYCLE ↻</span>
+                </div>
+              </div>
+            </button>
+            <div class="pantone-hint">TAP SWATCH · SHUTTER FOLEY</div>
+          </div>
+        </div>
+
+        <!-- Solari Split-Flap Status Bar (机械翻页屏) -->
+        <div class="solari-bar">
+          <div class="solari-left">
+            <div class="solari-label">SOLARI<br />MATRIX</div>
+            <div class="solari-tiles" id="solari-tiles" aria-live="polite"></div>
+          </div>
+          <button type="button" class="btn-flip-next" id="btn-flip-next">FLIP NEXT ↻</button>
+        </div>
+      </section>
+
+      <!-- =====================================================================
+           C. INTERACTIVE EXPERIMENT WORKBENCH (#workbench)
+           ===================================================================== -->
+      <section class="section" id="workbench">
+        <div class="section-head">
+          <div>
+            <div class="section-kicker">INTERACTIVE LAB // VIDEO CREATION EXAMPLE</div>
+            <h2 class="section-title">同一创作目标，实验台并行给出 3 条技术路线提案</h2>
+          </div>
+          <p class="section-sub">点击左侧任意方法提案，实时查看右侧画布的执行节点、底层工具编排与可控性指标。</p>
+        </div>
+
+        <div class="workbench-chassis">
+          <!-- Dark Anodized Chrome Top Bar -->
+          <div class="workbench-chrome">
+            <div class="chrome-leds" aria-hidden="true"><span></span><span></span><span></span></div>
+            <div class="chrome-prompt">AGENT TASK · “制作一条 15 秒的赛博朋克咖啡机产品宣传片”</div>
+            <div id="chrome-status">PROPOSAL SET #01 · 3 ROUTES READY</div>
+          </div>
+
+          <!-- Brushed Anodized Aluminum Hardware Control Strip -->
+          <div class="hardware-deck" aria-label="硬件控制台">
+            <span class="screw tl" aria-hidden="true"></span>
+            <span class="screw tr" aria-hidden="true"></span>
+            <span class="screw bl" aria-hidden="true"></span>
+            <span class="screw br" aria-hidden="true"></span>
+
+            <!-- 1. Machined 3-Detent Rotary Dial -->
+            <div class="rotary-wrap">
+              <div class="hw-module-label">ROUTE SELECTOR</div>
+              <div class="rotary-stage">
+                <button type="button" class="detent-btn is-active" data-detent="model">01 MODEL</button>
+                <button type="button" class="detent-btn" data-detent="coding">02 CODING</button>
+                <button type="button" class="detent-btn" data-detent="ffmpeg">03 FFMPEG</button>
+                <button type="button" class="rotary-housing" id="btn-rotary-dial" title="点击旋转切换三条路线">
+                  <div class="rotary-knob" id="rotary-knob">
+                    <span class="rotary-notch"></span>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            <!-- 2. 4 Physical Toggle Switches -->
+            <div class="switches-bank">
+              <div class="switch-unit">
+                <span class="switch-led lit-orange" id="led-fluted"></span>
+                <button type="button" class="toggle-track is-on" data-switch="fluted" aria-pressed="true" aria-label="切换长虹玻璃效果">
+                  <span class="toggle-cap"><i></i><i></i><i></i></span>
+                </button>
+                <span class="switch-caption">FLUTED<br />GLASS</span>
+              </div>
+              <div class="switch-unit">
+                <span class="switch-led" id="led-step12"></span>
+                <button type="button" class="toggle-track" data-switch="step12" aria-pressed="false" aria-label="切换 12FPS 定格帧率">
+                  <span class="toggle-cap"><i></i><i></i><i></i></span>
+                </button>
+                <span class="switch-caption">12FPS<br />STEP</span>
+              </div>
+              <div class="switch-unit">
+                <span class="switch-led" id="led-crt"></span>
+                <button type="button" class="toggle-track" data-switch="crt" aria-pressed="false" aria-label="切换 CRT 荧光示波叠层">
+                  <span class="toggle-cap"><i></i><i></i><i></i></span>
+                </button>
+                <span class="switch-caption">CRT<br />SCOPE</span>
+              </div>
+              <div class="switch-unit">
+                <span class="switch-led lit-orange" id="led-halftone"></span>
+                <button type="button" class="toggle-track is-on" data-switch="halftone" aria-pressed="true" aria-label="切换半调网点印刷效果">
+                  <span class="toggle-cap"><i></i><i></i><i></i></span>
+                </button>
+                <span class="switch-caption">HALF<br />TONE</span>
+              </div>
+            </div>
+
+            <!-- 3. Analog Needle VU Meter -->
+            <div>
+              <div class="hw-module-label">ANALOG VU (-20/+3dB)</div>
+              <div class="meter-box">
+                <canvas id="vu-canvas" aria-label="模拟指针 VU 表"></canvas>
+              </div>
+            </div>
+
+            <!-- 4. Mini Dual-Beam CRT Oscilloscope -->
+            <div>
+              <div class="hw-module-label">DUAL-BEAM CRT SCOPE</div>
+              <div class="crt-box">
+                <canvas id="crt-canvas" aria-label="双通道荧光示波器"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <!-- Workbench Main Split Layout -->
+          <div class="workbench-body">
+            <!-- Left Proposal Rail -->
+            <aside class="proposal-rail" aria-label="方法提案列表">
+              <div class="rail-header">
+                <span>METHOD PROPOSALS</span>
+                <span>广度探索</span>
+              </div>
+
+              <button type="button" class="route-card is-active" data-route="model">
+                <div class="route-meta">
+                  <span>ROUTE 01 · VIDEO FOUNDATION MODEL</span>
+                  <span>电影质感</span>
+                </div>
+                <h3>传统视频大模型 · 关键帧 / 首尾帧</h3>
+                <p>先拆解分镜与视觉母版，生成高精度关键帧，再通过首尾帧锚点控制生成连贯镜头。</p>
+                <div class="route-tags">
+                  <span class="tag">Keyframe I2V</span>
+                  <span class="tag">First-Last Frame</span>
+                  <span class="tag">高视觉表现</span>
+                </div>
+              </button>
+
+              <button type="button" class="route-card" data-route="coding">
+                <div class="route-meta">
+                  <span>ROUTE 02 · PROGRAMMATIC CODE</span>
+                  <span>像素级可控</span>
+                </div>
+                <h3>Coding Video · 程序化代码视频</h3>
+                <p>用代码驱动场景、动效曲线、信息图形与字幕节拍，毫秒级对齐并支持参数化批量变体。</p>
+                <div class="route-tags">
+                  <span class="tag">Remotion / Code</span>
+                  <span class="tag">确定性渲染</span>
+                  <span class="tag">零畸变文字</span>
+                </div>
+              </button>
+
+              <button type="button" class="route-card" data-route="ffmpeg">
+                <div class="route-meta">
+                  <span>ROUTE 03 · HYBRID EDIT &amp; VFX</span>
+                  <span>极速低成本</span>
+                </div>
+                <h3>图片视频剪辑 + FFmpeg 特效合成</h3>
+                <p>组合高质量静帧、实拍/生成片段，通过 FFmpeg 编排推拉运镜、转场、调色与音画合成。</p>
+                <div class="route-tags">
+                  <span class="tag">Ken Burns</span>
+                  <span class="tag">FFmpeg Filter</span>
+                  <span class="tag">分钟级出片</span>
+                </div>
+              </button>
+            </aside>
+
+            <!-- Right Execution Canvas Stage -->
+            <div class="canvas-stage">
+              <div class="stage-top">
+                <div>
+                  <h3 class="stage-title" id="stage-title"></h3>
+                  <p class="stage-summary" id="stage-summary"></p>
+                </div>
+                <div class="stage-metrics" id="stage-metrics"></div>
+              </div>
+
+              <!-- Embedded Live 16:9 Programmatic Video Preview + NLE Scrubber -->
+              <div class="preview-shell">
+                <div class="preview-viewport">
+                  <canvas id="wb-preview-canvas" aria-label="15 秒赛博朋克咖啡机产品宣传片实时程序化预览"></canvas>
+                </div>
+                <div class="nle-bar">
+                  <button type="button" class="nle-play-btn" id="btn-nle-play">PAUSE ❚❚</button>
+                  <span class="nle-time" id="nle-time">00:00.0 / 00:15.0</span>
+                  <div class="nle-scrubber" id="nle-scrubber" role="slider" aria-label="时间轴拖拽" aria-valuemin="0" aria-valuemax="15" aria-valuenow="0">
+                    <div class="nle-track">
+                      <div class="nle-fill" id="nle-fill"></div>
+                      <span class="nle-tick" style="left: 0%;"></span>
+                      <span class="nle-tick" style="left: 26.6%;"></span>
+                      <span class="nle-tick" style="left: 56.6%;"></span>
+                      <span class="nle-tick" style="left: 80%;"></span>
+                    </div>
+                    <div class="nle-playhead" id="nle-playhead" style="left: 0%;"></div>
+                  </div>
+                  <button type="button" class="nle-snap-btn" id="btn-nle-snap">SNAPSHOT PNG</button>
+                </div>
+              </div>
+
+              <!-- 4-Node DAG Pipeline -->
+              <div class="dag-pipeline" id="dag-pipeline"></div>
+
+              <!-- Stage Footer -->
+              <div class="stage-footer">
+                <div class="history-note" id="history-note">
+                  状态：<span>全节点可观测</span> · 支持从任意节点继续延伸或回溯历史提案
+                </div>
+                <div class="stage-actions">
+                  <button type="button" class="mini-btn" id="btn-branch">+ 从尾节点继续延伸提案</button>
+                  <button type="button" class="mini-btn" id="btn-backtrack">↺ 回溯并切换下一路线</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- =====================================================================
+           D. 12FPS STOP-MOTION MULTIMODAL ARTIFACT STRIP (VISUAL BRIDGE)
+           ===================================================================== -->
+      <section class="artifact-bridge" aria-label="多模态实体物料接触印样">
+        <div class="artifact-scan-beam" id="artifact-scan-beam" aria-hidden="true"></div>
+        <div class="artifact-head">
+          <span>CONTACT SHEET // 12FPS STOP-MOTION ARTIFACTS — CLICK TO JUMP ROUTE</span>
+          <span class="artifact-scan-status">
+            <i aria-hidden="true"></i>
+            <span id="artifact-scan-text">OPTICAL SCAN: X 0000 · LOCK [STORYBOARD]</span>
+          </span>
+        </div>
+
+        <div class="artifact-grid">
+          <!-- Artifact 01: 35mm Filmstrip -> Route 01 Model -->
+          <button type="button" class="artifact-card" style="--tilt: -1.4deg; --tape-rot: 2deg;" data-jump="model" data-scan="STORYBOARD">
+            <span class="artifact-tape" aria-hidden="true"></span>
+            <svg viewBox="0 0 280 156" aria-hidden="true">
+              <rect width="280" height="156" fill="#141518" />
+              <g fill="#F3EFE6">
+                <rect x="10" y="9" width="12" height="14" rx="1.5" /><rect x="34" y="9" width="12" height="14" rx="1.5" />
+                <rect x="58" y="9" width="12" height="14" rx="1.5" /><rect x="82" y="9" width="12" height="14" rx="1.5" />
+                <rect x="106" y="9" width="12" height="14" rx="1.5" /><rect x="130" y="9" width="12" height="14" rx="1.5" />
+                <rect x="154" y="9" width="12" height="14" rx="1.5" /><rect x="178" y="9" width="12" height="14" rx="1.5" />
+                <rect x="202" y="9" width="12" height="14" rx="1.5" /><rect x="226" y="9" width="12" height="14" rx="1.5" />
+                <rect x="250" y="9" width="12" height="14" rx="1.5" />
+                <rect x="10" y="133" width="12" height="14" rx="1.5" /><rect x="34" y="133" width="12" height="14" rx="1.5" />
+                <rect x="58" y="133" width="12" height="14" rx="1.5" /><rect x="82" y="133" width="12" height="14" rx="1.5" />
+                <rect x="106" y="133" width="12" height="14" rx="1.5" /><rect x="130" y="133" width="12" height="14" rx="1.5" />
+                <rect x="154" y="133" width="12" height="14" rx="1.5" /><rect x="178" y="133" width="12" height="14" rx="1.5" />
+                <rect x="202" y="133" width="12" height="14" rx="1.5" /><rect x="226" y="133" width="12" height="14" rx="1.5" />
+                <rect x="250" y="133" width="12" height="14" rx="1.5" />
+              </g>
+              <rect x="14" y="32" width="76" height="90" fill="#25272C" />
+              <circle cx="52" cy="70" r="18" fill="#FF4D00" />
+              <rect x="26" y="96" width="52" height="5" fill="#F3EFE6" />
+              <rect x="102" y="32" width="76" height="90" fill="#25272C" />
+              <rect x="122" y="54" width="36" height="36" fill="#F5D547" />
+              <rect x="114" y="96" width="52" height="5" fill="#F3EFE6" />
+              <rect x="190" y="32" width="76" height="90" fill="#25272C" />
+              <circle cx="228" cy="70" r="18" fill="#1835F5" />
+              <rect x="202" y="96" width="52" height="5" fill="#F3EFE6" />
+              <text x="52" y="129" text-anchor="middle" fill="#FF4D00" font-family="IBM Plex Mono, monospace" font-size="8.5" font-weight="600">KF-01</text>
+              <text x="140" y="129" text-anchor="middle" fill="#FF4D00" font-family="IBM Plex Mono, monospace" font-size="8.5" font-weight="600">KF-02</text>
+              <text x="228" y="129" text-anchor="middle" fill="#FF4D00" font-family="IBM Plex Mono, monospace" font-size="8.5" font-weight="600">KF-03</text>
+            </svg>
+            <div class="artifact-meta">ARTIFACT 01 · STORYBOARD</div>
+            <div class="artifact-sub">35mm 关键帧 / 首尾帧母版</div>
+          </button>
+
+          <!-- Artifact 02: Bezier Curve & Frame Grid -> Route 02 Coding -->
+          <button type="button" class="artifact-card" style="--tilt: 1.2deg; --tape-rot: -3deg;" data-jump="coding" data-scan="CODE GRAPH">
+            <span class="artifact-tape" aria-hidden="true"></span>
+            <svg viewBox="0 0 280 156" aria-hidden="true">
+              <rect width="280" height="156" fill="#F3EFE6" />
+              <g stroke="rgba(17,17,19,0.12)" stroke-width="1">
+                <path d="M0 32H280M0 64H280M0 96H280M0 128H280M40 0V156M80 0V156M120 0V156M160 0V156M200 0V156M240 0V156" />
+              </g>
+              <line x1="32" y1="122" x2="108" y2="34" stroke="#1835F5" stroke-width="1.5" stroke-dasharray="4 3" />
+              <line x1="248" y1="34" x2="176" y2="122" stroke="#1835F5" stroke-width="1.5" stroke-dasharray="4 3" />
+              <path d="M32 122 C108 34, 176 122, 248 34" fill="none" stroke="#FF4D00" stroke-width="3.5" />
+              <circle cx="108" cy="34" r="4.5" fill="#1835F5" />
+              <circle cx="176" cy="122" r="4.5" fill="#1835F5" />
+              <rect x="28" y="118" width="8" height="8" fill="#FFFFFF" stroke="#111113" stroke-width="1.5" />
+              <rect x="244" y="30" width="8" height="8" fill="#FFFFFF" stroke="#111113" stroke-width="1.5" />
+              <text x="16" y="22" fill="#111113" font-family="IBM Plex Mono, monospace" font-size="9" font-weight="600">SPRING(220, 24) // 450 FRM</text>
+            </svg>
+            <div class="artifact-meta">ARTIFACT 02 · CODE GRAPH</div>
+            <div class="artifact-sub">贝塞尔动效曲线与帧级时间轴</div>
+          </button>
+
+          <!-- Artifact 03: PCB / FFmpeg Signal Schematic -> Route 03 FFmpeg -->
+          <button type="button" class="artifact-card" style="--tilt: -0.9deg; --tape-rot: 1.5deg;" data-jump="ffmpeg" data-scan="FILTER CHAIN">
+            <span class="artifact-tape" aria-hidden="true"></span>
+            <svg viewBox="0 0 280 156" aria-hidden="true">
+              <rect width="280" height="156" fill="#0B3B2A" />
+              <g stroke="#F5D547" stroke-width="2" fill="none">
+                <polyline points="16,42 66,42 82,58 104,58" />
+                <polyline points="16,78 104,78" />
+                <polyline points="16,114 66,114 82,98 104,98" />
+                <polyline points="176,58 202,58 218,42 264,42" />
+                <polyline points="176,78 264,78" />
+                <polyline points="176,98 202,98 218,114 264,114" />
+              </g>
+              <g fill="#F5D547">
+                <circle cx="16" cy="42" r="3.5" /><circle cx="16" cy="78" r="3.5" /><circle cx="16" cy="114" r="3.5" />
+                <circle cx="264" cy="42" r="3.5" /><circle cx="264" cy="78" r="3.5" /><circle cx="264" cy="114" r="3.5" />
+              </g>
+              <rect x="104" y="42" width="72" height="72" fill="#141518" stroke="#00F084" stroke-width="1.5" />
+              <text x="140" y="75" text-anchor="middle" fill="#F3EFE6" font-family="IBM Plex Mono, monospace" font-size="11" font-weight="600">FFMPEG</text>
+              <text x="140" y="92" text-anchor="middle" fill="#00F084" font-family="IBM Plex Mono, monospace" font-size="8.5">FILTER_DSP</text>
+            </svg>
+            <div class="artifact-meta">ARTIFACT 03 · FILTER CHAIN</div>
+            <div class="artifact-sub">FFmpeg 滤镜管线与音频混音</div>
+          </button>
+
+          <!-- Artifact 04: Archival Spec Sheet & Halftone Swatch -> Architecture -->
+          <button type="button" class="artifact-card" style="--tilt: 1.5deg; --tape-rot: -2.5deg;" data-jump="architecture" data-scan="SKILL SPEC">
+            <span class="artifact-tape" aria-hidden="true"></span>
+            <svg viewBox="0 0 280 156" aria-hidden="true">
+              <defs>
+                <pattern id="art-ht" width="7" height="7" patternUnits="userSpaceOnUse">
+                  <circle cx="2" cy="2" r="1.2" fill="rgba(243,239,230,0.35)" />
+                  <circle cx="5.5" cy="5.5" r="1.2" fill="rgba(243,239,230,0.35)" />
+                </pattern>
+              </defs>
+              <rect width="280" height="156" fill="#ECE6D8" />
+              <rect x="14" y="14" width="252" height="3" fill="#111113" />
+              <text x="14" y="36" fill="#111113" font-family="IBM Plex Mono, monospace" font-size="11" font-weight="600">SKILL SPEC // HOT-SWAP</text>
+              <rect x="14" y="44" width="252" height="1.2" fill="#111113" />
+              <rect x="14" y="54" width="102" height="84" fill="#141518" />
+              <rect x="14" y="54" width="102" height="84" fill="url(#art-ht)" />
+              <circle cx="65" cy="96" r="22" fill="#FF4D00" />
+              <g fill="rgba(17,17,19,0.65)">
+                <rect x="128" y="56" width="136" height="5" />
+                <rect x="128" y="68" width="118" height="4" />
+                <rect x="128" y="79" width="128" height="4" />
+                <rect x="128" y="90" width="96" height="4" />
+                <rect x="128" y="106" width="136" height="4" />
+                <rect x="128" y="117" width="110" height="4" />
+                <rect x="128" y="128" width="84" height="4" />
+              </g>
+            </svg>
+            <div class="artifact-meta">ARTIFACT 04 · SKILL SPEC</div>
+            <div class="artifact-sub">可热插拔 Skill 方法库档案</div>
+          </button>
+        </div>
+      </section>
+
+      <!-- =====================================================================
+           E. 4 CORE PILLARS (#pillars — 03 // SWISS SPECIMEN PLATES)
+           ===================================================================== -->
+      <section class="section" id="pillars">
+        <div class="section-head">
+          <div>
+            <div class="section-kicker">WHY AI CREATIVE LAB</div>
+            <h2 class="section-title">与传统生成工具不同的四个核心设计</h2>
+          </div>
+        </div>
+
+        <div class="pillars-grid">
+          <article class="pillar-card">
+            <span class="pillar-corner-swatch" aria-hidden="true"></span>
+            <div class="pillar-top-row">
+              <span class="pillar-big-num">01</span>
+              <span class="pillar-num">01 // AGENT × CANVAS</span>
+            </div>
+            <h3>对话思考与画布沉淀无缝衔接</h3>
+            <p>保留对话式 Agent 的开放推演与创意发散能力，同时将每一次探索、提案和中间产物自动结构化沉淀到可视化画布，不再埋没在冗长的聊天记录里。</p>
+          </article>
+
+          <article class="pillar-card">
+            <span class="pillar-corner-swatch" aria-hidden="true"></span>
+            <div class="pillar-top-row">
+              <span class="pillar-big-num">02</span>
+              <span class="pillar-num">02 // BREADTH × DEPTH</span>
+            </div>
+            <h3>广度提案对比，深度工具落盘</h3>
+            <p>先用多路线提案横向比较不同技术方案与审美方向，选定后再纵向调度底层生图、生视频、代码渲染与剪辑工具逐镜落盘，避免一上来就盲目消耗算力。</p>
+          </article>
+
+          <article class="pillar-card">
+            <span class="pillar-corner-swatch" aria-hidden="true"></span>
+            <div class="pillar-top-row">
+              <span class="pillar-big-num">03</span>
+              <span class="pillar-num">03 // BRANCH &amp; BACKTRACK</span>
+            </div>
+            <h3>满意可延续，不满意可随时回溯</h3>
+            <p>对某张关键帧或片段满意，直接在画布节点上发起下一阶段延伸；效果不理想时既能单镜微调，也能一键回到历史方法提案切换另一条技术路径，告别从头重聊。</p>
+          </article>
+
+          <article class="pillar-card">
+            <span class="pillar-corner-swatch" aria-hidden="true"></span>
+            <div class="pillar-top-row">
+              <span class="pillar-big-num">04</span>
+              <span class="pillar-num">04 // FULL OBSERVABILITY</span>
+            </div>
+            <h3>每一步皆可观测、可复现</h3>
+            <p>每个节点都完整记录来源 Skill、提示词、参考资产、执行状态与质检反馈，让团队和创作者像管理科研实验记录一样掌控整个创作过程。</p>
+          </article>
+        </div>
+      </section>
+
+      <!-- =====================================================================
+           F. MODULAR ARCHITECTURE RACK (#architecture — 04 // INDUSTRIAL SIGNAL FLOW)
+           ===================================================================== -->
+      <section class="section" id="architecture">
+        <div class="section-head">
+          <div>
+            <div class="section-kicker">MODULAR ARCHITECTURE</div>
+            <h2 class="section-title">稳定头尾底座，中间方法由 Skill 与大模型持续进化</h2>
+          </div>
+        </div>
+
+        <div class="arch-rack-shell">
+          <!-- Signature Sharp 7-Band Pantone Optical Wavelength Rule -->
+          <div class="spectrum-strip" aria-label="450nm 到 650nm 光学波长刻度条">
+            <span style="background: #1835F5; color: #FFFFFF;">450nm</span>
+            <span style="background: #00A8B5; color: #FFFFFF;">485nm</span>
+            <span style="background: #00F084; color: #111113;">520nm</span>
+            <span style="background: #F5D547; color: #111113;">565nm</span>
+            <span style="background: #F59E0B; color: #111113;">595nm</span>
+            <span style="background: #FF4D00; color: #FFFFFF;">625nm</span>
+            <span style="background: #D92B2B; color: #FFFFFF;">650nm</span>
+          </div>
+
+          <div class="arch-strip">
+            <div class="arch-box">
+              <div>
+                <div class="arch-label">FRONT // 稳定前端底座</div>
+                <h4>实验台与画布呈现</h4>
+                <p>统一承载方法提案对比、历史提案切换、节点执行画布与中间产物观测，交互体验长期稳定。</p>
+              </div>
+            </div>
+
+            <div class="arch-arrow" aria-hidden="true"><span>⇄</span></div>
+
+            <div class="arch-box highlight">
+              <div>
+                <div class="hotswap-badge"><i aria-hidden="true"></i>HOT-SWAP READY</div>
+                <div class="arch-label">CORE // 可热插拔大脑层</div>
+                <h4>Skill 方法库 + 大模型思考</h4>
+                <p>把各类视频与多模态制作方法沉淀为独立 Skill 文档，按需路由并热加载；调整策略只需改 Skill，无需重构平台代码。</p>
+              </div>
+            </div>
+
+            <div class="arch-arrow" aria-hidden="true"><span>⇄</span></div>
+
+            <div class="arch-box">
+              <div>
+                <div class="arch-label">BASE // 开放底层工具层</div>
+                <h4>通用生成、代码与剪辑 Tool</h4>
+                <p>封装生图、首尾帧视频、程序化代码渲染、FFmpeg 合成及动态插件工具，让任何新提案都能直接落地执行。</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- =====================================================================
+           G. CLOSING OBSIDIAN ARCHIVAL POSTER CTA & MUSEUM COLOPHON FOOTER
+           ===================================================================== -->
+      <section class="cta-panel" id="cta-panel">
+        <div id="cta-fluted-sweep" aria-hidden="true"></div>
+        <div class="cta-inner">
+          <h2>像做精密实验一样，驾驭 AI 创作</h2>
+          <p>从第一版方法提案到最终成片，每一步灵感都有迹可循，每一条技术路线都触手可及。</p>
+          <div class="hero-actions">
+            <a class="btn btn-primary" href="#workbench">重新演练三条视频路线</a>
+            <a class="btn btn-ghost" href="#top">返回顶部</a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <span>AI CREATIVE LAB // EXPERIMENT WORKBENCH &amp; METHOD PROPOSALS</span>
+      <span>AGENT + SKILL + VISUAL CANVAS + OPEN TOOLCHAIN</span>
+    </footer>
+  </div>
+
+  <script>
+    /**
+     * =========================================================================
+     * AI CREATIVE LAB — EDITORIAL & INDUSTRIAL HARDWARE INTERACTIVE ENGINE
+     * =========================================================================
+     */
+    (function () {
+      const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      /* -----------------------------------------------------------------------
+         1. NON-INTRUSIVE TOAST
+         ----------------------------------------------------------------------- */
+      const toastEl = document.getElementById('lab-toast');
+      const toastText = document.getElementById('lab-toast-text');
+      let toastTimer = null;
+
+      function showToast(message) {
+        toastText.textContent = message;
+        toastEl.classList.add('show');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => toastEl.classList.remove('show'), 2400);
+      }
+
+      /* -----------------------------------------------------------------------
+         2. PROCEDURAL WEB AUDIO TACTILE FOLEY SYNTHESIZER
+         ----------------------------------------------------------------------- */
+      class TactileFoley {
+        constructor() {
+          this.ctx = null;
+          this.noiseBuf = null;
+          this.enabled = true;
+        }
+
+        ensure() {
+          if (!this.enabled) return false;
+          if (!this.ctx) {
+            try {
+              const AC = window.AudioContext || window.webkitAudioContext;
+              this.ctx = new AC();
+              const sr = this.ctx.sampleRate;
+              this.noiseBuf = this.ctx.createBuffer(1, Math.floor(sr * 0.5), sr);
+              const d = this.noiseBuf.getChannelData(0);
+              for (let i = 0; i < d.length; i++) {
+                const h = Math.sin(i * 127.1 + 311.7) * 43758.5453;
+                d[i] = (h - Math.floor(h)) * 2 - 1;
+              }
+            } catch (err) {
+              return false;
+            }
+          }
+          if (this.ctx.state === 'suspended') {
+            this.ctx.resume().catch(() => {});
+          }
+          return true;
+        }
+
+        burst(freq, q, dur, gainAmt, delay = 0) {
+          if (!this.ensure()) return;
+          const t = this.ctx.currentTime + delay;
+          const src = this.ctx.createBufferSource();
+          src.buffer = this.noiseBuf;
+          const bp = this.ctx.createBiquadFilter();
+          bp.type = 'bandpass';
+          bp.frequency.setValueAtTime(freq, t);
+          bp.Q.setValueAtTime(q, t);
+          const g = this.ctx.createGain();
+          g.gain.setValueAtTime(gainAmt, t);
+          g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+          src.connect(bp);
+          bp.connect(g);
+          g.connect(this.ctx.destination);
+          src.start(t);
+          src.stop(t + dur + 0.01);
+        }
+
+        playDetentClick(step = 0) {
+          if (!this.ensure()) return;
+          this.burst(2200 + step * 320, 6.2, 0.016, 0.34, 0);
+          // Short woody body transient
+          const t = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const g = this.ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(340 + step * 45, t);
+          osc.frequency.exponentialRampToValueAtTime(110, t + 0.018);
+          g.gain.setValueAtTime(0.22, t);
+          g.gain.exponentialRampToValueAtTime(0.0001, t + 0.02);
+          osc.connect(g);
+          g.connect(this.ctx.destination);
+          osc.start(t);
+          osc.stop(t + 0.024);
+        }
+
+        playSwitchToggle(on) {
+          this.burst(on ? 2900 : 1650, 4.4, 0.02, 0.28, 0);
+          this.burst(on ? 4300 : 1200, 3.2, 0.014, 0.16, 0.012);
+        }
+
+        playFlapClack() {
+          for (let i = 0; i < 4; i++) {
+            this.burst(1550 + i * 240, 3.4, 0.014, 0.16, i * 0.026);
+          }
+        }
+
+        playShutter() {
+          this.burst(3200, 4.6, 0.018, 0.3, 0);
+          this.burst(4800, 5.2, 0.016, 0.22, 0.028);
+        }
+
+        playBranchChime() {
+          if (!this.ensure()) return;
+          const t = this.ctx.currentTime;
+          const notes = [349.23, 440.0, 523.25, 659.25]; // Warm Fmaj7 Rhodes micro-ping
+          notes.forEach((f, idx) => {
+            const osc = this.ctx.createOscillator();
+            const g = this.ctx.createGain();
+            osc.type = idx % 2 === 0 ? 'sine' : 'triangle';
+            osc.frequency.setValueAtTime(f, t + idx * 0.024);
+            g.gain.setValueAtTime(0.0001, t + idx * 0.024);
+            g.gain.linearRampToValueAtTime(0.085, t + idx * 0.024 + 0.012);
+            g.gain.exponentialRampToValueAtTime(0.0001, t + idx * 0.024 + 0.48);
+            osc.connect(g);
+            g.connect(this.ctx.destination);
+            osc.start(t + idx * 0.024);
+            osc.stop(t + idx * 0.024 + 0.52);
+          });
+        }
+      }
+
+      const foley = new TactileFoley();
+      const btnSfx = document.getElementById('btn-sfx');
+      const sfxLabel = document.getElementById('sfx-label');
+
+      btnSfx.addEventListener('click', () => {
+        foley.enabled = !foley.enabled;
+        btnSfx.classList.toggle('is-off', !foley.enabled);
+        btnSfx.setAttribute('aria-pressed', String(foley.enabled));
+        sfxLabel.textContent = foley.enabled ? 'SFX: ON' : 'SFX: OFF';
+        if (foley.enabled) foley.playSwitchToggle(true);
+        showToast(foley.enabled ? 'FOLEY SYNTHESIZER: ENABLED' : 'FOLEY SYNTHESIZER: MUTED');
+      });
+
+      /* -----------------------------------------------------------------------
+         3. TOPBAR POINTER COORDINATE TELEMETRY & FLUTED GLASS GLIDE
+         ----------------------------------------------------------------------- */
+      const coordEl = document.getElementById('telemetry-coord');
+      const heroSpread = document.getElementById('hero-spread');
+      const heroGlass = document.getElementById('hero-fluted-glass');
+      const glassReadout = document.getElementById('glass-readout');
+      const ctaPanel = document.getElementById('cta-panel');
+      const ctaSweep = document.getElementById('cta-fluted-sweep');
+
+      let heroGlassTarget = 380;
+      let heroGlassCurr = 380;
+      let heroHover = false;
+
+      let ctaSweepTarget = 240;
+      let ctaSweepCurr = 240;
+      let ctaHover = false;
+
+      window.addEventListener('pointermove', (e) => {
+        const gx = String(Math.round(e.clientX)).padStart(4, '0');
+        const gy = String(Math.round(e.clientY)).padStart(4, '0');
+        coordEl.textContent = `GRID ${gx} · ${gy} // LIVE`;
+      });
+
+      heroSpread.addEventListener('pointermove', (e) => {
+        const rect = heroSpread.getBoundingClientRect();
+        heroHover = true;
+        const w = heroGlass.offsetWidth || 240;
+        heroGlassTarget = Math.max(0, Math.min(rect.width - w, e.clientX - rect.left - w / 2));
+      });
+      heroSpread.addEventListener('pointerleave', () => { heroHover = false; });
+
+      ctaPanel.addEventListener('pointermove', (e) => {
+        const rect = ctaPanel.getBoundingClientRect();
+        ctaHover = true;
+        const w = ctaSweep.offsetWidth || 260;
+        ctaSweepTarget = Math.max(0, Math.min(rect.width - w, e.clientX - rect.left - w / 2));
+      });
+      ctaPanel.addEventListener('pointerleave', () => { ctaHover = false; });
+
+      /* -----------------------------------------------------------------------
+         4. CLICKABLE PANTONE SWATCH STICKER CARD
+         ----------------------------------------------------------------------- */
+      const PANTONES = [
+        { code: '10-Ne', name: 'INTL ORANGE', hex: '#FF4D00', nm: '640.2 nm', num: '10', darkText: false },
+        { code: '2728-C', name: 'KLEIN COBALT', hex: '#1835F5', nm: '450.0 nm', num: '02', darkText: false },
+        { code: '3395-C', name: 'CRT EMERALD', hex: '#00F084', nm: '520.4 nm', num: '03', darkText: true },
+        { code: '115-C', name: 'BUTTER YELLOW', hex: '#F5D547', nm: '578.0 nm', num: '04', darkText: true }
+      ];
+      let pantoneIdx = 0;
+
+      const btnPantone = document.getElementById('btn-pantone-card');
+      const pChip = document.getElementById('pantone-chip');
+      const pCode = document.getElementById('pantone-code');
+      const pName = document.getElementById('pantone-name');
+      const pHex = document.getElementById('pantone-hex');
+      const pNm = document.getElementById('pantone-nm');
+      const pNum = document.getElementById('pantone-num');
+
+      btnPantone.addEventListener('click', () => {
+        pantoneIdx = (pantoneIdx + 1) % PANTONES.length;
+        const p = PANTONES[pantoneIdx];
+        pChip.style.backgroundColor = p.hex;
+        pChip.querySelector('.pantone-chip-top').style.color = p.darkText ? 'rgba(17,17,19,0.88)' : 'rgba(255,255,255,0.92)';
+        pNum.style.color = p.darkText ? 'rgba(17,17,19,0.22)' : 'rgba(255,255,255,0.28)';
+        pCode.textContent = p.code;
+        pName.textContent = p.name;
+        pHex.textContent = p.hex;
+        pNm.textContent = p.nm;
+        pNum.textContent = p.num;
+        foley.playShutter();
+        showToast(`PANTONE SWATCH: ${p.code} (${p.name})`);
+      });
+
+      /* -----------------------------------------------------------------------
+         5. SOLARI SPLIT-FLAP MECHANICAL STATUS BOARD (22 TILES)
+         ----------------------------------------------------------------------- */
+      const FLAP_PHRASES = [
+        'EXPERIMENT WORKBENCH  ',
+        '3 PARALLEL VIDEO PATHS',
+        'BRANCH AND BACKTRACK  ',
+        'SKILL + OPEN TOOLCHAIN'
+      ];
+      const FLAP_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+ ';
+      const solariContainer = document.getElementById('solari-tiles');
+      const btnFlipNext = document.getElementById('btn-flip-next');
+      const solariTiles = [];
+      let solariIdx = 0;
+
+      for (let i = 0; i < 22; i++) {
+        const div = document.createElement('div');
+        div.className = 'flap-tile';
+        div.textContent = FLAP_PHRASES[0][i] || ' ';
+        solariContainer.appendChild(div);
+        solariTiles.push(div);
+      }
+
+      function flipSolari(nextIdx, withAudio) {
+        solariIdx = nextIdx % FLAP_PHRASES.length;
+        const target = FLAP_PHRASES[solariIdx];
+        if (withAudio) foley.playFlapClack();
+        solariTiles.forEach((tile, i) => {
+          const ch = target[i] || ' ';
+          if (reducedMotion) {
+            tile.textContent = ch;
+            return;
+          }
+          const flips = 3 + (i % 4);
+          for (let s = 0; s <= flips; s++) {
+            setTimeout(() => {
+              tile.classList.add('is-flipping');
+              tile.textContent = s === flips
+                ? ch
+                : FLAP_ALPHABET[(i * 7 + s * 5 + solariIdx * 3) % FLAP_ALPHABET.length];
+              setTimeout(() => tile.classList.remove('is-flipping'), 45);
+            }, i * 22 + s * 38);
+          }
+        });
+      }
+
+      btnFlipNext.addEventListener('click', () => flipSolari(solariIdx + 1, true));
+      if (!reducedMotion) {
+        setInterval(() => flipSolari(solariIdx + 1, false), 6800);
+      }
+
+      /* -----------------------------------------------------------------------
+         6. ORIGINAL VERBATIM ROUTES DATA & WORKBENCH STATE
+         ----------------------------------------------------------------------- */
+      const ROUTES = {
+        model: {
+          id: 'model',
+          detentAngle: -48,
+          title: '路线 01 · 传统视频大模型（关键帧 / 首尾帧连续生成）',
+          summary: '先由 Skill 拆解母版与镜头语言并生成高一致性关键帧，再通过首尾帧插值锁住跨镜主体与光影连续性。',
+          metrics: [
+            { label: '适用场景', value: '大片质感 / 叙事短片' },
+            { label: '连续性控制', value: '首尾帧锚点锁定' },
+            { label: '质量闭环', value: 'VLM 抽帧质检 + 单镜重跑' }
+          ],
+          nodes: [
+            { step: 'NODE 01', status: 'DONE', title: '分镜母版与资产圣经', desc: '拆分 4 个镜头语言并锁定主角/产品光影锚点。', tool: 'skill:first-last-frame', time: 0.0 },
+            { step: 'NODE 02', status: 'DONE', title: '高精关键帧生成', desc: '携带参考图生成每镜首帧与关键转场帧。', tool: 'generate_image', time: 4.0 },
+            { step: 'NODE 03', status: 'READY', title: '首尾帧视频生成', desc: '按首帧 + 上一镜尾帧生成丝滑连续片段。', tool: 'generate_first_last_frame_video', time: 8.5 },
+            { step: 'NODE 04', status: 'READY', title: 'VLM 质检与成片拼接', desc: '自动抽首/中/尾帧核查畸变，达标后合成成片。', tool: 'inspect_quality + compose', time: 12.0 }
+          ]
+        },
+        coding: {
+          id: 'coding',
+          detentAngle: 0,
+          title: '路线 02 · Coding Video（程序化代码视频渲染）',
+          summary: '将分镜、品牌排版、数据卡片与动效曲线直接编译为可执行代码，实现像素级精准控制与零成本批量换版。',
+          metrics: [
+            { label: '适用场景', value: '产品发布 / 科技动效 / 信息图' },
+            { label: '精确度', value: '帧级时间轴 · 零文字畸变' },
+            { label: '复刻效率', value: '改参数即可生成多语言版本' }
+          ],
+          nodes: [
+            { step: 'NODE 01', status: 'DONE', title: '节奏脚本与时间轴建模', desc: '将 15 秒拆为 450 帧，定义镜头节拍与弹簧曲线。', tool: 'skill:programmatic-video', time: 0.0 },
+            { step: 'NODE 02', status: 'DONE', title: '组件化视觉工程编写', desc: '用 Remotion / Canvas 代码构建产品特写与 HUD 动效。', tool: 'programmatic_code', time: 4.0 },
+            { step: 'NODE 03', status: 'READY', title: '确定性本地渲染', desc: '按 60fps 渲染无损视频流并自动挂载画布节点。', tool: 'publish_experiment_file', time: 8.5 },
+            { step: 'NODE 04', status: 'READY', title: '参数化衍生变体', desc: '基于同一节点快速产出横屏/竖屏与多语种版本。', tool: 'branch_from_node', time: 12.0 }
+          ]
+        },
+        ffmpeg: {
+          id: 'ffmpeg',
+          detentAngle: 48,
+          title: '路线 03 · 图片视频剪辑 + FFmpeg 特效合成',
+          summary: '结合高质量静帧与局部动态素材，直接用 FFmpeg 滤镜链完成平滑推拉、故障风转场、调色与音画合成。',
+          metrics: [
+            { label: '适用场景', value: '快节奏广告 / 动态预演 / 混剪' },
+            { label: '生成速度', value: '本地秒级合成' },
+            { label: '算力成本', value: '极低（零额外视频算力）' }
+          ],
+          nodes: [
+            { step: 'NODE 01', status: 'DONE', title: '关键视觉图与素材池', desc: '聚合已生成的产品静帧与已有实拍片段。', tool: 'asset_bible', time: 0.0 },
+            { step: 'NODE 02', status: 'DONE', title: 'Animatic 动态预演', desc: '用 Ken Burns 推拉先快速验证 15 秒剪辑节奏。', tool: 'build_animatic_preview', time: 4.0 },
+            { step: 'NODE 03', status: 'READY', title: 'FFmpeg 特效与转场链', desc: '应用霓虹色差、节奏切分、字幕叠层与音效混音。', tool: 'ffmpeg_skill', time: 8.5 },
+            { step: 'NODE 04', status: 'READY', title: '成片导出与二次延伸', desc: '一键发布成片，满意片段可再送入模型精修升级。', tool: 'compose_video', time: 12.0 }
+          ]
+        }
+      };
+
+      const routeOrder = ['model', 'coding', 'ffmpeg'];
+      const PREVIEW_DURATION = 15.0;
+
+      const state = {
+        route: 'model',
+        branchCount: 1,
+        inspectedNode: -1,
+        playing: !reducedMotion,
+        t: 0,
+        scrubbing: false,
+        vuEnergy: 0.25,
+        switches: {
+          fluted: true,
+          step12: false,
+          crt: false,
+          halftone: true
+        }
+      };
+
+      function spikeVU(amount = 0.85) {
+        state.vuEnergy = Math.min(1.0, Math.max(state.vuEnergy, amount));
+      }
+
+      // Workbench DOM refs
+      const routeCards = document.querySelectorAll('.route-card');
+      const detentBtns = document.querySelectorAll('.detent-btn');
+      const rotaryKnob = document.getElementById('rotary-knob');
+      const btnRotaryDial = document.getElementById('btn-rotary-dial');
+      const toggleTracks = document.querySelectorAll('.toggle-track');
+      const stageTitle = document.getElementById('stage-title');
+      const stageSummary = document.getElementById('stage-summary');
+      const stageMetrics = document.getElementById('stage-metrics');
+      const dagPipeline = document.getElementById('dag-pipeline');
+      const historyNote = document.getElementById('history-note');
+      const chromeStatus = document.getElementById('chrome-status');
+      const btnBranch = document.getElementById('btn-branch');
+      const btnBacktrack = document.getElementById('btn-backtrack');
+      const btnNlePlay = document.getElementById('btn-nle-play');
+      const nleTimeEl = document.getElementById('nle-time');
+      const nleScrubber = document.getElementById('nle-scrubber');
+      const nleFill = document.getElementById('nle-fill');
+      const nlePlayhead = document.getElementById('nle-playhead');
+      const btnNleSnap = document.getElementById('btn-nle-snap');
+
+      function renderRoute(key, customNote, withFoley = false) {
+        state.route = key;
+        state.inspectedNode = -1;
+        const data = ROUTES[key];
+        const rIdx = routeOrder.indexOf(key);
+
+        if (withFoley) foley.playDetentClick(rIdx);
+        spikeVU(0.9);
+
+        // Sync Left Proposal Cards
+        routeCards.forEach((c) => c.classList.toggle('is-active', c.dataset.route === key));
+
+        // Sync Rotary Dial & Detent Labels
+        rotaryKnob.style.transform = `rotate(${data.detentAngle}deg)`;
+        detentBtns.forEach((b) => b.classList.toggle('is-active', b.dataset.detent === key));
+
+        // Sync Right Canvas Header & Metrics
+        stageTitle.textContent = data.title;
+        stageSummary.textContent = data.summary;
+        stageMetrics.innerHTML = data.metrics
+          .map((m) => `<div class="metric-chip">${m.label}<strong>${m.value}</strong></div>`)
+          .join('');
+
+        // Sync 4-Node DAG Pipeline
+        dagPipeline.innerHTML = data.nodes
+          .map((n, idx) => `
+            <button type="button" class="dag-node" data-node-idx="${idx}">
+              <div class="node-step"><span>${n.step}</span><span class="node-status">${n.status}</span></div>
+              <h4>${n.title}</h4>
+              <p>${n.desc}</p>
+              <span class="node-tool">${n.tool}</span>
+            </button>
+          `).join('');
+
+        // Bind DAG Node inspection clicks
+        dagPipeline.querySelectorAll('.dag-node').forEach((el) => {
+          el.addEventListener('click', () => {
+            const idx = Number(el.dataset.nodeIdx);
+            const node = data.nodes[idx];
+            state.inspectedNode = idx;
+            state.t = node.time;
+            dagPipeline.querySelectorAll('.dag-node').forEach((nEl, i) => {
+              nEl.classList.toggle('is-inspected', i === idx);
+            });
+            foley.playShutter();
+            spikeVU(0.82);
+            historyNote.innerHTML = `状态：<span>已聚焦观测 ${node.step}（${node.title}）</span> · 工具 ${node.tool} · 跳转至 ${node.time.toFixed(1)}s`;
+          });
+        });
+
+        if (customNote) {
+          historyNote.innerHTML = customNote;
+        } else {
+          historyNote.innerHTML = `状态：<span>全节点可观测</span> · 当前处于方案提案 #0${state.branchCount}（${data.id.toUpperCase()}）`;
+        }
+      }
+
+      // Bind Left Proposal Rail Cards
+      routeCards.forEach((card) => {
+        card.addEventListener('click', () => renderRoute(card.dataset.route, null, true));
+      });
+
+      // Bind Rotary Dial & Detent Buttons
+      btnRotaryDial.addEventListener('click', () => {
+        const next = routeOrder[(routeOrder.indexOf(state.route) + 1) % routeOrder.length];
+        renderRoute(next, null, true);
+      });
+      detentBtns.forEach((btn) => {
+        btn.addEventListener('click', () => renderRoute(btn.dataset.detent, null, true));
+      });
+
+      // Bind 4 Hardware Toggle Switches
+      toggleTracks.forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const key = btn.dataset.switch;
+          const next = !state.switches[key];
+          state.switches[key] = next;
+          btn.classList.toggle('is-on', next);
+          btn.setAttribute('aria-pressed', String(next));
+          const led = document.getElementById(`led-${key}`);
+          if (led) {
+            led.classList.remove('lit-orange', 'lit-emerald');
+            if (next) led.classList.add(key === 'crt' ? 'lit-emerald' : 'lit-orange');
+          }
+          foley.playSwitchToggle(next);
+          spikeVU(0.72);
+        });
+      });
+
+      // Bind Exact Branch & Backtrack Actions
+      btnBranch.addEventListener('click', () => {
+        state.branchCount += 1;
+        chromeStatus.textContent = `PROPOSAL SET #0${state.branchCount} · BRANCHED FROM NODE 04`;
+        foley.playBranchChime();
+        spikeVU(1.0);
+        renderRoute(
+          state.route,
+          `状态：<span>已从尾节点发起第 ${state.branchCount} 轮延续提案</span> · 保留历史节点，可随时回溯`,
+          false
+        );
+        showToast(`PROPOSAL SET #0${state.branchCount} CREATED`);
+      });
+
+      btnBacktrack.addEventListener('click', () => {
+        const nextKey = routeOrder[(routeOrder.indexOf(state.route) + 1) % routeOrder.length];
+        foley.playDetentClick(routeOrder.indexOf(nextKey));
+        spikeVU(0.95);
+        renderRoute(
+          nextKey,
+          `状态：<span>已回溯历史提案并切换路线</span> · 原路线画布产物完整保留，无需重开对话`,
+          false
+        );
+      });
+
+      // Artifact Strip Click -> Smooth Jump to Workbench & Select Route
+      const artifactCards = document.querySelectorAll('.artifact-card');
+      artifactCards.forEach((card) => {
+        card.addEventListener('click', () => {
+          const target = card.dataset.jump;
+          foley.playShutter();
+          if (target === 'architecture') {
+            document.getElementById('architecture').scrollIntoView({ behavior: 'smooth' });
+            showToast('JUMPED TO MODULAR SKILL ARCHITECTURE');
+          } else {
+            renderRoute(target, null, false);
+            document.getElementById('workbench').scrollIntoView({ behavior: 'smooth' });
+            showToast(`SWITCHED TO ROUTE: ${target.toUpperCase()}`);
+          }
+        });
+      });
+
+      /* -----------------------------------------------------------------------
+         7. NLE PLAYBACK, SCRUBBING & PNG SNAPSHOT
+         ----------------------------------------------------------------------- */
+      btnNlePlay.addEventListener('click', () => {
+        state.playing = !state.playing;
+        btnNlePlay.textContent = state.playing ? 'PAUSE ❚❚' : 'PLAY ▶';
+        foley.playSwitchToggle(state.playing);
+      });
+
+      function scrubFromPointer(clientX) {
+        const rect = nleScrubber.getBoundingClientRect();
+        const pct = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+        state.t = pct * PREVIEW_DURATION;
+        spikeVU(0.45);
+      }
+
+      nleScrubber.addEventListener('pointerdown', (e) => {
+        state.scrubbing = true;
+        nleScrubber.setPointerCapture(e.pointerId);
+        scrubFromPointer(e.clientX);
+      });
+      nleScrubber.addEventListener('pointermove', (e) => {
+        if (state.scrubbing) scrubFromPointer(e.clientX);
+      });
+      nleScrubber.addEventListener('pointerup', () => { state.scrubbing = false; });
+      nleScrubber.addEventListener('pointercancel', () => { state.scrubbing = false; });
+
+      /* -----------------------------------------------------------------------
+         8. HIDPI CANVAS SETUP (16:9 PREVIEW + ANALOG VU + DUAL-BEAM CRT SCOPE)
+         ----------------------------------------------------------------------- */
+      const previewCanvas = document.getElementById('wb-preview-canvas');
+      const pCtx = previewCanvas.getContext('2d');
+      const vuCanvas = document.getElementById('vu-canvas');
+      const vuCtx = vuCanvas.getContext('2d');
+      const crtCanvas = document.getElementById('crt-canvas');
+      const crtCtx = crtCanvas.getContext('2d');
+
+      // Logical 960x540 Offscreen Buffer for Fluted Glass Optical Refraction Pass
+      const PW = 960, PH = 540;
+      const offCanvas = document.createElement('canvas');
+      offCanvas.width = PW;
+      offCanvas.height = PH;
+      const oCtx = offCanvas.getContext('2d');
+
+      // Pre-rendered Risograph Halftone Pattern Tile
+      const htCanvas = document.createElement('canvas');
+      htCanvas.width = 9;
+      htCanvas.height = 9;
+      const htCtx = htCanvas.getContext('2d');
+      htCtx.fillStyle = 'rgba(17, 17, 19, 0.22)';
+      htCtx.beginPath();
+      htCtx.arc(2.5, 2.5, 1.35, 0, Math.PI * 2);
+      htCtx.arc(7, 7, 1.35, 0, Math.PI * 2);
+      htCtx.fill();
+
+      function syncCanvasSize(canvas, ctx, logicalW, logicalH) {
+        const rect = canvas.getBoundingClientRect();
+        if (rect.width < 10 || rect.height < 10) return;
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const w = Math.round(rect.width * dpr);
+        const h = Math.round(rect.height * dpr);
+        if (canvas.width !== w || canvas.height !== h) {
+          canvas.width = w;
+          canvas.height = h;
+        }
+        ctx.setTransform(w / logicalW, 0, 0, h / logicalH, 0, 0);
+      }
+
+      const resizeObs = new ResizeObserver(() => {
+        syncCanvasSize(previewCanvas, pCtx, PW, PH);
+        syncCanvasSize(vuCanvas, vuCtx, 220, 92);
+        syncCanvasSize(crtCanvas, crtCtx, 220, 92);
+      });
+      resizeObs.observe(previewCanvas);
+      resizeObs.observe(vuCanvas);
+      resizeObs.observe(crtCanvas);
+
+      btnNleSnap.addEventListener('click', () => {
+        foley.playShutter();
+        spikeVU(0.95);
+        try {
+          const url = previewCanvas.toDataURL('image/png');
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `ai-creative-lab-${state.route}-${state.t.toFixed(1)}s.png`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          showToast(`SNAPSHOT SAVED: ${state.route.toUpperCase()} (${state.t.toFixed(1)}s)`);
+        } catch (err) {
+          showToast('SNAPSHOT CAPTURED');
+        }
+      });
+
+      /* --- Bespoke Swiss Graphic Espresso Machine Vector Silhouette --- */
+      function drawEspressoIllustration(ctx, cx, cy, scale, accentCol, phase) {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.scale(scale, scale);
+
+        // Industrial chassis base
+        ctx.fillStyle = '#141518';
+        ctx.fillRect(-118, 68, 236, 24);
+        ctx.fillStyle = '#DCD9D0';
+        ctx.fillRect(-108, -86, 216, 154);
+        ctx.strokeStyle = '#111113';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(-108, -86, 216, 154);
+
+        // Upper group head block (International Orange / Accent)
+        ctx.fillStyle = accentCol;
+        ctx.fillRect(-108, -86, 216, 44);
+        ctx.strokeRect(-108, -86, 216, 44);
+
+        // Dual analog pressure gauges
+        [-48, 48].forEach((gx, idx) => {
+          ctx.fillStyle = '#F3EFE6';
+          ctx.beginPath(); ctx.arc(gx, -64, 14, 0, Math.PI * 2); ctx.fill();
+          ctx.strokeStyle = '#111113'; ctx.lineWidth = 2; ctx.stroke();
+          const ang = -Math.PI * 0.75 + (Math.sin(phase * 2.2 + idx) * 0.5 + 0.5) * Math.PI * 0.85;
+          ctx.strokeStyle = '#111113';
+          ctx.beginPath(); ctx.moveTo(gx, -64); ctx.lineTo(gx + Math.cos(ang) * 10, -64 + Math.sin(ang) * 10); ctx.stroke();
+        });
+
+        // Portafilter handle
+        ctx.fillStyle = '#111113';
+        ctx.fillRect(-32, -42, 64, 18);
+        ctx.fillRect(32, -37, 82, 10);
+        ctx.beginPath(); ctx.arc(114, -32, 7, 0, Math.PI * 2); ctx.fill();
+
+        // Live Golden Espresso Crema Extraction Stream
+        const streamH = 42 + Math.sin(phase * 6) * 4;
+        ctx.strokeStyle = '#FF4D00';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(-8, -24); ctx.lineTo(-8, -24 + streamH);
+        ctx.moveTo(8, -24); ctx.lineTo(8, -24 + streamH);
+        ctx.stroke();
+
+        // Ceramic Espresso Cup
+        ctx.fillStyle = '#F3EFE6';
+        ctx.strokeStyle = '#111113';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(-36, 18); ctx.lineTo(36, 18); ctx.lineTo(28, 66); ctx.lineTo(-28, 66); ctx.closePath();
+        ctx.fill(); ctx.stroke();
+
+        // Cup handle
+        ctx.beginPath(); ctx.arc(36, 40, 12, -Math.PI * 0.45, Math.PI * 0.45); ctx.stroke();
+
+        // Drip tray grate lines
+        ctx.strokeStyle = '#F3EFE6';
+        ctx.lineWidth = 1.5;
+        for (let x = -96; x <= 96; x += 12) {
+          ctx.beginPath(); ctx.moveTo(x, 73); ctx.lineTo(x, 86); ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      /* --- ROUTE 01 PREVIEW: KEYFRAME / FIRST-LAST FRAME CONTACT SHEET & VIEWFINDER --- */
+      function drawRouteModel(c, t) {
+        c.fillStyle = '#F3EFE6';
+        c.fillRect(0, 0, PW, PH);
+
+        // Editorial drafting grid
+        c.strokeStyle = 'rgba(17,17,19,0.08)';
+        c.lineWidth = 1;
+        for (let x = 40; x < PW; x += 40) { c.beginPath(); c.moveTo(x, 0); c.lineTo(x, PH); c.stroke(); }
+        for (let y = 40; y < PH; y += 40) { c.beginPath(); c.moveTo(0, y); c.lineTo(PW, y); c.stroke(); }
+
+        // Main Left Cinema Viewfinder Frame
+        const vx = 32, vy = 48, vw = 560, vh = 376;
+        c.fillStyle = '#FAF7F0';
+        c.fillRect(vx, vy, vw, vh);
+        c.strokeStyle = '#111113';
+        c.lineWidth = 2;
+        c.strokeRect(vx, vy, vw, vh);
+
+        // Espresso hero inside viewfinder with subtle dolly zoom
+        const zoom = 0.96 + Math.sin(t * 0.85) * 0.10;
+        drawEspressoIllustration(c, vx + vw / 2, vy + vh / 2 + 12, zoom, '#FF4D00', t);
+
+        // Camera AF-C Corner Brackets inside Viewfinder
+        const bx = vx + 54, by = vy + 46, bw = vw - 108, bh = vh - 92;
+        c.strokeStyle = '#00F084';
+        c.lineWidth = 2.5;
+        [[bx, by, 1, 1], [bx + bw, by, -1, 1], [bx, by + bh, 1, -1], [bx + bw, by + bh, -1, -1]].forEach(([x, y, dx, dy]) => {
+          c.beginPath(); c.moveTo(x + dx * 22, y); c.lineTo(x, y); c.lineTo(x, y + dy * 22); c.stroke();
+        });
+
+        c.fillStyle = '#111113';
+        c.fillRect(vx + 12, vy + 12, 128, 22);
+        c.fillStyle = '#00F084';
+        c.font = '600 11px "IBM Plex Mono", monospace';
+        c.textAlign = 'left';
+        c.fillText('● AF-C LOCK · I2V', vx + 20, vy + 27);
+
+        // VLM Quality Pass Pill
+        c.fillStyle = '#00F084';
+        c.fillRect(vx + vw - 144, vy + 12, 132, 22);
+        c.fillStyle = '#111113';
+        c.fillText('VLM 98.4% PASS', vx + vw - 134, vy + 27);
+
+        // Right 2x2 Keyframe Contact Sheet (First -> Interp -> Last)
+        const sx = 618, sy = 48, cw = 148, ch = 112, gap = 14;
+        const frames = [
+          { lbl: 'KF-01 FIRST', col: '#FF4D00', sc: 0.42 },
+          { lbl: 'KF-02 MACRO', col: '#1835F5', sc: 0.50 },
+          { lbl: 'KF-03 STEAM', col: '#F5D547', sc: 0.46 },
+          { lbl: 'KF-04 LAST',  col: '#FF4D00', sc: 0.44 }
+        ];
+        const activeKf = Math.floor((t / PREVIEW_DURATION) * 4) % 4;
+
+        frames.forEach((f, i) => {
+          const fx = sx + (i % 2) * (cw + gap);
+          const fy = sy + Math.floor(i / 2) * (ch + gap + 18);
+          c.fillStyle = '#FFFFFF';
+          c.fillRect(fx, fy, cw, ch);
+          c.strokeStyle = i === activeKf ? '#FF4D00' : '#111113';
+          c.lineWidth = i === activeKf ? 2.5 : 1.2;
+          c.strokeRect(fx, fy, cw, ch);
+
+          c.save();
+          c.beginPath(); c.rect(fx + 2, fy + 2, cw - 4, ch - 4); c.clip();
+          drawEspressoIllustration(c, fx + cw / 2, fy + ch / 2 + 4, f.sc, f.col, t + i);
+          c.restore();
+
+          c.fillStyle = i === activeKf ? '#FF4D00' : '#111113';
+          c.font = '600 10px "IBM Plex Mono", monospace';
+          c.fillText(f.lbl, fx, fy + ch + 13);
+        });
+
+        // Optical First-to-Last Frame Interpolation Vector Strip at bottom right
+        const iy = 342;
+        c.fillStyle = '#141518';
+        c.fillRect(sx, iy, 310, 82);
+        c.fillStyle = '#F3EFE6';
+        c.font = '600 10px "IBM Plex Mono", monospace';
+        c.fillText('FIRST-LAST FRAME ANCHOR VECTOR', sx + 12, iy + 20);
+        const p = (t % 3.75) / 3.75;
+        c.strokeStyle = 'rgba(243,239,230,0.25)';
+        c.lineWidth = 2;
+        c.beginPath(); c.moveTo(sx + 20, iy + 52); c.lineTo(sx + 290, iy + 52); c.stroke();
+        c.strokeStyle = '#FF4D00';
+        c.beginPath(); c.moveTo(sx + 20, iy + 52); c.lineTo(sx + 20 + p * 270, iy + 52); c.stroke();
+        c.fillStyle = '#00F084';
+        c.beginPath(); c.arc(sx + 20 + p * 270, iy + 52, 5, 0, Math.PI * 2); c.fill();
+        c.fillStyle = '#F5D547';
+        c.fillText(`INTERP ${(p * 100).toFixed(0)}%`, sx + 216, iy + 72);
+
+        // Bottom Swiss Caption Strip
+        c.fillStyle = '#111113';
+        c.font = '600 12px "IBM Plex Mono", monospace';
+        c.fillText('ROUTE 01 // KEYFRAME I2V + FIRST-LAST FRAME ANCHOR — CYBER ESPRESSO 15.0S', 32, 466);
+        c.fillStyle = '#757168';
+        c.fillText(`SHOT ${activeKf + 1}/04 · 24MM ANAMORPHIC · CONSISTENCY LOCKED`, 32, 492);
+      }
+
+      /* --- ROUTE 02 PREVIEW: CODING VIDEO (DIA STUDIO BEZIER + LIVE CODE DIFF) --- */
+      function drawRouteCoding(c, t) {
+        c.fillStyle = '#F3EFE6';
+        c.fillRect(0, 0, PW, PH);
+
+        // Top Dark Swiss Telemetry Bar
+        c.fillStyle = '#141518';
+        c.fillRect(0, 0, PW, 38);
+        const frameNum = Math.min(450, Math.floor((t / PREVIEW_DURATION) * 450) + 1);
+        c.fillStyle = '#F3EFE6';
+        c.font = '600 11.5px "IBM Plex Mono", monospace';
+        c.textAlign = 'left';
+        c.fillText('ROUTE 02 // PROGRAMMATIC CODE RENDERER', 20, 23);
+        c.fillStyle = '#F5D547';
+        c.textAlign = 'right';
+        c.fillText(`FRM ${String(frameNum).padStart(3, '0')} / 450 · ${state.switches.step12 ? '12FPS' : '60FPS'}`, PW - 20, 23);
+        c.textAlign = 'left';
+
+        // Left Pane: Kinetic Typography + Live Bezier Espresso Pressure Curve
+        const splitX = 585;
+        c.strokeStyle = '#111113';
+        c.lineWidth = 2;
+        c.beginPath(); c.moveTo(splitX, 38); c.lineTo(splitX, PH); c.stroke();
+
+        // Elastic Variable-Width Kinetic Display Banner
+        const stretch = 0.88 + Math.sin(t * 2.8) * 0.16;
+        c.save();
+        c.translate(292, 134);
+        c.scale(stretch, 1);
+        c.font = '700 66px "Instrument Serif", Georgia, serif';
+        c.fillStyle = '#111113';
+        c.textAlign = 'center';
+        c.fillText('CYBER ESPRESSO', 0, 0);
+        c.restore();
+
+        c.fillStyle = '#1835F5';
+        c.fillRect(28, 166, 224, 24);
+        c.fillStyle = '#FFFFFF';
+        c.font = '600 11px "IBM Plex Mono", monospace';
+        c.fillText('ZERO-DISTORTION TYPE // 15.0S', 36, 182);
+
+        // Live Bezier Extraction Pressure Curve with Tangent Handles
+        const p0 = [54, 430], p3 = [530, 246];
+        const h1x = 185 + Math.sin(t * 1.9) * 52, h1y = 240 + Math.cos(t * 1.6) * 28;
+        const h2x = 395 + Math.cos(t * 1.7) * 46, h2y = 435 + Math.sin(t * 2.1) * 26;
+
+        // Curve coordinate axes
+        c.strokeStyle = 'rgba(17,17,19,0.22)';
+        c.lineWidth = 1;
+        for (let gy = 230; gy <= 440; gy += 35) {
+          c.beginPath(); c.moveTo(42, gy); c.lineTo(545, gy); c.stroke();
+        }
+
+        // Tangent lines (Klein Cobalt)
+        c.strokeStyle = '#1835F5';
+        c.lineWidth = 1.5;
+        c.setLineDash([5, 4]);
+        c.beginPath();
+        c.moveTo(p0[0], p0[1]); c.lineTo(h1x, h1y);
+        c.moveTo(p3[0], p3[1]); c.lineTo(h2x, h2y);
+        c.stroke();
+        c.setLineDash([]);
+
+        // Main Cubic Bezier Curve (Braun Orange)
+        c.strokeStyle = '#FF4D00';
+        c.lineWidth = 4;
+        c.beginPath();
+        c.moveTo(p0[0], p0[1]);
+        c.bezierCurveTo(h1x, h1y, h2x, h2y, p3[0], p3[1]);
+        c.stroke();
+
+        // Moving Playhead Point along Curve
+        const u = (t % 3.0) / 3.0;
+        const inv = 1 - u;
+        const bx = inv**3*p0[0] + 3*inv**2*u*h1x + 3*inv*u**2*h2x + u**3*p3[0];
+        const by = inv**3*p0[1] + 3*inv**2*u*h1y + 3*inv*u**2*h2y + u**3*p3[1];
+        c.fillStyle = '#111113';
+        c.beginPath(); c.arc(bx, by, 7, 0, Math.PI * 2); c.fill();
+
+        // Control Handles
+        [[h1x, h1y], [h2x, h2y]].forEach(([hx, hy]) => {
+          c.fillStyle = '#1835F5';
+          c.beginPath(); c.arc(hx, hy, 5, 0, Math.PI * 2); c.fill();
+        });
+        [p0, p3].forEach(([ax, ay]) => {
+          c.fillStyle = '#FFFFFF';
+          c.fillRect(ax - 5, ay - 5, 10, 10);
+          c.strokeStyle = '#111113'; c.lineWidth = 1.8;
+          c.strokeRect(ax - 5, ay - 5, 10, 10);
+        });
+
+        c.fillStyle = '#111113';
+        c.font = '600 11px "IBM Plex Mono", monospace';
+        c.fillText(`PRESSURE CURVE: ${(8.2 + Math.sin(t * 2) * 1.1).toFixed(2)} BAR`, 54, 484);
+
+        // Right Pane: Live + / - Code Diff
+        c.fillStyle = '#FAF7F0';
+        c.fillRect(splitX + 2, 38, PW - splitX - 2, PH - 38);
+        c.fillStyle = '#757168';
+        c.font = '600 11px "IBM Plex Mono", monospace';
+        c.fillText('LIVE DIFF — cyber_espresso.tsx', splitX + 18, 72);
+
+        const diffLines = [
+          { kind: ' ', txt: 'export const EspressoScene = () => {' },
+          { kind: '-', txt: '  const ease = linear(frame);' },
+          { kind: '+', txt: '  const ease = spring({' },
+          { kind: '+', txt: '    stiffness: 220, damping: 22' },
+          { kind: '+', txt: '  });' },
+          { kind: ' ', txt: '  return (' },
+          { kind: '-', txt: '    <BlurGlow opacity={0.8} />' },
+          { kind: '+', txt: '    <SwissGrid title="CYBER" />' },
+          { kind: '+', txt: `    <PressureBar bar={${(9.0 + Math.sin(t) * 0.4).toFixed(1)}} />` },
+          { kind: ' ', txt: '  );' },
+          { kind: ' ', txt: '};' }
+        ];
+
+        c.font = '500 13px "IBM Plex Mono", monospace';
+        diffLines.forEach((ln, i) => {
+          const ly = 114 + i * 34;
+          if (ln.kind === '+') {
+            c.fillStyle = 'rgba(0, 240, 132, 0.18)';
+            c.fillRect(splitX + 14, ly - 18, PW - splitX - 28, 26);
+            c.fillStyle = '#008A4B';
+            c.fillRect(splitX + 14, ly - 18, 4, 26);
+            c.fillText(`+ ${ln.txt}`, splitX + 24, ly);
+          } else if (ln.kind === '-') {
+            c.fillStyle = 'rgba(255, 77, 0, 0.14)';
+            c.fillRect(splitX + 14, ly - 18, PW - splitX - 28, 26);
+            c.fillStyle = '#C43800';
+            c.fillRect(splitX + 14, ly - 18, 4, 26);
+            c.fillText(`- ${ln.txt}`, splitX + 24, ly);
+          } else {
+            c.fillStyle = '#111113';
+            c.fillText(`  ${ln.txt}`, splitX + 24, ly);
+          }
+        });
+      }
+
+      /* --- ROUTE 03 PREVIEW: FFMPEG HYBRID 12FPS COLLAGE + KEN BURNS + LASER SCAN --- */
+      function drawRouteFfmpeg(c, t) {
+        // Authentic 12fps quantized desk cadence inside FFmpeg Animatic Collage
+        const t12 = Math.floor(t * 12) / 12;
+
+        // Cutting-mat desk surface
+        c.fillStyle = '#E8E3D8';
+        c.fillRect(0, 0, PW, PH);
+        c.strokeStyle = 'rgba(17,17,19,0.1)';
+        c.lineWidth = 1;
+        for (let x = 0; x < PW; x += 36) { c.beginPath(); c.moveTo(x, 0); c.lineTo(x, PH); c.stroke(); }
+        for (let y = 0; y < PH; y += 36) { c.beginPath(); c.moveTo(0, y); c.lineTo(PW, y); c.stroke(); }
+
+        // Tilted Archival Polaroid Stills on the desk
+        const stills = [
+          { x: 185, y: 215, rot: -0.06, col: '#FF4D00', tag: 'STILL_01.PNG' },
+          { x: 475, y: 235, rot: 0.04,  col: '#1835F5', tag: 'STILL_02.PNG' },
+          { x: 765, y: 215, rot: -0.05, col: '#F5D547', tag: 'STILL_03.PNG' }
+        ];
+        stills.forEach((s, idx) => {
+          const jx = (Math.sin(t12 * 17 + idx * 5) * 2);
+          const jy = (Math.cos(t12 * 13 + idx * 3) * 2);
+          c.save();
+          c.translate(s.x + jx, s.y + jy);
+          c.rotate(s.rot);
+          c.fillStyle = '#FFFFFF';
+          c.fillRect(-115, -110, 230, 235);
+          c.strokeStyle = '#111113';
+          c.lineWidth = 2;
+          c.strokeRect(-115, -110, 230, 235);
+          c.fillStyle = '#FAF7F0';
+          c.fillRect(-100, -95, 200, 175);
+          drawEspressoIllustration(c, 0, -4, 0.56, s.col, t12 + idx);
+          c.fillStyle = '#111113';
+          c.font = '600 11px "IBM Plex Mono", monospace';
+          c.textAlign = 'left';
+          c.fillText(s.tag, -98, 108);
+          c.restore();
+        });
+
+        // Animated Ken Burns Camera Crop Rectangle (Braun Orange)
+        const kbX = 95 + (Math.sin(t * 0.7) * 0.5 + 0.5) * 440;
+        const kbY = 95 + (Math.cos(t * 0.9) * 0.5 + 0.5) * 90;
+        const kbW = 310 - Math.sin(t * 0.8) * 32;
+        const kbH = kbW * 9 / 16;
+        c.strokeStyle = '#FF4D00';
+        c.lineWidth = 2.5;
+        c.setLineDash([8, 5]);
+        c.strokeRect(kbX, kbY, kbW, kbH);
+        c.setLineDash([]);
+        c.fillStyle = '#FF4D00';
+        c.fillRect(kbX, kbY - 20, 148, 20);
+        c.fillStyle = '#FFFFFF';
+        c.font = '600 10px "IBM Plex Mono", monospace';
+        c.fillText('KEN BURNS CROP 16:9', kbX + 8, kbY - 6);
+
+        // Sweeping Diagonal Klein Cobalt Optical Scan Beam
+        const beamX = ((t * 180) % (PW + 340)) - 120;
+        c.save();
+        c.strokeStyle = '#1835F5';
+        c.lineWidth = 4;
+        c.shadowColor = '#1835F5';
+        c.shadowBlur = 18;
+        c.beginPath();
+        c.moveTo(beamX, 0);
+        c.lineTo(beamX - 180, PH);
+        c.stroke();
+        c.restore();
+
+        // Bottom FFmpeg Filter Chain & Audio Bars Console
+        c.fillStyle = '#141518';
+        c.fillRect(24, 412, PW - 48, 104);
+        c.strokeStyle = '#111113';
+        c.lineWidth = 1.5;
+        c.strokeRect(24, 412, PW - 48, 104);
+
+        c.fillStyle = '#00F084';
+        c.font = '600 11.5px "IBM Plex Mono", monospace';
+        c.fillText('FFMPEG FILTER CHAIN // ACTIVE', 42, 438);
+        c.fillStyle = '#F3EFE6';
+        c.font = '500 13px "IBM Plex Mono", monospace';
+        c.fillText('-vf "scale=1920:1080, zoompan=z=\'min(zoom+0.0015,1.25)\', eq=contrast=1.08, rgbashift=rh=3, amix=inputs=2"', 42, 466);
+
+        // Beat-synced Audio Bars
+        const barBaseX = 42;
+        for (let b = 0; b < 42; b++) {
+          const val = Math.abs(Math.sin(t * 7.5 + b * 0.45) * Math.cos(t * 3.1 - b * 0.2));
+          const bh = 4 + val * 22;
+          c.fillStyle = val > 0.72 ? '#FF4D00' : (val > 0.42 ? '#F5D547' : '#00F084');
+          c.fillRect(barBaseX + b * 14, 502 - bh, 9, bh);
+        }
+      }
+
+      /* --- MASTER 16:9 PREVIEW COMPOSITOR (RESPECTS 4 HARDWARE SWITCHES) --- */
+      function renderPreview() {
+        const effT = state.switches.step12 ? Math.floor(state.t * 12) / 12 : state.t;
+
+        if (state.route === 'model') drawRouteModel(oCtx, effT);
+        else if (state.route === 'coding') drawRouteCoding(oCtx, effT);
+        else drawRouteFfmpeg(oCtx, effT);
+
+        pCtx.drawImage(offCanvas, 0, 0);
+
+        // Switch 1: FLUTED GLASS vertical refraction ribs
+        if (state.switches.fluted) {
+          const gw = 230;
+          const gx = (Math.sin(effT * 0.75) * 0.5 + 0.5) * (PW - gw);
+          const rib = 14;
+          const count = Math.floor(gw / rib);
+          for (let i = 0; i < count; i++) {
+            const rx = gx + i * rib;
+            const srcX = Math.max(0, Math.min(PW - rib, rx + Math.sin(i * 0.65 + effT * 2.1) * 9 + 7));
+            pCtx.drawImage(offCanvas, srcX, 0, rib, PH, rx, 0, rib, PH);
+            const grad = pCtx.createLinearGradient(rx, 0, rx + rib, 0);
+            grad.addColorStop(0, 'rgba(255,255,255,0.4)');
+            grad.addColorStop(0.5, 'rgba(255,255,255,0.03)');
+            grad.addColorStop(1, 'rgba(17,17,19,0.16)');
+            pCtx.fillStyle = grad;
+            pCtx.fillRect(rx, 0, rib, PH);
+          }
+          pCtx.strokeStyle = 'rgba(17,17,19,0.28)';
+          pCtx.lineWidth = 1.5;
+          pCtx.strokeRect(gx, 0, gw, PH);
+        }
+
+        // Switch 4: HALFTONE dot print pass
+        if (state.switches.halftone) {
+          const pat = pCtx.createPattern(htCanvas, 'repeat');
+          if (pat) {
+            pCtx.fillStyle = pat;
+            pCtx.fillRect(0, 0, PW, PH);
+          }
+        }
+
+        // Switch 3: CRT SCOPE Phosphor Emerald overlay
+        if (state.switches.crt) {
+          pCtx.save();
+          pCtx.fillStyle = 'rgba(7, 16, 12, 0.26)';
+          pCtx.fillRect(0, 0, PW, PH);
+          pCtx.fillStyle = 'rgba(0, 240, 132, 0.08)';
+          for (let y = 0; y < PH; y += 4) pCtx.fillRect(0, y, PW, 1.2);
+          pCtx.strokeStyle = '#00F084';
+          pCtx.lineWidth = 2.2;
+          pCtx.beginPath();
+          for (let x = 0; x <= PW; x += 10) {
+            const u = x / PW;
+            const y = PH / 2 + Math.sin(u * 20 - effT * 6) * 58 * Math.sin(u * Math.PI);
+            if (x === 0) pCtx.moveTo(x, y); else pCtx.lineTo(x, y);
+          }
+          pCtx.stroke();
+          pCtx.restore();
+        }
+      }
+
+      /* --- RENDER ANALOG NEEDLE VU METER --- */
+      function renderVU(nowSec) {
+        const w = 220, h = 92;
+        vuCtx.fillStyle = '#F9F5EA';
+        vuCtx.fillRect(0, 0, w, h);
+
+        const px = w / 2, py = h + 16, r = 74;
+        vuCtx.strokeStyle = '#111113';
+        vuCtx.lineWidth = 1.6;
+        vuCtx.beginPath(); vuCtx.arc(px, py, r, -Math.PI * 0.78, -Math.PI * 0.36); vuCtx.stroke();
+        vuCtx.strokeStyle = '#FF4D00';
+        vuCtx.lineWidth = 3.4;
+        vuCtx.beginPath(); vuCtx.arc(px, py, r, -Math.PI * 0.36, -Math.PI * 0.22); vuCtx.stroke();
+
+        vuCtx.font = '600 8px "IBM Plex Mono", monospace';
+        vuCtx.textAlign = 'center';
+        ['-20', '-10', '-5', '0', '+3'].forEach((lbl, i) => {
+          const a = -Math.PI * 0.76 + (i / 4) * (Math.PI * 0.52);
+          vuCtx.fillStyle = i >= 3 ? '#FF4D00' : '#111113';
+          vuCtx.fillText(lbl, px + Math.cos(a) * (r + 10), py + Math.sin(a) * (r + 10));
+        });
+
+        vuCtx.fillStyle = '#111113';
+        vuCtx.font = '700 12px "IBM Plex Mono", monospace';
+        vuCtx.fillText('VU', px, 64);
+
+        // Smooth decay + playback pulse
+        const base = state.playing ? (0.24 + Math.pow(Math.sin(nowSec * 6.4) * 0.5 + 0.5, 3) * 0.34) : 0.1;
+        state.vuEnergy = Math.max(base, state.vuEnergy * 0.92);
+        const ang = -Math.PI * 0.75 + Math.min(1, state.vuEnergy) * (Math.PI * 0.52);
+
+        vuCtx.strokeStyle = '#FF4D00';
+        vuCtx.lineWidth = 2.2;
+        vuCtx.beginPath();
+        vuCtx.moveTo(px, py);
+        vuCtx.lineTo(px + Math.cos(ang) * (r + 3), py + Math.sin(ang) * (r + 3));
+        vuCtx.stroke();
+      }
+
+      /* --- RENDER DUAL-BEAM PHOSPHOR EMERALD CRT OSCILLOSCOPE --- */
+      function renderCRT(nowSec) {
+        const w = 220, h = 92;
+        crtCtx.fillStyle = '#07100C';
+        crtCtx.fillRect(0, 0, w, h);
+
+        // Etched graticule grid
+        crtCtx.strokeStyle = 'rgba(0, 240, 132, 0.15)';
+        crtCtx.lineWidth = 1;
+        for (let x = 22; x < w; x += 22) { crtCtx.beginPath(); crtCtx.moveTo(x, 0); crtCtx.lineTo(x, h); crtCtx.stroke(); }
+        for (let y = 23; y < h; y += 23) { crtCtx.beginPath(); crtCtx.moveTo(0, y); crtCtx.lineTo(w, y); crtCtx.stroke(); }
+
+        // Distinct frequency & Lissajous geometry per route
+        const cfg = state.route === 'model'
+          ? { f1: 10, f2: 18, speed: 3.4, lissA: 2, lissB: 3 }
+          : state.route === 'coding'
+            ? { f1: 20, f2: 32, speed: 5.8, lissA: 3, lissB: 4 }
+            : { f1: 14, f2: 26, speed: 4.6, lissA: 4, lissB: 5 };
+
+        // Beam 1: Primary Harmonic Trace
+        crtCtx.strokeStyle = '#00F084';
+        crtCtx.lineWidth = 1.8;
+        crtCtx.beginPath();
+        for (let x = 0; x <= w; x += 3) {
+          const u = x / w;
+          const env = Math.sin(u * Math.PI);
+          const y = h / 2 + Math.sin(u * cfg.f1 - nowSec * cfg.speed) * 28 * env;
+          if (x === 0) crtCtx.moveTo(x, y); else crtCtx.lineTo(x, y);
+        }
+        crtCtx.stroke();
+
+        // Beam 2: Lissajous Phase Figure Overlay
+        crtCtx.strokeStyle = 'rgba(0, 240, 132, 0.45)';
+        crtCtx.lineWidth = 1.2;
+        crtCtx.beginPath();
+        for (let i = 0; i <= 64; i++) {
+          const a = (i / 64) * Math.PI * 2;
+          const lx = w / 2 + Math.sin(a * cfg.lissA + nowSec * 2.2) * 34;
+          const ly = h / 2 + Math.sin(a * cfg.lissB) * 26;
+          if (i === 0) crtCtx.moveTo(lx, ly); else crtCtx.lineTo(lx, ly);
+        }
+        crtCtx.stroke();
+      }
+
+      /* -----------------------------------------------------------------------
+         9. ARTIFACT STRIP DIAGONAL OPTICAL SCANNER & MAIN LOOP
+         ----------------------------------------------------------------------- */
+      const scanBeam = document.getElementById('artifact-scan-beam');
+      const scanText = document.getElementById('artifact-scan-text');
+      const artList = Array.from(artifactCards);
+
+      let lastNow = performance.now();
+
+      function tick(now) {
+        const dt = Math.min(0.05, (now - lastNow) / 1000);
+        lastNow = now;
+        const sec = now / 1000;
+
+        // 1. Hero & CTA Fluted Glass Smooth Glide
+        const hRect = heroSpread.getBoundingClientRect();
+        if (!heroHover && !reducedMotion && hRect.width > 280) {
+          const span = Math.max(20, hRect.width - (heroGlass.offsetWidth || 240));
+          heroGlassTarget = (Math.sin(sec * 0.52) * 0.5 + 0.5) * span;
+        }
+        heroGlassCurr += (heroGlassTarget - heroGlassCurr) * 0.12;
+        heroGlass.style.transform = `translate3d(${heroGlassCurr.toFixed(1)}px, 0, 0)`;
+        glassReadout.textContent = `FLUTED RIB X: ${String(Math.round(heroGlassCurr)).padStart(4, '0')}px · n = 1.52`;
+
+        const cRect = ctaPanel.getBoundingClientRect();
+        if (!ctaHover && !reducedMotion && cRect.width > 280) {
+          const cSpan = Math.max(20, cRect.width - (ctaSweep.offsetWidth || 260));
+          ctaSweepTarget = (Math.sin(sec * 0.45 + 1.2) * 0.5 + 0.5) * cSpan;
+        }
+        ctaSweepCurr += (ctaSweepTarget - ctaSweepCurr) * 0.1;
+        ctaSweep.style.transform = `translate3d(${ctaSweepCurr.toFixed(1)}px, 0, 0)`;
+
+        // 2. Artifact Strip Optical Scanner Sweep
+        if (!reducedMotion) {
+          const pct = ((sec * 15) % 116) - 8;
+          scanBeam.style.left = `${pct}%`;
+          const normX = Math.max(0, Math.min(1, pct / 100));
+          const hitIdx = Math.min(artList.length - 1, Math.floor(normX * artList.length));
+          let lockTag = 'IDLE';
+          artList.forEach((el, idx) => {
+            const hit = pct >= 2 && pct <= 98 && idx === hitIdx;
+            el.classList.toggle('is-scanned', hit);
+            if (hit) lockTag = el.dataset.scan;
+          });
+          scanText.textContent = `OPTICAL SCAN: X ${String(Math.round(normX * 1260)).padStart(4, '0')} · LOCK [${lockTag}]`;
+        }
+
+        // 3. Advance Workbench 15.0s Timeline
+        if (state.playing && !state.scrubbing) {
+          state.t = (state.t + dt) % PREVIEW_DURATION;
+        }
+        const pctTime = (state.t / PREVIEW_DURATION) * 100;
+        nleFill.style.width = `${pctTime.toFixed(2)}%`;
+        nlePlayhead.style.left = `${pctTime.toFixed(2)}%`;
+        nleTimeEl.textContent = `00:${state.t.toFixed(1).padStart(4, '0')} / 00:15.0`;
+        nleScrubber.setAttribute('aria-valuenow', state.t.toFixed(1));
+
+        // 4. Render Canvases
+        renderPreview();
+        renderVU(sec);
+        renderCRT(sec);
+
+        requestAnimationFrame(tick);
+      }
+
+      // Initialize cleanly on load
+      window.addEventListener('load', () => {
+        renderRoute('model', null, false);
+        syncCanvasSize(previewCanvas, pCtx, PW, PH);
+        syncCanvasSize(vuCanvas, vuCtx, 220, 92);
+        syncCanvasSize(crtCanvas, crtCtx, 220, 92);
+        lastNow = performance.now();
+        requestAnimationFrame(tick);
+      });
+    })();
+  </script>
+</body>
+</html>
